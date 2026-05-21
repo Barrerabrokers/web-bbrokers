@@ -1,31 +1,75 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export function HeroSection() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      setVideoLoaded(true);
+      video.play().catch((err) => {
+        console.log("Autoplay prevented:", err);
+      });
+    };
+
+    video.addEventListener("canplay", handleCanPlay);
+    video.load();
+
+    return () => {
+      video.removeEventListener("canplay", handleCanPlay);
+    };
+  }, []);
+
   return (
     <section
       id="inicio"
-      className="relative h-screen min-h-[700px] flex items-center justify-center overflow-hidden"
+      className="relative h-screen min-h-[700px] flex items-center justify-center overflow-hidden bg-charcoal-900"
     >
       {/* Background Video */}
       <div className="absolute inset-0 z-0">
         <video
+          ref={videoRef}
           autoPlay
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80"
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover transition-opacity duration-1000 ${
+            videoLoaded ? "opacity-100" : "opacity-0"
+          }`}
         >
-          {/* Buenos Aires aerial view - Pexels free license */}
+          {/* Multiple sources for reliability - Aerial cityscape */}
           <source
-            src="https://videos.pexels.com/video-files/4763824/4763824-hd_1920_1080_30fps.mp4"
+            src="https://videos.pexels.com/video-files/2034115/2034115-hd_1920_1080_30fps.mp4"
             type="video/mp4"
           />
-          Tu navegador no soporta videos HTML5.
+          <source
+            src="https://videos.pexels.com/video-files/4763824/4763824-uhd_2732_1440_25fps.mp4"
+            type="video/mp4"
+          />
+          <source
+            src="https://videos.pexels.com/video-files/3209828/3209828-uhd_3840_2160_25fps.mp4"
+            type="video/mp4"
+          />
         </video>
+
+        {/* Fallback image while video loads */}
+        {!videoLoaded && (
+          <div
+            className="absolute inset-0 bg-cover bg-center animate-slow-zoom"
+            style={{
+              backgroundImage:
+                "url(https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80)",
+            }}
+          />
+        )}
 
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/80" />
@@ -62,7 +106,10 @@ export function HeroSection() {
             <a href="#propiedades" className="btn-outline-light">
               Ver Propiedades
             </a>
-            <a href="#contacto" className="text-white label-tracking hover:text-gold-400 transition-colors px-6 py-4">
+            <a
+              href="#contacto"
+              className="text-white label-tracking hover:text-gold-400 transition-colors px-6 py-4"
+            >
               Contactar -&gt;
             </a>
           </div>
@@ -79,16 +126,28 @@ export function HeroSection() {
         <div className="container-custom py-6">
           <div className="grid grid-cols-3 gap-8 text-center text-white">
             <div>
-              <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">500+</div>
-              <div className="label-tracking text-white/70 text-[10px]">Propiedades</div>
+              <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">
+                500+
+              </div>
+              <div className="label-tracking text-white/70 text-[10px]">
+                Propiedades
+              </div>
             </div>
             <div className="border-x border-white/20">
-              <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">1,200+</div>
-              <div className="label-tracking text-white/70 text-[10px]">Clientes</div>
+              <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">
+                1,200+
+              </div>
+              <div className="label-tracking text-white/70 text-[10px]">
+                Clientes
+              </div>
             </div>
             <div>
-              <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">20+</div>
-              <div className="label-tracking text-white/70 text-[10px]">Anos</div>
+              <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">
+                20+
+              </div>
+              <div className="label-tracking text-white/70 text-[10px]">
+                Anos
+              </div>
             </div>
           </div>
         </div>

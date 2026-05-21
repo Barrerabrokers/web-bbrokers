@@ -10,7 +10,7 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link href="/" className="inline-block mb-6 group">
-              <div className="relative h-32 w-40">
+              <div className="relative h-40 w-40">
                 <Image
                   src="/logo.png"
                   alt="Barrera Brokers"
