@@ -37,22 +37,14 @@ export function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center group">
-            <div className="relative h-14 w-14 md:h-16 md:w-16 transition-all duration-300">
+            <div className="relative h-12 w-32 md:h-14 md:w-40 transition-all duration-300">
               <Image
-                src="/logo.svg"
+                src="/logo.png"
                 alt="Barrera Brokers"
                 fill
                 priority
-                className="object-contain"
+                className="object-contain object-left"
               />
-            </div>
-            <div className="ml-3 hidden sm:block">
-              <span className="heading-serif text-lg md:text-xl text-white tracking-widest leading-none block">
-                BARRERA
-              </span>
-              <span className="heading-serif text-xs md:text-sm text-gold-400 tracking-[0.3em] leading-none block mt-1">
-                BROKERS
-              </span>
             </div>
           </Link>
 

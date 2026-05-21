@@ -9,22 +9,14 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           {/* Brand */}
           <div className="md:col-span-2">
-            <Link href="/" className="flex items-center mb-6 group">
-              <div className="relative h-20 w-20 mr-4">
+            <Link href="/" className="inline-block mb-6 group">
+              <div className="relative h-32 w-40">
                 <Image
-                  src="/logo.svg"
+                  src="/logo.png"
                   alt="Barrera Brokers"
                   fill
-                  className="object-contain"
+                  className="object-contain object-left"
                 />
-              </div>
-              <div>
-                <span className="heading-serif text-xl text-white tracking-widest leading-none block">
-                  BARRERA
-                </span>
-                <span className="heading-serif text-sm text-gold-400 tracking-[0.3em] leading-none block mt-1">
-                  BROKERS
-                </span>
               </div>
             </Link>
             <p className="text-white/60 font-light leading-relaxed max-w-md mb-8">
