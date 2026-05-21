@@ -45,23 +45,8 @@ export function HeroSection() {
             videoLoaded ? "opacity-100" : "opacity-0"
           }`}
         >
-          {/* Video Buenos Aires - Pexels ID: 32119232 - free license */}
-          <source
-            src="https://videos.pexels.com/video-files/32119232/32119232-hd_1920_1080_30fps.mp4"
-            type="video/mp4"
-          />
-          <source
-            src="https://videos.pexels.com/video-files/32119232/32119232-uhd_2732_1440_30fps.mp4"
-            type="video/mp4"
-          />
-          <source
-            src="https://videos.pexels.com/video-files/32119232/32119232-hd_1280_720_30fps.mp4"
-            type="video/mp4"
-          />
-          <source
-            src="https://videos.pexels.com/video-files/32119232/32119232-uhd_3840_2160_30fps.mp4"
-            type="video/mp4"
-          />
+          {/* Video local de Buenos Aires - mas rapido y confiable */}
+          <source src="/buenos-aires.mp4" type="video/mp4" />
         </video>
 
         {/* Fallback image while video loads */}
