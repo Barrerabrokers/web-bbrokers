@@ -45,17 +45,21 @@ export function HeroSection() {
             videoLoaded ? "opacity-100" : "opacity-0"
           }`}
         >
-          {/* Multiple sources for reliability - Aerial cityscape */}
+          {/* Video Buenos Aires - Pexels ID: 32119232 - free license */}
           <source
-            src="https://videos.pexels.com/video-files/2034115/2034115-hd_1920_1080_30fps.mp4"
+            src="https://videos.pexels.com/video-files/32119232/32119232-hd_1920_1080_30fps.mp4"
             type="video/mp4"
           />
           <source
-            src="https://videos.pexels.com/video-files/4763824/4763824-uhd_2732_1440_25fps.mp4"
+            src="https://videos.pexels.com/video-files/32119232/32119232-uhd_2732_1440_30fps.mp4"
             type="video/mp4"
           />
           <source
-            src="https://videos.pexels.com/video-files/3209828/3209828-uhd_3840_2160_25fps.mp4"
+            src="https://videos.pexels.com/video-files/32119232/32119232-hd_1280_720_30fps.mp4"
+            type="video/mp4"
+          />
+          <source
+            src="https://videos.pexels.com/video-files/32119232/32119232-uhd_3840_2160_30fps.mp4"
             type="video/mp4"
           />
         </video>
