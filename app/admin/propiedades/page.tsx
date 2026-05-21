@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import Image from "next/image";
+import { Plus, Edit, Trash2, Eye, Building2 } from "lucide-react";
 import { getProperties } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 
@@ -62,11 +63,12 @@ export default async function PropertiesAdminPage() {
             className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
           >
             <div className="md:flex">
-              <div className="md:w-64 h-48 md:h-auto">
-                <img
+              <div className="md:w-64 h-48 md:h-auto relative">
+                <Image
                   src={property.images[0]}
                   alt={property.title}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
               </div>
 
