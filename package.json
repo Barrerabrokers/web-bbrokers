@@ -2,6 +2,9 @@
   "name": "web-bbrokers",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.17.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,28 +12,28 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^14.2.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "next-auth": "^4.24.0",
-    "bcryptjs": "^2.4.3",
-    "zod": "^3.23.0",
-    "react-hook-form": "^7.51.0",
-    "@hookform/resolvers": "^3.3.0",
-    "lucide-react": "^0.394.0",
-    "clsx": "^2.1.0",
-    "tailwind-merge": "^2.3.0"
+    "next": "14.2.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "next-auth": "4.24.7",
+    "bcryptjs": "2.4.3",
+    "zod": "3.23.8",
+    "react-hook-form": "7.52.1",
+    "@hookform/resolvers": "3.9.0",
+    "lucide-react": "0.394.0",
+    "clsx": "2.1.1",
+    "tailwind-merge": "2.4.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "@types/node": "^20.12.0",
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
-    "@types/bcryptjs": "^2.4.6",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
-    "autoprefixer": "^10.4.0",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0"
+    "typescript": "5.5.3",
+    "@types/node": "20.14.10",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@types/bcryptjs": "2.4.6",
+    "tailwindcss": "3.4.4",
+    "postcss": "8.4.39",
+    "autoprefixer": "10.4.19",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5"
   }
 }
