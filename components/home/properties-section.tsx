@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, Bed, Bath, Square, ArrowRight } from "lucide-react";
 import { getProperties } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
@@ -30,10 +31,11 @@ export async function PropertiesSection() {
               className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
             >
               <div className="relative h-64 overflow-hidden">
-                <img
+                <Image
                   src={property.images[0]}
                   alt={property.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-300"
                 />
                 <div className="absolute top-4 left-4">
                   <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-semibold capitalize">

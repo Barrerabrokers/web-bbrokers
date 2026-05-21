@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Award, Users, TrendingUp, Shield } from "lucide-react";
 
 const stats = [
@@ -86,11 +87,12 @@ export function AboutSection() {
             </div>
           </div>
 
-          <div className="relative">
-            <img
+          <div className="relative h-[400px] md:h-[500px]">
+            <Image
               src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800"
               alt="Equipo Barrera Brokers"
-              className="rounded-2xl shadow-2xl"
+              fill
+              className="rounded-2xl shadow-2xl object-cover"
             />
             <div className="absolute -bottom-6 -left-6 bg-primary-600 text-white p-6 rounded-xl shadow-xl">
               <div className="text-3xl font-bold">+500</div>
@@ -113,11 +115,12 @@ export function AboutSection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member, index) => (
               <div key={index} className="text-center group">
-                <div className="relative mb-4 overflow-hidden rounded-xl">
-                  <img
+                <div className="relative mb-4 overflow-hidden rounded-xl h-64">
+                  <Image
                     src={member.image}
                     alt={member.name}
-                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>

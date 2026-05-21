@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Search, TrendingUp, Shield, Award } from "lucide-react";
 
 export function HeroSection() {
@@ -60,11 +61,12 @@ export function HeroSection() {
 
           {/* Right Content - Image/Features */}
           <div className="relative">
-            <div className="bg-primary-600 rounded-2xl overflow-hidden shadow-2xl">
-              <img
+            <div className="bg-primary-600 rounded-2xl overflow-hidden shadow-2xl relative h-[400px] md:h-[500px]">
+              <Image
                 src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800"
                 alt="Propiedad destacada"
-                className="w-full h-[400px] md:h-[500px] object-cover"
+                fill
+                className="object-cover"
               />
             </div>
             

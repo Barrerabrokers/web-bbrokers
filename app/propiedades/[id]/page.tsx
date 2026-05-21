@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getPropertyById } from "@/lib/db";
@@ -40,10 +41,11 @@ export default async function PropertyDetailPage({
               {/* Image Gallery */}
               <div className="space-y-4">
                 <div className="relative h-[500px] rounded-2xl overflow-hidden">
-                  <img
+                  <Image
                     src={property.images[0]}
                     alt={property.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                   <div className="absolute top-4 left-4">
                     <span className="bg-primary-600 text-white px-4 py-2 rounded-full text-sm font-semibold capitalize">
@@ -55,11 +57,12 @@ export default async function PropertyDetailPage({
                 {property.images.length > 1 && (
                   <div className="grid grid-cols-4 gap-4">
                     {property.images.slice(1, 5).map((image, index) => (
-                      <div key={index} className="h-24 rounded-lg overflow-hidden">
-                        <img
+                      <div key={index} className="h-24 rounded-lg overflow-hidden relative">
+                        <Image
                           src={image}
                           alt={`${property.title} ${index + 2}`}
-                          className="w-full h-full object-cover hover:scale-110 transition-transform cursor-pointer"
+                          fill
+                          className="object-cover hover:scale-110 transition-transform cursor-pointer"
                         />
                       </div>
                     ))}
