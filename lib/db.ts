@@ -63,7 +63,7 @@ let agents: Agent[] = [
     id: "1",
     name: "Admin Barrera",
     email: "admin@barrerabrokers.com",
-    password: "$2a$10$YourHashedPasswordHere", // En producción: bcrypt.hash
+    password: "admin123", // Password en texto plano para demo
     phone: "+54 11 1234-5678",
     role: "admin",
     createdAt: new Date("2024-01-01"),

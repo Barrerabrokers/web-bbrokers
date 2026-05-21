@@ -1,82 +1,76 @@
-import { Building, Home, TrendingUp, Key, DollarSign, Sparkles } from "lucide-react";
-
 const services = [
   {
-    icon: Building,
+    number: "01",
     title: "En Desarrollo",
-    description: "Proyectos en construcción con financiación especial y entrega programada.",
-    color: "blue",
+    description: "Proyectos en construcción con financiación especial y entregas programadas en ubicaciones premium.",
   },
   {
-    icon: Home,
+    number: "02",
     title: "En Pozo",
-    description: "Inversiones en etapa inicial con los mejores precios y condiciones de pago.",
-    color: "green",
+    description: "Inversiones en etapa inicial con los mejores precios y condiciones de pago flexibles.",
   },
   {
-    icon: Key,
+    number: "03",
     title: "Usados",
-    description: "Propiedades listas para escriturar e ingresar inmediatamente.",
-    color: "purple",
+    description: "Propiedades listas para escriturar e ingresar, cuidadosamente seleccionadas.",
   },
   {
-    icon: DollarSign,
+    number: "04",
     title: "Alquileres",
-    description: "Opciones de renta temporaria y permanente en las mejores ubicaciones.",
-    color: "orange",
+    description: "Opciones de renta temporaria y permanente en las ubicaciones más cotizadas.",
   },
   {
-    icon: TrendingUp,
+    number: "05",
     title: "Inversiones",
-    description: "Oportunidades de inversión inmobiliaria con alto retorno garantizado.",
-    color: "red",
+    description: "Oportunidades de inversión inmobiliaria con alto retorno y proyección.",
   },
   {
-    icon: Sparkles,
+    number: "06",
     title: "Oportunidades",
     description: "Propiedades exclusivas con precios especiales por tiempo limitado.",
-    color: "yellow",
   },
 ];
 
-const colorClasses = {
-  blue: "bg-blue-100 text-blue-600",
-  green: "bg-green-100 text-green-600",
-  purple: "bg-purple-100 text-purple-600",
-  orange: "bg-orange-100 text-orange-600",
-  red: "bg-red-100 text-red-600",
-  yellow: "bg-yellow-100 text-yellow-600",
-};
-
 export function ServicesSection() {
   return (
-    <section id="servicios" className="py-20 bg-white">
-      <div className="container mx-auto px-4">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-primary-600 font-semibold mb-2 block">
-            Nuestros Servicios
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            ¿Qué tipo de propiedad buscas?
+    <section id="servicios" className="py-24 md:py-32 bg-white">
+      <div className="container-custom">
+        {/* Header */}
+        <div className="max-w-3xl mb-20">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-px w-12 bg-gold-600" />
+            <span className="label-tracking text-gold-600">
+              Nuestros Servicios
+            </span>
+          </div>
+          <h2 className="heading-serif text-4xl md:text-5xl lg:text-6xl mb-6 text-charcoal-900">
+            Especialistas en cada
+            <br />
+            <span className="italic">tipo de propiedad</span>
           </h2>
-          <p className="text-lg text-gray-600">
-            Ofrecemos una amplia variedad de opciones para que encuentres exactamente lo que necesitas.
+          <p className="text-charcoal-500 text-lg leading-relaxed font-light">
+            Ofrecemos un portafolio diverso adaptado a las necesidades específicas
+            de cada cliente, desde primeras inversiones hasta carteras complejas.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Services Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service, index) => (
             <div
               key={index}
-              className="group p-6 border border-gray-200 rounded-xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              className="group p-10 border-t border-charcoal-200 hover:bg-charcoal-50 transition-all duration-500 cursor-pointer"
             >
-              <div className={`${colorClasses[service.color as keyof typeof colorClasses]} w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                <service.icon className="h-6 w-6" />
+              <div className="flex items-baseline justify-between mb-6">
+                <span className="heading-serif text-5xl text-charcoal-200 group-hover:text-gold-600 transition-colors duration-500">
+                  {service.number}
+                </span>
+                <div className="h-px w-12 bg-charcoal-300 group-hover:w-20 group-hover:bg-gold-600 transition-all duration-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="heading-serif text-2xl md:text-3xl text-charcoal-900 mb-4">
                 {service.title}
               </h3>
-              <p className="text-gray-600">
+              <p className="text-charcoal-500 leading-relaxed font-light">
                 {service.description}
               </p>
             </div>

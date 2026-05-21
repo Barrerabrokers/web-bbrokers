@@ -1,6 +1,5 @@
 import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
 import { getAgentByEmail } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
@@ -22,10 +21,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const isPasswordValid = await compare(
-          credentials.password,
-          agent.password
-        );
+        // Demo: comparación de texto plano
+        // En producción: usar bcrypt.compare
+        const isPasswordValid = credentials.password === agent.password;
 
         if (!isPasswordValid) {
           return null;

@@ -1,91 +1,112 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, Home, Building2, Users, Phone, LogIn } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, X } from "lucide-react";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const menuItems = [
-    { href: "#inicio", label: "Inicio", icon: Home },
-    { href: "#servicios", label: "Servicios", icon: Building2 },
-    { href: "#propiedades", label: "Propiedades", icon: Building2 },
-    { href: "#nosotros", label: "Nosotros", icon: Users },
-    { href: "#contacto", label: "Contacto", icon: Phone },
+    { href: "#inicio", label: "Inicio" },
+    { href: "#propiedades", label: "Propiedades" },
+    { href: "#servicios", label: "Servicios" },
+    { href: "#nosotros", label: "Nosotros" },
+    { href: "#contacto", label: "Contacto" },
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm">
-      <nav className="container mx-auto px-4 py-4">
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled || isMenuOpen
+          ? "bg-white/95 backdrop-blur-md shadow-sm py-4"
+          : "bg-transparent py-6"
+      }`}
+    >
+      <div className="container-custom">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <Building2 className="h-8 w-8 text-primary-600" />
-            <span className="text-xl font-bold text-gray-900">
-              Barrera Brokers
+          <Link href="/" className="flex items-center group">
+            <span
+              className={`heading-serif text-2xl md:text-3xl font-normal tracking-wide transition-colors ${
+                scrolled || isMenuOpen ? "text-charcoal-900" : "text-white"
+              }`}
+            >
+              Barrera<span className="text-gold-600">.</span>Brokers
             </span>
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
+          <nav className="hidden lg:flex items-center space-x-12">
             {menuItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="text-gray-700 hover:text-primary-600 transition-colors font-medium"
+                className={`label-tracking transition-colors hover:text-gold-600 ${
+                  scrolled ? "text-charcoal-900" : "text-white"
+                }`}
               >
                 {item.label}
               </a>
             ))}
             <Link
               href="/login"
-              className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+              className={`label-tracking border px-6 py-3 transition-all duration-300 ${
+                scrolled
+                  ? "border-charcoal-900 text-charcoal-900 hover:bg-charcoal-900 hover:text-white"
+                  : "border-white text-white hover:bg-white hover:text-charcoal-900"
+              }`}
             >
-              <LogIn className="h-4 w-4" />
-              <span>Agentes</span>
+              Portal Agentes
             </Link>
-          </div>
+          </nav>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="lg:hidden p-2"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
             {isMenuOpen ? (
-              <X className="h-6 w-6" />
+              <X className={`h-6 w-6 ${scrolled || isMenuOpen ? "text-charcoal-900" : "text-white"}`} />
             ) : (
-              <Menu className="h-6 w-6" />
+              <Menu className={`h-6 w-6 ${scrolled ? "text-charcoal-900" : "text-white"}`} />
             )}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 space-y-2">
+          <div className="lg:hidden mt-6 pb-6 space-y-1 animate-fade-in">
             {menuItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="block px-4 py-3 label-tracking text-charcoal-900 hover:text-gold-600 hover:bg-charcoal-50 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                {item.label}
               </a>
             ))}
             <Link
               href="/login"
-              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              className="block mx-4 mt-4 px-6 py-3 text-center label-tracking border border-charcoal-900 text-charcoal-900 hover:bg-charcoal-900 hover:text-white transition-all"
               onClick={() => setIsMenuOpen(false)}
             >
-              <LogIn className="h-5 w-5" />
-              <span>Portal Agentes</span>
+              Portal Agentes
             </Link>
           </div>
         )}
-      </nav>
+      </div>
     </header>
   );
 }

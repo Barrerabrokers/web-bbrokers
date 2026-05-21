@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, MapPin, Send } from "lucide-react";
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -36,81 +35,69 @@ export function ContactSection() {
   };
 
   return (
-    <section id="contacto" className="py-20 bg-white">
-      <div className="container mx-auto px-4">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-primary-600 font-semibold mb-2 block">
-            Contáctanos
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            ¿Listo para encontrar tu propiedad?
-          </h2>
-          <p className="text-lg text-gray-600">
-            Nuestro equipo está aquí para ayudarte. Contáctanos hoy mismo.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
-          {/* Contact Info */}
-          <div className="space-y-8">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                Información de Contacto
-              </h3>
-              <div className="space-y-6">
-                <div className="flex items-start space-x-4">
-                  <div className="bg-primary-100 p-3 rounded-lg">
-                    <MapPin className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-1">Dirección</h4>
-                    <p className="text-gray-600">
-                      Av. Principal 123<br />
-                      C1428 Buenos Aires, Argentina
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-4">
-                  <div className="bg-primary-100 p-3 rounded-lg">
-                    <Phone className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-1">Teléfono</h4>
-                    <p className="text-gray-600">+54 11 1234-5678</p>
-                    <p className="text-gray-600">+54 11 8765-4321</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-4">
-                  <div className="bg-primary-100 p-3 rounded-lg">
-                    <Mail className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-1">Email</h4>
-                    <p className="text-gray-600">info@barrerabrokers.com</p>
-                    <p className="text-gray-600">ventas@barrerabrokers.com</p>
-                  </div>
-                </div>
-              </div>
+    <section id="contacto" className="bg-charcoal-900 text-white py-24 md:py-32">
+      <div className="container-custom">
+        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
+          {/* Left - Info */}
+          <div>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="h-px w-12 bg-gold-400" />
+              <span className="label-tracking text-gold-400">
+                Contáctanos
+              </span>
             </div>
+            
+            <h2 className="heading-serif text-4xl md:text-5xl lg:text-6xl mb-8 leading-tight">
+              Comencemos a
+              <br />
+              <span className="italic text-gold-400">trabajar juntos</span>
+            </h2>
+            
+            <p className="text-white/60 text-lg leading-relaxed font-light mb-12">
+              Sea cual sea tu objetivo, nuestro equipo está listo para acompañarte
+              con asesoramiento personalizado y discreto.
+            </p>
 
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <h4 className="font-semibold text-gray-900 mb-2">Horarios de Atención</h4>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>Lunes a Viernes: 9:00 - 19:00</p>
-                <p>Sábados: 10:00 - 14:00</p>
-                <p>Domingos: Cerrado</p>
+            {/* Contact Info */}
+            <div className="space-y-8 pt-8 border-t border-white/10">
+              <div>
+                <div className="label-tracking text-gold-400 mb-2">Dirección</div>
+                <p className="text-white/80 font-light">
+                  Av. Principal 123<br />
+                  Buenos Aires, Argentina
+                </p>
+              </div>
+              
+              <div>
+                <div className="label-tracking text-gold-400 mb-2">Teléfono</div>
+                <a href="tel:+541112345678" className="text-white/80 font-light hover:text-gold-400 transition-colors">
+                  +54 11 1234-5678
+                </a>
+              </div>
+              
+              <div>
+                <div className="label-tracking text-gold-400 mb-2">Email</div>
+                <a href="mailto:info@barrerabrokers.com" className="text-white/80 font-light hover:text-gold-400 transition-colors">
+                  info@barrerabrokers.com
+                </a>
+              </div>
+
+              <div>
+                <div className="label-tracking text-gold-400 mb-2">Horarios</div>
+                <p className="text-white/80 font-light">
+                  Lunes a Viernes: 9:00 - 19:00<br />
+                  Sábados: 10:00 - 14:00
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Contact Form */}
-          <div className="bg-gray-50 p-8 rounded-xl">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Right - Form */}
+          <div>
+            <form onSubmit={handleSubmit} className="space-y-8">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre Completo *
+                <label htmlFor="name" className="label-tracking text-gold-400 block mb-3">
+                  Nombre Completo
                 </label>
                 <input
                   type="text"
@@ -118,14 +105,14 @@ export function ContactSection() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light"
                   placeholder="Tu nombre"
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
+                <label htmlFor="email" className="label-tracking text-gold-400 block mb-3">
+                  Email
                 </label>
                 <input
                   type="email"
@@ -133,13 +120,13 @@ export function ContactSection() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light"
                   placeholder="tu@email.com"
                 />
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="phone" className="label-tracking text-gold-400 block mb-3">
                   Teléfono
                 </label>
                 <input
@@ -147,14 +134,14 @@ export function ContactSection() {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light"
                   placeholder="+54 11 1234-5678"
                 />
               </div>
 
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                  Mensaje *
+                <label htmlFor="message" className="label-tracking text-gold-400 block mb-3">
+                  Mensaje
                 </label>
                 <textarea
                   id="message"
@@ -162,19 +149,19 @@ export function ContactSection() {
                   rows={4}
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light resize-none"
                   placeholder="Cuéntanos cómo podemos ayudarte..."
                 />
               </div>
 
               {status === "success" && (
-                <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg">
-                  ¡Mensaje enviado! Te contactaremos pronto.
+                <div className="border border-gold-400 text-gold-400 px-6 py-4 label-tracking">
+                  Mensaje enviado. Te contactaremos pronto.
                 </div>
               )}
 
               {status === "error" && (
-                <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg">
+                <div className="border border-red-400 text-red-400 px-6 py-4 label-tracking">
                   Hubo un error. Por favor intenta nuevamente.
                 </div>
               )}
@@ -182,10 +169,9 @@ export function ContactSection() {
               <button
                 type="submit"
                 disabled={status === "loading"}
-                className="w-full bg-primary-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-outline-light disabled:opacity-50 disabled:cursor-not-allowed mt-8"
               >
-                <span>{status === "loading" ? "Enviando..." : "Enviar Mensaje"}</span>
-                <Send className="h-5 w-5" />
+                {status === "loading" ? "Enviando..." : "Enviar Mensaje"}
               </button>
             </form>
           </div>
