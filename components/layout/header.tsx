@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 
@@ -28,43 +29,47 @@ export function Header() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled || isMenuOpen
-          ? "bg-white/95 backdrop-blur-md shadow-sm py-4"
-          : "bg-transparent py-6"
+          ? "bg-charcoal-900/95 backdrop-blur-md shadow-lg py-3"
+          : "bg-transparent py-5"
       }`}
     >
       <div className="container-custom">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center group">
-            <span
-              className={`heading-serif text-2xl md:text-3xl font-normal tracking-wide transition-colors ${
-                scrolled || isMenuOpen ? "text-charcoal-900" : "text-white"
-              }`}
-            >
-              Barrera<span className="text-gold-600">.</span>Brokers
-            </span>
+            <div className="relative h-14 w-14 md:h-16 md:w-16 transition-all duration-300">
+              <Image
+                src="/logo.svg"
+                alt="Barrera Brokers"
+                fill
+                priority
+                className="object-contain"
+              />
+            </div>
+            <div className="ml-3 hidden sm:block">
+              <span className="heading-serif text-lg md:text-xl text-white tracking-widest leading-none block">
+                BARRERA
+              </span>
+              <span className="heading-serif text-xs md:text-sm text-gold-400 tracking-[0.3em] leading-none block mt-1">
+                BROKERS
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Menu */}
-          <nav className="hidden lg:flex items-center space-x-12">
+          <nav className="hidden lg:flex items-center space-x-10">
             {menuItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className={`label-tracking transition-colors hover:text-gold-600 ${
-                  scrolled ? "text-charcoal-900" : "text-white"
-                }`}
+                className="label-tracking text-white/90 hover:text-gold-400 transition-colors"
               >
                 {item.label}
               </a>
             ))}
             <Link
               href="/login"
-              className={`label-tracking border px-6 py-3 transition-all duration-300 ${
-                scrolled
-                  ? "border-charcoal-900 text-charcoal-900 hover:bg-charcoal-900 hover:text-white"
-                  : "border-white text-white hover:bg-white hover:text-charcoal-900"
-              }`}
+              className="label-tracking border border-gold-400 text-gold-400 px-6 py-3 hover:bg-gold-400 hover:text-charcoal-900 transition-all duration-300"
             >
               Portal Agentes
             </Link>
@@ -77,9 +82,9 @@ export function Header() {
             aria-label="Toggle menu"
           >
             {isMenuOpen ? (
-              <X className={`h-6 w-6 ${scrolled || isMenuOpen ? "text-charcoal-900" : "text-white"}`} />
+              <X className="h-6 w-6 text-white" />
             ) : (
-              <Menu className={`h-6 w-6 ${scrolled ? "text-charcoal-900" : "text-white"}`} />
+              <Menu className="h-6 w-6 text-white" />
             )}
           </button>
         </div>
@@ -91,7 +96,7 @@ export function Header() {
               <a
                 key={item.href}
                 href={item.href}
-                className="block px-4 py-3 label-tracking text-charcoal-900 hover:text-gold-600 hover:bg-charcoal-50 transition-colors"
+                className="block px-4 py-3 label-tracking text-white hover:text-gold-400 hover:bg-white/5 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.label}
@@ -99,7 +104,7 @@ export function Header() {
             ))}
             <Link
               href="/login"
-              className="block mx-4 mt-4 px-6 py-3 text-center label-tracking border border-charcoal-900 text-charcoal-900 hover:bg-charcoal-900 hover:text-white transition-all"
+              className="block mx-4 mt-4 px-6 py-3 text-center label-tracking border border-gold-400 text-gold-400 hover:bg-gold-400 hover:text-charcoal-900 transition-all"
               onClick={() => setIsMenuOpen(false)}
             >
               Portal Agentes

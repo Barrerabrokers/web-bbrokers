@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <rect width="400" height="400" fill="#0a0a0a"/>
+  <g transform="translate(200, 200)">
+    <text x="0" y="-20" font-family="Georgia, 'Playfair Display', serif" font-size="220" font-weight="400" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="-10">BB</text>
+    <line x1="-100" y1="120" x2="100" y2="120" stroke="white" stroke-width="2"/>
+    <text x="0" y="155" font-family="Georgia, serif" font-size="22" font-weight="300" fill="white" text-anchor="middle" letter-spacing="8">BARRERA BROKERS</text>
+    <circle cx="0" cy="120" r="3" fill="white"/>
+  </g>
+</svg>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Facebook, Instagram, Linkedin } from "lucide-react";
 
 export function Footer() {
@@ -8,14 +9,28 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           {/* Brand */}
           <div className="md:col-span-2">
-            <Link href="/" className="inline-block mb-6">
-              <span className="heading-serif text-3xl font-normal">
-                Barrera<span className="text-gold-400">.</span>Brokers
-              </span>
+            <Link href="/" className="flex items-center mb-6 group">
+              <div className="relative h-20 w-20 mr-4">
+                <Image
+                  src="/logo.svg"
+                  alt="Barrera Brokers"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <div>
+                <span className="heading-serif text-xl text-white tracking-widest leading-none block">
+                  BARRERA
+                </span>
+                <span className="heading-serif text-sm text-gold-400 tracking-[0.3em] leading-none block mt-1">
+                  BROKERS
+                </span>
+              </div>
             </Link>
             <p className="text-white/60 font-light leading-relaxed max-w-md mb-8">
-              Real estate excellence desde el año 2000. Tu socio de confianza
-              para encontrar, invertir y rentabilizar propiedades exclusivas.
+              Real estate excellence desde el ano 2000. Tu socio de confianza
+              para encontrar, invertir y rentabilizar propiedades exclusivas
+              en Buenos Aires.
             </p>
             <div className="flex space-x-6">
               <a href="#" className="text-white/60 hover:text-gold-400 transition-colors" aria-label="Facebook">
@@ -32,7 +47,7 @@ export function Footer() {
 
           {/* Navigation */}
           <div>
-            <h3 className="label-tracking text-gold-400 mb-6">Navegación</h3>
+            <h3 className="label-tracking text-gold-400 mb-6">Navegacion</h3>
             <ul className="space-y-3">
               <li><a href="#inicio" className="text-white/60 hover:text-white transition-colors font-light">Inicio</a></li>
               <li><a href="#propiedades" className="text-white/60 hover:text-white transition-colors font-light">Propiedades</a></li>
@@ -44,7 +59,7 @@ export function Footer() {
 
           {/* Categories */}
           <div>
-            <h3 className="label-tracking text-gold-400 mb-6">Categorías</h3>
+            <h3 className="label-tracking text-gold-400 mb-6">Categorias</h3>
             <ul className="space-y-3">
               <li><Link href="/propiedades?categoria=desarrollo" className="text-white/60 hover:text-white transition-colors font-light">En Desarrollo</Link></li>
               <li><Link href="/propiedades?categoria=pozo" className="text-white/60 hover:text-white transition-colors font-light">En Pozo</Link></li>
@@ -61,7 +76,7 @@ export function Footer() {
             &copy; {new Date().getFullYear()} Barrera Brokers. Todos los derechos reservados.
           </p>
           <p className="text-white/40 text-sm font-light">
-            Av. Principal 123, Buenos Aires, Argentina
+            Buenos Aires, Argentina
           </p>
         </div>
       </div>

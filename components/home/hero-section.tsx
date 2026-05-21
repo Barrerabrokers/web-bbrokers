@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 
 export function HeroSection() {
@@ -9,17 +8,27 @@ export function HeroSection() {
       id="inicio"
       className="relative h-screen min-h-[700px] flex items-center justify-center overflow-hidden"
     >
-      {/* Background Image */}
+      {/* Background Video */}
       <div className="absolute inset-0 z-0">
-        <Image
-          src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1920&q=90"
-          alt="Luxury real estate"
-          fill
-          priority
-          className="object-cover animate-slow-zoom"
-        />
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          poster="https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80"
+          className="w-full h-full object-cover"
+        >
+          {/* Buenos Aires aerial view - Pexels free license */}
+          <source
+            src="https://videos.pexels.com/video-files/4763824/4763824-hd_1920_1080_30fps.mp4"
+            type="video/mp4"
+          />
+          Tu navegador no soporta videos HTML5.
+        </video>
+
         {/* Dark overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/80" />
       </div>
 
       {/* Content */}
@@ -29,7 +38,7 @@ export function HeroSection() {
           <div className="mb-8 flex items-center justify-center gap-4">
             <div className="h-px w-12 bg-gold-500" />
             <span className="label-tracking text-gold-400">
-              Real Estate Excellence
+              Buenos Aires Real Estate
             </span>
             <div className="h-px w-12 bg-gold-500" />
           </div>
@@ -43,9 +52,9 @@ export function HeroSection() {
 
           {/* Subtitle */}
           <p className="max-w-2xl mx-auto text-base md:text-lg text-white/80 mb-12 leading-relaxed font-light">
-            Más de 20 años acompañando a quienes buscan invertir, habitar
+            Mas de 20 anos acompanando a quienes buscan invertir, habitar
             <br className="hidden md:block" />
-            y rentabilizar las propiedades más exclusivas del mercado.
+            y rentabilizar las propiedades mas exclusivas del mercado.
           </p>
 
           {/* CTAs */}
@@ -54,19 +63,19 @@ export function HeroSection() {
               Ver Propiedades
             </a>
             <a href="#contacto" className="text-white label-tracking hover:text-gold-400 transition-colors px-6 py-4">
-              Contactar →
+              Contactar -&gt;
             </a>
           </div>
         </div>
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 animate-bounce">
         <ChevronDown className="h-6 w-6 text-white/60" />
       </div>
 
       {/* Bottom stats bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-black/30 backdrop-blur-sm border-t border-white/10">
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-black/40 backdrop-blur-sm border-t border-white/10">
         <div className="container-custom py-6">
           <div className="grid grid-cols-3 gap-8 text-center text-white">
             <div>
@@ -79,7 +88,7 @@ export function HeroSection() {
             </div>
             <div>
               <div className="heading-serif text-3xl md:text-4xl text-gold-400 mb-1">20+</div>
-              <div className="label-tracking text-white/70 text-[10px]">Años</div>
+              <div className="label-tracking text-white/70 text-[10px]">Anos</div>
             </div>
           </div>
         </div>
