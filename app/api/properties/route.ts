@@ -5,19 +5,19 @@ import { createProperty, getProperties } from "@/lib/db";
 import { z } from "zod";
 
 const propertySchema = z.object({
-  title: z.string().min(5),
-  description: z.string().min(20),
+  title: z.string().min(3, "El titulo es muy corto"),
+  description: z.string().min(10, "La descripcion es muy corta"),
   category: z.enum(["desarrollo", "pozo", "usados", "rentals", "inversiones", "oportunidades"]),
-  price: z.number().positive(),
-  location: z.string().min(3),
-  address: z.string().min(5),
+  price: z.number().positive("El precio debe ser positivo"),
+  location: z.string().min(2, "Ubicacion muy corta"),
+  address: z.string().min(2, "Direccion muy corta"),
   bedrooms: z.number().optional(),
   bathrooms: z.number().optional(),
-  area: z.number().positive(),
-  images: z.array(z.string().url()),
-  features: z.array(z.string()),
-  agentId: z.string(),
-  status: z.enum(["disponible", "reservada", "vendida"]),
+  area: z.number().positive("El area debe ser positiva"),
+  images: z.array(z.string()).min(1, "Debes subir al menos una imagen"),
+  features: z.array(z.string()).default([]),
+  agentId: z.string().min(1, "agentId requerido"),
+  status: z.enum(["disponible", "reservada", "vendida"]).default("disponible"),
 });
 
 export async function GET(request: NextRequest) {
@@ -47,27 +47,50 @@ export async function POST(request: NextRequest) {
 
     if (!session) {
       return NextResponse.json(
-        { error: "No autorizado" },
+        { error: "No autorizado. Debes iniciar sesion." },
         { status: 401 }
       );
     }
 
     const body = await request.json();
-    const validatedData = propertySchema.parse(body);
 
-    const property = await createProperty(validatedData);
+    // Asegurarse de que agentId esté seteado
+    if (!body.agentId && session.user?.id) {
+      body.agentId = session.user.id;
+    }
 
-    return NextResponse.json(property, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
+    const result = propertySchema.safeParse(body);
+
+    if (!result.success) {
+      // Devolver mensaje de error mas claro
+      const errors = result.error.errors.map((e) => {
+        const field = e.path.join(".");
+        return `${field}: ${e.message}`;
+      });
+
       return NextResponse.json(
-        { error: "Datos inválidos", details: error.errors },
+        {
+          error: `Datos invalidos: ${errors.join(", ")}`,
+          details: result.error.errors,
+        },
         { status: 400 }
       );
     }
 
+    const property = await createProperty(result.data as any);
+
+    if (!property) {
+      return NextResponse.json(
+        { error: "Error al guardar la propiedad en la base de datos" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(property, { status: 201 });
+  } catch (error: any) {
+    console.error("Error creating property:", error);
     return NextResponse.json(
-      { error: "Error al crear la propiedad" },
+      { error: `Error al crear la propiedad: ${error.message}` },
       { status: 500 }
     );
   }
