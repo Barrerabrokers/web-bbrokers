@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hash(validatedData.password, 10);
 
     // Crear agente
-    const agent = await createAgent({
+    const result = await createAgent({
       name: validatedData.name,
       email: validatedData.email,
       password: hashedPassword,
@@ -59,9 +59,12 @@ export async function POST(request: NextRequest) {
       role: validatedData.role || "agent",
     });
 
-    if (!agent) {
+    if (!result.agent) {
       return NextResponse.json(
-        { error: "Error al crear el usuario. Verifica que las tablas de Supabase existan." },
+        {
+          error: `Error al crear el usuario: ${result.error || "Verifica que las tablas existan en Supabase"}`,
+          details: result.error,
+        },
         { status: 500 }
       );
     }
@@ -70,10 +73,10 @@ export async function POST(request: NextRequest) {
       {
         message: "Usuario creado exitosamente",
         user: {
-          id: agent.id,
-          name: agent.name,
-          email: agent.email,
-          role: agent.role,
+          id: result.agent.id,
+          name: result.agent.name,
+          email: result.agent.email,
+          role: result.agent.role,
         },
       },
       { status: 201 }

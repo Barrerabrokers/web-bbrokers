@@ -185,7 +185,7 @@ export async function createAgent(data: {
   password: string;
   phone?: string;
   role?: "agent" | "admin";
-}): Promise<Agent | null> {
+}): Promise<{ agent: Agent | null; error: string | null }> {
   const supabase = getServerSupabase();
   
   const { data: agent, error } = await supabase
@@ -203,11 +203,10 @@ export async function createAgent(data: {
 
   if (error || !agent) {
     console.error("Error creating agent:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
-    return null;
+    return { agent: null, error: error?.message || "Unknown error" };
   }
 
-  return mapAgentFromDb(agent);
+  return { agent: mapAgentFromDb(agent), error: null };
 }
 
 export async function getAllAgents(): Promise<Agent[]> {
