@@ -4,6 +4,9 @@ import { Plus, Edit, Trash2, Eye, Building2 } from "lucide-react";
 import { getProperties } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PropertiesAdminPage() {
   const properties = await getProperties();
 

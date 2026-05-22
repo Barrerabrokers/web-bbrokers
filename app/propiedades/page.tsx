@@ -5,6 +5,9 @@ import { PropertyCard } from "@/components/property-card";
 import { Filter } from "lucide-react";
 import { PROPERTY_CATEGORIES } from "@/types";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PropertiesPage({
   searchParams,
 }: {
