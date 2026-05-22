@@ -34,7 +34,30 @@ export async function POST() {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
-      results.push("Tabla agents creada");
+      results.push("Tabla agents OK");
+
+      // ALTER TABLE: agregar columnas faltantes en properties si la tabla ya existia
+      const propertyColumns = [
+        { name: "agent_id", type: "UUID" },
+        { name: "currency", type: "VARCHAR(3) DEFAULT 'USD'" },
+        { name: "featured", type: "BOOLEAN DEFAULT false" },
+        { name: "bedrooms", type: "INTEGER" },
+        { name: "bathrooms", type: "INTEGER" },
+        { name: "features", type: "TEXT[] DEFAULT '{}'" },
+        { name: "status", type: "VARCHAR(20) DEFAULT 'disponible'" },
+        { name: "updated_at", type: "TIMESTAMPTZ DEFAULT NOW()" },
+      ];
+
+      for (const col of propertyColumns) {
+        try {
+          await sql.unsafe(
+            `ALTER TABLE properties ADD COLUMN IF NOT EXISTS ${col.name} ${col.type};`
+          );
+          results.push(`Columna ${col.name} OK`);
+        } catch (e: any) {
+          results.push(`Error columna ${col.name}: ${e.message}`);
+        }
+      }
 
       await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS property_images (
