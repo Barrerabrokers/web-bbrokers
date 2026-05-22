@@ -77,11 +77,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const property = await createProperty(result.data as any);
+    const { property, error: dbError } = await createProperty(result.data as any);
 
     if (!property) {
       return NextResponse.json(
-        { error: "Error al guardar la propiedad en la base de datos" },
+        {
+          error: `Error al guardar la propiedad: ${dbError || "desconocido"}`,
+          dbError,
+        },
         { status: 500 }
       );
     }
