@@ -3,8 +3,24 @@ import postgres from "postgres";
 import { getServerSupabase } from "@/lib/supabase";
 
 export async function POST() {
-  const databaseUrl = process.env.DATABASE_URL;
+  // Intentar usar cualquiera de las variables que pueda haber configurado Vercel/Supabase
+  const databaseUrl =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.SUPABASE_DB_URL;
+
   const results: any[] = [];
+
+  // Mostrar qué variable está usando
+  if (databaseUrl) {
+    if (process.env.DATABASE_URL) results.push("Usando DATABASE_URL");
+    else if (process.env.POSTGRES_URL_NON_POOLING) results.push("Usando POSTGRES_URL_NON_POOLING");
+    else if (process.env.POSTGRES_URL) results.push("Usando POSTGRES_URL");
+    else if (process.env.POSTGRES_PRISMA_URL) results.push("Usando POSTGRES_PRISMA_URL");
+    else if (process.env.SUPABASE_DB_URL) results.push("Usando SUPABASE_DB_URL");
+  }
 
   // ========================================
   // 1. CREAR TABLAS Y POLITICAS
@@ -15,6 +31,7 @@ export async function POST() {
       sql = postgres(databaseUrl, {
         ssl: "require",
         max: 1,
+        prepare: false,
       });
 
       await sql.unsafe(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
@@ -183,7 +200,8 @@ export async function POST() {
       results.push(`Error SQL: ${error.message}`);
     }
   } else {
-    results.push("DATABASE_URL no configurada");
+    results.push("ERROR: No se encontro ninguna variable de conexion (DATABASE_URL, POSTGRES_URL, etc)");
+    results.push("Variables disponibles: " + Object.keys(process.env).filter(k => k.includes("POSTGRES") || k.includes("SUPABASE") || k.includes("DATABASE")).join(", "));
   }
 
   // ========================================
