@@ -1,10 +1,14 @@
-export type PropertyCategory = 
-  | "desarrollo" 
-  | "pozo" 
-  | "usados" 
-  | "rentals" 
-  | "inversiones" 
+export type PropertyCategory =
+  | "desarrollo"
+  | "pozo"
+  | "usados"
+  | "rentals"
+  | "inversiones"
   | "oportunidades";
+
+export type PropertyStatus = "disponible" | "reservada" | "vendida";
+
+export type AgentRole = "agent" | "admin";
 
 export interface Property {
   id: string;
@@ -12,17 +16,28 @@ export interface Property {
   description: string;
   category: PropertyCategory;
   price: number;
+  currency?: string;
   location: string;
   address: string;
   bedrooms?: number;
   bathrooms?: number;
-  area: number; // en m²
+  area: number;
   images: string[];
   features: string[];
   agentId: string;
-  status: "disponible" | "reservada" | "vendida";
-  createdAt: Date;
-  updatedAt: Date;
+  status: PropertyStatus;
+  featured?: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface PropertyImage {
+  id: string;
+  propertyId: string;
+  url: string;
+  storagePath?: string;
+  displayOrder: number;
+  isPrimary: boolean;
 }
 
 export interface Agent {
@@ -32,8 +47,9 @@ export interface Agent {
   password: string;
   phone?: string;
   photo?: string;
-  role: "admin" | "agent";
-  createdAt: Date;
+  role: AgentRole;
+  active: boolean;
+  createdAt: Date | string;
 }
 
 export interface ContactForm {
@@ -44,39 +60,39 @@ export interface ContactForm {
   propertyId?: string;
 }
 
-export const PROPERTY_CATEGORIES: { 
-  value: PropertyCategory; 
-  label: string; 
-  description: string 
+export const PROPERTY_CATEGORIES: {
+  value: PropertyCategory;
+  label: string;
+  description: string;
 }[] = [
   {
     value: "desarrollo",
     label: "En Desarrollo",
-    description: "Proyectos en construcción con entrega programada"
+    description: "Proyectos en construcción con entrega programada",
   },
   {
     value: "pozo",
     label: "En Pozo",
-    description: "Proyectos en etapa inicial con financiación especial"
+    description: "Proyectos en etapa inicial con financiación especial",
   },
   {
     value: "usados",
     label: "Usados",
-    description: "Propiedades listas para escriturar"
+    description: "Propiedades listas para escriturar",
   },
   {
     value: "rentals",
     label: "Alquileres",
-    description: "Propiedades disponibles para renta"
+    description: "Propiedades disponibles para renta",
   },
   {
     value: "inversiones",
     label: "Inversiones",
-    description: "Oportunidades de inversión inmobiliaria"
+    description: "Oportunidades de inversión inmobiliaria",
   },
   {
     value: "oportunidades",
     label: "Oportunidades",
-    description: "Propiedades con precios especiales"
-  }
+    description: "Propiedades con precios especiales",
+  },
 ];

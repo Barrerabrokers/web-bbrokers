@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createContact } from "@/lib/db";
 
 const contactSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Email inválido"),
+  email: z.string().email("Email invalido"),
   phone: z.string().optional(),
   message: z.string().min(10, "El mensaje debe tener al menos 10 caracteres"),
   propertyId: z.string().optional(),
@@ -14,12 +15,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = contactSchema.parse(body);
 
-    // Aquí podrías enviar un email, guardar en DB, etc.
-    console.log("Contacto recibido:", validatedData);
+    const contact = await createContact({
+      name: validatedData.name,
+      email: validatedData.email,
+      phone: validatedData.phone,
+      message: validatedData.message,
+      propertyId: validatedData.propertyId,
+    });
 
-    // Simular envío de email
-    // En producción, usar nodemailer, SendGrid, etc.
-    
+    if (!contact) {
+      return NextResponse.json(
+        { error: "Error al guardar el mensaje" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { message: "Mensaje enviado correctamente" },
       { status: 200 }
@@ -27,7 +37,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Datos inválidos", details: error.errors },
+        { error: "Datos invalidos", details: error.errors },
         { status: 400 }
       );
     }

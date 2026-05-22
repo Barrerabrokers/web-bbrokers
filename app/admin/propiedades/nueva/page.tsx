@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Upload, X, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { PROPERTY_CATEGORIES } from "@/types";
 
@@ -11,6 +11,11 @@ export default function NewPropertyPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [error, setError] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -21,16 +26,90 @@ export default function NewPropertyPage() {
     bedrooms: "",
     bathrooms: "",
     area: "",
-    images: "",
     features: "",
     status: "disponible" as const,
   });
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    if (files.length === 0) return;
+
+    // Validar tamaño
+    const validFiles = files.filter((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        setError(`${file.name} es muy grande (max 5MB)`);
+        return false;
+      }
+      return true;
+    });
+
+    setImageFiles((prev) => [...prev, ...validFiles]);
+
+    // Generar previews
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImages = async (): Promise<string[]> => {
+    if (imageFiles.length === 0) return [];
+
+    setUploadingImages(true);
+    const uploadFormData = new FormData();
+    imageFiles.forEach((file) => {
+      uploadFormData.append("files", file);
+    });
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Error al subir imagenes");
+      }
+
+      return data.urls || [];
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
+    if (imageFiles.length === 0) {
+      setError("Debes subir al menos una imagen");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      // 1. Subir imágenes primero
+      const imageUrls = await uploadImages();
+
+      if (imageUrls.length === 0) {
+        setError("Error al subir las imagenes");
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Crear la propiedad con las URLs
       const response = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,8 +119,8 @@ export default function NewPropertyPage() {
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
           area: parseFloat(formData.area),
-          images: formData.images.split("\n").filter(Boolean),
-          features: formData.features.split("\n").filter(Boolean),
+          images: imageUrls,
+          features: formData.features.split("\n").filter(Boolean).map((f) => f.trim()),
           agentId: session?.user?.id,
         }),
       });
@@ -50,10 +129,11 @@ export default function NewPropertyPage() {
         router.push("/admin/propiedades");
         router.refresh();
       } else {
-        alert("Error al crear la propiedad");
+        const data = await response.json();
+        setError(data.error || "Error al crear la propiedad");
       }
-    } catch (error) {
-      alert("Error al crear la propiedad");
+    } catch (err: any) {
+      setError(err.message || "Error al crear la propiedad");
     } finally {
       setIsLoading(false);
     }
@@ -64,57 +144,110 @@ export default function NewPropertyPage() {
       <div className="mb-8">
         <Link
           href="/admin/propiedades"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+          className="inline-flex items-center text-charcoal-500 hover:text-charcoal-900 mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver a propiedades
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Nueva Propiedad</h1>
-        <p className="text-gray-600">Completa la información de la propiedad</p>
+        <h1 className="heading-serif text-3xl text-charcoal-900 mb-2">Nueva Propiedad</h1>
+        <p className="text-charcoal-500">Completa la informacion de la propiedad</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      {error && (
+        <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white border border-charcoal-100 p-8">
+        {/* Image Upload Section */}
+        <div className="mb-8 pb-8 border-b border-charcoal-100">
+          <label className="label-tracking text-charcoal-700 block mb-4">
+            Imagenes de la propiedad *
+          </label>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative group aspect-square">
+                <img
+                  src={preview}
+                  alt={`Preview ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                {index === 0 && (
+                  <div className="absolute bottom-2 left-2 bg-gold-500 text-white text-xs px-2 py-1 label-tracking">
+                    Principal
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            <label className="aspect-square border-2 border-dashed border-charcoal-300 hover:border-gold-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-charcoal-500 hover:text-gold-600">
+              <Upload className="h-8 w-8 mb-2" />
+              <span className="label-tracking text-xs">Subir imagen</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </label>
+          </div>
+          
+          <p className="text-xs text-charcoal-500">
+            Formatos: JPG, PNG, WebP. Maximo 5MB por imagen. La primera imagen sera la principal.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Título */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Título *
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Titulo *
             </label>
             <input
               type="text"
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
               placeholder="Ej: Departamento moderno en Palermo"
             />
           </div>
 
           {/* Descripción */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Descripción *
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Descripcion *
             </label>
             <textarea
               required
               rows={4}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="Describe la propiedad en detalle..."
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
+              placeholder="Describe la propiedad..."
             />
           </div>
 
           {/* Categoría */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Categoría *
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Categoria *
             </label>
             <select
               required
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
             >
               {PROPERTY_CATEGORIES.map((cat) => (
                 <option key={cat.value} value={cat.value}>
@@ -126,14 +259,14 @@ export default function NewPropertyPage() {
 
           {/* Estado */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="label-tracking text-charcoal-700 block mb-2">
               Estado *
             </label>
             <select
               required
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
             >
               <option value="disponible">Disponible</option>
               <option value="reservada">Reservada</option>
@@ -143,7 +276,7 @@ export default function NewPropertyPage() {
 
           {/* Precio */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="label-tracking text-charcoal-700 block mb-2">
               Precio (USD) *
             </label>
             <input
@@ -153,15 +286,15 @@ export default function NewPropertyPage() {
               step="0.01"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="180000"
             />
           </div>
 
           {/* Área */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Área (m²) *
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Area (m2) *
             </label>
             <input
               type="number"
@@ -170,14 +303,14 @@ export default function NewPropertyPage() {
               step="0.01"
               value={formData.area}
               onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="45"
             />
           </div>
 
           {/* Dormitorios */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="label-tracking text-charcoal-700 block mb-2">
               Dormitorios
             </label>
             <input
@@ -185,107 +318,92 @@ export default function NewPropertyPage() {
               min="0"
               value={formData.bedrooms}
               onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="2"
             />
           </div>
 
           {/* Baños */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Baños
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Banos
             </label>
             <input
               type="number"
               min="0"
               value={formData.bathrooms}
               onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="1"
             />
           </div>
 
           {/* Ubicación */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ubicación *
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Ubicacion *
             </label>
             <input
               type="text"
               required
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="Palermo, CABA"
             />
           </div>
 
           {/* Dirección */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Dirección *
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Direccion *
             </label>
             <input
               type="text"
               required
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="Av. Santa Fe 3500"
             />
           </div>
 
-          {/* URLs de Imágenes */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              URLs de Imágenes * (una por línea)
-            </label>
-            <textarea
-              required
-              rows={4}
-              value={formData.images}
-              onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono text-sm"
-              placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Agrega una URL de imagen por línea
-            </p>
-          </div>
-
           {/* Características */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Características (una por línea)
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Caracteristicas (una por linea)
             </label>
             <textarea
               rows={4}
               value={formData.features}
               onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="Balcón&#10;Cocina equipada&#10;Seguridad 24hs&#10;Gimnasio"
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+              placeholder="Balcon&#10;Cocina equipada&#10;Seguridad 24hs&#10;Gimnasio"
             />
-            <p className="mt-1 text-sm text-gray-500">
-              Agrega una característica por línea
-            </p>
           </div>
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-end space-x-4 mt-8 pt-6 border-t">
+        <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-charcoal-100">
           <Link
             href="/admin/propiedades"
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-6 py-3 border border-charcoal-300 text-charcoal-700 hover:bg-charcoal-50 transition-colors"
           >
             Cancelar
           </Link>
           <button
             type="submit"
-            disabled={isLoading}
-            className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || uploadingImages}
+            className="flex items-center space-x-2 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-5 w-5" />
-            <span>{isLoading ? "Guardando..." : "Guardar Propiedad"}</span>
+            <span>
+              {uploadingImages
+                ? "Subiendo imagenes..."
+                : isLoading
+                ? "Guardando..."
+                : "Guardar Propiedad"}
+            </span>
           </button>
         </div>
       </form>

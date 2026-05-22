@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Building2, Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,80 +29,86 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Credenciales inválidas. Por favor verifica tu email y contraseña.");
+        setError("Credenciales invalidas. Verifica tu email y contrasena.");
       } else {
         router.push("/admin");
         router.refresh();
       }
     } catch (error) {
-      setError("Ocurrió un error. Por favor intenta nuevamente.");
+      setError("Ocurrio un error. Por favor intenta nuevamente.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-charcoal-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <Link href="/" className="flex items-center justify-center space-x-2 mb-8">
-          <Building2 className="h-10 w-10 text-primary-600" />
-          <span className="text-2xl font-bold text-gray-900">
+        <Link href="/" className="flex flex-col items-center mb-8">
+          <div className="relative h-24 w-24 mb-4">
+            <Image
+              src="/logo.png"
+              alt="Barrera Brokers"
+              fill
+              priority
+              className="object-contain"
+            />
+          </div>
+          <span className="heading-serif text-2xl text-white tracking-wider">
             Barrera Brokers
           </span>
         </Link>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white p-8 md:p-10">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="heading-serif text-2xl md:text-3xl text-charcoal-900 mb-2">
               Portal de Agentes
             </h1>
-            <p className="text-gray-600">
-              Ingresa tus credenciales para continuar
+            <p className="label-tracking text-charcoal-500">
+              Ingresa con tus credenciales
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start space-x-2">
+            <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 flex items-start space-x-2">
               <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm">{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="label-tracking text-charcoal-700 block mb-2">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
                 <input
                   type="email"
-                  id="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
                   placeholder="tu@email.com"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
+              <label className="label-tracking text-charcoal-700 block mb-2">
+                Contrasena
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
                 <input
                   type="password"
-                  id="password"
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
+                  placeholder="Tu contrasena"
                 />
               </div>
             </div>
@@ -109,33 +116,25 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {isLoading ? "Iniciando sesion..." : "Iniciar Sesion"}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              ¿Olvidaste tu contraseña?{" "}
-              <a href="#" className="text-primary-600 hover:text-primary-700 font-medium">
-                Recuperar
-              </a>
-            </p>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-center text-sm text-gray-600">
-              <strong>Demo credentials:</strong><br />
-              Email: admin@barrerabrokers.com<br />
-              Password: admin123
+          <div className="mt-6 pt-6 border-t border-charcoal-100 text-center">
+            <p className="text-sm text-charcoal-500">
+              No tienes cuenta?{" "}
+              <Link href="/register" className="text-gold-600 hover:text-gold-700 font-medium">
+                Registrate
+              </Link>
             </p>
           </div>
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-gray-600 hover:text-primary-600">
-            ← Volver al sitio web
+          <Link href="/" className="text-sm text-white/60 hover:text-white">
+            -- Volver al sitio web
           </Link>
         </div>
       </div>

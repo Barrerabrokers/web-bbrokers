@@ -35,9 +35,9 @@ export function Header() {
     >
       <div className="container-custom">
         <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center group">
-            <div className="relative h-16 w-16 md:h-20 md:w-20 lg:h-24 lg:w-24 transition-all duration-300">
+          {/* Logo + Texto */}
+          <Link href="/" className="flex items-center gap-4 group">
+            <div className="relative h-16 w-16 md:h-20 md:w-20 lg:h-24 lg:w-24 transition-all duration-300 flex-shrink-0">
               <Image
                 src="/logo.png"
                 alt="Barrera Brokers"
@@ -46,10 +46,18 @@ export function Header() {
                 className="object-contain"
               />
             </div>
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="heading-serif text-xl md:text-2xl lg:text-3xl text-white tracking-wider">
+                Barrera Brokers
+              </span>
+              <span className="label-tracking text-gold-400 text-[10px] md:text-xs mt-1">
+                Real Estate Excellence
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Menu */}
-          <nav className="hidden lg:flex items-center space-x-10">
+          <nav className="hidden lg:flex items-center space-x-8 xl:space-x-10">
             {menuItems.map((item) => (
               <a
                 key={item.href}
