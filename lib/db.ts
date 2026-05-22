@@ -64,37 +64,51 @@ export async function getPropertyById(id: string): Promise<Property | null> {
 }
 
 export async function createProperty(
-  data: Omit<Property, "id" | "createdAt" | "updatedAt">
-): Promise<Property | null> {
+  data: any
+): Promise<{ property: Property | null; error: string | null }> {
   const supabase = getServerSupabase();
-  
-  const { images, ...propertyData } = data as any;
-  
+
+  const { images, ...propertyData } = data;
+
+  const insertData: any = {
+    title: propertyData.title,
+    description: propertyData.description,
+    category: propertyData.category,
+    price: propertyData.price,
+    location: propertyData.location,
+    address: propertyData.address,
+    bedrooms: propertyData.bedrooms || null,
+    bathrooms: propertyData.bathrooms || null,
+    area: propertyData.area,
+    features: propertyData.features || [],
+    status: propertyData.status || "disponible",
+  };
+
+  // Solo agregar agent_id si es un UUID valido
+  if (
+    propertyData.agentId &&
+    typeof propertyData.agentId === "string" &&
+    propertyData.agentId.length > 10
+  ) {
+    insertData.agent_id = propertyData.agentId;
+  }
+
   const { data: property, error } = await supabase
     .from("properties")
-    .insert({
-      title: propertyData.title,
-      description: propertyData.description,
-      category: propertyData.category,
-      price: propertyData.price,
-      location: propertyData.location,
-      address: propertyData.address,
-      bedrooms: propertyData.bedrooms || null,
-      bathrooms: propertyData.bathrooms || null,
-      area: propertyData.area,
-      features: propertyData.features || [],
-      agent_id: propertyData.agentId,
-      status: propertyData.status || "disponible",
-    })
+    .insert(insertData)
     .select()
     .single();
 
   if (error || !property) {
     console.error("Error creating property:", error);
-    return null;
+    console.error("Insert data was:", JSON.stringify(insertData, null, 2));
+    return {
+      property: null,
+      error: error?.message || "Unknown error",
+    };
   }
 
-  // Insertar imágenes si existen
+  // Insertar imagenes si existen
   if (images && images.length > 0) {
     const imagesData = images.map((url: string, index: number) => ({
       property_id: property.id,
@@ -103,10 +117,17 @@ export async function createProperty(
       is_primary: index === 0,
     }));
 
-    await supabase.from("property_images").insert(imagesData);
+    const { error: imgError } = await supabase
+      .from("property_images")
+      .insert(imagesData);
+
+    if (imgError) {
+      console.error("Error inserting images:", imgError);
+    }
   }
 
-  return getPropertyById(property.id);
+  const fullProperty = await getPropertyById(property.id);
+  return { property: fullProperty, error: null };
 }
 
 export async function updateProperty(
