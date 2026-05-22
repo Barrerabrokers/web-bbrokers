@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Save, ArrowLeft, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Save, ArrowLeft, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { PROPERTY_CATEGORIES } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 export default function NewPropertyPage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function NewPropertyPage() {
   const [error, setError] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -32,13 +33,12 @@ export default function NewPropertyPage() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    
+
     if (files.length === 0) return;
 
-    // Validar tamaño
     const validFiles = files.filter((file) => {
-      if (file.size > 5 * 1024 * 1024) {
-        setError(`${file.name} es muy grande (max 5MB)`);
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`${file.name} es muy grande (max 10MB)`);
         return false;
       }
       return true;
@@ -46,7 +46,6 @@ export default function NewPropertyPage() {
 
     setImageFiles((prev) => [...prev, ...validFiles]);
 
-    // Generar previews
     validFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -61,28 +60,42 @@ export default function NewPropertyPage() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Subir imagenes directamente a Supabase Storage desde el CLIENTE
+  // (evita limite de 4.5MB de Vercel)
   const uploadImages = async (): Promise<string[]> => {
     if (imageFiles.length === 0) return [];
 
     setUploadingImages(true);
-    const uploadFormData = new FormData();
-    imageFiles.forEach((file) => {
-      uploadFormData.append("files", file);
-    });
+    const uploadedUrls: string[] = [];
 
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: uploadFormData,
-      });
+      for (const file of imageFiles) {
+        const ext = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(7)}.${ext}`;
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || "Error al subir imagenes");
+        const { error: uploadError } = await supabase.storage
+          .from("properties")
+          .upload(fileName, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(
+            `Error subiendo ${file.name}: ${uploadError.message}`
+          );
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("properties")
+          .getPublicUrl(fileName);
+
+        uploadedUrls.push(urlData.publicUrl);
       }
 
-      return data.urls || [];
+      return uploadedUrls;
     } finally {
       setUploadingImages(false);
     }
@@ -100,7 +113,7 @@ export default function NewPropertyPage() {
     setIsLoading(true);
 
     try {
-      // 1. Subir imágenes primero
+      // 1. Subir imágenes directamente a Supabase
       const imageUrls = await uploadImages();
 
       if (imageUrls.length === 0) {
@@ -120,21 +133,26 @@ export default function NewPropertyPage() {
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
           area: parseFloat(formData.area),
           images: imageUrls,
-          features: formData.features.split("\n").filter(Boolean).map((f) => f.trim()),
+          features: formData.features
+            .split("\n")
+            .filter(Boolean)
+            .map((f) => f.trim()),
           agentId: session?.user?.id,
         }),
       });
 
-      if (response.ok) {
-        router.push("/admin/propiedades");
-        router.refresh();
-      } else {
-        const data = await response.json();
+      const data = await response.json();
+
+      if (!response.ok) {
         setError(data.error || "Error al crear la propiedad");
+        setIsLoading(false);
+        return;
       }
+
+      router.push("/admin/propiedades");
+      router.refresh();
     } catch (err: any) {
       setError(err.message || "Error al crear la propiedad");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -149,8 +167,12 @@ export default function NewPropertyPage() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver a propiedades
         </Link>
-        <h1 className="heading-serif text-3xl text-charcoal-900 mb-2">Nueva Propiedad</h1>
-        <p className="text-charcoal-500">Completa la informacion de la propiedad</p>
+        <h1 className="heading-serif text-3xl text-charcoal-900 mb-2">
+          Nueva Propiedad
+        </h1>
+        <p className="text-charcoal-500">
+          Completa la informacion de la propiedad
+        </p>
       </div>
 
       {error && (
@@ -159,13 +181,16 @@ export default function NewPropertyPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white border border-charcoal-100 p-8">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-charcoal-100 p-8"
+      >
         {/* Image Upload Section */}
         <div className="mb-8 pb-8 border-b border-charcoal-100">
           <label className="label-tracking text-charcoal-700 block mb-4">
             Imagenes de la propiedad *
           </label>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             {imagePreviews.map((preview, index) => (
               <div key={index} className="relative group aspect-square">
@@ -188,7 +213,7 @@ export default function NewPropertyPage() {
                 )}
               </div>
             ))}
-            
+
             <label className="aspect-square border-2 border-dashed border-charcoal-300 hover:border-gold-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-charcoal-500 hover:text-gold-600">
               <Upload className="h-8 w-8 mb-2" />
               <span className="label-tracking text-xs">Subir imagen</span>
@@ -201,14 +226,14 @@ export default function NewPropertyPage() {
               />
             </label>
           </div>
-          
+
           <p className="text-xs text-charcoal-500">
-            Formatos: JPG, PNG, WebP. Maximo 5MB por imagen. La primera imagen sera la principal.
+            Formatos: JPG, PNG, WebP. Maximo 10MB por imagen. La primera imagen
+            sera la principal.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Título */}
           <div className="md:col-span-2">
             <label className="label-tracking text-charcoal-700 block mb-2">
               Titulo *
@@ -217,13 +242,14 @@ export default function NewPropertyPage() {
               type="text"
               required
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
               placeholder="Ej: Departamento moderno en Palermo"
             />
           </div>
 
-          {/* Descripción */}
           <div className="md:col-span-2">
             <label className="label-tracking text-charcoal-700 block mb-2">
               Descripcion *
@@ -232,13 +258,14 @@ export default function NewPropertyPage() {
               required
               rows={4}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
               placeholder="Describe la propiedad..."
             />
           </div>
 
-          {/* Categoría */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Categoria *
@@ -246,7 +273,9 @@ export default function NewPropertyPage() {
             <select
               required
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value as any })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
             >
               {PROPERTY_CATEGORIES.map((cat) => (
@@ -257,7 +286,6 @@ export default function NewPropertyPage() {
             </select>
           </div>
 
-          {/* Estado */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Estado *
@@ -265,7 +293,9 @@ export default function NewPropertyPage() {
             <select
               required
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value as any })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
             >
               <option value="disponible">Disponible</option>
@@ -274,7 +304,6 @@ export default function NewPropertyPage() {
             </select>
           </div>
 
-          {/* Precio */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Precio (USD) *
@@ -285,13 +314,14 @@ export default function NewPropertyPage() {
               min="0"
               step="0.01"
               value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, price: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="180000"
             />
           </div>
 
-          {/* Área */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Area (m2) *
@@ -302,13 +332,14 @@ export default function NewPropertyPage() {
               min="0"
               step="0.01"
               value={formData.area}
-              onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, area: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="45"
             />
           </div>
 
-          {/* Dormitorios */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Dormitorios
@@ -317,13 +348,14 @@ export default function NewPropertyPage() {
               type="number"
               min="0"
               value={formData.bedrooms}
-              onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, bedrooms: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="2"
             />
           </div>
 
-          {/* Baños */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Banos
@@ -332,13 +364,14 @@ export default function NewPropertyPage() {
               type="number"
               min="0"
               value={formData.bathrooms}
-              onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, bathrooms: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="1"
             />
           </div>
 
-          {/* Ubicación */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Ubicacion *
@@ -347,13 +380,14 @@ export default function NewPropertyPage() {
               type="text"
               required
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="Palermo, CABA"
             />
           </div>
 
-          {/* Dirección */}
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
               Direccion *
@@ -362,13 +396,14 @@ export default function NewPropertyPage() {
               type="text"
               required
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="Av. Santa Fe 3500"
             />
           </div>
 
-          {/* Características */}
           <div className="md:col-span-2">
             <label className="label-tracking text-charcoal-700 block mb-2">
               Caracteristicas (una por linea)
@@ -376,14 +411,15 @@ export default function NewPropertyPage() {
             <textarea
               rows={4}
               value={formData.features}
-              onChange={(e) => setFormData({ ...formData, features: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, features: e.target.value })
+              }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="Balcon&#10;Cocina equipada&#10;Seguridad 24hs&#10;Gimnasio"
             />
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-charcoal-100">
           <Link
             href="/admin/propiedades"
