@@ -3,7 +3,6 @@ import postgres from "postgres";
 import { getServerSupabase } from "@/lib/supabase";
 
 export async function POST() {
-  // Intentar usar cualquiera de las variables que pueda haber configurado Vercel/Supabase
   const databaseUrl =
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL_NON_POOLING ||
@@ -13,7 +12,6 @@ export async function POST() {
 
   const results: any[] = [];
 
-  // Mostrar qué variable está usando
   if (databaseUrl) {
     if (process.env.DATABASE_URL) results.push("Usando DATABASE_URL");
     else if (process.env.POSTGRES_URL_NON_POOLING) results.push("Usando POSTGRES_URL_NON_POOLING");
@@ -22,9 +20,6 @@ export async function POST() {
     else if (process.env.SUPABASE_DB_URL) results.push("Usando SUPABASE_DB_URL");
   }
 
-  // ========================================
-  // 1. CREAR TABLAS Y POLITICAS
-  // ========================================
   if (databaseUrl) {
     let sql;
     try {
@@ -53,15 +48,31 @@ export async function POST() {
       `);
       results.push("Tabla agents OK");
 
-      // ALTER TABLE: agregar columnas faltantes en properties si la tabla ya existia
+      // Crear properties si no existe
+      await sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS properties (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+      results.push("Tabla properties OK");
+
+      // Agregar TODAS las columnas que necesita la app
       const propertyColumns = [
-        { name: "agent_id", type: "UUID" },
-        { name: "currency", type: "VARCHAR(3) DEFAULT 'USD'" },
-        { name: "featured", type: "BOOLEAN DEFAULT false" },
+        { name: "title", type: "VARCHAR(255)" },
+        { name: "description", type: "TEXT" },
+        { name: "category", type: "VARCHAR(50)" },
+        { name: "price", type: "DECIMAL(12,2)" },
+        { name: "location", type: "VARCHAR(255)" },
+        { name: "address", type: "VARCHAR(255)" },
+        { name: "area", type: "DECIMAL(10,2)" },
         { name: "bedrooms", type: "INTEGER" },
         { name: "bathrooms", type: "INTEGER" },
         { name: "features", type: "TEXT[] DEFAULT '{}'" },
+        { name: "agent_id", type: "UUID" },
         { name: "status", type: "VARCHAR(20) DEFAULT 'disponible'" },
+        { name: "currency", type: "VARCHAR(3) DEFAULT 'USD'" },
+        { name: "featured", type: "BOOLEAN DEFAULT false" },
         { name: "updated_at", type: "TIMESTAMPTZ DEFAULT NOW()" },
       ];
 
@@ -87,7 +98,7 @@ export async function POST() {
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
-      results.push("Tabla property_images creada");
+      results.push("Tabla property_images OK");
 
       await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS contacts (
@@ -101,7 +112,7 @@ export async function POST() {
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
-      results.push("Tabla contacts creada");
+      results.push("Tabla contacts OK");
 
       await sql.unsafe(`
         INSERT INTO agents (name, email, password, phone, role, active)
@@ -115,9 +126,9 @@ export async function POST() {
         )
         ON CONFLICT (email) DO NOTHING;
       `);
-      results.push("Usuario admin creado/verificado");
+      results.push("Usuario admin OK");
 
-      // Borrar todas las políticas viejas
+      // Politicas de Storage
       const oldPolicies = [
         "Public Access",
         "Anyone can upload",
@@ -140,7 +151,6 @@ export async function POST() {
       }
       results.push("Politicas viejas eliminadas");
 
-      // Crear nuevas políticas con TO public
       try {
         await sql.unsafe(`
           CREATE POLICY "properties_public_select"
@@ -148,7 +158,7 @@ export async function POST() {
           TO public
           USING (bucket_id = 'properties');
         `);
-        results.push("Politica SELECT creada (public)");
+        results.push("Politica SELECT OK");
       } catch (e: any) {
         results.push(`Error politica SELECT: ${e.message}`);
       }
@@ -160,7 +170,7 @@ export async function POST() {
           TO public
           WITH CHECK (bucket_id = 'properties');
         `);
-        results.push("Politica INSERT creada (public)");
+        results.push("Politica INSERT OK");
       } catch (e: any) {
         results.push(`Error politica INSERT: ${e.message}`);
       }
@@ -173,7 +183,7 @@ export async function POST() {
           USING (bucket_id = 'properties')
           WITH CHECK (bucket_id = 'properties');
         `);
-        results.push("Politica UPDATE creada (public)");
+        results.push("Politica UPDATE OK");
       } catch (e: any) {
         results.push(`Error politica UPDATE: ${e.message}`);
       }
@@ -185,10 +195,16 @@ export async function POST() {
           TO public
           USING (bucket_id = 'properties');
         `);
-        results.push("Politica DELETE creada (public)");
+        results.push("Politica DELETE OK");
       } catch (e: any) {
         results.push(`Error politica DELETE: ${e.message}`);
       }
+
+      // Forzar reload del schema cache de Supabase
+      try {
+        await sql.unsafe(`NOTIFY pgrst, 'reload schema';`);
+        results.push("Schema cache refresh enviado");
+      } catch {}
 
       await sql.end();
     } catch (error: any) {
@@ -200,16 +216,21 @@ export async function POST() {
       results.push(`Error SQL: ${error.message}`);
     }
   } else {
-    results.push("ERROR: No se encontro ninguna variable de conexion (DATABASE_URL, POSTGRES_URL, etc)");
-    results.push("Variables disponibles: " + Object.keys(process.env).filter(k => k.includes("POSTGRES") || k.includes("SUPABASE") || k.includes("DATABASE")).join(", "));
+    results.push("ERROR: No se encontro variable de conexion");
+    results.push(
+      "Variables disponibles: " +
+        Object.keys(process.env)
+          .filter(
+            (k) =>
+              k.includes("POSTGRES") || k.includes("SUPABASE") || k.includes("DATABASE")
+          )
+          .join(", ")
+    );
   }
 
-  // ========================================
-  // 2. CREAR/VERIFICAR STORAGE BUCKET
-  // ========================================
+  // Storage bucket
   try {
     const supabase = getServerSupabase();
-
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
 
     if (listError) {
@@ -226,7 +247,7 @@ export async function POST() {
         if (updateError) {
           results.push(`Error actualizando bucket: ${updateError.message}`);
         } else {
-          results.push("Bucket 'properties' actualizado (publico)");
+          results.push("Bucket 'properties' OK (publico)");
         }
       } else {
         const { error: bucketError } = await supabase.storage.createBucket("properties", {
@@ -238,7 +259,7 @@ export async function POST() {
         if (bucketError) {
           results.push(`Error creando bucket: ${bucketError.message}`);
         } else {
-          results.push("Bucket 'properties' creado (publico)");
+          results.push("Bucket 'properties' creado");
         }
       }
     }
