@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 import postgres from "postgres";
 import { getServerSupabase } from "@/lib/supabase";
 
-// Endpoint para inicializar la base de datos AUTOMATICAMENTE
-// Crea tablas + storage bucket + politicas
 export async function POST() {
   const databaseUrl = process.env.DATABASE_URL;
   const results: any[] = [];
 
   // ========================================
-  // 1. CREAR TABLAS Y POLITICAS (requiere DATABASE_URL)
+  // 1. CREAR TABLAS Y POLITICAS
   // ========================================
   if (databaseUrl) {
     let sql;
@@ -79,61 +77,77 @@ export async function POST() {
       `);
       results.push("Usuario admin creado/verificado");
 
-      // Politicas de Storage para el bucket 'properties'
+      // Borrar todas las políticas viejas
+      const oldPolicies = [
+        "Public Access",
+        "Anyone can upload",
+        "Anyone can update",
+        "Anyone can delete",
+        "Properties public read",
+        "Properties public upload",
+        "Properties public update",
+        "Properties public delete",
+        "properties_public_select",
+        "properties_public_insert",
+        "properties_public_update",
+        "properties_public_delete",
+      ];
+
+      for (const policyName of oldPolicies) {
+        try {
+          await sql.unsafe(`DROP POLICY IF EXISTS "${policyName}" ON storage.objects;`);
+        } catch {}
+      }
+      results.push("Politicas viejas eliminadas");
+
+      // Crear nuevas políticas con TO public
       try {
         await sql.unsafe(`
-          DROP POLICY IF EXISTS "Properties public read" ON storage.objects;
-        `);
-        await sql.unsafe(`
-          CREATE POLICY "Properties public read"
+          CREATE POLICY "properties_public_select"
           ON storage.objects FOR SELECT
+          TO public
           USING (bucket_id = 'properties');
         `);
-        results.push("Politica SELECT creada");
+        results.push("Politica SELECT creada (public)");
       } catch (e: any) {
-        results.push(`Politica SELECT: ${e.message}`);
+        results.push(`Error politica SELECT: ${e.message}`);
       }
 
       try {
         await sql.unsafe(`
-          DROP POLICY IF EXISTS "Properties public upload" ON storage.objects;
-        `);
-        await sql.unsafe(`
-          CREATE POLICY "Properties public upload"
+          CREATE POLICY "properties_public_insert"
           ON storage.objects FOR INSERT
+          TO public
           WITH CHECK (bucket_id = 'properties');
         `);
-        results.push("Politica INSERT creada");
+        results.push("Politica INSERT creada (public)");
       } catch (e: any) {
-        results.push(`Politica INSERT: ${e.message}`);
+        results.push(`Error politica INSERT: ${e.message}`);
       }
 
       try {
         await sql.unsafe(`
-          DROP POLICY IF EXISTS "Properties public update" ON storage.objects;
-        `);
-        await sql.unsafe(`
-          CREATE POLICY "Properties public update"
+          CREATE POLICY "properties_public_update"
           ON storage.objects FOR UPDATE
-          USING (bucket_id = 'properties');
+          TO public
+          USING (bucket_id = 'properties')
+          WITH CHECK (bucket_id = 'properties');
         `);
-        results.push("Politica UPDATE creada");
+        results.push("Politica UPDATE creada (public)");
       } catch (e: any) {
-        results.push(`Politica UPDATE: ${e.message}`);
+        results.push(`Error politica UPDATE: ${e.message}`);
       }
 
       try {
         await sql.unsafe(`
-          DROP POLICY IF EXISTS "Properties public delete" ON storage.objects;
-        `);
-        await sql.unsafe(`
-          CREATE POLICY "Properties public delete"
+          CREATE POLICY "properties_public_delete"
           ON storage.objects FOR DELETE
+          TO public
           USING (bucket_id = 'properties');
         `);
-        results.push("Politica DELETE creada");
+        results.push("Politica DELETE creada (public)");
       } catch (e: any) {
-        results.push(`Politica DELETE: ${e.message}`);
+        results.push(`Error politica DELETE: ${e.message}`);
       }
 
       await sql.end();
@@ -146,38 +160,44 @@ export async function POST() {
       results.push(`Error SQL: ${error.message}`);
     }
   } else {
-    results.push("DATABASE_URL no configurada (saltando creacion de tablas)");
+    results.push("DATABASE_URL no configurada");
   }
 
   // ========================================
-  // 2. CREAR STORAGE BUCKET (con service_role_key)
+  // 2. CREAR/VERIFICAR STORAGE BUCKET
   // ========================================
   try {
     const supabase = getServerSupabase();
 
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
+
     if (listError) {
       results.push(`Error listando buckets: ${listError.message}`);
     } else {
       const exists = buckets?.find((b: any) => b.name === "properties");
 
       if (exists) {
-        results.push("Bucket 'properties' ya existe");
+        const { error: updateError } = await supabase.storage.updateBucket("properties", {
+          public: true,
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg"],
+          fileSizeLimit: 10485760,
+        });
+        if (updateError) {
+          results.push(`Error actualizando bucket: ${updateError.message}`);
+        } else {
+          results.push("Bucket 'properties' actualizado (publico)");
+        }
       } else {
-        const { error: bucketError } = await supabase.storage.createBucket(
-          "properties",
-          {
-            public: true,
-            allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg"],
-            fileSizeLimit: 10485760,
-          }
-        );
+        const { error: bucketError } = await supabase.storage.createBucket("properties", {
+          public: true,
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg"],
+          fileSizeLimit: 10485760,
+        });
 
         if (bucketError) {
           results.push(`Error creando bucket: ${bucketError.message}`);
         } else {
-          results.push("Bucket 'properties' creado");
+          results.push("Bucket 'properties' creado (publico)");
         }
       }
     }
