@@ -1,5 +1,26 @@
 import { Property, Agent } from "@/types";
 import { getServerSupabase } from "@/lib/supabase";
+import postgres from "postgres";
+
+// Helper: get raw postgres connection
+function getPgConnection() {
+  const databaseUrl =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.SUPABASE_DB_URL;
+
+  if (!databaseUrl) {
+    throw new Error("No database connection URL found");
+  }
+
+  return postgres(databaseUrl, {
+    ssl: "require",
+    max: 1,
+    prepare: false,
+  });
+}
 
 // ============================================================
 // PROPERTIES
@@ -10,7 +31,7 @@ export async function getProperties(filter?: {
   status?: string;
 }): Promise<Property[]> {
   const supabase = getServerSupabase();
-  
+
   let query = supabase
     .from("properties")
     .select(`
@@ -42,7 +63,7 @@ export async function getProperties(filter?: {
 
 export async function getPropertyById(id: string): Promise<Property | null> {
   const supabase = getServerSupabase();
-  
+
   const { data, error } = await supabase
     .from("properties")
     .select(`
@@ -63,71 +84,103 @@ export async function getPropertyById(id: string): Promise<Property | null> {
   return mapPropertyFromDb(data);
 }
 
+// CREAR PROPIEDAD: Usar postgres directamente para evitar el schema cache de Supabase
 export async function createProperty(
   data: any
 ): Promise<{ property: Property | null; error: string | null }> {
-  const supabase = getServerSupabase();
-
   const { images, ...propertyData } = data;
 
-  const insertData: any = {
-    title: propertyData.title,
-    description: propertyData.description,
-    category: propertyData.category,
-    price: propertyData.price,
-    location: propertyData.location,
-    address: propertyData.address,
-    bedrooms: propertyData.bedrooms || null,
-    bathrooms: propertyData.bathrooms || null,
-    area: propertyData.area,
-    features: propertyData.features || [],
-    status: propertyData.status || "disponible",
-  };
+  let sql;
+  try {
+    sql = getPgConnection();
 
-  // Solo agregar agent_id si es un UUID valido
-  if (
-    propertyData.agentId &&
-    typeof propertyData.agentId === "string" &&
-    propertyData.agentId.length > 10
-  ) {
-    insertData.agent_id = propertyData.agentId;
-  }
+    let agentId: string | null = null;
+    if (
+      propertyData.agentId &&
+      typeof propertyData.agentId === "string" &&
+      propertyData.agentId.length > 10
+    ) {
+      agentId = propertyData.agentId;
+    }
 
-  const { data: property, error } = await supabase
-    .from("properties")
-    .insert(insertData)
-    .select()
-    .single();
+    // INSERT directo con SQL puro (no afectado por schema cache)
+    const result = await sql`
+      INSERT INTO properties (
+        title,
+        description,
+        category,
+        price,
+        location,
+        address,
+        area,
+        bedrooms,
+        bathrooms,
+        features,
+        agent_id,
+        status
+      ) VALUES (
+        ${propertyData.title},
+        ${propertyData.description},
+        ${propertyData.category},
+        ${propertyData.price},
+        ${propertyData.location},
+        ${propertyData.address},
+        ${propertyData.area},
+        ${propertyData.bedrooms || null},
+        ${propertyData.bathrooms || null},
+        ${propertyData.features || []},
+        ${agentId},
+        ${propertyData.status || "disponible"}
+      )
+      RETURNING id, title, status, created_at
+    `;
 
-  if (error || !property) {
+    if (!result || result.length === 0) {
+      await sql.end();
+      return { property: null, error: "No se pudo insertar la propiedad" };
+    }
+
+    const propertyId = result[0].id;
+
+    if (images && images.length > 0) {
+      for (let i = 0; i < images.length; i++) {
+        const url = images[i];
+        try {
+          await sql`
+            INSERT INTO property_images (
+              property_id,
+              url,
+              display_order,
+              is_primary
+            ) VALUES (
+              ${propertyId},
+              ${url},
+              ${i},
+              ${i === 0}
+            )
+          `;
+        } catch (imgErr: any) {
+          console.error("Error inserting image:", imgErr);
+        }
+      }
+    }
+
+    await sql.end();
+
+    const fullProperty = await getPropertyById(propertyId);
+    return { property: fullProperty, error: null };
+  } catch (error: any) {
+    if (sql) {
+      try {
+        await sql.end();
+      } catch {}
+    }
     console.error("Error creating property:", error);
-    console.error("Insert data was:", JSON.stringify(insertData, null, 2));
     return {
       property: null,
-      error: error?.message || "Unknown error",
+      error: error.message || "Unknown error",
     };
   }
-
-  // Insertar imagenes si existen
-  if (images && images.length > 0) {
-    const imagesData = images.map((url: string, index: number) => ({
-      property_id: property.id,
-      url,
-      display_order: index,
-      is_primary: index === 0,
-    }));
-
-    const { error: imgError } = await supabase
-      .from("property_images")
-      .insert(imagesData);
-
-    if (imgError) {
-      console.error("Error inserting images:", imgError);
-    }
-  }
-
-  const fullProperty = await getPropertyById(property.id);
-  return { property: fullProperty, error: null };
 }
 
 export async function updateProperty(
@@ -135,7 +188,7 @@ export async function updateProperty(
   data: Partial<Property>
 ): Promise<Property | null> {
   const supabase = getServerSupabase();
-  
+
   const updateData: any = {};
   if (data.title) updateData.title = data.title;
   if (data.description) updateData.description = data.description;
@@ -164,7 +217,7 @@ export async function updateProperty(
 
 export async function deleteProperty(id: string): Promise<boolean> {
   const supabase = getServerSupabase();
-  
+
   const { error } = await supabase.from("properties").delete().eq("id", id);
   return !error;
 }
@@ -175,7 +228,7 @@ export async function deleteProperty(id: string): Promise<boolean> {
 
 export async function getAgentByEmail(email: string): Promise<Agent | null> {
   const supabase = getServerSupabase();
-  
+
   const { data, error } = await supabase
     .from("agents")
     .select("*")
@@ -189,7 +242,7 @@ export async function getAgentByEmail(email: string): Promise<Agent | null> {
 
 export async function getAgentById(id: string): Promise<Agent | null> {
   const supabase = getServerSupabase();
-  
+
   const { data, error } = await supabase
     .from("agents")
     .select("*")
@@ -208,7 +261,7 @@ export async function createAgent(data: {
   role?: "agent" | "admin";
 }): Promise<{ agent: Agent | null; error: string | null }> {
   const supabase = getServerSupabase();
-  
+
   const { data: agent, error } = await supabase
     .from("agents")
     .insert({
@@ -232,7 +285,7 @@ export async function createAgent(data: {
 
 export async function getAllAgents(): Promise<Agent[]> {
   const supabase = getServerSupabase();
-  
+
   const { data, error } = await supabase
     .from("agents")
     .select("*")
@@ -254,7 +307,7 @@ export async function createContact(data: {
   propertyId?: string;
 }) {
   const supabase = getServerSupabase();
-  
+
   const { data: contact, error } = await supabase
     .from("contacts")
     .insert({
@@ -273,7 +326,7 @@ export async function createContact(data: {
 
 export async function getAllContacts() {
   const supabase = getServerSupabase();
-  
+
   const { data, error } = await supabase
     .from("contacts")
     .select(`
