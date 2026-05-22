@@ -29,11 +29,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verificar variables de entorno
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Missing Supabase environment variables");
+      return NextResponse.json(
+        { error: "Configuracion de base de datos incompleta. Contacta al administrador." },
+        { status: 500 }
+      );
+    }
+
     // Verificar si el email ya existe
     const existing = await getAgentByEmail(validatedData.email);
     if (existing) {
       return NextResponse.json(
-        { error: "Este email ya está registrado" },
+        { error: "Este email ya esta registrado" },
         { status: 400 }
       );
     }
@@ -52,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     if (!agent) {
       return NextResponse.json(
-        { error: "Error al crear el usuario" },
+        { error: "Error al crear el usuario. Verifica que las tablas de Supabase existan." },
         { status: 500 }
       );
     }

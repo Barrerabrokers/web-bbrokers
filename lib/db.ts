@@ -203,6 +203,7 @@ export async function createAgent(data: {
 
   if (error || !agent) {
     console.error("Error creating agent:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return null;
   }
 
