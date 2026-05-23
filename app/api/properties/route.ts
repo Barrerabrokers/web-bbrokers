@@ -14,6 +14,7 @@ const propertySchema = z.object({
   bedrooms: z.number().optional(),
   bathrooms: z.number().optional(),
   area: z.number().positive("El area debe ser positiva"),
+  expenses: z.number().optional(),
   images: z.array(z.string()).min(1, "Debes subir al menos una imagen"),
   features: z.array(z.string()).default([]),
   agentId: z.string().min(1, "agentId requerido"),

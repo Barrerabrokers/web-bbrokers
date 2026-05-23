@@ -22,6 +22,7 @@ export default function NewPropertyPage() {
     description: "",
     category: "usados" as const,
     price: "",
+    expenses: "",
     location: "",
     address: "",
     bedrooms: "",
@@ -129,6 +130,7 @@ export default function NewPropertyPage() {
         body: JSON.stringify({
           ...formData,
           price: parseFloat(formData.price),
+          expenses: formData.expenses ? parseFloat(formData.expenses) : undefined,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
           area: parseFloat(formData.area),
@@ -319,6 +321,23 @@ export default function NewPropertyPage() {
               }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
               placeholder="180000"
+            />
+          </div>
+
+          <div>
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Expensas (USD/mes)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.expenses}
+              onChange={(e) =>
+                setFormData({ ...formData, expenses: e.target.value })
+              }
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+              placeholder="500"
             />
           </div>
 

@@ -110,6 +110,7 @@ export async function createProperty(
         description,
         category,
         price,
+        expenses,
         location,
         address,
         area,
@@ -123,6 +124,7 @@ export async function createProperty(
         ${propertyData.description},
         ${propertyData.category},
         ${propertyData.price},
+        ${propertyData.expenses || null},
         ${propertyData.location},
         ${propertyData.address},
         ${propertyData.area},
@@ -213,6 +215,10 @@ export async function updateProperty(
     if (updateFields.price !== undefined) {
       updates.push(`price = $${paramIdx++}`);
       values.push(updateFields.price);
+    }
+    if (updateFields.expenses !== undefined) {
+      updates.push(`expenses = $${paramIdx++}`);
+      values.push(updateFields.expenses);
     }
     if (updateFields.location !== undefined) {
       updates.push(`location = $${paramIdx++}`);
@@ -437,6 +443,7 @@ function mapPropertyFromDb(data: any): Property {
     description: data.description,
     category: data.category,
     price: parseFloat(data.price),
+    expenses: data.expenses ? parseFloat(data.expenses) : undefined,
     currency: data.currency,
     location: data.location,
     address: data.address,

@@ -25,6 +25,7 @@ export default function EditPropertyPage() {
     description: "",
     category: "usados" as const,
     price: "",
+    expenses: "",
     location: "",
     address: "",
     bedrooms: "",
@@ -51,6 +52,7 @@ export default function EditPropertyPage() {
           description: data.description || "",
           category: data.category || "usados",
           price: data.price?.toString() || "",
+          expenses: data.expenses?.toString() || "",
           location: data.location || "",
           address: data.address || "",
           bedrooms: data.bedrooms?.toString() || "",
@@ -157,6 +159,7 @@ export default function EditPropertyPage() {
         body: JSON.stringify({
           ...formData,
           price: parseFloat(formData.price),
+          expenses: formData.expenses ? parseFloat(formData.expenses) : null,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
           area: parseFloat(formData.area),
@@ -369,6 +372,22 @@ export default function EditPropertyPage() {
               value={formData.price}
               onChange={(e) =>
                 setFormData({ ...formData, price: e.target.value })
+              }
+              className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="label-tracking text-charcoal-700 block mb-2">
+              Expensas (USD/mes)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.expenses}
+              onChange={(e) =>
+                setFormData({ ...formData, expenses: e.target.value })
               }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
             />

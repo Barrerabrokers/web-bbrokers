@@ -16,6 +16,7 @@ export interface Property {
   description: string;
   category: PropertyCategory;
   price: number;
+  expenses?: number;
   currency?: string;
   location: string;
   address: string;
