@@ -2,6 +2,9 @@ import { Building2, TrendingUp, Users, Eye } from "lucide-react";
 import { getProperties } from "@/lib/db";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminDashboard() {
   const properties = await getProperties();
   const disponibles = properties.filter(p => p.status === "disponible").length;

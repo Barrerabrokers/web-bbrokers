@@ -185,41 +185,121 @@ export async function createProperty(
 
 export async function updateProperty(
   id: string,
-  data: Partial<Property>
-): Promise<Property | null> {
-  const supabase = getServerSupabase();
+  data: Partial<Property> & { images?: string[] }
+): Promise<{ property: Property | null; error: string | null }> {
+  const { images, ...updateFields } = data as any;
 
-  const updateData: any = {};
-  if (data.title) updateData.title = data.title;
-  if (data.description) updateData.description = data.description;
-  if (data.category) updateData.category = data.category;
-  if (data.price !== undefined) updateData.price = data.price;
-  if (data.location) updateData.location = data.location;
-  if (data.address) updateData.address = data.address;
-  if (data.bedrooms !== undefined) updateData.bedrooms = data.bedrooms;
-  if (data.bathrooms !== undefined) updateData.bathrooms = data.bathrooms;
-  if (data.area !== undefined) updateData.area = data.area;
-  if (data.features) updateData.features = data.features;
-  if (data.status) updateData.status = data.status;
+  let sql;
+  try {
+    sql = getPgConnection();
 
-  const { error } = await supabase
-    .from("properties")
-    .update(updateData)
-    .eq("id", id);
+    // Construir UPDATE dinamico
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
 
-  if (error) {
+    if (updateFields.title !== undefined) {
+      updates.push(`title = $${paramIdx++}`);
+      values.push(updateFields.title);
+    }
+    if (updateFields.description !== undefined) {
+      updates.push(`description = $${paramIdx++}`);
+      values.push(updateFields.description);
+    }
+    if (updateFields.category !== undefined) {
+      updates.push(`category = $${paramIdx++}`);
+      values.push(updateFields.category);
+    }
+    if (updateFields.price !== undefined) {
+      updates.push(`price = $${paramIdx++}`);
+      values.push(updateFields.price);
+    }
+    if (updateFields.location !== undefined) {
+      updates.push(`location = $${paramIdx++}`);
+      values.push(updateFields.location);
+    }
+    if (updateFields.address !== undefined) {
+      updates.push(`address = $${paramIdx++}`);
+      values.push(updateFields.address);
+    }
+    if (updateFields.area !== undefined) {
+      updates.push(`area = $${paramIdx++}`);
+      values.push(updateFields.area);
+    }
+    if (updateFields.bedrooms !== undefined) {
+      updates.push(`bedrooms = $${paramIdx++}`);
+      values.push(updateFields.bedrooms);
+    }
+    if (updateFields.bathrooms !== undefined) {
+      updates.push(`bathrooms = $${paramIdx++}`);
+      values.push(updateFields.bathrooms);
+    }
+    if (updateFields.features !== undefined) {
+      updates.push(`features = $${paramIdx++}`);
+      values.push(updateFields.features);
+    }
+    if (updateFields.status !== undefined) {
+      updates.push(`status = $${paramIdx++}`);
+      values.push(updateFields.status);
+    }
+    updates.push(`updated_at = NOW()`);
+
+    if (updates.length > 1) {
+      const query = `UPDATE properties SET ${updates.join(", ")} WHERE id = $${paramIdx}`;
+      values.push(id);
+      await sql.unsafe(query, values);
+    }
+
+    // Actualizar imágenes si se enviaron
+    if (images && Array.isArray(images)) {
+      // Borrar imágenes existentes
+      await sql`DELETE FROM property_images WHERE property_id = ${id}`;
+
+      // Insertar nuevas
+      for (let i = 0; i < images.length; i++) {
+        await sql`
+          INSERT INTO property_images (property_id, url, display_order, is_primary)
+          VALUES (${id}, ${images[i]}, ${i}, ${i === 0})
+        `;
+      }
+    }
+
+    await sql.end();
+
+    const updated = await getPropertyById(id);
+    return { property: updated, error: null };
+  } catch (error: any) {
+    if (sql) {
+      try {
+        await sql.end();
+      } catch {}
+    }
     console.error("Error updating property:", error);
-    return null;
+    return { property: null, error: error.message || "Unknown error" };
   }
-
-  return getPropertyById(id);
 }
 
 export async function deleteProperty(id: string): Promise<boolean> {
-  const supabase = getServerSupabase();
+  let sql;
+  try {
+    sql = getPgConnection();
 
-  const { error } = await supabase.from("properties").delete().eq("id", id);
-  return !error;
+    // Borrar imágenes (FK CASCADE deberia hacerlo pero por si acaso)
+    await sql`DELETE FROM property_images WHERE property_id = ${id}`;
+    // Borrar la propiedad
+    await sql`DELETE FROM properties WHERE id = ${id}`;
+
+    await sql.end();
+    return true;
+  } catch (error: any) {
+    if (sql) {
+      try {
+        await sql.end();
+      } catch {}
+    }
+    console.error("Error deleting property:", error);
+    return false;
+  }
 }
 
 // ============================================================

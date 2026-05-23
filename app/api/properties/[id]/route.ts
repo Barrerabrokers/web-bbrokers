@@ -41,19 +41,19 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const property = await updateProperty(params.id, body);
+    const { property, error } = await updateProperty(params.id, body);
 
     if (!property) {
       return NextResponse.json(
-        { error: "Propiedad no encontrada" },
-        { status: 404 }
+        { error: `Error al actualizar: ${error || "desconocido"}` },
+        { status: 500 }
       );
     }
 
     return NextResponse.json(property);
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Error al actualizar la propiedad" },
+      { error: `Error al actualizar la propiedad: ${error.message}` },
       { status: 500 }
     );
   }
@@ -77,15 +77,15 @@ export async function DELETE(
 
     if (!success) {
       return NextResponse.json(
-        { error: "Propiedad no encontrada" },
-        { status: 404 }
+        { error: "Error al eliminar la propiedad" },
+        { status: 500 }
       );
     }
 
     return NextResponse.json({ message: "Propiedad eliminada" });
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Error al eliminar la propiedad" },
+      { error: `Error al eliminar la propiedad: ${error.message}` },
       { status: 500 }
     );
   }
