@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import postgres from "postgres";
 import { getServerSupabase } from "@/lib/supabase";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const databaseUrl =
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL_NON_POOLING ||
@@ -11,6 +11,8 @@ export async function POST() {
     process.env.SUPABASE_DB_URL;
 
   const results: any[] = [];
+  const url = new URL(request.url);
+  const reset = url.searchParams.get("reset") === "true";
 
   if (databaseUrl) {
     if (process.env.DATABASE_URL) results.push("Usando DATABASE_URL");
@@ -32,6 +34,29 @@ export async function POST() {
       await sql.unsafe(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
       results.push("Extension uuid-ossp habilitada");
 
+      // Si reset=true, borrar tablas existentes
+      if (reset) {
+        try {
+          await sql.unsafe(`DROP TABLE IF EXISTS property_images CASCADE;`);
+          results.push("DROP property_images OK");
+        } catch (e: any) {
+          results.push(`Error drop property_images: ${e.message}`);
+        }
+        try {
+          await sql.unsafe(`DROP TABLE IF EXISTS contacts CASCADE;`);
+          results.push("DROP contacts OK");
+        } catch (e: any) {
+          results.push(`Error drop contacts: ${e.message}`);
+        }
+        try {
+          await sql.unsafe(`DROP TABLE IF EXISTS properties CASCADE;`);
+          results.push("DROP properties OK");
+        } catch (e: any) {
+          results.push(`Error drop properties: ${e.message}`);
+        }
+      }
+
+      // Crear agents
       await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS agents (
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -48,21 +73,37 @@ export async function POST() {
       `);
       results.push("Tabla agents OK");
 
-      // Crear properties si no existe
+      // Crear properties con TODAS las columnas
       await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS properties (
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          created_at TIMESTAMPTZ DEFAULT NOW()
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          category VARCHAR(50),
+          price DECIMAL(12,2),
+          currency VARCHAR(3) DEFAULT 'USD',
+          location VARCHAR(255),
+          address VARCHAR(255),
+          area DECIMAL(10,2),
+          bedrooms INTEGER,
+          bathrooms INTEGER,
+          features TEXT[] DEFAULT '{}',
+          agent_id UUID,
+          status VARCHAR(20) DEFAULT 'disponible',
+          featured BOOLEAN DEFAULT false,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
       results.push("Tabla properties OK");
 
-      // Agregar TODAS las columnas que necesita la app
+      // ALTER TABLE para asegurar que TODAS las columnas existan
       const propertyColumns = [
         { name: "title", type: "VARCHAR(255)" },
         { name: "description", type: "TEXT" },
         { name: "category", type: "VARCHAR(50)" },
         { name: "price", type: "DECIMAL(12,2)" },
+        { name: "currency", type: "VARCHAR(3) DEFAULT 'USD'" },
         { name: "location", type: "VARCHAR(255)" },
         { name: "address", type: "VARCHAR(255)" },
         { name: "area", type: "DECIMAL(10,2)" },
@@ -71,7 +112,6 @@ export async function POST() {
         { name: "features", type: "TEXT[] DEFAULT '{}'" },
         { name: "agent_id", type: "UUID" },
         { name: "status", type: "VARCHAR(20) DEFAULT 'disponible'" },
-        { name: "currency", type: "VARCHAR(3) DEFAULT 'USD'" },
         { name: "featured", type: "BOOLEAN DEFAULT false" },
         { name: "updated_at", type: "TIMESTAMPTZ DEFAULT NOW()" },
       ];
@@ -86,6 +126,19 @@ export async function POST() {
           results.push(`Error columna ${col.name}: ${e.message}`);
         }
       }
+
+      // Listar columnas existentes
+      try {
+        const cols = await sql`
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'properties'
+          ORDER BY ordinal_position
+        `;
+        results.push(
+          `Columnas en properties: ${cols.map((c: any) => c.column_name).join(", ")}`
+        );
+      } catch {}
 
       await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS property_images (
@@ -149,7 +202,6 @@ export async function POST() {
           await sql.unsafe(`DROP POLICY IF EXISTS "${policyName}" ON storage.objects;`);
         } catch {}
       }
-      results.push("Politicas viejas eliminadas");
 
       try {
         await sql.unsafe(`
@@ -200,7 +252,6 @@ export async function POST() {
         results.push(`Error politica DELETE: ${e.message}`);
       }
 
-      // Forzar reload del schema cache de Supabase
       try {
         await sql.unsafe(`NOTIFY pgrst, 'reload schema';`);
         results.push("Schema cache refresh enviado");
@@ -217,15 +268,6 @@ export async function POST() {
     }
   } else {
     results.push("ERROR: No se encontro variable de conexion");
-    results.push(
-      "Variables disponibles: " +
-        Object.keys(process.env)
-          .filter(
-            (k) =>
-              k.includes("POSTGRES") || k.includes("SUPABASE") || k.includes("DATABASE")
-          )
-          .join(", ")
-    );
   }
 
   // Storage bucket
@@ -269,7 +311,9 @@ export async function POST() {
 
   return NextResponse.json({
     success: true,
-    message: "Inicializacion completada",
+    message: reset ? "Inicializacion con RESET completada" : "Inicializacion completada",
+    reset,
+    hint: reset ? null : "Si las columnas faltan, llama con ?reset=true para recrear las tablas",
     results,
     adminCredentials: {
       email: "admin@barrerabrokers.com",
@@ -278,6 +322,6 @@ export async function POST() {
   });
 }
 
-export async function GET() {
-  return POST();
+export async function GET(request: NextRequest) {
+  return POST(request);
 }
