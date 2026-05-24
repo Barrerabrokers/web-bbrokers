@@ -1,71 +1,118 @@
-import Link from "next/link";
+"use client";
+
 import { ArrowDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export function HeroSection() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      setVideoLoaded(true);
+      video.play().catch((err) => {
+        console.log("Autoplay prevented:", err);
+      });
+    };
+
+    video.addEventListener("canplay", handleCanPlay);
+    video.load();
+
+    return () => {
+      video.removeEventListener("canplay", handleCanPlay);
+    };
+  }, []);
+
   return (
     <section
       id="inicio"
-      className="relative min-h-screen flex flex-col bg-cream-100 pt-24"
+      className="relative h-screen min-h-[760px] w-full overflow-hidden bg-ink-700"
     >
-      {/* Top label bar (Studio X style) */}
-      <div className="container-custom pt-10 md:pt-16">
-        <div className="flex items-baseline justify-between flex-wrap gap-4 pb-8 border-b border-ink/15">
-          <span className="text-[11px] uppercase tracking-widest text-ink/60">
-            (Real Estate)
-          </span>
-          <span className="text-[11px] uppercase tracking-widest text-ink/50">
-            Buenos Aires &middot; Est. 2000
-          </span>
-        </div>
+      {/* Video full-bleed protagonist */}
+      <div className="absolute inset-0">
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster="https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80"
+          className={`w-full h-full object-cover transition-opacity duration-1000 ${
+            videoLoaded ? "opacity-100 animate-slow-zoom" : "opacity-0"
+          }`}
+        >
+          <source src="/buenos-aires.mp4" type="video/mp4" />
+        </video>
+
+        {/* Fallback poster while video loads */}
+        {!videoLoaded && (
+          <div
+            className="absolute inset-0 bg-cover bg-center animate-slow-zoom"
+            style={{
+              backgroundImage:
+                "url(https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80)",
+            }}
+          />
+        )}
+
+        {/* Luxury overlay: gradient bottom for legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-ink-700/40 via-ink-700/30 to-ink-700/80" />
       </div>
 
-      {/* Manifest content */}
-      <div className="container-custom flex-1 flex items-center py-16 md:py-24">
-        <div className="grid grid-cols-12 gap-6 w-full">
-          <div className="col-span-12 lg:col-span-10 lg:col-start-1">
-            <h1 className="font-display font-light text-ink leading-[0.92] tracking-[-0.025em] text-[44px] sm:text-[64px] md:text-[88px] lg:text-[120px] xl:text-[148px]">
-              Disenamos el camino hacia la propiedad{" "}
-              <span className="italic font-light">indicada,</span>{" "}
-              acompanando cada decision patrimonial.
-            </h1>
+      {/* Top eyebrow */}
+      <div className="absolute top-0 left-0 right-0 z-10">
+        <div className="container-custom pt-32 md:pt-36">
+          <div className="flex items-center justify-center">
+            <span className="text-[11px] uppercase tracking-widest text-white/80">
+              Buenos Aires &middot; Argentina &middot; Est. 2000
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Footer block: subtitle + CTAs */}
-      <div className="container-custom pb-12">
-        <div className="grid grid-cols-12 gap-6 pt-10 border-t border-ink/15">
-          <div className="col-span-12 md:col-span-6 lg:col-span-5">
-            <p className="text-ink/70 text-base md:text-lg leading-relaxed max-w-md">
-              Mas de 20 anos acompanando a quienes buscan invertir, habitar y
-              rentabilizar las propiedades mas exclusivas de Buenos Aires
-              &mdash; desde primeras inversiones hasta carteras complejas.
-            </p>
-          </div>
+      {/* Main content centered */}
+      <div className="relative z-10 h-full flex flex-col items-center justify-center px-6 text-center">
+        <div className="animate-fade-in-up max-w-5xl">
+          <h1 className="font-display font-light text-white leading-[0.98] tracking-[-0.025em] text-[52px] sm:text-[72px] md:text-[100px] lg:text-[128px]">
+            Stewart &amp; Co
+            <br />
+            <span className="italic">Real Estate</span>
+          </h1>
 
-          <div className="col-span-12 md:col-span-6 lg:col-start-9 lg:col-span-4 flex flex-col md:items-end gap-4 justify-between">
-            <div className="flex flex-wrap gap-3">
-              <Link href="#propiedades" className="btn-primary">
-                Ver propiedades
-              </Link>
-              <Link
-                href="#contacto"
-                className="btn-outline"
-              >
-                Hablemos
-              </Link>
-            </div>
+          <p className="mt-8 md:mt-10 text-white/90 text-base md:text-lg max-w-xl mx-auto leading-relaxed font-light">
+            Your Buenos Aires Real Estate Experts.
+            <br />
+            Acompanamos a quienes buscan invertir, habitar y rentabilizar las
+            propiedades mas exclusivas de Argentina.
+          </p>
 
+          <div className="mt-10 md:mt-12 flex flex-wrap items-center justify-center gap-3">
+            <a href="#propiedades" className="btn-outline-light">
+              Ver propiedades
+            </a>
             <a
-              href="#propiedades"
-              className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink/50 hover:text-ink transition-colors"
+              href="#contacto"
+              className="text-[11px] uppercase tracking-widest text-white/85 hover:text-white px-4 py-3.5 transition-colors"
             >
-              Scroll
-              <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+              Hablemos &rarr;
             </a>
           </div>
         </div>
       </div>
+
+      {/* Scroll hint */}
+      <a
+        href="#propiedades"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/65 hover:text-white transition-colors"
+        aria-label="Scroll"
+      >
+        <span className="text-[10px] uppercase tracking-widest">Scroll</span>
+        <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
+      </a>
     </section>
   );
 }

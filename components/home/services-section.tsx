@@ -1,33 +1,34 @@
+import Link from "next/link";
+import Image from "next/image";
+import { ArrowUpRight } from "lucide-react";
+
 const services = [
   {
-    title: "En desarrollo",
+    title: "Sales",
+    titleEs: "Ventas",
     description:
-      "Proyectos en construccion con financiacion especial y entregas programadas en ubicaciones premium.",
+      "Asesoramiento integral en compraventa de propiedades en Buenos Aires. Desde primera vivienda hasta inversiones de gran escala.",
+    image:
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=90",
+    href: "/propiedades?categoria=usados",
   },
   {
-    title: "En pozo",
+    title: "Rentals",
+    titleEs: "Alquileres",
     description:
-      "Inversiones en etapa inicial con los mejores precios y condiciones de pago flexibles.",
+      "Renta temporaria y permanente en las ubicaciones mas cotizadas de la ciudad. Acompanamiento end-to-end al propietario y al inquilino.",
+    image:
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=90",
+    href: "/propiedades?categoria=rentals",
   },
   {
-    title: "Usados",
+    title: "Home Valuation",
+    titleEs: "Tasaciones",
     description:
-      "Propiedades listas para escriturar e ingresar, cuidadosamente seleccionadas por nuestro equipo.",
-  },
-  {
-    title: "Alquileres",
-    description:
-      "Opciones de renta temporaria y permanente en las ubicaciones mas cotizadas de la ciudad.",
-  },
-  {
-    title: "Inversiones",
-    description:
-      "Oportunidades inmobiliarias con alto retorno y proyeccion validadas por nuestros analistas.",
-  },
-  {
-    title: "Oportunidades",
-    description:
-      "Propiedades exclusivas con precios especiales por tiempo limitado, fuera de mercado.",
+      "Valuacion profesional de tu propiedad basada en comparables del mercado, ubicacion y condiciones especificas del activo.",
+    image:
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=90",
+    href: "/#contacto",
   },
 ];
 
@@ -35,50 +36,57 @@ export function ServicesSection() {
   return (
     <section
       id="servicios"
-      className="relative py-20 md:py-28 lg:py-36 bg-cream-50 border-t border-ink/15"
+      className="relative py-24 md:py-32 lg:py-40 bg-cream-100"
     >
       <div className="container-custom">
-        {/* Header */}
-        <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-ink/15 mb-16 md:mb-20">
-          <div className="flex items-baseline gap-6 md:gap-10">
-            <span className="font-display italic font-light text-3xl md:text-4xl text-ink/40">
-              (02)
-            </span>
-            <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-ink">
-              <span className="italic">Servicios</span>
-            </h2>
-          </div>
-          <p className="text-ink/70 leading-relaxed text-base md:text-lg max-w-md">
-            Especialistas en cada tipo de propiedad. Asesoramiento integral
-            adaptado a tus objetivos.
+        {/* Section header */}
+        <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
+          <span className="eyebrow mb-6">Our Services</span>
+          <h2 className="lp-h2 mt-6 mb-6">
+            Como podemos <span className="italic">ayudarte</span>
+          </h2>
+          <p className="text-ink/65 text-base md:text-lg leading-relaxed">
+            Especialistas en cada operacion inmobiliaria. Asesoramiento
+            integral adaptado a tus objetivos.
           </p>
         </div>
 
-        {/* Editorial numbered list */}
-        <ul>
-          {services.map((service, index) => (
-            <li
-              key={index}
-              className="group grid grid-cols-12 gap-4 md:gap-8 py-7 md:py-9 border-b border-ink/15 hover:bg-cream-200/40 transition-colors"
+        {/* Services grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          {services.map((service) => (
+            <Link
+              key={service.title}
+              href={service.href}
+              className="group block bg-white rounded-lg overflow-hidden border border-ink/10 hover:border-accent/50 transition-all duration-300"
             >
-              <div className="col-span-2 md:col-span-1">
-                <span className="font-display italic font-light text-xl md:text-2xl text-ink/40">
-                  ({String(index + 1).padStart(2, "0")})
-                </span>
+              <div className="relative aspect-[4/3] overflow-hidden">
+                <Image
+                  src={service.image}
+                  alt={service.title}
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/40" />
+                <div className="absolute top-5 right-5 h-10 w-10 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                  <ArrowUpRight className="h-4 w-4 text-ink" />
+                </div>
               </div>
-              <div className="col-span-10 md:col-span-4">
-                <h3 className="font-display font-light text-2xl md:text-4xl tracking-[-0.02em] text-ink leading-[1.05]">
+
+              <div className="p-7 md:p-8">
+                <p className="text-[11px] uppercase tracking-widest text-accent mb-3">
                   {service.title}
+                </p>
+                <h3 className="font-display font-normal text-3xl md:text-4xl text-ink mb-4 leading-tight tracking-[-0.01em]">
+                  {service.titleEs}
                 </h3>
-              </div>
-              <div className="col-span-12 md:col-span-7 flex items-center">
-                <p className="text-ink/70 text-base md:text-lg leading-relaxed max-w-2xl">
+                <p className="text-ink/65 text-sm leading-relaxed">
                   {service.description}
                 </p>
               </div>
-            </li>
+            </Link>
           ))}
-        </ul>
+        </div>
       </div>
     </section>
   );

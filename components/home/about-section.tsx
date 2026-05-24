@@ -1,21 +1,10 @@
 import Image from "next/image";
 
-const values = [
-  {
-    title: "Experiencia",
-    description:
-      "Mas de dos decadas conociendo en profundidad el mercado inmobiliario.",
-  },
-  {
-    title: "Confianza",
-    description:
-      "Relaciones construidas en transparencia, etica y resultados consistentes.",
-  },
-  {
-    title: "Excelencia",
-    description:
-      "Atencion personalizada y procesos refinados en cada transaccion.",
-  },
+const stats = [
+  { value: "25+", label: "Anos de experiencia" },
+  { value: "500+", label: "Propiedades gestionadas" },
+  { value: "1.2k+", label: "Clientes satisfechos" },
+  { value: "98%", label: "Tasa de cierre" },
 ];
 
 const team = [
@@ -47,83 +36,104 @@ const team = [
 
 export function AboutSection() {
   return (
-    <section id="nosotros" className="bg-cream-100 border-t border-ink/15">
-      {/* About */}
-      <div className="py-20 md:py-28 lg:py-36">
+    <section id="nosotros" className="bg-white">
+      {/* By the Numbers */}
+      <div className="py-24 md:py-32 bg-ink-700 text-white">
         <div className="container-custom">
-          <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-ink/15 mb-16 md:mb-20">
-            <div className="flex items-baseline gap-6 md:gap-10">
-              <span className="font-display italic font-light text-3xl md:text-4xl text-ink/40">
-                (03)
-              </span>
-              <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-ink">
-                <span className="italic">Sobre</span> nosotros
-              </h2>
-            </div>
-            <p className="text-ink/70 leading-relaxed text-base md:text-lg max-w-md">
-              Construyendo confianza desde el ano 2000.
-            </p>
+          <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
+            <span className="inline-flex items-center gap-3 text-[11px] font-medium tracking-widest uppercase text-accent-300 mb-6">
+              <span className="h-px w-10 bg-accent-300" />
+              By the Numbers
+            </span>
+            <h2 className="lp-h2 text-white mt-6">
+              Nuestra <span className="italic">trayectoria</span>
+            </h2>
           </div>
 
-          <div className="grid grid-cols-12 gap-6 md:gap-12">
-            {/* Image - 7 cols */}
-            <div className="col-span-12 md:col-span-7 order-2 md:order-1">
-              <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden bg-cream-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12">
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                className="text-center md:border-r last:border-r-0 border-white/15 px-2"
+              >
+                <div className="font-display font-light text-[64px] md:text-[88px] lg:text-[112px] text-white leading-none tracking-[-0.04em]">
+                  {stat.value}
+                </div>
+                <div className="mt-3 text-[10px] md:text-[11px] uppercase tracking-widest text-white/65">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* About content */}
+      <div className="py-24 md:py-32 lg:py-40 bg-white">
+        <div className="container-custom">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Image */}
+            <div className="relative">
+              <div className="relative aspect-[4/5] overflow-hidden bg-cream-200">
                 <Image
                   src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=90"
                   alt="Equipo Barrera Brokers"
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 60vw"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                 />
               </div>
-              <div className="mt-3 flex items-baseline justify-between text-[11px] uppercase tracking-widest text-ink/55">
-                <span>(Buenos Aires HQ)</span>
-                <span>Est. 2000</span>
+              <div className="absolute bottom-6 left-6 right-6 md:left-auto md:right-auto md:-bottom-10 md:-left-10 lg:bottom-10 lg:-left-10 bg-white p-6 md:p-8 max-w-sm shadow-xl">
+                <p className="text-[10px] uppercase tracking-widest text-accent mb-2">
+                  Premium Real Estate
+                </p>
+                <p className="font-display text-xl md:text-2xl text-ink leading-tight">
+                  Mas de dos decadas de experiencia, conocimiento profundo del
+                  mercado y un equipo dedicado.
+                </p>
               </div>
             </div>
 
-            {/* Text - 4 cols */}
-            <div className="col-span-12 md:col-span-4 md:col-start-9 order-1 md:order-2 flex flex-col gap-12">
-              <div>
-                <p className="text-ink/85 text-lg md:text-xl leading-relaxed mb-5 font-light">
+            {/* Text */}
+            <div className="lg:pl-8">
+              <span className="eyebrow mb-6">Sobre nosotros</span>
+              <h2 className="lp-h2 mt-6 mb-8">
+                Tu socio en cada
+                <br />
+                <span className="italic">decision patrimonial.</span>
+              </h2>
+
+              <div className="space-y-5 text-ink/75 text-base md:text-lg leading-relaxed mb-10">
+                <p>
                   En Barrera Brokers somos mas que una inmobiliaria. Somos
                   socios estrategicos en el camino hacia las decisiones
                   patrimoniales mas importantes de tu vida.
                 </p>
-                <p className="text-ink/65 text-base leading-relaxed">
+                <p>
                   Combinamos conocimiento profundo del mercado, vision
-                  estrategica y compromiso genuino con cada cliente.
+                  estrategica y compromiso genuino con cada cliente, ya sea que
+                  busques tu primera vivienda o expandir tu portafolio de
+                  inversiones.
                 </p>
               </div>
 
-              {/* Big stat */}
-              <div className="border-t border-ink/15 pt-6">
-                <div className="font-display font-light text-7xl md:text-8xl text-ink leading-none tracking-[-0.04em]">
-                  +500
-                </div>
-                <div className="mt-2 text-[11px] uppercase tracking-widest text-ink/60">
-                  (Propiedades gestionadas)
-                </div>
-              </div>
-
-              {/* Values */}
-              <div className="border-t border-ink/15 pt-6 space-y-6">
-                {values.map((value, index) => (
-                  <div key={index} className="flex gap-5">
-                    <span className="font-display italic font-light text-lg text-ink/40">
-                      ({String(index + 1).padStart(2, "0")})
-                    </span>
-                    <div>
-                      <h3 className="font-display font-light text-xl text-ink mb-1 tracking-tight">
-                        {value.title}
-                      </h3>
-                      <p className="text-sm text-ink/60 leading-relaxed">
-                        {value.description}
-                      </p>
-                    </div>
+              <div className="grid grid-cols-2 gap-6 pt-8 border-t border-ink/10">
+                <div>
+                  <div className="font-display text-4xl md:text-5xl text-ink leading-none">
+                    25+
                   </div>
-                ))}
+                  <div className="mt-2 text-[10px] uppercase tracking-widest text-ink/55">
+                    Anos en el mercado
+                  </div>
+                </div>
+                <div>
+                  <div className="font-display text-4xl md:text-5xl text-ink leading-none">
+                    +500
+                  </div>
+                  <div className="mt-2 text-[10px] uppercase tracking-widest text-ink/55">
+                    Propiedades vendidas
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -131,47 +141,33 @@ export function AboutSection() {
       </div>
 
       {/* Team */}
-      <div className="py-20 md:py-28 lg:py-32 bg-cream-50 border-t border-ink/15">
+      <div className="py-24 md:py-32 bg-cream-100 border-t border-ink/10">
         <div className="container-custom">
-          <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-ink/15 mb-16 md:mb-20">
-            <div className="flex items-baseline gap-6 md:gap-10">
-              <span className="font-display italic font-light text-3xl md:text-4xl text-ink/40">
-                (04)
-              </span>
-              <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-ink">
-                <span className="italic">Equipo</span>
-              </h2>
-            </div>
-            <p className="text-ink/70 leading-relaxed text-base md:text-lg max-w-md">
-              Profesionales comprometidos con cada cliente y proyecto.
-            </p>
+          <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
+            <span className="eyebrow mb-6">Meet the Team</span>
+            <h2 className="lp-h2 mt-6">
+              Nuestro <span className="italic">equipo</span>
+            </h2>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12">
-            {team.map((member, index) => (
-              <div key={index} className="group">
-                <div className="relative aspect-[3/4] overflow-hidden bg-cream-300 mb-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-12">
+            {team.map((member) => (
+              <div key={member.name} className="group">
+                <div className="relative aspect-[3/4] overflow-hidden bg-cream-200 mb-4">
                   <Image
                     src={member.image}
                     alt={member.name}
                     fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
                   />
                 </div>
-                <div className="border-t border-ink/15 pt-3">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-display italic font-light text-base text-ink/40">
-                      ({String(index + 1).padStart(2, "0")})
-                    </span>
-                    <h4 className="font-display font-light text-xl md:text-2xl text-ink leading-tight tracking-tight">
-                      {member.name}
-                    </h4>
-                  </div>
-                  <p className="text-[11px] uppercase tracking-widest text-ink/55">
-                    {member.role}
-                  </p>
-                </div>
+                <h4 className="font-display text-2xl text-ink leading-tight mb-1">
+                  {member.name}
+                </h4>
+                <p className="text-[11px] uppercase tracking-widest text-accent">
+                  {member.role}
+                </p>
               </div>
             ))}
           </div>

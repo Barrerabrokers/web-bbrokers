@@ -24,29 +24,37 @@ export function Header() {
     { href: "/#contacto", label: "Contacto" },
   ];
 
+  // White header on scroll, transparent on top of hero
+  const headerClass = scrolled || isMenuOpen
+    ? "bg-white/95 backdrop-blur-md border-b border-ink/10"
+    : "bg-transparent border-b border-transparent";
+
+  const textColor = scrolled || isMenuOpen ? "text-ink" : "text-white";
+  const textHover = scrolled || isMenuOpen ? "hover:text-accent" : "hover:text-accent-300";
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled || isMenuOpen
-          ? "bg-cream-100/85 backdrop-blur-md border-b border-ink/10"
-          : "bg-transparent border-b border-transparent"
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerClass}`}
     >
       <div className="container-custom">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative h-9 w-9 flex-shrink-0">
+            <div className="relative h-10 w-10 flex-shrink-0">
               <Image
                 src="/logo.png"
                 alt="Barrera Brokers"
                 fill
                 priority
-                className="object-contain"
+                className={`object-contain transition-all ${
+                  scrolled || isMenuOpen ? "" : "brightness-0 invert"
+                }`}
               />
             </div>
             <div className="hidden sm:flex items-baseline gap-2">
-              <span className="font-display font-light text-2xl tracking-[-0.025em] text-ink">
+              <span
+                className={`font-display font-light text-2xl tracking-[-0.02em] transition-colors ${textColor}`}
+              >
                 Barrera <span className="italic">Brokers</span>
               </span>
             </div>
@@ -58,7 +66,7 @@ export function Header() {
               <a
                 key={item.href}
                 href={item.href}
-                className="text-sm tracking-tight text-ink/70 hover:text-ink transition-colors"
+                className={`text-[12px] uppercase tracking-widest transition-colors ${textColor} ${textHover}`}
               >
                 {item.label}
               </a>
@@ -69,18 +77,23 @@ export function Header() {
           <div className="hidden lg:flex items-center gap-3">
             <Link
               href="/login"
-              className="text-[11px] uppercase tracking-widest text-ink/70 hover:text-ink transition-colors px-2"
+              className={`text-[11px] uppercase tracking-widest transition-colors px-2 ${textColor} ${textHover}`}
             >
-              (Portal)
+              Portal
             </Link>
-            <Link href="/#contacto" className="btn-primary">
+            <Link
+              href="/#contacto"
+              className={
+                scrolled || isMenuOpen ? "btn-primary" : "btn-outline-light"
+              }
+            >
               Hablemos
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-2 text-ink hover:bg-ink/5 rounded-full transition-colors"
+            className={`lg:hidden p-2 rounded-full transition-colors ${textColor}`}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
