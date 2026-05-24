@@ -8,7 +8,7 @@ export function Footer() {
         {/* Big wordmark */}
         <div className="border-b border-cream-100/15 pb-12 mb-12">
           <Link href="/" className="inline-block group">
-            <span className="font-display text-[64px] md:text-[120px] lg:text-[160px] leading-[0.92] tracking-tightest text-cream-100 group-hover:text-accent-300 transition-colors">
+            <span className="font-display font-light text-[64px] md:text-[120px] lg:text-[160px] leading-[0.92] tracking-[-0.04em] text-cream-100 group-hover:text-accent-300 transition-colors">
               Barrera <span className="italic">Brokers</span>
             </span>
           </Link>
@@ -27,7 +27,7 @@ export function Footer() {
                 />
               </div>
               <span className="text-[11px] uppercase tracking-widest text-cream-100/60">
-                Real Estate Excellence
+                (Real Estate Excellence)
               </span>
             </div>
             <p className="text-cream-100/70 leading-relaxed max-w-md text-sm">
@@ -40,7 +40,7 @@ export function Footer() {
           {/* Navegacion */}
           <div className="col-span-6 md:col-span-2 lg:col-span-2">
             <h3 className="text-[10px] uppercase tracking-widest text-cream-100/50 mb-5">
-              Navegacion
+              (Navegacion)
             </h3>
             <ul className="space-y-2.5">
               {[
@@ -65,7 +65,7 @@ export function Footer() {
           {/* Categorias */}
           <div className="col-span-6 md:col-span-2 lg:col-span-2">
             <h3 className="text-[10px] uppercase tracking-widest text-cream-100/50 mb-5">
-              Categorias
+              (Categorias)
             </h3>
             <ul className="space-y-2.5">
               {[
@@ -90,12 +90,12 @@ export function Footer() {
           {/* Contact */}
           <div className="col-span-12 md:col-span-4 lg:col-span-3">
             <h3 className="text-[10px] uppercase tracking-widest text-cream-100/50 mb-5">
-              Contacto
+              (Contacto)
             </h3>
             <div className="space-y-3">
               <a
                 href="mailto:info@barrerabrokers.com"
-                className="block font-display text-xl md:text-2xl text-cream-100 hover:text-accent-300 transition-colors leading-tight"
+                className="block font-display font-light text-xl md:text-2xl text-cream-100 hover:text-accent-300 transition-colors leading-tight tracking-[-0.02em]"
               >
                 info@barrerabrokers.com
               </a>

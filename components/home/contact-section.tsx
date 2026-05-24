@@ -40,24 +40,23 @@ export function ContactSection() {
   return (
     <section
       id="contacto"
-      className="relative section-pad bg-cream-900 text-cream-100 border-t border-ink/10"
+      className="relative py-20 md:py-28 lg:py-36 bg-cream-900 text-cream-100 border-t border-ink/15"
     >
       <div className="container-custom">
-        <div className="grid grid-cols-12 gap-6 mb-16 md:mb-20">
-          <div className="col-span-12 md:col-span-1">
-            <span className="font-display text-2xl text-cream-100/40">05.</span>
-          </div>
-          <div className="col-span-12 md:col-span-10">
-            <div className="inline-flex items-center gap-3 text-[11px] font-medium tracking-widest uppercase text-cream-100/60 mb-6">
-              <span className="h-px w-8 bg-cream-100/40" />
-              Contacto
-            </div>
-            <h2 className="font-display text-[56px] md:text-[88px] lg:text-[120px] leading-[0.95] tracking-tightest text-cream-100">
-              Comencemos a
-              <br />
-              <span className="italic">trabajar</span> juntos.
+        {/* Editorial header */}
+        <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-cream-100/15 mb-16 md:mb-20">
+          <div className="flex items-baseline gap-6 md:gap-10">
+            <span className="font-display italic font-light text-3xl md:text-4xl text-cream-100/40">
+              (05)
+            </span>
+            <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-cream-100">
+              <span className="italic">Contacto</span>
             </h2>
           </div>
+          <p className="text-cream-100/70 leading-relaxed text-base md:text-lg max-w-md">
+            Comencemos a trabajar juntos. Hablemos sobre tu proximo proyecto
+            inmobiliario.
+          </p>
         </div>
 
         <div className="grid grid-cols-12 gap-8 md:gap-12">
@@ -67,19 +66,19 @@ export function ContactSection() {
               href="mailto:info@barrerabrokers.com"
               className="group block"
             >
-              <div className="text-[11px] uppercase tracking-widest text-cream-100/50 mb-3">
-                Escribinos
+              <div className="text-[11px] uppercase tracking-widest text-cream-100/50 mb-4">
+                (Escribinos)
               </div>
-              <div className="font-display text-3xl md:text-4xl lg:text-5xl tracking-tight inline-flex items-baseline gap-3 group-hover:text-accent-300 transition-colors">
+              <div className="font-display font-light text-3xl md:text-4xl lg:text-5xl tracking-[-0.025em] inline-flex items-baseline gap-3 group-hover:text-accent-300 transition-colors leading-[1.05]">
                 info@barrerabrokers.com
                 <ArrowUpRight className="h-6 w-6 md:h-8 md:w-8 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
               </div>
             </a>
 
-            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-cream-100/15">
+            <div className="grid grid-cols-2 gap-y-8 gap-x-6 pt-8 border-t border-cream-100/15">
               <div>
                 <div className="text-[11px] uppercase tracking-widest text-cream-100/50 mb-2">
-                  Direccion
+                  (Direccion)
                 </div>
                 <p className="text-cream-100/85 text-base leading-relaxed">
                   Av. Principal 123
@@ -89,7 +88,7 @@ export function ContactSection() {
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-widest text-cream-100/50 mb-2">
-                  Telefono
+                  (Telefono)
                 </div>
                 <a
                   href="tel:+541112345678"
@@ -100,13 +99,13 @@ export function ContactSection() {
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-widest text-cream-100/50 mb-2">
-                  Lun a Vie
+                  (Lun a Vie)
                 </div>
                 <p className="text-cream-100/85 text-base">9 - 19hs</p>
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-widest text-cream-100/50 mb-2">
-                  Sabado
+                  (Sabado)
                 </div>
                 <p className="text-cream-100/85 text-base">10 - 14hs</p>
               </div>

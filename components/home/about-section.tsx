@@ -47,30 +47,28 @@ const team = [
 
 export function AboutSection() {
   return (
-    <section id="nosotros" className="bg-cream-200 border-t border-ink/10">
+    <section id="nosotros" className="bg-cream-100 border-t border-ink/15">
       {/* About */}
-      <div className="section-pad">
+      <div className="py-20 md:py-28 lg:py-36">
         <div className="container-custom">
-          <div className="grid grid-cols-12 gap-6 mb-20 md:mb-24">
-            <div className="col-span-12 md:col-span-1">
-              <span className="number-marker">03.</span>
-            </div>
-            <div className="col-span-12 md:col-span-7">
-              <p className="eyebrow mb-6">Sobre nosotros</p>
-              <h2 className="font-display text-[56px] md:text-[88px] lg:text-[112px] leading-[0.95] tracking-tightest text-ink">
-                Construyendo
-                <br />
-                <span className="italic-display">confianza</span>
-                <br />
-                desde el ano 2000.
+          <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-ink/15 mb-16 md:mb-20">
+            <div className="flex items-baseline gap-6 md:gap-10">
+              <span className="font-display italic font-light text-3xl md:text-4xl text-ink/40">
+                (03)
+              </span>
+              <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-ink">
+                <span className="italic">Sobre</span> nosotros
               </h2>
             </div>
+            <p className="text-ink/70 leading-relaxed text-base md:text-lg max-w-md">
+              Construyendo confianza desde el ano 2000.
+            </p>
           </div>
 
           <div className="grid grid-cols-12 gap-6 md:gap-12">
-            {/* Image - asymmetric: takes 7 cols */}
+            {/* Image - 7 cols */}
             <div className="col-span-12 md:col-span-7 order-2 md:order-1">
-              <div className="relative aspect-[4/5] md:aspect-[3/4] overflow-hidden">
+              <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden bg-cream-300">
                 <Image
                   src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=90"
                   alt="Equipo Barrera Brokers"
@@ -79,16 +77,16 @@ export function AboutSection() {
                   sizes="(max-width: 768px) 100vw, 60vw"
                 />
               </div>
-              <div className="mt-4 flex items-baseline justify-between text-xs uppercase tracking-widest text-ink/60">
-                <span>Buenos Aires HQ</span>
+              <div className="mt-3 flex items-baseline justify-between text-[11px] uppercase tracking-widest text-ink/55">
+                <span>(Buenos Aires HQ)</span>
                 <span>Est. 2000</span>
               </div>
             </div>
 
-            {/* Text - 4 cols, sticky */}
+            {/* Text - 4 cols */}
             <div className="col-span-12 md:col-span-4 md:col-start-9 order-1 md:order-2 flex flex-col gap-12">
               <div>
-                <p className="text-ink/80 text-lg md:text-xl leading-relaxed mb-5">
+                <p className="text-ink/85 text-lg md:text-xl leading-relaxed mb-5 font-light">
                   En Barrera Brokers somos mas que una inmobiliaria. Somos
                   socios estrategicos en el camino hacia las decisiones
                   patrimoniales mas importantes de tu vida.
@@ -101,11 +99,11 @@ export function AboutSection() {
 
               {/* Big stat */}
               <div className="border-t border-ink/15 pt-6">
-                <div className="font-display text-7xl md:text-8xl text-ink leading-none">
+                <div className="font-display font-light text-7xl md:text-8xl text-ink leading-none tracking-[-0.04em]">
                   +500
                 </div>
-                <div className="mt-2 text-xs uppercase tracking-widest text-ink/60">
-                  Propiedades gestionadas
+                <div className="mt-2 text-[11px] uppercase tracking-widest text-ink/60">
+                  (Propiedades gestionadas)
                 </div>
               </div>
 
@@ -113,11 +111,11 @@ export function AboutSection() {
               <div className="border-t border-ink/15 pt-6 space-y-6">
                 {values.map((value, index) => (
                   <div key={index} className="flex gap-5">
-                    <span className="font-display text-xl text-ink/40 leading-tight">
-                      {String(index + 1).padStart(2, "0")}
+                    <span className="font-display italic font-light text-lg text-ink/40">
+                      ({String(index + 1).padStart(2, "0")})
                     </span>
                     <div>
-                      <h3 className="font-display text-xl text-ink mb-1">
+                      <h3 className="font-display font-light text-xl text-ink mb-1 tracking-tight">
                         {value.title}
                       </h3>
                       <p className="text-sm text-ink/60 leading-relaxed">
@@ -133,20 +131,20 @@ export function AboutSection() {
       </div>
 
       {/* Team */}
-      <div className="section-pad bg-cream-100 border-t border-ink/10">
+      <div className="py-20 md:py-28 lg:py-32 bg-cream-50 border-t border-ink/15">
         <div className="container-custom">
-          <div className="grid grid-cols-12 gap-6 mb-16 md:mb-20">
-            <div className="col-span-12 md:col-span-1">
-              <span className="number-marker">04.</span>
-            </div>
-            <div className="col-span-12 md:col-span-7">
-              <p className="eyebrow mb-6">Nuestro equipo</p>
-              <h2 className="font-display text-[56px] md:text-[80px] lg:text-[96px] leading-[0.95] tracking-tightest text-ink">
-                Profesionales
-                <br />
-                <span className="italic-display">comprometidos.</span>
+          <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-ink/15 mb-16 md:mb-20">
+            <div className="flex items-baseline gap-6 md:gap-10">
+              <span className="font-display italic font-light text-3xl md:text-4xl text-ink/40">
+                (04)
+              </span>
+              <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-ink">
+                <span className="italic">Equipo</span>
               </h2>
             </div>
+            <p className="text-ink/70 leading-relaxed text-base md:text-lg max-w-md">
+              Profesionales comprometidos con cada cliente y proyecto.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12">
@@ -161,17 +159,19 @@ export function AboutSection() {
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
                   />
                 </div>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-display text-base text-ink/40">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <h4 className="font-display text-2xl text-ink leading-tight">
-                    {member.name}
-                  </h4>
+                <div className="border-t border-ink/15 pt-3">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="font-display italic font-light text-base text-ink/40">
+                      ({String(index + 1).padStart(2, "0")})
+                    </span>
+                    <h4 className="font-display font-light text-xl md:text-2xl text-ink leading-tight tracking-tight">
+                      {member.name}
+                    </h4>
+                  </div>
+                  <p className="text-[11px] uppercase tracking-widest text-ink/55">
+                    {member.role}
+                  </p>
                 </div>
-                <p className="text-xs uppercase tracking-widest text-ink/55">
-                  {member.role}
-                </p>
               </div>
             ))}
           </div>
