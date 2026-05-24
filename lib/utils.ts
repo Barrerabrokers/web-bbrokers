@@ -14,6 +14,16 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+export function formatPriceARS(price: number): string {
+  // Pesos argentinos. Ej: $ 250.000
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price);
+}
+
 export function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat('es-ES', {
     year: 'numeric',
