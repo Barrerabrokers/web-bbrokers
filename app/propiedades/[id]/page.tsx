@@ -13,6 +13,8 @@ import {
   Mail,
   Phone,
   Receipt,
+  ArrowRight,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -31,149 +33,155 @@ export default async function PropertyDetailPage({
     notFound();
   }
 
-  // URL del mapa de Google Maps embed (sin API key, gratis)
   const mapAddress = encodeURIComponent(
     `${property.address}, ${property.location}`
   );
   const mapUrl = `https://www.google.com/maps?q=${mapAddress}&output=embed`;
 
+  const statusStyles: Record<string, string> = {
+    disponible: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
+    reservada: "bg-amber-500/10 border-amber-500/30 text-amber-300",
+    vendida: "bg-gray-500/10 border-gray-500/30 text-gray-400",
+  };
+  const statusClass = statusStyles[property.status] ?? statusStyles.vendida;
+
   return (
     <div className="min-h-screen">
       <Header />
 
-      <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4">
+      <main className="pt-28 pb-24">
+        <div className="container-custom">
           {/* Breadcrumb */}
           <div className="mb-6">
             <Link
               href="/propiedades"
-              className="inline-flex items-center text-charcoal-500 hover:text-charcoal-900"
+              className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-50 transition-colors"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="h-4 w-4" />
               Volver a propiedades
             </Link>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Image Gallery con Lightbox */}
+            {/* Main */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Galeria */}
               <PropertyGallery
                 images={property.images}
                 title={property.title}
                 category={property.category}
               />
 
-              {/* Property Details */}
-              <div className="bg-white border border-charcoal-100 p-8">
-                <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-                  <div className="flex-1 min-w-[200px]">
-                    <h1 className="heading-serif text-3xl text-charcoal-900 mb-4">
+              {/* Detalles */}
+              <div className="card p-6 md:p-8">
+                <div className="flex items-start justify-between flex-wrap gap-4 pb-6 border-b border-gray-800">
+                  <div className="flex-1 min-w-[220px]">
+                    <h1 className="text-3xl md:text-4xl font-semibold tracking-tightest leading-tight text-gray-50 mb-3">
                       {property.title}
                     </h1>
-                    <div className="flex items-center text-charcoal-600 mb-2">
-                      <MapPin className="h-5 w-5 mr-2" />
-                      <span>{property.location}</span>
+                    <div className="flex items-center text-gray-400 gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span className="text-sm">
+                        {property.location}
+                      </span>
                     </div>
-                    <p className="text-charcoal-500">{property.address}</p>
+                    <p className="text-gray-500 text-sm mt-1">
+                      {property.address}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <div className="heading-serif text-3xl text-gold-600 mb-2">
+                    <div className="text-3xl md:text-4xl font-semibold tracking-tightest text-gradient-accent">
                       {formatPrice(property.price)}
                     </div>
                     {property.expenses ? (
-                      <div className="text-sm text-charcoal-500 mb-2">
+                      <div className="text-xs text-gray-400 mt-1">
                         + Expensas: {formatPriceARS(property.expenses)}/mes
                       </div>
                     ) : null}
                     <span
-                      className={`inline-block px-3 py-1 label-tracking text-xs capitalize ${
-                        property.status === "disponible"
-                          ? "bg-green-100 text-green-700"
-                          : property.status === "reservada"
-                          ? "bg-orange-100 text-orange-700"
-                          : "bg-charcoal-200 text-charcoal-700"
-                      }`}
+                      className={`inline-block mt-3 px-2.5 py-1 text-xs font-medium tracking-tight rounded-full border capitalize ${statusClass}`}
                     >
                       {property.status}
                     </span>
                   </div>
                 </div>
 
-                {/* Key Features */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-t border-b border-charcoal-100">
+                {/* Key features */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-6">
                   {property.bedrooms ? (
-                    <div className="text-center">
-                      <div className="bg-gold-100 w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                        <Bed className="h-6 w-6 text-gold-600" />
+                    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+                      <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
+                        <Bed className="h-4 w-4" />
                       </div>
-                      <div className="heading-serif text-2xl text-charcoal-900">
+                      <div className="text-2xl font-semibold tracking-tightest text-gray-50">
                         {property.bedrooms}
                       </div>
-                      <div className="text-sm text-charcoal-500">
+                      <div className="text-xs text-gray-500 mt-0.5">
                         Dormitorios
                       </div>
                     </div>
                   ) : null}
                   {property.bathrooms ? (
-                    <div className="text-center">
-                      <div className="bg-gold-100 w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                        <Bath className="h-6 w-6 text-gold-600" />
+                    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+                      <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
+                        <Bath className="h-4 w-4" />
                       </div>
-                      <div className="heading-serif text-2xl text-charcoal-900">
+                      <div className="text-2xl font-semibold tracking-tightest text-gray-50">
                         {property.bathrooms}
                       </div>
-                      <div className="text-sm text-charcoal-500">Banos</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Banos</div>
                     </div>
                   ) : null}
-                  <div className="text-center">
-                    <div className="bg-gold-100 w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                      <Square className="h-6 w-6 text-gold-600" />
+                  <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+                    <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
+                      <Square className="h-4 w-4" />
                     </div>
-                    <div className="heading-serif text-2xl text-charcoal-900">
+                    <div className="text-2xl font-semibold tracking-tightest text-gray-50">
                       {property.area}
                     </div>
-                    <div className="text-sm text-charcoal-500">m2</div>
+                    <div className="text-xs text-gray-500 mt-0.5">m2</div>
                   </div>
                   {property.expenses ? (
-                    <div className="text-center">
-                      <div className="bg-gold-100 w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                        <Receipt className="h-6 w-6 text-gold-600" />
+                    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+                      <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
+                        <Receipt className="h-4 w-4" />
                       </div>
-                      <div className="heading-serif text-xl text-charcoal-900">
+                      <div className="text-base font-semibold tracking-tight text-gray-50">
                         {formatPriceARS(property.expenses)}
                       </div>
-                      <div className="text-sm text-charcoal-500">
-                        Expensas/mes (ARS)
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Expensas/mes
                       </div>
                     </div>
                   ) : null}
                 </div>
 
                 {/* Description */}
-                <div className="mt-6">
-                  <h2 className="heading-serif text-xl text-charcoal-900 mb-4">
+                <div className="mt-2 pt-6 border-t border-gray-800">
+                  <h2 className="text-base font-semibold tracking-tight text-gray-50 mb-3">
                     Descripcion
                   </h2>
-                  <p className="text-charcoal-600 leading-relaxed whitespace-pre-line">
+                  <p className="text-gray-400 leading-relaxed whitespace-pre-line tracking-tight text-sm md:text-base">
                     {property.description}
                   </p>
                 </div>
 
                 {/* Features */}
                 {property.features.length > 0 && (
-                  <div className="mt-6">
-                    <h2 className="heading-serif text-xl text-charcoal-900 mb-4">
+                  <div className="mt-8 pt-6 border-t border-gray-800">
+                    <h2 className="text-base font-semibold tracking-tight text-gray-50 mb-4">
                       Caracteristicas
                     </h2>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {property.features.map((feature, index) => (
                         <div
                           key={index}
-                          className="flex items-center space-x-2"
+                          className="flex items-start gap-2 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2"
                         >
-                          <Check className="h-5 w-5 text-gold-600 flex-shrink-0" />
-                          <span className="text-charcoal-700">{feature}</span>
+                          <Check className="h-4 w-4 text-accent-300 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-gray-300 tracking-tight">
+                            {feature}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -182,20 +190,22 @@ export default async function PropertyDetailPage({
               </div>
 
               {/* Mapa */}
-              <div className="bg-white border border-charcoal-100 p-8">
-                <h2 className="heading-serif text-xl text-charcoal-900 mb-4 flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-gold-600" />
-                  Ubicacion
-                </h2>
-                <p className="text-charcoal-600 mb-4">
+              <div className="card p-6 md:p-8">
+                <div className="flex items-center gap-2 text-gray-50 mb-2">
+                  <MapPin className="h-4 w-4 text-accent-300" />
+                  <h2 className="text-base font-semibold tracking-tight">
+                    Ubicacion
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-400 mb-4">
                   {property.address}, {property.location}
                 </p>
-                <div className="relative w-full h-[400px] overflow-hidden border border-charcoal-100">
+                <div className="relative w-full h-[360px] overflow-hidden rounded-lg border border-gray-800">
                   <iframe
                     src={mapUrl}
                     width="100%"
                     height="100%"
-                    style={{ border: 0 }}
+                    style={{ border: 0, filter: "invert(0.92) hue-rotate(180deg)" }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
@@ -206,90 +216,91 @@ export default async function PropertyDetailPage({
                   href={`https://www.google.com/maps/search/?api=1&query=${mapAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center text-gold-600 hover:text-gold-700 mt-4 text-sm"
+                  className="inline-flex items-center gap-1.5 text-accent-300 hover:text-accent-400 mt-4 text-sm tracking-tight"
                 >
                   Abrir en Google Maps
-                  <span className="ml-1">-&gt;</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
             </div>
 
-            {/* Sidebar - Contact Form */}
+            {/* Sidebar Contact */}
             <div className="lg:col-span-1">
-              <div className="bg-white border border-charcoal-100 p-6 sticky top-24">
-                <h3 className="heading-serif text-xl text-charcoal-900 mb-4">
+              <div className="card p-6 lg:sticky lg:top-24">
+                <h3 className="text-lg font-semibold tracking-tight text-gray-50 mb-1">
                   Interesado en esta propiedad?
                 </h3>
-                <p className="text-charcoal-600 mb-6">
+                <p className="text-sm text-gray-400 mb-6">
                   Contactanos y un agente te respondera a la brevedad.
                 </p>
 
                 <form className="space-y-4">
                   <div>
-                    <label className="label-tracking text-charcoal-700 block mb-2">
+                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
                       Nombre
                     </label>
                     <input
                       type="text"
                       required
-                      className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+                      className="form-input"
                       placeholder="Tu nombre"
                     />
                   </div>
 
                   <div>
-                    <label className="label-tracking text-charcoal-700 block mb-2">
+                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
                       Email
                     </label>
                     <input
                       type="email"
                       required
-                      className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+                      className="form-input"
                       placeholder="tu@email.com"
                     />
                   </div>
 
                   <div>
-                    <label className="label-tracking text-charcoal-700 block mb-2">
+                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
                       Telefono
                     </label>
                     <input
                       type="tel"
-                      className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+                      className="form-input"
                       placeholder="+54 11 1234-5678"
                     />
                   </div>
 
                   <div>
-                    <label className="label-tracking text-charcoal-700 block mb-2">
+                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
                       Mensaje
                     </label>
                     <textarea
                       rows={4}
-                      className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
+                      className="form-input resize-none"
                       placeholder="Me gustaria mas informacion..."
                     />
                   </div>
 
-                  <button type="submit" className="w-full btn-primary">
-                    Enviar Consulta
+                  <button type="submit" className="btn-accent w-full">
+                    Enviar consulta
+                    <ArrowRight className="h-4 w-4" />
                   </button>
                 </form>
 
-                <div className="mt-6 pt-6 border-t border-charcoal-100 space-y-3">
+                <div className="mt-6 pt-5 border-t border-gray-800 space-y-3">
                   <a
                     href="tel:+541112345678"
-                    className="flex items-center space-x-3 text-charcoal-700 hover:text-gold-600"
+                    className="flex items-center gap-3 text-sm text-gray-300 hover:text-gray-50"
                   >
-                    <Phone className="h-5 w-5" />
-                    <span>+54 11 1234-5678</span>
+                    <Phone className="h-4 w-4 text-accent-300" />
+                    +54 11 1234-5678
                   </a>
                   <a
                     href="mailto:info@barrerabrokers.com"
-                    className="flex items-center space-x-3 text-charcoal-700 hover:text-gold-600"
+                    className="flex items-center gap-3 text-sm text-gray-300 hover:text-gray-50"
                   >
-                    <Mail className="h-5 w-5" />
-                    <span>info@barrerabrokers.com</span>
+                    <Mail className="h-4 w-4 text-accent-300" />
+                    info@barrerabrokers.com
                   </a>
                 </div>
               </div>

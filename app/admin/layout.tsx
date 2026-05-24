@@ -22,8 +22,8 @@ export default function AdminLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-800 border-t-accent" />
       </div>
     );
   }
@@ -33,13 +33,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-950 text-gray-50">
       <AdminHeader />
       <div className="flex">
         <AdminSidebar />
-        <main className="flex-1 p-8">
-          {children}
-        </main>
+        <main className="flex-1 p-6 md:p-10 max-w-[1600px]">{children}</main>
       </div>
     </div>
   );

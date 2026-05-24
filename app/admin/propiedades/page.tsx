@@ -11,111 +11,114 @@ export const revalidate = 0;
 export default async function PropertiesAdminPage() {
   const properties = await getProperties();
 
+  const statusStyles: Record<string, string> = {
+    disponible: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
+    reservada: "bg-amber-500/10 border-amber-500/30 text-amber-300",
+    vendida: "bg-gray-500/10 border-gray-700 text-gray-400",
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>
-          <h1 className="heading-serif text-3xl text-charcoal-900 mb-2">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-50 mb-1">
             Propiedades
           </h1>
-          <p className="text-charcoal-500">
+          <p className="text-sm text-gray-400">
             Gestiona todas las propiedades del catalogo
           </p>
         </div>
         <Link
           href="/admin/propiedades/nueva"
-          className="flex items-center space-x-2 btn-primary"
+          className="btn-accent text-sm"
         >
-          <Plus className="h-5 w-5" />
-          <span>Nueva Propiedad</span>
+          <Plus className="h-4 w-4" />
+          Nueva propiedad
         </Link>
       </div>
 
-      {/* Properties Grid */}
-      <div className="grid grid-cols-1 gap-6">
+      {/* Properties List */}
+      <div className="space-y-3">
         {properties.map((property) => (
           <div
             key={property.id}
-            className="bg-white border border-charcoal-100 overflow-hidden hover:shadow-md transition-shadow"
+            className="card-hover overflow-hidden md:flex"
           >
-            <div className="md:flex">
-              <div className="md:w-64 h-48 md:h-auto relative bg-charcoal-100">
-                {property.images && property.images.length > 0 ? (
-                  <Image
-                    src={property.images[0]}
-                    alt={property.title}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-charcoal-400">
-                    <Building2 className="h-12 w-12" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="inline-block px-3 py-1 text-xs label-tracking bg-gold-100 text-gold-700 capitalize">
-                        {property.category}
-                      </span>
-                      <span
-                        className={`inline-block px-3 py-1 text-xs label-tracking capitalize ${
-                          property.status === "disponible"
-                            ? "bg-green-100 text-green-700"
-                            : property.status === "reservada"
-                            ? "bg-orange-100 text-orange-700"
-                            : "bg-charcoal-200 text-charcoal-700"
-                        }`}
-                      >
-                        {property.status}
-                      </span>
-                    </div>
-                    <h3 className="heading-serif text-xl text-charcoal-900 mb-2">
-                      {property.title}
-                    </h3>
-                    <p className="text-charcoal-600 mb-2">{property.location}</p>
-                    <p className="heading-serif text-2xl text-gold-600">
-                      {formatPrice(property.price)}
-                    </p>
-                  </div>
-
-                  <PropertyActions
-                    propertyId={property.id}
-                    propertyTitle={property.title}
-                  />
+            <div className="md:w-56 h-44 md:h-auto relative bg-gray-900 flex-shrink-0">
+              {property.images && property.images.length > 0 ? (
+                <Image
+                  src={property.images[0]}
+                  alt={property.title}
+                  fill
+                  className="object-cover"
+                  sizes="224px"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-600">
+                  <Building2 className="h-10 w-10" />
                 </div>
+              )}
+            </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-charcoal-600">
-                  {property.bedrooms ? (
-                    <div>
-                      <span className="text-charcoal-400">Dormitorios:</span>
-                      <span className="ml-1 font-semibold">
-                        {property.bedrooms}
-                      </span>
-                    </div>
-                  ) : null}
-                  {property.bathrooms ? (
-                    <div>
-                      <span className="text-charcoal-400">Banos:</span>
-                      <span className="ml-1 font-semibold">
-                        {property.bathrooms}
-                      </span>
-                    </div>
-                  ) : null}
-                  <div>
-                    <span className="text-charcoal-400">Area:</span>
-                    <span className="ml-1 font-semibold">{property.area}m2</span>
-                  </div>
-                  <div>
-                    <span className="text-charcoal-400">Fecha:</span>
-                    <span className="ml-1 font-semibold">
-                      {new Date(property.createdAt).toLocaleDateString()}
+            <div className="flex-1 p-5">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="pill capitalize">{property.category}</span>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${
+                        statusStyles[property.status] ?? statusStyles.vendida
+                      }`}
+                    >
+                      {property.status}
                     </span>
                   </div>
+                  <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1 truncate">
+                    {property.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-2 truncate">
+                    {property.location}
+                  </p>
+                  <p className="text-xl font-semibold tracking-tightest text-gradient-accent">
+                    {formatPrice(property.price)}
+                  </p>
                 </div>
+
+                <PropertyActions
+                  propertyId={property.id}
+                  propertyTitle={property.title}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-500 pt-3 border-t border-gray-800">
+                {property.bedrooms ? (
+                  <span>
+                    Dorm:{" "}
+                    <span className="text-gray-300 font-medium">
+                      {property.bedrooms}
+                    </span>
+                  </span>
+                ) : null}
+                {property.bathrooms ? (
+                  <span>
+                    Banos:{" "}
+                    <span className="text-gray-300 font-medium">
+                      {property.bathrooms}
+                    </span>
+                  </span>
+                ) : null}
+                <span>
+                  Area:{" "}
+                  <span className="text-gray-300 font-medium">
+                    {property.area}m2
+                  </span>
+                </span>
+                <span>
+                  Fecha:{" "}
+                  <span className="text-gray-300 font-medium">
+                    {new Date(property.createdAt).toLocaleDateString()}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
@@ -123,20 +126,20 @@ export default async function PropertiesAdminPage() {
       </div>
 
       {properties.length === 0 && (
-        <div className="text-center py-12 bg-white border border-charcoal-100">
-          <Building2 className="h-12 w-12 text-charcoal-400 mx-auto mb-4" />
-          <h3 className="heading-serif text-lg text-charcoal-900 mb-2">
+        <div className="card p-16 text-center">
+          <Building2 className="h-10 w-10 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1">
             No hay propiedades
           </h3>
-          <p className="text-charcoal-500 mb-4">
-            Comienza agregando tu primera propiedad al catalogo
+          <p className="text-sm text-gray-400 mb-5">
+            Comenza agregando tu primera propiedad al catalogo.
           </p>
           <Link
             href="/admin/propiedades/nueva"
-            className="inline-flex items-center space-x-2 btn-primary"
+            className="btn-accent text-sm"
           >
-            <Plus className="h-5 w-5" />
-            <span>Nueva Propiedad</span>
+            <Plus className="h-4 w-4" />
+            Nueva propiedad
           </Link>
         </div>
       )}
