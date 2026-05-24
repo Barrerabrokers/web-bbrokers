@@ -103,17 +103,17 @@ export default function RegisterPage() {
               className="object-contain"
             />
           </div>
-          <span className="font-display text-2xl tracking-tight text-ink">
+          <span className="font-display font-light text-2xl tracking-tight text-ink">
             Barrera Brokers
           </span>
         </Link>
 
         <div className="text-center mb-10">
           <p className="eyebrow justify-center mb-5">Registro de agente</p>
-          <h1 className="font-display text-5xl md:text-6xl tracking-tightest text-ink leading-[0.95]">
+          <h1 className="font-display font-light text-5xl md:text-6xl tracking-[-0.025em] text-ink leading-[0.95]">
             Crea tu
             <br />
-            <span className="italic-display">cuenta.</span>
+            <span className="italic">cuenta.</span>
           </h1>
         </div>
 

@@ -35,47 +35,39 @@ export function ServicesSection() {
   return (
     <section
       id="servicios"
-      className="relative section-pad bg-cream-100 border-t border-ink/10"
+      className="relative py-20 md:py-28 lg:py-36 bg-cream-50 border-t border-ink/15"
     >
       <div className="container-custom">
-        {/* Header asymmetric */}
-        <div className="grid grid-cols-12 gap-6 mb-20 md:mb-28">
-          <div className="col-span-12 md:col-span-1">
-            <span className="number-marker">02.</span>
-          </div>
-          <div className="col-span-12 md:col-span-7">
-            <p className="eyebrow mb-6">Nuestros servicios</p>
-            <h2 className="font-display text-[56px] md:text-[88px] lg:text-[112px] leading-[0.95] tracking-tightest text-ink">
-              Especialistas
-              <br />
-              en cada <span className="italic-display">tipo</span>
-              <br />
-              de propiedad.
+        {/* Header */}
+        <div className="flex items-baseline justify-between flex-wrap gap-6 pb-12 border-b border-ink/15 mb-16 md:mb-20">
+          <div className="flex items-baseline gap-6 md:gap-10">
+            <span className="font-display italic font-light text-3xl md:text-4xl text-ink/40">
+              (02)
+            </span>
+            <h2 className="font-display font-light text-4xl md:text-6xl lg:text-7xl tracking-[-0.025em] leading-[1] text-ink">
+              <span className="italic">Servicios</span>
             </h2>
           </div>
-          <div className="col-span-12 md:col-span-3 md:col-start-10 flex items-end">
-            <p className="text-ink/70 leading-relaxed text-base md:text-lg">
-              Ofrecemos un portafolio diverso adaptado a las necesidades de
-              cada cliente, desde primeras inversiones hasta carteras
-              complejas.
-            </p>
-          </div>
+          <p className="text-ink/70 leading-relaxed text-base md:text-lg max-w-md">
+            Especialistas en cada tipo de propiedad. Asesoramiento integral
+            adaptado a tus objetivos.
+          </p>
         </div>
 
         {/* Editorial numbered list */}
-        <ul className="border-t border-ink/15">
+        <ul>
           {services.map((service, index) => (
             <li
               key={index}
-              className="group grid grid-cols-12 gap-4 md:gap-8 py-8 md:py-10 border-b border-ink/15 hover:bg-cream-200/40 transition-colors"
+              className="group grid grid-cols-12 gap-4 md:gap-8 py-7 md:py-9 border-b border-ink/15 hover:bg-cream-200/40 transition-colors"
             >
               <div className="col-span-2 md:col-span-1">
-                <span className="font-display text-2xl md:text-3xl text-ink/40 group-hover:text-accent transition-colors">
-                  {String(index + 1).padStart(2, "0")}
+                <span className="font-display italic font-light text-xl md:text-2xl text-ink/40">
+                  ({String(index + 1).padStart(2, "0")})
                 </span>
               </div>
               <div className="col-span-10 md:col-span-4">
-                <h3 className="font-display text-3xl md:text-5xl tracking-tight text-ink leading-tight">
+                <h3 className="font-display font-light text-2xl md:text-4xl tracking-[-0.02em] text-ink leading-[1.05]">
                   {service.title}
                 </h3>
               </div>

@@ -75,7 +75,7 @@ export default async function PropertyDetailPage({
               <div className="border-t border-ink/15 pt-10">
                 <div className="grid grid-cols-12 gap-6 mb-10 pb-10 border-b border-ink/15">
                   <div className="col-span-12 md:col-span-8">
-                    <h1 className="font-display text-4xl md:text-5xl lg:text-6xl leading-[1.02] tracking-tightest text-ink mb-5">
+                    <h1 className="font-display font-light text-4xl md:text-5xl lg:text-6xl leading-[1.02] tracking-[-0.025em] text-ink mb-5">
                       {property.title}
                     </h1>
                     <div className="flex items-center text-ink/70 gap-2 text-sm">
@@ -87,7 +87,7 @@ export default async function PropertyDetailPage({
                     </p>
                   </div>
                   <div className="col-span-12 md:col-span-4 md:text-right">
-                    <div className="font-display text-4xl md:text-5xl text-ink leading-none">
+                    <div className="font-display font-light text-4xl md:text-5xl text-ink leading-none">
                       {formatPrice(property.price)}
                     </div>
                     {property.expenses ? (
@@ -108,7 +108,7 @@ export default async function PropertyDetailPage({
                   {property.bedrooms ? (
                     <div>
                       <Bed className="h-5 w-5 text-ink/50 mb-3" />
-                      <div className="font-display text-3xl text-ink leading-none mb-1">
+                      <div className="font-display font-light text-3xl text-ink leading-none mb-1">
                         {property.bedrooms}
                       </div>
                       <div className="text-[10px] uppercase tracking-widest text-ink/55">
@@ -119,7 +119,7 @@ export default async function PropertyDetailPage({
                   {property.bathrooms ? (
                     <div>
                       <Bath className="h-5 w-5 text-ink/50 mb-3" />
-                      <div className="font-display text-3xl text-ink leading-none mb-1">
+                      <div className="font-display font-light text-3xl text-ink leading-none mb-1">
                         {property.bathrooms}
                       </div>
                       <div className="text-[10px] uppercase tracking-widest text-ink/55">
@@ -129,7 +129,7 @@ export default async function PropertyDetailPage({
                   ) : null}
                   <div>
                     <Square className="h-5 w-5 text-ink/50 mb-3" />
-                    <div className="font-display text-3xl text-ink leading-none mb-1">
+                    <div className="font-display font-light text-3xl text-ink leading-none mb-1">
                       {property.area}
                     </div>
                     <div className="text-[10px] uppercase tracking-widest text-ink/55">
@@ -139,7 +139,7 @@ export default async function PropertyDetailPage({
                   {property.expenses ? (
                     <div>
                       <Receipt className="h-5 w-5 text-ink/50 mb-3" />
-                      <div className="font-display text-2xl text-ink leading-none mb-1 truncate">
+                      <div className="font-display font-light text-2xl text-ink leading-none mb-1 truncate">
                         {formatPriceARS(property.expenses)}
                       </div>
                       <div className="text-[10px] uppercase tracking-widest text-ink/55">
@@ -215,7 +215,7 @@ export default async function PropertyDetailPage({
             <div className="lg:col-span-1">
               <div className="card p-7 lg:sticky lg:top-28">
                 <p className="eyebrow mb-4">Consultar</p>
-                <h3 className="font-display text-3xl text-ink mb-2 leading-tight">
+                <h3 className="font-display font-light text-3xl text-ink mb-2 leading-tight">
                   Interesado en
                   <br />
                   esta propiedad?

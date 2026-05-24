@@ -32,12 +32,12 @@ export default async function PropertiesPage({
             </div>
             <div className="col-span-12 md:col-span-8">
               <p className="eyebrow mb-6">Catalogo</p>
-              <h1 className="font-display text-[64px] md:text-[96px] lg:text-[120px] leading-[0.95] tracking-tightest text-ink">
+              <h1 className="font-display font-light text-[64px] md:text-[96px] lg:text-[120px] leading-[0.95] tracking-[-0.025em] text-ink">
                 {activeCategory ? (
                   <>
                     Propiedades
                     <br />
-                    <span className="italic-display">
+                    <span className="italic">
                       {activeCategory.label.toLowerCase()}.
                     </span>
                   </>
@@ -45,7 +45,7 @@ export default async function PropertiesPage({
                   <>
                     Todas las
                     <br />
-                    <span className="italic-display">propiedades.</span>
+                    <span className="italic">propiedades.</span>
                   </>
                 )}
               </h1>
@@ -101,7 +101,7 @@ export default async function PropertiesPage({
             </div>
           ) : (
             <div className="border-t border-ink/15 pt-16 text-center">
-              <h3 className="font-display text-3xl text-ink mb-2">
+              <h3 className="font-display font-light text-3xl text-ink mb-2">
                 No hay propiedades disponibles
               </h3>
               <p className="text-ink/60">

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
@@ -10,18 +10,20 @@ const inter = Inter({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const instrumentSerif = Instrument_Serif({
+// Fraunces: alternativa Google Fonts a Saans/SerrifCompressed.
+// Variable font (no weight array, usa axis variable).
+const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  weight: ["400"],
   style: ["normal", "italic"],
+  axes: ["opsz", "SOFT"],
 });
 
 export const metadata: Metadata = {
   title: "Barrera Brokers — Real Estate Excellence",
   description:
-    "Premium real estate experiences. Expertos en propiedades de lujo, desarrollos, inversiones y oportunidades exclusivas.",
+    "Acompanamos a quienes buscan invertir, habitar y rentabilizar las propiedades mas exclusivas de Buenos Aires. Mas de 20 anos de experiencia.",
   keywords: [
     "bienes raices",
     "propiedades de lujo",
@@ -46,8 +48,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} ${instrumentSerif.variable}`}>
-      <body className="font-sans bg-cream-200 text-ink antialiased">
+    <html lang="es" className={`${inter.variable} ${fraunces.variable}`}>
+      <body className="font-sans bg-cream-100 text-ink antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>
