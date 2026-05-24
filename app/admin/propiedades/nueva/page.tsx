@@ -157,15 +157,15 @@ export default function NewPropertyPage() {
       <div className="mb-8">
         <Link
           href="/admin/propiedades"
-          className="inline-flex items-center text-gray-400 hover:text-gray-50 mb-4"
+          className="inline-flex items-center text-ink/60 hover:text-ink mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver a propiedades
         </Link>
-        <h1 className="heading-serif text-3xl text-gray-50 mb-2">
+        <h1 className="heading-serif text-3xl text-ink mb-2">
           Nueva Propiedad
         </h1>
-        <p className="text-gray-400">
+        <p className="text-ink/60">
           Completa la informacion de la propiedad
         </p>
       </div>
@@ -181,7 +181,7 @@ export default function NewPropertyPage() {
         className="card p-8"
       >
         {/* Image Upload Section */}
-        <div className="mb-8 pb-8 border-b border-gray-800">
+        <div className="mb-8 pb-8 border-b border-ink/15">
           <ImageUploader
             items={items}
             primaryIndex={primaryIndex}
@@ -195,7 +195,7 @@ export default function NewPropertyPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Titulo *
             </label>
             <input
@@ -205,13 +205,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none transition-colors"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none transition-colors"
               placeholder="Ej: Departamento moderno en Palermo"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Descripcion *
             </label>
             <textarea
@@ -221,13 +221,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none transition-colors"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none transition-colors"
               placeholder="Describe la propiedad..."
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Categoria *
             </label>
             <select
@@ -236,7 +236,7 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, category: e.target.value as any })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
             >
               {PROPERTY_CATEGORIES.map((cat) => (
                 <option key={cat.value} value={cat.value}>
@@ -247,7 +247,7 @@ export default function NewPropertyPage() {
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Estado *
             </label>
             <select
@@ -256,7 +256,7 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, status: e.target.value as any })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
             >
               <option value="disponible">Disponible</option>
               <option value="reservada">Reservada</option>
@@ -265,7 +265,7 @@ export default function NewPropertyPage() {
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Precio (USD) *
             </label>
             <input
@@ -277,13 +277,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, price: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="180000"
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Expensas (ARS/mes)
             </label>
             <input
@@ -294,13 +294,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, expenses: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="150000"
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Area (m2) *
             </label>
             <input
@@ -312,13 +312,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, area: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="45"
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Dormitorios
             </label>
             <input
@@ -328,13 +328,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, bedrooms: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="2"
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Banos
             </label>
             <input
@@ -344,13 +344,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, bathrooms: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="1"
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Ubicacion *
             </label>
             <input
@@ -360,13 +360,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, location: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="Palermo, CABA"
             />
           </div>
 
           <div>
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Direccion *
             </label>
             <input
@@ -376,13 +376,13 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, address: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="Av. Santa Fe 3500"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="label-tracking text-gray-200 block mb-2">
+            <label className="label-tracking text-ink/85 block mb-2">
               Caracteristicas (una por linea)
             </label>
             <textarea
@@ -391,16 +391,16 @@ export default function NewPropertyPage() {
               onChange={(e) =>
                 setFormData({ ...formData, features: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-800 focus:border-accent focus:outline-none"
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
               placeholder="Balcon&#10;Cocina equipada&#10;Seguridad 24hs&#10;Gimnasio"
             />
           </div>
         </div>
 
-        <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-800">
+        <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-ink/15">
           <Link
             href="/admin/propiedades"
-            className="px-6 py-3 border border-gray-700 text-gray-200 hover:bg-gray-900 transition-colors"
+            className="px-6 py-3 border border-ink/25 text-ink/85 hover:bg-cream-200 transition-colors"
           >
             Cancelar
           </Link>

@@ -13,8 +13,7 @@ import {
   Mail,
   Phone,
   Receipt,
-  ArrowRight,
-  ExternalLink,
+  ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -39,32 +38,32 @@ export default async function PropertyDetailPage({
   const mapUrl = `https://www.google.com/maps?q=${mapAddress}&output=embed`;
 
   const statusStyles: Record<string, string> = {
-    disponible: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
-    reservada: "bg-amber-500/10 border-amber-500/30 text-amber-300",
-    vendida: "bg-gray-500/10 border-gray-500/30 text-gray-400",
+    disponible: "border-emerald-700/30 text-emerald-800 bg-emerald-50",
+    reservada: "border-amber-700/30 text-amber-800 bg-amber-50",
+    vendida: "border-ink/20 text-ink/60 bg-cream-300",
   };
   const statusClass = statusStyles[property.status] ?? statusStyles.vendida;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-cream-200">
       <Header />
 
-      <main className="pt-28 pb-24">
+      <main className="pt-28 pb-32">
         <div className="container-custom">
           {/* Breadcrumb */}
-          <div className="mb-6">
+          <div className="mb-8">
             <Link
               href="/propiedades"
-              className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-50 transition-colors"
+              className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-ink/60 hover:text-ink transition-colors"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-3.5 w-3.5" />
               Volver a propiedades
             </Link>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-3 gap-10 lg:gap-12">
             {/* Main */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-10">
               {/* Galeria */}
               <PropertyGallery
                 images={property.images}
@@ -73,83 +72,77 @@ export default async function PropertyDetailPage({
               />
 
               {/* Detalles */}
-              <div className="card p-6 md:p-8">
-                <div className="flex items-start justify-between flex-wrap gap-4 pb-6 border-b border-gray-800">
-                  <div className="flex-1 min-w-[220px]">
-                    <h1 className="text-3xl md:text-4xl font-semibold tracking-tightest leading-tight text-gray-50 mb-3">
+              <div className="border-t border-ink/15 pt-10">
+                <div className="grid grid-cols-12 gap-6 mb-10 pb-10 border-b border-ink/15">
+                  <div className="col-span-12 md:col-span-8">
+                    <h1 className="font-display text-4xl md:text-5xl lg:text-6xl leading-[1.02] tracking-tightest text-ink mb-5">
                       {property.title}
                     </h1>
-                    <div className="flex items-center text-gray-400 gap-2">
+                    <div className="flex items-center text-ink/70 gap-2 text-sm">
                       <MapPin className="h-4 w-4" />
-                      <span className="text-sm">
-                        {property.location}
-                      </span>
+                      <span>{property.location}</span>
                     </div>
-                    <p className="text-gray-500 text-sm mt-1">
+                    <p className="text-ink/55 text-sm mt-1">
                       {property.address}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-3xl md:text-4xl font-semibold tracking-tightest text-gradient-accent">
+                  <div className="col-span-12 md:col-span-4 md:text-right">
+                    <div className="font-display text-4xl md:text-5xl text-ink leading-none">
                       {formatPrice(property.price)}
                     </div>
                     {property.expenses ? (
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="text-xs text-ink/60 mt-2">
                         + Expensas: {formatPriceARS(property.expenses)}/mes
                       </div>
                     ) : null}
                     <span
-                      className={`inline-block mt-3 px-2.5 py-1 text-xs font-medium tracking-tight rounded-full border capitalize ${statusClass}`}
+                      className={`inline-block mt-4 px-3 py-1 text-[10px] uppercase tracking-widest font-medium rounded-full border capitalize ${statusClass}`}
                     >
                       {property.status}
                     </span>
                   </div>
                 </div>
 
-                {/* Key features */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-6">
+                {/* Key features as editorial grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-8 mb-12">
                   {property.bedrooms ? (
-                    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-                      <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
-                        <Bed className="h-4 w-4" />
-                      </div>
-                      <div className="text-2xl font-semibold tracking-tightest text-gray-50">
+                    <div>
+                      <Bed className="h-5 w-5 text-ink/50 mb-3" />
+                      <div className="font-display text-3xl text-ink leading-none mb-1">
                         {property.bedrooms}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                      <div className="text-[10px] uppercase tracking-widest text-ink/55">
                         Dormitorios
                       </div>
                     </div>
                   ) : null}
                   {property.bathrooms ? (
-                    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-                      <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
-                        <Bath className="h-4 w-4" />
-                      </div>
-                      <div className="text-2xl font-semibold tracking-tightest text-gray-50">
+                    <div>
+                      <Bath className="h-5 w-5 text-ink/50 mb-3" />
+                      <div className="font-display text-3xl text-ink leading-none mb-1">
                         {property.bathrooms}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">Banos</div>
+                      <div className="text-[10px] uppercase tracking-widest text-ink/55">
+                        Banos
+                      </div>
                     </div>
                   ) : null}
-                  <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-                    <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
-                      <Square className="h-4 w-4" />
-                    </div>
-                    <div className="text-2xl font-semibold tracking-tightest text-gray-50">
+                  <div>
+                    <Square className="h-5 w-5 text-ink/50 mb-3" />
+                    <div className="font-display text-3xl text-ink leading-none mb-1">
                       {property.area}
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">m2</div>
+                    <div className="text-[10px] uppercase tracking-widest text-ink/55">
+                      Metros2
+                    </div>
                   </div>
                   {property.expenses ? (
-                    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-                      <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-accent/10 border border-accent/30 text-accent-300 mb-3">
-                        <Receipt className="h-4 w-4" />
-                      </div>
-                      <div className="text-base font-semibold tracking-tight text-gray-50">
+                    <div>
+                      <Receipt className="h-5 w-5 text-ink/50 mb-3" />
+                      <div className="font-display text-2xl text-ink leading-none mb-1 truncate">
                         {formatPriceARS(property.expenses)}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                      <div className="text-[10px] uppercase tracking-widest text-ink/55">
                         Expensas/mes
                       </div>
                     </div>
@@ -157,29 +150,25 @@ export default async function PropertyDetailPage({
                 </div>
 
                 {/* Description */}
-                <div className="mt-2 pt-6 border-t border-gray-800">
-                  <h2 className="text-base font-semibold tracking-tight text-gray-50 mb-3">
-                    Descripcion
-                  </h2>
-                  <p className="text-gray-400 leading-relaxed whitespace-pre-line tracking-tight text-sm md:text-base">
+                <div className="mb-12 pt-8 border-t border-ink/15">
+                  <p className="eyebrow mb-5">Descripcion</p>
+                  <p className="text-ink/80 text-base md:text-lg leading-relaxed whitespace-pre-line">
                     {property.description}
                   </p>
                 </div>
 
                 {/* Features */}
                 {property.features.length > 0 && (
-                  <div className="mt-8 pt-6 border-t border-gray-800">
-                    <h2 className="text-base font-semibold tracking-tight text-gray-50 mb-4">
-                      Caracteristicas
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="pt-8 border-t border-ink/15">
+                    <p className="eyebrow mb-6">Caracteristicas</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                       {property.features.map((feature, index) => (
                         <div
                           key={index}
-                          className="flex items-start gap-2 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2"
+                          className="flex items-start gap-3 py-2 border-b border-ink/10"
                         >
-                          <Check className="h-4 w-4 text-accent-300 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-gray-300 tracking-tight">
+                          <Check className="h-4 w-4 text-ink/60 flex-shrink-0 mt-1" />
+                          <span className="text-sm text-ink/85 tracking-tight">
                             {feature}
                           </span>
                         </div>
@@ -190,22 +179,20 @@ export default async function PropertyDetailPage({
               </div>
 
               {/* Mapa */}
-              <div className="card p-6 md:p-8">
-                <div className="flex items-center gap-2 text-gray-50 mb-2">
-                  <MapPin className="h-4 w-4 text-accent-300" />
-                  <h2 className="text-base font-semibold tracking-tight">
-                    Ubicacion
-                  </h2>
+              <div className="pt-10 border-t border-ink/15">
+                <div className="flex items-center gap-2 text-ink mb-2">
+                  <MapPin className="h-4 w-4 text-ink/60" />
+                  <p className="eyebrow">Ubicacion</p>
                 </div>
-                <p className="text-sm text-gray-400 mb-4">
+                <p className="text-ink/70 text-base mb-5">
                   {property.address}, {property.location}
                 </p>
-                <div className="relative w-full h-[360px] overflow-hidden rounded-lg border border-gray-800">
+                <div className="relative w-full h-[420px] overflow-hidden border border-ink/15">
                   <iframe
                     src={mapUrl}
                     width="100%"
                     height="100%"
-                    style={{ border: 0, filter: "invert(0.92) hue-rotate(180deg)" }}
+                    style={{ border: 0 }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
@@ -216,27 +203,30 @@ export default async function PropertyDetailPage({
                   href={`https://www.google.com/maps/search/?api=1&query=${mapAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-accent-300 hover:text-accent-400 mt-4 text-sm tracking-tight"
+                  className="inline-flex items-center gap-1.5 text-sm text-ink hover:text-accent mt-5 link-underline"
                 >
                   Abrir en Google Maps
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <ArrowUpRight className="h-3.5 w-3.5" />
                 </a>
               </div>
             </div>
 
             {/* Sidebar Contact */}
             <div className="lg:col-span-1">
-              <div className="card p-6 lg:sticky lg:top-24">
-                <h3 className="text-lg font-semibold tracking-tight text-gray-50 mb-1">
-                  Interesado en esta propiedad?
+              <div className="card p-7 lg:sticky lg:top-28">
+                <p className="eyebrow mb-4">Consultar</p>
+                <h3 className="font-display text-3xl text-ink mb-2 leading-tight">
+                  Interesado en
+                  <br />
+                  esta propiedad?
                 </h3>
-                <p className="text-sm text-gray-400 mb-6">
+                <p className="text-sm text-ink/65 mb-6">
                   Contactanos y un agente te respondera a la brevedad.
                 </p>
 
-                <form className="space-y-4">
+                <form className="space-y-5">
                   <div>
-                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
                       Nombre
                     </label>
                     <input
@@ -248,7 +238,7 @@ export default async function PropertyDetailPage({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
                       Email
                     </label>
                     <input
@@ -260,7 +250,7 @@ export default async function PropertyDetailPage({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
                       Telefono
                     </label>
                     <input
@@ -271,7 +261,7 @@ export default async function PropertyDetailPage({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
                       Mensaje
                     </label>
                     <textarea
@@ -281,25 +271,24 @@ export default async function PropertyDetailPage({
                     />
                   </div>
 
-                  <button type="submit" className="btn-accent w-full">
+                  <button type="submit" className="btn-primary w-full mt-2">
                     Enviar consulta
-                    <ArrowRight className="h-4 w-4" />
                   </button>
                 </form>
 
-                <div className="mt-6 pt-5 border-t border-gray-800 space-y-3">
+                <div className="mt-6 pt-5 border-t border-ink/15 space-y-3">
                   <a
                     href="tel:+541112345678"
-                    className="flex items-center gap-3 text-sm text-gray-300 hover:text-gray-50"
+                    className="flex items-center gap-3 text-sm text-ink/85 hover:text-ink"
                   >
-                    <Phone className="h-4 w-4 text-accent-300" />
+                    <Phone className="h-4 w-4 text-ink/60" />
                     +54 11 1234-5678
                   </a>
                   <a
                     href="mailto:info@barrerabrokers.com"
-                    className="flex items-center gap-3 text-sm text-gray-300 hover:text-gray-50"
+                    className="flex items-center gap-3 text-sm text-ink/85 hover:text-ink"
                   >
-                    <Mail className="h-4 w-4 text-accent-300" />
+                    <Mail className="h-4 w-4 text-ink/60" />
                     info@barrerabrokers.com
                   </a>
                 </div>

@@ -3,46 +3,41 @@
 @tailwind utilities;
 
 /* ==============================================
-   THEME TOKENS (Linear.app inspired)
+   THEME TOKENS - Studio X inspired (cream + ink)
    ============================================== */
 :root {
-  --color-bg: 8 9 10;          /* gray-950 */
-  --color-panel: 16 17 19;     /* gray-900 */
-  --color-elevated: 22 23 26;  /* gray-850 */
-  --color-line: 31 31 36;
-  --color-line-bright: 42 43 48;
-  --color-text: 247 248 248;
-  --color-text-muted: 138 143 152;
-  --color-text-dim: 98 102 109;
-  --color-accent: 94 106 210;
-  --color-accent-bright: 113 112 255;
+  --color-bg: 244 241 236;       /* cream-200 */
+  --color-bg-soft: 250 248 243;
+  --color-surface: 255 255 255;
+  --color-line: 218 214 205;
+  --color-line-soft: 235 232 225;
+  --color-ink: 23 23 22;
+  --color-ink-soft: 58 58 54;
+  --color-ink-dim: 122 119 112;
+  --color-accent: 184 85 42;
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     background-color: rgb(var(--color-bg));
-    color: rgb(var(--color-text));
-    font-feature-settings: "ss01", "ss02", "cv01", "cv11";
+    color: rgb(var(--color-ink));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  /* Selecciones con accent purple */
   ::selection {
-    background-color: rgba(94, 106, 210, 0.35);
-    color: rgb(var(--color-text));
+    background-color: rgb(var(--color-ink));
+    color: rgb(var(--color-bg));
   }
 
-  /* Headings con tracking apretado tipo Linear */
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.025em;
-    font-feature-settings: "ss01", "ss02";
+    color: rgb(var(--color-ink));
   }
 }
 
@@ -51,103 +46,132 @@
    ============================================== */
 @layer components {
   .container-custom {
-    @apply max-w-7xl mx-auto px-6 md:px-10 lg:px-12;
+    @apply max-w-[1480px] mx-auto px-6 md:px-10 lg:px-16;
   }
 
-  /* Heading variants - reemplazan al heading-serif legacy */
-  .heading-serif,
-  .heading-display {
-    @apply font-sans tracking-tightest;
-    font-weight: 600;
+  /* Editorial display heading */
+  .heading-display,
+  .heading-serif {
+    @apply font-display font-normal tracking-tightest leading-[0.95];
   }
 
-  /* Hairline label tipo Linear */
+  /* Hairline labels */
   .label-tracking {
-    @apply uppercase tracking-widest text-[11px] font-medium text-gray-400;
+    @apply uppercase tracking-widest text-[11px] font-medium;
   }
 
-  /* Botones */
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium tracking-tight
-           bg-white text-gray-950 rounded-md
-           shadow-soft
-           hover:bg-gray-100
-           transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-gray-950;
-  }
-
-  .btn-accent {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium tracking-tight
-           bg-accent text-white rounded-md
-           shadow-glow
-           hover:bg-accent-400 hover:shadow-glow-lg
-           transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-gray-950;
-  }
-
-  .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium tracking-tight
-           bg-gray-900 text-gray-50 border border-gray-700 rounded-md
-           hover:bg-gray-850 hover:border-gray-600
-           transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-2 focus:ring-offset-gray-950;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium tracking-tight
-           text-gray-300 rounded-md
-           hover:bg-gray-900 hover:text-gray-50
-           transition-all duration-200;
-  }
-
-  .btn-outline-light {
-    @apply btn-outline;
-  }
-
-  /* Inputs */
-  .input,
-  .form-input {
-    @apply w-full bg-gray-900 border border-gray-800 text-gray-50 placeholder-gray-500
-           rounded-md px-3.5 py-2.5 text-sm
-           hover:border-gray-700
-           focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40
-           transition-colors duration-150;
-  }
-
-  /* Card */
-  .card {
-    @apply bg-gray-900 border border-gray-800 rounded-xl;
-  }
-
-  .card-hover {
-    @apply card hover:border-gray-700 transition-all duration-200;
-  }
-
-  /* Pill (badges) */
-  .pill {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium tracking-tight
-           bg-gray-900 border border-gray-800 text-gray-300 rounded-full;
-  }
-
-  .pill-accent {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium tracking-tight
-           bg-accent/10 border border-accent/30 text-accent-300 rounded-full;
-  }
-
-  /* Section spacing helper */
-  .section-pad {
-    @apply py-20 md:py-28 lg:py-32;
-  }
-
-  /* Eyebrow (label sobre headlines) */
   .eyebrow {
-    @apply inline-flex items-center gap-2 text-xs font-medium tracking-tight
-           text-accent-300 uppercase;
+    @apply inline-flex items-center gap-3 text-[11px] font-medium tracking-widest uppercase text-ink/60;
   }
 
   .eyebrow::before {
     content: "";
-    @apply inline-block h-1.5 w-1.5 rounded-full bg-accent shadow-glow;
+    @apply inline-block h-px w-8 bg-ink/40;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5
+           bg-ink text-cream-100
+           text-xs uppercase tracking-widest font-medium
+           rounded-full
+           hover:bg-ink-600
+           transition-all duration-300
+           focus:outline-none focus:ring-2 focus:ring-ink/30 focus:ring-offset-2 focus:ring-offset-cream-200;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5
+           bg-transparent text-ink border border-ink
+           text-xs uppercase tracking-widest font-medium
+           rounded-full
+           hover:bg-ink hover:text-cream-100
+           transition-all duration-300
+           focus:outline-none focus:ring-2 focus:ring-ink/30 focus:ring-offset-2 focus:ring-offset-cream-200;
+  }
+
+  .btn-outline-light {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5
+           bg-transparent text-cream-100 border border-cream-100
+           text-xs uppercase tracking-widest font-medium
+           rounded-full
+           hover:bg-cream-100 hover:text-ink
+           transition-all duration-300;
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5
+           bg-accent text-cream-100
+           text-xs uppercase tracking-widest font-medium
+           rounded-full
+           hover:bg-accent-600
+           transition-all duration-300;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm
+           text-ink/70 rounded-full
+           hover:text-ink
+           transition-colors duration-200;
+  }
+
+  /* Inputs (underline editorial style) */
+  .input,
+  .form-input {
+    @apply w-full bg-transparent border-b border-ink/30
+           text-ink placeholder-ink/40
+           px-0 py-3 text-base
+           hover:border-ink/60
+           focus:outline-none focus:border-ink
+           transition-colors duration-200;
+  }
+
+  .form-input-boxed {
+    @apply w-full bg-cream-100 border border-cream-400
+           text-ink placeholder-ink/40
+           rounded-md px-4 py-3 text-sm
+           hover:border-ink/40
+           focus:outline-none focus:border-ink
+           transition-colors duration-200;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-cream-100 border border-cream-400 rounded-xl;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300 hover:border-ink/30;
+  }
+
+  /* Pills */
+  .pill {
+    @apply inline-flex items-center gap-1.5 px-3 py-1
+           border border-ink/20 bg-cream-100/80 backdrop-blur-sm text-ink
+           text-[11px] uppercase tracking-widest font-medium rounded-full;
+  }
+
+  /* Section spacing */
+  .section-pad {
+    @apply py-24 md:py-32 lg:py-40;
+  }
+
+  /* Numbered marker (01., 02., ...) */
+  .number-marker {
+    @apply font-display text-2xl text-ink/50;
+  }
+
+  /* Underline link */
+  .link-underline {
+    @apply relative inline-flex items-center;
+  }
+  .link-underline::after {
+    content: "";
+    @apply absolute -bottom-1 left-0 h-px w-full bg-current origin-right scale-x-100
+           transition-transform duration-500;
+  }
+  .link-underline:hover::after {
+    @apply origin-left scale-x-0;
   }
 }
 
@@ -166,76 +190,23 @@
     overflow: hidden;
   }
 
-  /* Linear-style noise grain (subtle) */
-  .bg-noise {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  .marquee-mask {
+    mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  }
+
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 256px 256px;
   }
 
-  /* Radial glow bg helpers */
-  .bg-glow-accent {
-    background: radial-gradient(
-      ellipse 50% 50% at 50% 0%,
-      rgba(94, 106, 210, 0.18) 0%,
-      transparent 60%
-    );
-  }
-
-  .bg-glow-accent-bottom {
-    background: radial-gradient(
-      ellipse 60% 50% at 50% 100%,
-      rgba(94, 106, 210, 0.15) 0%,
-      transparent 65%
-    );
-  }
-
-  /* Linear-style grid pattern */
-  .bg-grid {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 48px 48px;
-  }
-
-  .bg-dot-grid {
-    background-image: radial-gradient(
-      rgba(255, 255, 255, 0.06) 1px,
-      transparent 1px
-    );
-    background-size: 24px 24px;
-  }
-
-  /* Gradient text */
-  .text-gradient {
-    background: linear-gradient(135deg, #f7f8f8 0%, #8a8f98 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .text-gradient-accent {
-    background: linear-gradient(135deg, #b6b9eb 0%, #5e6ad2 50%, #7170ff 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  /* Underline subtle */
-  .link-underline {
-    @apply relative inline-block;
-  }
-  .link-underline::after {
-    content: "";
-    @apply absolute bottom-0 left-0 h-px w-full bg-gray-700 origin-right scale-x-0
-           transition-transform duration-300;
-  }
-  .link-underline:hover::after {
-    @apply origin-left scale-x-100 bg-accent;
+  .italic-display {
+    @apply font-display italic;
   }
 }
 
 /* ==============================================
-   SCROLLBAR (Linear style)
+   SCROLLBAR (cream)
    ============================================== */
 ::-webkit-scrollbar {
   width: 10px;
@@ -247,11 +218,11 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--color-line-bright));
+  background: rgb(var(--color-line));
   border-radius: 8px;
   border: 2px solid rgb(var(--color-bg));
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--color-text-dim));
+  background: rgb(var(--color-ink-dim));
 }

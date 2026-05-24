@@ -47,72 +47,80 @@ const team = [
 
 export function AboutSection() {
   return (
-    <section id="nosotros" className="bg-gray-950">
+    <section id="nosotros" className="bg-cream-200 border-t border-ink/10">
       {/* About */}
       <div className="section-pad">
         <div className="container-custom">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            {/* Image */}
-            <div className="relative">
-              <div className="relative h-[480px] md:h-[560px] overflow-hidden rounded-xl border border-gray-800">
+          <div className="grid grid-cols-12 gap-6 mb-20 md:mb-24">
+            <div className="col-span-12 md:col-span-1">
+              <span className="number-marker">03.</span>
+            </div>
+            <div className="col-span-12 md:col-span-7">
+              <p className="eyebrow mb-6">Sobre nosotros</p>
+              <h2 className="font-display text-[56px] md:text-[88px] lg:text-[112px] leading-[0.95] tracking-tightest text-ink">
+                Construyendo
+                <br />
+                <span className="italic-display">confianza</span>
+                <br />
+                desde el ano 2000.
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-6 md:gap-12">
+            {/* Image - asymmetric: takes 7 cols */}
+            <div className="col-span-12 md:col-span-7 order-2 md:order-1">
+              <div className="relative aspect-[4/5] md:aspect-[3/4] overflow-hidden">
                 <Image
-                  src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1000&q=90"
+                  src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=90"
                   alt="Equipo Barrera Brokers"
                   fill
                   className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  sizes="(max-width: 768px) 100vw, 60vw"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent" />
               </div>
-              {/* Floating accent card */}
-              <div className="absolute -bottom-6 -right-6 hidden lg:block card p-6 backdrop-blur-md bg-gray-900/90">
-                <div className="text-3xl font-semibold tracking-tightest text-accent-300 mb-1">
-                  +500
-                </div>
-                <div className="text-xs text-gray-400 tracking-tight">
-                  Propiedades gestionadas
-                </div>
+              <div className="mt-4 flex items-baseline justify-between text-xs uppercase tracking-widest text-ink/60">
+                <span>Buenos Aires HQ</span>
+                <span>Est. 2000</span>
               </div>
             </div>
 
-            {/* Content */}
-            <div>
-              <span className="eyebrow mb-5">Sobre nosotros</span>
+            {/* Text - 4 cols, sticky */}
+            <div className="col-span-12 md:col-span-4 md:col-start-9 order-1 md:order-2 flex flex-col gap-12">
+              <div>
+                <p className="text-ink/80 text-lg md:text-xl leading-relaxed mb-5">
+                  En Barrera Brokers somos mas que una inmobiliaria. Somos
+                  socios estrategicos en el camino hacia las decisiones
+                  patrimoniales mas importantes de tu vida.
+                </p>
+                <p className="text-ink/65 text-base leading-relaxed">
+                  Combinamos conocimiento profundo del mercado, vision
+                  estrategica y compromiso genuino con cada cliente.
+                </p>
+              </div>
 
-              <h2 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tightest leading-[1.05] mb-6">
-                <span className="text-gradient">Construyendo</span>{" "}
-                <span className="text-gradient-accent">confianza</span>{" "}
-                <span className="text-gradient">desde el ano 2000.</span>
-              </h2>
-
-              <p className="text-gray-400 text-lg leading-relaxed tracking-tight mb-5">
-                En Barrera Brokers somos mas que una inmobiliaria. Somos socios
-                estrategicos en el camino hacia las decisiones patrimoniales
-                mas importantes de tu vida.
-              </p>
-
-              <p className="text-gray-400 text-lg leading-relaxed tracking-tight mb-10">
-                Combinamos conocimiento profundo del mercado, vision
-                estrategica y compromiso genuino con cada cliente, ya sea que
-                busques tu primera vivienda o expandir tu portafolio de
-                inversiones.
-              </p>
+              {/* Big stat */}
+              <div className="border-t border-ink/15 pt-6">
+                <div className="font-display text-7xl md:text-8xl text-ink leading-none">
+                  +500
+                </div>
+                <div className="mt-2 text-xs uppercase tracking-widest text-ink/60">
+                  Propiedades gestionadas
+                </div>
+              </div>
 
               {/* Values */}
-              <div className="space-y-4">
+              <div className="border-t border-ink/15 pt-6 space-y-6">
                 {values.map((value, index) => (
-                  <div
-                    key={index}
-                    className="card p-5 flex gap-5 items-start hover:border-gray-700 transition-colors"
-                  >
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-accent/10 border border-accent/30 text-accent-300 text-sm font-semibold tracking-tight">
-                      0{index + 1}
-                    </div>
+                  <div key={index} className="flex gap-5">
+                    <span className="font-display text-xl text-ink/40 leading-tight">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
                     <div>
-                      <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1">
+                      <h3 className="font-display text-xl text-ink mb-1">
                         {value.title}
                       </h3>
-                      <p className="text-sm text-gray-400 leading-relaxed tracking-tight">
+                      <p className="text-sm text-ink/60 leading-relaxed">
                         {value.description}
                       </p>
                     </div>
@@ -125,37 +133,45 @@ export function AboutSection() {
       </div>
 
       {/* Team */}
-      <div className="section-pad border-t border-gray-800">
+      <div className="section-pad bg-cream-100 border-t border-ink/10">
         <div className="container-custom">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="eyebrow mb-5">Nuestro equipo</span>
-            <h2 className="mt-5 text-4xl md:text-5xl font-semibold tracking-tightest leading-[1.05]">
-              <span className="text-gradient">Profesionales</span>{" "}
-              <span className="text-gradient-accent">comprometidos.</span>
-            </h2>
+          <div className="grid grid-cols-12 gap-6 mb-16 md:mb-20">
+            <div className="col-span-12 md:col-span-1">
+              <span className="number-marker">04.</span>
+            </div>
+            <div className="col-span-12 md:col-span-7">
+              <p className="eyebrow mb-6">Nuestro equipo</p>
+              <h2 className="font-display text-[56px] md:text-[80px] lg:text-[96px] leading-[0.95] tracking-tightest text-ink">
+                Profesionales
+                <br />
+                <span className="italic-display">comprometidos.</span>
+              </h2>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12">
             {team.map((member, index) => (
-              <div key={index} className="group card-hover overflow-hidden">
-                <div className="relative h-72 overflow-hidden">
+              <div key={index} className="group">
+                <div className="relative aspect-[3/4] overflow-hidden bg-cream-300 mb-4">
                   <Image
                     src={member.image}
                     alt={member.name}
                     fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-gray-950/10 to-transparent" />
                 </div>
-                <div className="p-4">
-                  <h4 className="text-base font-semibold tracking-tight text-gray-50">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="font-display text-base text-ink/40">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <h4 className="font-display text-2xl text-ink leading-tight">
                     {member.name}
                   </h4>
-                  <p className="text-xs text-accent-300 tracking-tight mt-0.5">
-                    {member.role}
-                  </p>
                 </div>
+                <p className="text-xs uppercase tracking-widest text-ink/55">
+                  {member.role}
+                </p>
               </div>
             ))}
           </div>

@@ -11,7 +11,6 @@ import {
   AlertCircle,
   CheckCircle,
   ArrowLeft,
-  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -89,12 +88,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
-      <div className="absolute inset-0 -z-10 bg-grid opacity-[0.4]" />
-      <div className="absolute inset-0 -z-10 bg-glow-accent" />
-
-      <div className="w-full max-w-md relative">
-        <Link href="/" className="flex items-center justify-center gap-3 mb-8 group">
+    <div className="min-h-screen flex items-center justify-center p-4 py-16 bg-cream-200">
+      <div className="w-full max-w-md">
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-3 mb-10"
+        >
           <div className="relative h-10 w-10 flex-shrink-0">
             <Image
               src="/logo.png"
@@ -104,174 +103,165 @@ export default function RegisterPage() {
               className="object-contain"
             />
           </div>
-          <span className="text-base font-semibold tracking-tight text-gray-50">
+          <span className="font-display text-2xl tracking-tight text-ink">
             Barrera Brokers
           </span>
         </Link>
 
-        <div className="card p-8 backdrop-blur-md bg-gray-900/80">
-          <div className="text-center mb-7">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-50 mb-1.5">
-              Registro de Agente
-            </h1>
-            <p className="text-sm text-gray-400">
-              Crea tu cuenta para gestionar propiedades
+        <div className="text-center mb-10">
+          <p className="eyebrow justify-center mb-5">Registro de agente</p>
+          <h1 className="font-display text-5xl md:text-6xl tracking-tightest text-ink leading-[0.95]">
+            Crea tu
+            <br />
+            <span className="italic-display">cuenta.</span>
+          </h1>
+        </div>
+
+        {error && (
+          <div className="mb-6 border-l-2 border-accent pl-4 py-2 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-accent flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-ink/80">{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 border-l-2 border-emerald-700 pl-4 py-2 flex items-start gap-2">
+            <CheckCircle className="h-4 w-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-ink/80">
+              Cuenta creada! Redirigiendo...
             </p>
           </div>
+        )}
 
-          {error && (
-            <div className="mb-5 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-red-300 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-300">{error}</p>
+        <form onSubmit={handleSubmit} className="space-y-7">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+              Nombre completo
+            </label>
+            <div className="relative">
+              <User className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/40 pointer-events-none" />
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                className="form-input pl-7"
+                placeholder="Juan Perez"
+              />
             </div>
-          )}
+          </div>
 
-          {success && (
-            <div className="mb-5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-emerald-300 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-emerald-300">
-                Cuenta creada! Redirigiendo...
-              </p>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/40 pointer-events-none" />
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="form-input pl-7"
+                placeholder="agente@barrerabrokers.com"
+              />
             </div>
-          )}
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+              Telefono
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/40 pointer-events-none" />
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                className="form-input pl-7"
+                placeholder="+54 11 1234-5678"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
-                Nombre completo
+              <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Contrasena
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <Lock className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/40 pointer-events-none" />
                 <input
-                  type="text"
+                  type="password"
                   required
-                  value={formData.name}
+                  minLength={6}
+                  value={formData.password}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({ ...formData, password: e.target.value })
                   }
-                  className="form-input pl-10"
-                  placeholder="Juan Perez"
+                  className="form-input pl-7"
+                  placeholder="Min 6 chars"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
-                Email
+              <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Repetir
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <Lock className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/40 pointer-events-none" />
                 <input
-                  type="email"
+                  type="password"
                   required
-                  value={formData.email}
+                  minLength={6}
+                  value={formData.confirmPassword}
                   onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
                   }
-                  className="form-input pl-10"
-                  placeholder="agente@barrerabrokers.com"
+                  className="form-input pl-7"
+                  placeholder="Repetir"
                 />
               </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
-                Telefono
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="form-input pl-10"
-                  placeholder="+54 11 1234-5678"
-                />
-              </div>
-            </div>
+          <button
+            type="submit"
+            disabled={isLoading || success}
+            className="btn-primary w-full mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? "Creando cuenta..." : "Crear cuenta"}
+          </button>
+        </form>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
-                  Contrasena
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    className="form-input pl-10"
-                    placeholder="Min 6 chars"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
-                  Repetir
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    className="form-input pl-10"
-                    placeholder="Repetir"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || success}
-              className="btn-accent w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        <div className="mt-8 pt-6 border-t border-ink/15 text-center">
+          <p className="text-sm text-ink/60">
+            Ya tenes cuenta?{" "}
+            <Link
+              href="/login"
+              className="text-ink font-medium link-underline"
             >
-              {isLoading ? (
-                "Creando cuenta..."
-              ) : (
-                <>
-                  Crear cuenta
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 pt-5 border-t border-gray-800 text-center">
-            <p className="text-sm text-gray-400">
-              Ya tenes cuenta?{" "}
-              <Link
-                href="/login"
-                className="text-accent-300 hover:text-accent-400 font-medium"
-              >
-                Inicia sesion
-              </Link>
-            </p>
-          </div>
+              Inicia sesion
+            </Link>
+          </p>
         </div>
 
         <div className="mt-6 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-ink/50 hover:text-ink transition-colors"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <ArrowLeft className="h-3 w-3" />
             Volver al sitio
           </Link>
         </div>

@@ -121,7 +121,7 @@ export function ImageUploader({
 
   return (
     <div>
-      <label className="label-tracking text-gray-200 block mb-3">
+      <label className="label-tracking text-ink/85 block mb-3">
         {label}
       </label>
 
@@ -168,7 +168,7 @@ export function ImageUploader({
                     <button
                       type="button"
                       onClick={() => setPrimary(index)}
-                      className="bg-gray-950/80 hover:bg-accent/50 text-white p-1.5"
+                      className="bg-cream-200/85 hover:bg-accent/50 text-white p-1.5"
                       aria-label="Marcar como principal"
                       title="Hacer principal"
                     >
@@ -194,7 +194,7 @@ export function ImageUploader({
 
                 {/* Tamano archivo nuevo */}
                 {item.kind === "new" && (
-                  <div className="absolute bottom-2 right-2 bg-gray-950/70 text-white text-[10px] px-1.5 py-0.5">
+                  <div className="absolute bottom-2 right-2 bg-cream-200/70 text-white text-[10px] px-1.5 py-0.5">
                     {formatBytes(item.file.size)}
                   </div>
                 )}
@@ -213,25 +213,25 @@ export function ImageUploader({
         className={`border-2 border-dashed transition-colors cursor-pointer p-8 text-center ${
           isDragging
             ? "border-accent bg-accent/5"
-            : "border-gray-700 hover:border-accent"
+            : "border-ink/25 hover:border-accent"
         }`}
       >
         {isProcessing ? (
-          <div className="flex flex-col items-center justify-center text-gray-400">
+          <div className="flex flex-col items-center justify-center text-ink/60">
             <Loader2 className="h-8 w-8 mb-2 animate-spin" />
             <span className="label-tracking text-sm">
               Procesando imagenes...
             </span>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-gray-400">
+          <div className="flex flex-col items-center justify-center text-ink/60">
             <Upload className="h-8 w-8 mb-2" />
             <span className="label-tracking text-sm mb-1">
               {isDragging
                 ? "Solta las imagenes aqui"
                 : "Arrastra imagenes o hace clic para seleccionar"}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-ink0">
               JPG, PNG, WebP. Se comprimen automaticamente. Max {maxSizeMB}MB
             </span>
           </div>
@@ -247,7 +247,7 @@ export function ImageUploader({
         />
       </div>
 
-      <p className="text-xs text-gray-400 mt-2">
+      <p className="text-xs text-ink/60 mt-2">
         {helperText ||
           "Hace clic en la estrella de una imagen para marcarla como principal."}
       </p>

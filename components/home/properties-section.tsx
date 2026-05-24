@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Bed, Bath, Square } from "lucide-react";
+import { Bed, Bath, Square, ArrowUpRight } from "lucide-react";
 import { getProperties } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 
@@ -11,93 +11,99 @@ export async function PropertiesSection() {
   return (
     <section
       id="propiedades"
-      className="relative section-pad bg-gray-950 overflow-hidden"
+      className="relative section-pad bg-cream-200 overflow-hidden"
     >
-      <div className="absolute inset-0 -z-10 bg-glow-accent-bottom" />
-
       <div className="container-custom">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-8">
-          <div className="max-w-2xl">
-            <span className="eyebrow mb-5">Propiedades destacadas</span>
-            <h2 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tightest leading-[1.05]">
-              <span className="text-gradient">Una seleccion</span>{" "}
-              <span className="text-gradient-accent">curada para vos.</span>
+        {/* Editorial section header (asymmetric) */}
+        <div className="grid grid-cols-12 gap-6 mb-16 md:mb-24">
+          <div className="col-span-12 md:col-span-1">
+            <span className="number-marker">01.</span>
+          </div>
+          <div className="col-span-12 md:col-span-7">
+            <p className="eyebrow mb-6">Propiedades destacadas</p>
+            <h2 className="font-display text-[56px] md:text-[88px] lg:text-[112px] leading-[0.95] tracking-tightest text-ink">
+              Una seleccion
+              <br />
+              <span className="italic-display">curada para vos.</span>
             </h2>
           </div>
-          <Link
-            href="/propiedades"
-            className="btn-outline whitespace-nowrap self-start md:self-end"
-          >
-            Ver catalogo completo
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="col-span-12 md:col-span-3 md:col-start-10 flex flex-col justify-end">
+            <p className="text-ink/70 leading-relaxed mb-6 text-base md:text-lg">
+              Cada propiedad de nuestro catalogo es elegida con atencion al
+              detalle, la ubicacion y el potencial de inversion.
+            </p>
+            <Link
+              href="/propiedades"
+              className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-ink hover:text-accent transition-colors group self-start"
+            >
+              <span className="link-underline">Ver catalogo completo</span>
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </div>
         </div>
 
         {featured.length === 0 ? (
-          <div className="card p-12 text-center">
-            <p className="text-gray-400">
+          <div className="border-t border-ink/15 pt-16 text-center">
+            <p className="text-ink/60 text-lg">
               Pronto vas a encontrar nuestras propiedades destacadas aqui.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {featured.map((property) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-16">
+            {featured.map((property, idx) => (
               <Link
                 key={property.id}
                 href={`/propiedades/${property.id}`}
-                className="group card-hover overflow-hidden flex flex-col"
+                className="group block"
               >
-                {/* Image */}
-                <div className="relative h-64 overflow-hidden">
+                {/* Image with editorial number caption */}
+                <div className="relative h-[420px] mb-6 overflow-hidden bg-cream-300">
                   <Image
                     src={property.images[0]}
                     alt={property.title}
                     fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
-                  {/* Subtle dark overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950/70 via-transparent to-transparent" />
-
-                  {/* Category pill */}
-                  <div className="absolute top-3 left-3">
-                    <span className="pill bg-gray-950/70 backdrop-blur-md capitalize">
+                  <div className="absolute top-5 left-5 flex items-center gap-3 text-cream-100">
+                    <span className="font-display text-2xl">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="h-px w-6 bg-cream-100/70" />
+                    <span className="text-[10px] uppercase tracking-widest">
                       {property.category}
                     </span>
                   </div>
-
-                  {/* Price badge */}
-                  <div className="absolute bottom-3 left-3">
-                    <span className="text-lg font-semibold tracking-tight text-white drop-shadow-lg">
-                      {formatPrice(property.price)}
-                    </span>
+                  <div className="absolute top-5 right-5">
+                    <ArrowUpRight className="h-5 w-5 text-cream-100 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300" />
                   </div>
                 </div>
 
-                {/* Body */}
-                <div className="p-5 flex flex-col gap-3 flex-1">
-                  <div>
-                    <h3 className="text-base font-semibold tracking-tight text-gray-50 group-hover:text-white line-clamp-2">
+                <div className="space-y-3">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h3 className="font-display text-2xl md:text-3xl leading-tight tracking-tight text-ink line-clamp-2 flex-1">
                       {property.title}
                     </h3>
-                    <p className="mt-1 text-sm text-gray-500 tracking-tight line-clamp-1">
-                      {property.location}
-                    </p>
+                    <span className="font-display text-xl md:text-2xl text-ink whitespace-nowrap">
+                      {formatPrice(property.price)}
+                    </span>
                   </div>
 
-                  {/* Features */}
-                  <div className="flex items-center gap-4 mt-auto pt-3 border-t border-gray-800 text-xs text-gray-400">
+                  <p className="text-sm text-ink/55 tracking-tight">
+                    {property.location}
+                  </p>
+
+                  <div className="flex items-center gap-5 pt-3 border-t border-ink/10 text-xs text-ink/60">
                     {property.bedrooms ? (
                       <span className="inline-flex items-center gap-1.5">
                         <Bed className="h-3.5 w-3.5" />
-                        {property.bedrooms}
+                        {property.bedrooms} dorm
                       </span>
                     ) : null}
                     {property.bathrooms ? (
                       <span className="inline-flex items-center gap-1.5">
                         <Bath className="h-3.5 w-3.5" />
-                        {property.bathrooms}
+                        {property.bathrooms} ban
                       </span>
                     ) : null}
                     <span className="inline-flex items-center gap-1.5 ml-auto">

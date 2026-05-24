@@ -9,7 +9,7 @@ export function AdminHeader() {
   const { data: session } = useSession();
 
   return (
-    <header className="bg-gray-950/80 backdrop-blur-xl border-b border-gray-800 sticky top-0 z-30">
+    <header className="bg-cream-200/85 backdrop-blur-xl border-b border-ink/15 sticky top-0 z-30">
       <div className="flex items-center justify-between px-6 md:px-8 h-14">
         <Link href="/admin" className="flex items-center gap-2.5">
           <div className="relative h-7 w-7">
@@ -22,10 +22,10 @@ export function AdminHeader() {
             />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight text-gray-50">
+            <div className="text-sm font-semibold tracking-tight text-ink">
               Barrera Brokers
             </div>
-            <div className="text-[10px] tracking-widest uppercase text-gray-500">
+            <div className="text-[10px] tracking-widest uppercase text-ink0">
               Admin
             </div>
           </div>
@@ -41,15 +41,15 @@ export function AdminHeader() {
             <ExternalLink className="h-3 w-3" />
           </Link>
 
-          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-gray-800">
-            <div className="h-7 w-7 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-[11px] font-semibold text-accent-300">
+          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-ink/15">
+            <div className="h-7 w-7 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-[11px] font-semibold text-accent">
               {session?.user?.name?.charAt(0)?.toUpperCase() ?? "A"}
             </div>
             <div className="leading-tight">
-              <div className="text-xs font-medium text-gray-200">
+              <div className="text-xs font-medium text-ink/85">
                 {session?.user?.name}
               </div>
-              <div className="text-[10px] text-gray-500">
+              <div className="text-[10px] text-ink0">
                 {session?.user?.email}
               </div>
             </div>

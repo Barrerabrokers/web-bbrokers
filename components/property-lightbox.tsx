@@ -71,7 +71,7 @@ export function PropertyLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-gray-950/95 backdrop-blur-sm flex items-center justify-center animate-fade-in"
+      className="fixed inset-0 z-[100] bg-cream-900/95 backdrop-blur-sm flex items-center justify-center animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-label="Galeria de imagenes"
@@ -86,7 +86,7 @@ export function PropertyLightbox({
           e.stopPropagation();
           onClose();
         }}
-        className="absolute top-4 right-4 z-10 inline-flex items-center justify-center h-10 w-10 rounded-md border border-gray-800 bg-gray-900/70 text-gray-300 hover:text-gray-50 hover:border-gray-700 transition-colors"
+        className="absolute top-5 right-5 z-10 inline-flex items-center justify-center h-11 w-11 rounded-full bg-cream-100/10 hover:bg-cream-100/20 text-cream-100 transition-colors"
         aria-label="Cerrar"
       >
         <X className="h-5 w-5" />
@@ -94,8 +94,8 @@ export function PropertyLightbox({
 
       {/* Counter */}
       {images.length > 1 && (
-        <div className="absolute top-6 left-6 z-10 pill bg-gray-900/70 backdrop-blur-md">
-          {index + 1} / {images.length}
+        <div className="absolute top-7 left-7 z-10 text-cream-100/85 text-xs uppercase tracking-widest">
+          {String(index + 1).padStart(2, "0")} / {String(images.length).padStart(2, "0")}
         </div>
       )}
 
@@ -107,7 +107,7 @@ export function PropertyLightbox({
             e.stopPropagation();
             prev();
           }}
-          className="absolute left-3 md:left-6 z-10 inline-flex items-center justify-center h-12 w-12 rounded-full border border-gray-800 bg-gray-900/70 backdrop-blur-md text-gray-200 hover:text-gray-50 hover:border-gray-700 transition-colors"
+          className="absolute left-3 md:left-6 z-10 inline-flex items-center justify-center h-12 w-12 rounded-full bg-cream-100/10 hover:bg-cream-100/20 text-cream-100 transition-colors"
           aria-label="Anterior"
         >
           <ChevronLeft className="h-6 w-6" />
@@ -139,7 +139,7 @@ export function PropertyLightbox({
             e.stopPropagation();
             next();
           }}
-          className="absolute right-3 md:right-6 z-10 inline-flex items-center justify-center h-12 w-12 rounded-full border border-gray-800 bg-gray-900/70 backdrop-blur-md text-gray-200 hover:text-gray-50 hover:border-gray-700 transition-colors"
+          className="absolute right-3 md:right-6 z-10 inline-flex items-center justify-center h-12 w-12 rounded-full bg-cream-100/10 hover:bg-cream-100/20 text-cream-100 transition-colors"
           aria-label="Siguiente"
         >
           <ChevronRight className="h-6 w-6" />
@@ -149,7 +149,7 @@ export function PropertyLightbox({
       {/* Thumbnails */}
       {images.length > 1 && (
         <div
-          className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto"
+          className="absolute bottom-5 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {images.map((src, i) => (
@@ -157,10 +157,10 @@ export function PropertyLightbox({
               key={i}
               type="button"
               onClick={() => setIndex(i)}
-              className={`relative h-16 w-16 md:h-20 md:w-20 flex-shrink-0 overflow-hidden rounded-md border transition-all ${
+              className={`relative h-16 w-16 md:h-20 md:w-20 flex-shrink-0 overflow-hidden transition-all ${
                 i === index
-                  ? "border-accent shadow-glow opacity-100"
-                  : "border-gray-800 opacity-60 hover:opacity-100 hover:border-gray-700"
+                  ? "opacity-100 ring-2 ring-cream-100"
+                  : "opacity-50 hover:opacity-90"
               }`}
               aria-label={`Ir a imagen ${i + 1}`}
             >
