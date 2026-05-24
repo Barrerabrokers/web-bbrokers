@@ -1,73 +1,33 @@
 "use client";
 
 import { ArrowDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { YouTubeBackground } from "@/components/youtube-background";
+
+// Video de YouTube de Buenos Aires (HD)
+// https://www.youtube.com/watch?v=xuih_txfQP0
+const YOUTUBE_VIDEO_ID = "xuih_txfQP0";
 
 export function HeroSection() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoLoaded, setVideoLoaded] = useState(false);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleCanPlay = () => {
-      setVideoLoaded(true);
-      video.play().catch((err) => {
-        console.log("Autoplay prevented:", err);
-      });
-    };
-
-    video.addEventListener("canplay", handleCanPlay);
-    video.load();
-
-    return () => {
-      video.removeEventListener("canplay", handleCanPlay);
-    };
-  }, []);
-
   return (
     <section
       id="inicio"
       className="relative h-screen min-h-[760px] w-full overflow-hidden bg-ink-700"
     >
-      {/* Video full-bleed protagonist */}
-      <div className="absolute inset-0">
-        <video
-          ref={videoRef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          poster="https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80"
-          className={`w-full h-full object-cover transition-opacity duration-1000 ${
-            videoLoaded ? "opacity-100 animate-slow-zoom" : "opacity-0"
-          }`}
-        >
-          <source src="/buenos-aires.mp4" type="video/mp4" />
-        </video>
+      {/* YouTube video background (fullscreen, no controls, looping) */}
+      <YouTubeBackground
+        videoId={YOUTUBE_VIDEO_ID}
+        fallbackSrc="/buenos-aires.mp4"
+        posterSrc="https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80"
+      />
 
-        {/* Fallback poster while video loads */}
-        {!videoLoaded && (
-          <div
-            className="absolute inset-0 bg-cover bg-center animate-slow-zoom"
-            style={{
-              backgroundImage:
-                "url(https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80)",
-            }}
-          />
-        )}
-
-        {/* Luxury overlay: gradient bottom for legibility */}
-        <div className="absolute inset-0 bg-gradient-to-b from-ink-700/40 via-ink-700/30 to-ink-700/80" />
-      </div>
+      {/* Luxury overlay: dark gradient bottom for text legibility */}
+      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-ink-700/30 via-ink-700/20 to-ink-700/80 pointer-events-none" />
 
       {/* Top eyebrow */}
       <div className="absolute top-0 left-0 right-0 z-10">
         <div className="container-custom pt-32 md:pt-36">
           <div className="flex items-center justify-center">
-            <span className="text-[11px] uppercase tracking-widest text-white/80">
+            <span className="text-[11px] uppercase tracking-widest text-white/85">
               Buenos Aires &middot; Argentina &middot; Est. 2000
             </span>
           </div>
@@ -78,7 +38,7 @@ export function HeroSection() {
       <div className="relative z-10 h-full flex flex-col items-center justify-center px-6 text-center">
         <div className="animate-fade-in-up max-w-5xl">
           <h1 className="font-display font-light text-white leading-[0.98] tracking-[-0.025em] text-[52px] sm:text-[72px] md:text-[100px] lg:text-[128px]">
-            Stewart &amp; Co
+            Barrera &amp; Co
             <br />
             <span className="italic">Real Estate</span>
           </h1>
@@ -107,7 +67,7 @@ export function HeroSection() {
       {/* Scroll hint */}
       <a
         href="#propiedades"
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/65 hover:text-white transition-colors"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/70 hover:text-white transition-colors"
         aria-label="Scroll"
       >
         <span className="text-[10px] uppercase tracking-widest">Scroll</span>
