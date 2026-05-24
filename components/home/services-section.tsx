@@ -1,34 +1,55 @@
-import Link from "next/link";
-import Image from "next/image";
-import { ArrowUpRight } from "lucide-react";
+/**
+ * Services / Objects section - Obsidian Assembly style
+ * Dark theme con yellow accent. Manifesto declarativo de 3 lineas.
+ */
+const sections = [
+  "Cada operacion se origina en el lugar, modelada por contexto, mercado y circunstancia.",
+  "Nuestros servicios cubren venta, alquiler, desarrollo, inversion y oportunidades fuera de mercado.",
+  "Una vez completada, la operacion deja su punto de origen y circula independientemente.",
+];
 
 const services = [
   {
+    no: "01",
     title: "Sales",
     titleEs: "Ventas",
     description:
-      "Asesoramiento integral en compraventa de propiedades en Buenos Aires. Desde primera vivienda hasta inversiones de gran escala.",
-    image:
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=90",
-    href: "/propiedades?categoria=usados",
+      "Compraventa de propiedades en Buenos Aires. Desde primera vivienda hasta inversiones de gran escala.",
   },
   {
+    no: "02",
     title: "Rentals",
     titleEs: "Alquileres",
     description:
-      "Renta temporaria y permanente en las ubicaciones mas cotizadas de la ciudad. Acompanamiento end-to-end al propietario y al inquilino.",
-    image:
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=90",
-    href: "/propiedades?categoria=rentals",
+      "Renta temporaria y permanente en las ubicaciones mas cotizadas de la ciudad.",
   },
   {
-    title: "Home Valuation",
+    no: "03",
+    title: "Development",
+    titleEs: "Desarrollos",
+    description:
+      "Proyectos en pozo y en construccion con financiacion especial y entregas programadas.",
+  },
+  {
+    no: "04",
+    title: "Investment",
+    titleEs: "Inversiones",
+    description:
+      "Oportunidades inmobiliarias con alto retorno y proyeccion validadas por nuestros analistas.",
+  },
+  {
+    no: "05",
+    title: "Valuation",
     titleEs: "Tasaciones",
     description:
-      "Valuacion profesional de tu propiedad basada en comparables del mercado, ubicacion y condiciones especificas del activo.",
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=90",
-    href: "/#contacto",
+      "Valuacion profesional basada en comparables, ubicacion y condiciones del activo.",
+  },
+  {
+    no: "06",
+    title: "Off-Market",
+    titleEs: "Oportunidades",
+    description:
+      "Propiedades exclusivas con precios especiales, fuera de mercado, por tiempo limitado.",
   },
 ];
 
@@ -36,57 +57,61 @@ export function ServicesSection() {
   return (
     <section
       id="servicios"
-      className="relative py-24 md:py-32 lg:py-40 bg-cream-100"
+      className="relative section-pad bg-ink text-bone border-t border-bone/10"
     >
       <div className="container-custom">
-        {/* Section header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
-          <span className="eyebrow mb-6">Our Services</span>
-          <h2 className="lp-h2 mt-6 mb-6">
-            Como podemos <span className="italic">ayudarte</span>
-          </h2>
-          <p className="text-ink/65 text-base md:text-lg leading-relaxed">
-            Especialistas en cada operacion inmobiliaria. Asesoramiento
-            integral adaptado a tus objetivos.
-          </p>
+        {/* Manifesto declarativo */}
+        <div className="grid grid-cols-12 gap-6 mb-20 md:mb-28">
+          <div className="col-span-12 md:col-span-1">
+            <p className="font-display italic font-light text-xl md:text-2xl text-bone/40">
+              Objects
+            </p>
+          </div>
+          <div className="col-span-12 md:col-span-10 md:col-start-3">
+            <div className="space-y-6 md:space-y-8">
+              {sections.map((line, idx) => (
+                <p
+                  key={idx}
+                  className={`font-display font-light text-2xl md:text-4xl lg:text-[44px] leading-[1.15] tracking-tight text-bone/90 ${
+                    idx === 1 ? "italic text-accent" : ""
+                  }`}
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Services grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        {/* Services list - editorial numbered */}
+        <ul className="border-t border-bone/15">
           {services.map((service) => (
-            <Link
-              key={service.title}
-              href={service.href}
-              className="group block bg-white rounded-lg overflow-hidden border border-ink/10 hover:border-accent/50 transition-all duration-300"
+            <li
+              key={service.no}
+              className="group grid grid-cols-12 gap-4 md:gap-8 py-7 md:py-9 border-b border-bone/15 transition-colors duration-900"
+              style={{ transitionTimingFunction: "var(--f-cubic)" }}
             >
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <Image
-                  src={service.image}
-                  alt={service.title}
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/40" />
-                <div className="absolute top-5 right-5 h-10 w-10 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                  <ArrowUpRight className="h-4 w-4 text-ink" />
-                </div>
+              <div className="col-span-2 md:col-span-1">
+                <span className="font-display italic font-light text-xl md:text-2xl text-accent">
+                  ({service.no})
+                </span>
               </div>
-
-              <div className="p-7 md:p-8">
-                <p className="text-[11px] uppercase tracking-widest text-accent mb-3">
+              <div className="col-span-10 md:col-span-4">
+                <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
                   {service.title}
                 </p>
-                <h3 className="font-display font-normal text-3xl md:text-4xl text-ink mb-4 leading-tight tracking-[-0.01em]">
+                <h3 className="font-display font-light text-3xl md:text-5xl tracking-[-0.02em] text-bone leading-[1.05] group-hover:italic transition-all duration-900">
                   {service.titleEs}
                 </h3>
-                <p className="text-ink/65 text-sm leading-relaxed">
+              </div>
+              <div className="col-span-12 md:col-span-7 flex items-center">
+                <p className="text-bone/70 text-base md:text-lg leading-relaxed max-w-2xl">
                   {service.description}
                 </p>
               </div>
-            </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );

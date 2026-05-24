@@ -3,19 +3,27 @@
 @tailwind utilities;
 
 /* ==============================================
-   THEME TOKENS — Stewart Co Realty inspired
-   Luxury: white + warm ink + champagne gold
+   THEME TOKENS — Obsidian Assembly inspired
+   bone (warm off-white) + ink (warm black) + yellow + brown
    ============================================== */
 :root {
-  --color-bg: 255 255 255;
-  --color-bg-soft: 252 250 246;
-  --color-surface: 247 243 236;
-  --color-line: 237 229 211;
-  --color-line-soft: 247 243 236;
-  --color-ink: 26 24 21;
-  --color-ink-soft: 73 66 56;
-  --color-ink-dim: 168 156 131;
-  --color-accent: 168 137 92;
+  --c-black: 26 24 20;
+  --c-black-rgb: 26, 24, 20;
+  --c-white: 244 237 224;
+  --c-white-rgb: 244, 237, 224;
+  --c-yellow: 212 185 78;
+  --c-yellow-rgb: 212, 185, 78;
+  --c-brown: 58 46 34;
+  --c-brown-rgb: 58, 46, 34;
+  --c-grey: 73 66 56;
+  --c-grey-rgb: 73, 66, 56;
+
+  --f-cubic: cubic-bezier(0.6, 0, 0.2, 1);
+  --f-cubic-in: cubic-bezier(0, 0, 0.2, 1);
+  --f-fast: cubic-bezier(0.5, 0, 0.1, 1);
+  --f-smooth: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+
+  --g-gap: 1.5rem;
 }
 
 @layer base {
@@ -25,20 +33,16 @@
   }
 
   body {
-    background-color: rgb(var(--color-bg));
-    color: rgb(var(--color-ink));
+    background-color: rgb(var(--c-white));
+    color: rgb(var(--c-black));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
   ::selection {
-    background-color: rgb(var(--color-accent));
-    color: white;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    color: rgb(var(--color-ink));
+    background-color: rgb(var(--c-yellow));
+    color: rgb(var(--c-black));
   }
 }
 
@@ -47,71 +51,133 @@
     @apply max-w-[1480px] mx-auto px-6 md:px-10 lg:px-16;
   }
 
-  /* Display: Cormorant Garamond - elegant editorial serif */
   .heading-display,
   .heading-serif {
-    @apply font-display font-light tracking-tightest leading-[1.02];
+    @apply font-display font-light tracking-tight leading-[1];
   }
 
-  /* Hairline label */
   .label-tracking {
-    @apply uppercase tracking-widest text-[11px] font-medium text-ink/65;
+    @apply uppercase tracking-widest text-[11px] font-medium;
   }
 
   .eyebrow {
-    @apply inline-flex items-center gap-3 text-[11px] font-medium tracking-widest uppercase text-accent;
+    @apply inline-flex items-center gap-3 text-[11px] font-medium tracking-widest uppercase;
   }
 
   .eyebrow::before {
     content: "";
-    @apply inline-block h-px w-10 bg-accent;
+    @apply inline-block h-px w-10 bg-current opacity-50;
   }
 
-  /* Buttons - luxury rounded full */
+  /* === BUTTONS - Obsidian Assembly signature with corner dot === */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-8 py-3.5
-           bg-ink text-white
+    @apply relative inline-flex items-center justify-center gap-2
+           px-7 py-4 pb-5
+           bg-accent text-ink
            text-[11px] uppercase tracking-widest font-medium
-           rounded-full border border-ink
-           hover:bg-transparent hover:text-ink
-           transition-all duration-300;
+           rounded-[6px]
+           overflow-hidden
+           transition-all duration-900;
+    transition-timing-function: var(--f-cubic);
+  }
+
+  .btn-primary::after {
+    content: "";
+    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-ink;
+  }
+
+  .btn-primary:hover {
+    @apply bg-ink text-bone;
+  }
+
+  .btn-primary:hover::after {
+    @apply bg-accent;
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 px-8 py-3.5
+    @apply relative inline-flex items-center justify-center gap-2
+           px-7 py-4 pb-5
            bg-transparent text-ink border border-ink
            text-[11px] uppercase tracking-widest font-medium
-           rounded-full
-           hover:bg-ink hover:text-white
-           transition-all duration-300;
+           rounded-[6px]
+           overflow-hidden
+           transition-all duration-900;
+    transition-timing-function: var(--f-cubic);
+  }
+
+  .btn-outline::after {
+    content: "";
+    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-ink;
+  }
+
+  .btn-outline:hover {
+    @apply bg-ink text-bone;
+  }
+
+  .btn-outline:hover::after {
+    @apply bg-accent;
   }
 
   .btn-outline-light {
-    @apply inline-flex items-center justify-center gap-2 px-8 py-3.5
-           bg-transparent text-white border border-white/80
+    @apply relative inline-flex items-center justify-center gap-2
+           px-7 py-4 pb-5
+           bg-transparent text-bone border border-bone/40
            text-[11px] uppercase tracking-widest font-medium
-           rounded-full
-           hover:bg-white hover:text-ink hover:border-white
-           transition-all duration-300;
+           rounded-[6px]
+           overflow-hidden
+           transition-all duration-900;
+    transition-timing-function: var(--f-cubic);
+  }
+
+  .btn-outline-light::after {
+    content: "";
+    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-bone;
+  }
+
+  .btn-outline-light:hover {
+    @apply bg-accent text-ink border-accent;
+  }
+
+  .btn-outline-light:hover::after {
+    @apply bg-ink;
   }
 
   .btn-accent {
-    @apply inline-flex items-center justify-center gap-2 px-8 py-3.5
-           bg-accent text-white
+    @apply btn-primary;
+  }
+
+  .btn-reverse {
+    @apply relative inline-flex items-center justify-center gap-2
+           px-7 py-4 pb-5
+           bg-bone/10 text-accent border-t-2 border-bone/20
            text-[11px] uppercase tracking-widest font-medium
-           rounded-full border border-accent
-           hover:bg-accent-600 hover:border-accent-600
-           transition-all duration-300;
+           rounded-[6px]
+           overflow-hidden
+           backdrop-blur-sm
+           transition-all duration-900;
+    transition-timing-function: var(--f-cubic);
+  }
+
+  .btn-reverse::after {
+    content: "";
+    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent;
+  }
+
+  .btn-reverse:hover {
+    @apply bg-accent text-ink border-accent;
+  }
+
+  .btn-reverse:hover::after {
+    @apply bg-ink;
   }
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm
            text-ink/70 rounded-full
            hover:text-ink
-           transition-colors duration-200;
+           transition-colors duration-300;
   }
 
-  /* Inputs - luxury underline + boxed */
   .input,
   .form-input {
     @apply w-full bg-transparent border-b border-ink/30
@@ -119,61 +185,85 @@
            px-0 py-3 text-base
            hover:border-ink/60
            focus:outline-none focus:border-ink
-           transition-colors duration-200;
+           transition-colors duration-300;
   }
 
   .form-input-boxed {
-    @apply w-full bg-white border border-ink/15
+    @apply w-full bg-bone-50 border border-ink/15
            text-ink placeholder-ink/40
-           rounded px-4 py-3 text-sm
+           rounded-[6px] px-4 py-3 text-sm
            hover:border-ink/30
            focus:outline-none focus:border-accent
-           transition-colors duration-200;
+           transition-colors duration-300;
   }
 
-  /* Cards - white with subtle shadow */
   .card {
-    @apply bg-white border border-ink/10 rounded-lg;
+    @apply bg-bone-50 border border-ink/10 rounded-[6px];
   }
 
   .card-hover {
-    @apply card transition-all duration-300 hover:border-ink/20 hover:shadow-lg;
+    @apply card transition-all duration-900;
+  }
+  .card-hover:hover {
+    @apply border-ink/30;
   }
 
-  /* Pills */
   .pill {
     @apply inline-flex items-center gap-1.5 px-3 py-1
-           border border-ink/15 bg-white/90 backdrop-blur-sm text-ink
+           border border-ink/20 bg-bone-50/90 backdrop-blur-sm text-ink
            text-[11px] uppercase tracking-widest font-medium rounded-full;
   }
 
-  /* Section spacing */
   .section-pad {
     @apply py-24 md:py-32 lg:py-40;
   }
 
-  /* Underline link */
+  .section-light {
+    @apply bg-bone text-ink;
+  }
+  .section-dark {
+    @apply bg-ink text-bone;
+  }
+
+  .tt-1, .tt-2, .tt-3 {
+    @apply font-display font-light tracking-tight leading-[1.05];
+  }
+
+  .caption {
+    @apply font-display font-light text-2xl md:text-3xl lg:text-4xl tracking-tight leading-[1.15];
+  }
+
+  .subtitle {
+    @apply font-display font-light text-3xl md:text-5xl lg:text-6xl tracking-tight leading-[1.05];
+  }
+
+  .lp-h1 {
+    @apply font-display font-light text-[44px] md:text-[80px] lg:text-[120px] tracking-[-0.025em] leading-[0.96];
+  }
+
+  .lp-h2 {
+    @apply font-display font-light text-[36px] md:text-[64px] lg:text-[88px] tracking-[-0.02em] leading-[1];
+  }
+
+  .lp-h3 {
+    @apply font-display font-light text-2xl md:text-3xl tracking-[-0.01em] leading-[1.1];
+  }
+
   .link-underline {
     @apply relative inline-flex items-center;
   }
   .link-underline::after {
     content: "";
     @apply absolute -bottom-1 left-0 h-px w-full bg-current origin-right scale-x-100
-           transition-transform duration-500;
+           transition-transform duration-900;
+    transition-timing-function: var(--f-cubic);
   }
   .link-underline:hover::after {
     @apply origin-left scale-x-0;
   }
 
-  /* lp-h1, lp-h2, lp-h3 (Stewart Co Realty style luxury headings) */
-  .lp-h1 {
-    @apply font-display font-light text-[44px] md:text-[80px] lg:text-[112px] tracking-[-0.02em] leading-[1] text-ink;
-  }
-  .lp-h2 {
-    @apply font-display font-light text-[40px] md:text-[64px] lg:text-[88px] tracking-[-0.02em] leading-[1.02] text-ink;
-  }
-  .lp-h3 {
-    @apply font-display font-normal text-2xl md:text-3xl tracking-[-0.01em] leading-[1.1] text-ink;
+  .link-yellow {
+    @apply text-accent hover:text-accent-300 transition-colors duration-300;
   }
 }
 
@@ -196,30 +286,27 @@
     @apply font-display italic;
   }
 
-  /* Gold accent border */
-  .border-accent-gold {
-    @apply border-accent;
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
   }
 }
 
-/* ==============================================
-   SCROLLBAR
-   ============================================== */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(var(--color-bg));
+  background: rgb(var(--c-white));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--color-line));
+  background: rgba(var(--c-black-rgb), 0.2);
   border-radius: 8px;
-  border: 2px solid rgb(var(--color-bg));
+  border: 2px solid rgb(var(--c-white));
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--color-accent));
+  background: rgb(var(--c-yellow));
 }
