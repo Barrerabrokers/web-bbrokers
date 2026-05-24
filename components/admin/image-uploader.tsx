@@ -121,7 +121,7 @@ export function ImageUploader({
 
   return (
     <div>
-      <label className="label-tracking text-charcoal-700 block mb-3">
+      <label className="label-tracking text-gray-200 block mb-3">
         {label}
       </label>
 
@@ -140,7 +140,7 @@ export function ImageUploader({
               <div
                 key={index}
                 className={`relative group aspect-square border-2 ${
-                  isPrimary ? "border-gold-500" : "border-transparent"
+                  isPrimary ? "border-accent" : "border-transparent"
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -168,7 +168,7 @@ export function ImageUploader({
                     <button
                       type="button"
                       onClick={() => setPrimary(index)}
-                      className="bg-charcoal-900/80 hover:bg-gold-500 text-white p-1.5"
+                      className="bg-gray-950/80 hover:bg-accent/50 text-white p-1.5"
                       aria-label="Marcar como principal"
                       title="Hacer principal"
                     >
@@ -179,7 +179,7 @@ export function ImageUploader({
 
                 {/* Badge principal */}
                 {isPrimary && (
-                  <div className="absolute bottom-2 left-2 bg-gold-500 text-white text-xs px-2 py-1 label-tracking flex items-center gap-1">
+                  <div className="absolute bottom-2 left-2 bg-accent/50 text-white text-xs px-2 py-1 label-tracking flex items-center gap-1">
                     <Star className="h-3 w-3 fill-current" />
                     <span>Principal</span>
                   </div>
@@ -194,7 +194,7 @@ export function ImageUploader({
 
                 {/* Tamano archivo nuevo */}
                 {item.kind === "new" && (
-                  <div className="absolute bottom-2 right-2 bg-charcoal-900/70 text-white text-[10px] px-1.5 py-0.5">
+                  <div className="absolute bottom-2 right-2 bg-gray-950/70 text-white text-[10px] px-1.5 py-0.5">
                     {formatBytes(item.file.size)}
                   </div>
                 )}
@@ -212,26 +212,26 @@ export function ImageUploader({
         onClick={() => inputRef.current?.click()}
         className={`border-2 border-dashed transition-colors cursor-pointer p-8 text-center ${
           isDragging
-            ? "border-gold-500 bg-gold-50"
-            : "border-charcoal-300 hover:border-gold-500"
+            ? "border-accent bg-accent/5"
+            : "border-gray-700 hover:border-accent"
         }`}
       >
         {isProcessing ? (
-          <div className="flex flex-col items-center justify-center text-charcoal-500">
+          <div className="flex flex-col items-center justify-center text-gray-400">
             <Loader2 className="h-8 w-8 mb-2 animate-spin" />
             <span className="label-tracking text-sm">
               Procesando imagenes...
             </span>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-charcoal-500">
+          <div className="flex flex-col items-center justify-center text-gray-400">
             <Upload className="h-8 w-8 mb-2" />
             <span className="label-tracking text-sm mb-1">
               {isDragging
                 ? "Solta las imagenes aqui"
                 : "Arrastra imagenes o hace clic para seleccionar"}
             </span>
-            <span className="text-xs text-charcoal-400">
+            <span className="text-xs text-gray-500">
               JPG, PNG, WebP. Se comprimen automaticamente. Max {maxSizeMB}MB
             </span>
           </div>
@@ -247,7 +247,7 @@ export function ImageUploader({
         />
       </div>
 
-      <p className="text-xs text-charcoal-500 mt-2">
+      <p className="text-xs text-gray-400 mt-2">
         {helperText ||
           "Hace clic en la estrella de una imagen para marcarla como principal."}
       </p>

@@ -43,68 +43,74 @@ export function PropertyActions({ propertyId, propertyTitle }: Props) {
 
   return (
     <>
-      <div className="flex space-x-2">
+      <div className="flex items-center gap-1">
         <Link
           href={`/propiedades/${propertyId}`}
           target="_blank"
-          className="p-2 text-charcoal-600 hover:bg-charcoal-100 rounded-lg transition-colors"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-gray-400 hover:text-gray-50 hover:bg-gray-800 transition-colors"
           title="Ver en el sitio"
         >
-          <Eye className="h-5 w-5" />
+          <Eye className="h-4 w-4" />
         </Link>
         <Link
           href={`/admin/propiedades/${propertyId}/editar`}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-accent-300 hover:bg-accent/10 transition-colors"
           title="Editar"
         >
-          <Edit className="h-5 w-5" />
+          <Edit className="h-4 w-4" />
         </Link>
         <button
           onClick={() => setShowConfirm(true)}
-          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
           title="Eliminar"
         >
-          <Trash2 className="h-5 w-5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Modal de confirmación */}
+      {/* Confirm modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white max-w-md w-full p-6 shadow-xl">
-            <div className="flex items-start space-x-4 mb-6">
-              <div className="bg-red-100 p-3 rounded-full flex-shrink-0">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => !isDeleting && setShowConfirm(false)}
+        >
+          <div
+            className="card max-w-md w-full p-6 backdrop-blur-md bg-gray-900/95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-4 mb-5">
+              <div className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/10 border border-red-500/30 text-red-300">
+                <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="heading-serif text-xl text-charcoal-900 mb-2">
+                <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1">
                   Eliminar propiedad?
                 </h3>
-                <p className="text-charcoal-600">
-                  Estas seguro que queres eliminar &quot;{propertyTitle}&quot;? Esta
+                <p className="text-sm text-gray-400">
+                  Estas seguro de eliminar &quot;{propertyTitle}&quot;? Esta
                   accion no se puede deshacer.
                 </p>
               </div>
             </div>
 
             {error && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-2 text-sm">
+              <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                 {error}
               </div>
             )}
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowConfirm(false)}
                 disabled={isDeleting}
-                className="px-4 py-2 border border-charcoal-300 text-charcoal-700 hover:bg-charcoal-50 transition-colors disabled:opacity-50"
+                className="btn-outline text-sm disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium tracking-tight bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50"
               >
                 {isDeleting ? "Eliminando..." : "Si, eliminar"}
               </button>

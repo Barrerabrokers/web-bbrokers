@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Mail, Lock, User, Phone, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  Phone,
+  AlertCircle,
+  CheckCircle,
+  ArrowLeft,
+  ArrowRight,
+} from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -25,12 +34,12 @@ export default function RegisterPage() {
     setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Las contraseñas no coinciden");
+      setError("Las contrasenas no coinciden");
       return;
     }
 
     if (formData.password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+      setError("La contrasena debe tener al menos 6 caracteres");
       return;
     }
 
@@ -59,7 +68,6 @@ export default function RegisterPage() {
 
       setSuccess(true);
 
-      // Auto-login después del registro
       setTimeout(async () => {
         const result = await signIn("credentials", {
           email: formData.email,
@@ -81,11 +89,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-charcoal-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link href="/" className="flex flex-col items-center mb-8">
-          <div className="relative h-24 w-24 mb-4">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
+      <div className="absolute inset-0 -z-10 bg-grid opacity-[0.4]" />
+      <div className="absolute inset-0 -z-10 bg-glow-accent" />
+
+      <div className="w-full max-w-md relative">
+        <Link href="/" className="flex items-center justify-center gap-3 mb-8 group">
+          <div className="relative h-10 w-10 flex-shrink-0">
             <Image
               src="/logo.png"
               alt="Barrera Brokers"
@@ -94,136 +104,162 @@ export default function RegisterPage() {
               className="object-contain"
             />
           </div>
-          <span className="heading-serif text-2xl text-white tracking-wider">
+          <span className="text-base font-semibold tracking-tight text-gray-50">
             Barrera Brokers
           </span>
         </Link>
 
-        {/* Register Card */}
-        <div className="bg-white p-8 md:p-10">
-          <div className="text-center mb-8">
-            <h1 className="heading-serif text-2xl md:text-3xl text-charcoal-900 mb-2">
+        <div className="card p-8 backdrop-blur-md bg-gray-900/80">
+          <div className="text-center mb-7">
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-50 mb-1.5">
               Registro de Agente
             </h1>
-            <p className="label-tracking text-charcoal-500">
+            <p className="text-sm text-gray-400">
               Crea tu cuenta para gestionar propiedades
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 flex items-start space-x-2">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">{error}</p>
+            <div className="mb-5 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-300 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 flex items-start space-x-2">
-              <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">¡Cuenta creada! Redirigiendo...</p>
+            <div className="mb-5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 flex items-start gap-2">
+              <CheckCircle className="h-4 w-4 text-emerald-300 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-emerald-300">
+                Cuenta creada! Redirigiendo...
+              </p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="label-tracking text-charcoal-700 block mb-2">
-                Nombre Completo
+              <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                Nombre completo
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 <input
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="form-input pl-10"
                   placeholder="Juan Perez"
                 />
               </div>
             </div>
 
             <div>
-              <label className="label-tracking text-charcoal-700 block mb-2">
+              <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 <input
                   type="email"
                   required
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="form-input pl-10"
                   placeholder="agente@barrerabrokers.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="label-tracking text-charcoal-700 block mb-2">
+              <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
                 Telefono
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className="form-input pl-10"
                   placeholder="+54 11 1234-5678"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="label-tracking text-charcoal-700 block mb-2">
-                Contrasena
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
-                  placeholder="Minimo 6 caracteres"
-                />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                  Contrasena
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    className="form-input pl-10"
+                    placeholder="Min 6 chars"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="label-tracking text-charcoal-700 block mb-2">
-                Confirmar Contrasena
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-400" />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none transition-colors"
-                  placeholder="Repite tu contrasena"
-                />
+              <div>
+                <label className="block text-xs font-medium tracking-tight text-gray-300 mb-2">
+                  Repetir
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    className="form-input pl-10"
+                    placeholder="Repetir"
+                  />
+                </div>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || success}
-              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-accent w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Creando cuenta..." : "Crear Cuenta"}
+              {isLoading ? (
+                "Creando cuenta..."
+              ) : (
+                <>
+                  Crear cuenta
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-charcoal-100 text-center">
-            <p className="text-sm text-charcoal-500">
-              Ya tienes cuenta?{" "}
-              <Link href="/login" className="text-gold-600 hover:text-gold-700 font-medium">
+          <div className="mt-6 pt-5 border-t border-gray-800 text-center">
+            <p className="text-sm text-gray-400">
+              Ya tenes cuenta?{" "}
+              <Link
+                href="/login"
+                className="text-accent-300 hover:text-accent-400 font-medium"
+              >
                 Inicia sesion
               </Link>
             </p>
@@ -231,8 +267,12 @@ export default function RegisterPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-white/60 hover:text-white">
-            -- Volver al sitio web
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Volver al sitio
           </Link>
         </div>
       </div>

@@ -22,7 +22,6 @@ export function PropertyLightbox({
   const [index, setIndex] = useState(initialIndex);
   const touchStartX = useRef<number | null>(null);
 
-  // Reset index cuando se abre
   useEffect(() => {
     if (isOpen) setIndex(initialIndex);
   }, [isOpen, initialIndex]);
@@ -35,7 +34,6 @@ export function PropertyLightbox({
     setIndex((i) => (i - 1 + images.length) % images.length);
   }, [images.length]);
 
-  // Teclado
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -47,7 +45,6 @@ export function PropertyLightbox({
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose, next, prev]);
 
-  // Bloquear scroll del body cuando esta abierto
   useEffect(() => {
     if (!isOpen) return;
     const original = document.body.style.overflow;
@@ -57,7 +54,6 @@ export function PropertyLightbox({
     };
   }, [isOpen]);
 
-  // Touch / swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
@@ -75,7 +71,7 @@ export function PropertyLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
+      className="fixed inset-0 z-[100] bg-gray-950/95 backdrop-blur-sm flex items-center justify-center animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-label="Galeria de imagenes"
@@ -90,15 +86,15 @@ export function PropertyLightbox({
           e.stopPropagation();
           onClose();
         }}
-        className="absolute top-4 right-4 z-10 p-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+        className="absolute top-4 right-4 z-10 inline-flex items-center justify-center h-10 w-10 rounded-md border border-gray-800 bg-gray-900/70 text-gray-300 hover:text-gray-50 hover:border-gray-700 transition-colors"
         aria-label="Cerrar"
       >
-        <X className="h-7 w-7" />
+        <X className="h-5 w-5" />
       </button>
 
       {/* Counter */}
       {images.length > 1 && (
-        <div className="absolute top-6 left-6 z-10 text-white/90 label-tracking text-sm">
+        <div className="absolute top-6 left-6 z-10 pill bg-gray-900/70 backdrop-blur-md">
           {index + 1} / {images.length}
         </div>
       )}
@@ -111,16 +107,16 @@ export function PropertyLightbox({
             e.stopPropagation();
             prev();
           }}
-          className="absolute left-2 md:left-6 z-10 p-2 md:p-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          className="absolute left-3 md:left-6 z-10 inline-flex items-center justify-center h-12 w-12 rounded-full border border-gray-800 bg-gray-900/70 backdrop-blur-md text-gray-200 hover:text-gray-50 hover:border-gray-700 transition-colors"
           aria-label="Anterior"
         >
-          <ChevronLeft className="h-8 w-8 md:h-10 md:w-10" />
+          <ChevronLeft className="h-6 w-6" />
         </button>
       )}
 
       {/* Imagen */}
       <div
-        className="relative w-full h-full max-w-7xl max-h-[90vh] mx-auto px-12 md:px-20 py-12 flex items-center justify-center"
+        className="relative w-full h-full max-w-7xl max-h-[88vh] mx-auto px-16 md:px-24 py-12 flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative w-full h-full">
@@ -143,10 +139,10 @@ export function PropertyLightbox({
             e.stopPropagation();
             next();
           }}
-          className="absolute right-2 md:right-6 z-10 p-2 md:p-3 text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          className="absolute right-3 md:right-6 z-10 inline-flex items-center justify-center h-12 w-12 rounded-full border border-gray-800 bg-gray-900/70 backdrop-blur-md text-gray-200 hover:text-gray-50 hover:border-gray-700 transition-colors"
           aria-label="Siguiente"
         >
-          <ChevronRight className="h-8 w-8 md:h-10 md:w-10" />
+          <ChevronRight className="h-6 w-6" />
         </button>
       )}
 
@@ -161,10 +157,10 @@ export function PropertyLightbox({
               key={i}
               type="button"
               onClick={() => setIndex(i)}
-              className={`relative h-16 w-16 md:h-20 md:w-20 flex-shrink-0 overflow-hidden border-2 transition-all ${
+              className={`relative h-16 w-16 md:h-20 md:w-20 flex-shrink-0 overflow-hidden rounded-md border transition-all ${
                 i === index
-                  ? "border-gold-500 opacity-100"
-                  : "border-transparent opacity-50 hover:opacity-100"
+                  ? "border-accent shadow-glow opacity-100"
+                  : "border-gray-800 opacity-60 hover:opacity-100 hover:border-gray-700"
               }`}
               aria-label={`Ir a imagen ${i + 1}`}
             >

@@ -26,41 +26,47 @@ export function PropertyGallery({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Imagen principal */}
         <button
           type="button"
           onClick={() => openAt(0)}
-          className="relative h-[500px] w-full overflow-hidden block group"
+          className="relative h-[420px] md:h-[520px] w-full overflow-hidden block group rounded-xl border border-gray-800"
           aria-label="Ver galeria"
         >
           <Image
             src={images[0]}
             alt={title}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             priority
             sizes="(max-width: 1024px) 100vw, 66vw"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950/40 via-transparent to-gray-950/20" />
+
           <div className="absolute top-4 left-4">
-            <span className="bg-gold-500 text-white px-4 py-2 label-tracking capitalize">
+            <span className="pill bg-gray-950/70 backdrop-blur-md capitalize">
               {category}
             </span>
           </div>
-          <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Expand className="h-4 w-4" />
-            <span className="label-tracking text-xs">Ver galeria</span>
-          </div>
+
           {images.length > 1 && (
-            <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1 label-tracking text-xs">
-              {images.length} fotos
+            <div className="absolute bottom-4 left-4">
+              <span className="pill bg-gray-950/70 backdrop-blur-md">
+                {images.length} fotos
+              </span>
             </div>
           )}
+
+          <div className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-md bg-gray-950/80 backdrop-blur-md border border-gray-800 px-3 py-1.5 text-xs text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Expand className="h-3.5 w-3.5" />
+            <span>Ver galeria</span>
+          </div>
         </button>
 
         {/* Miniaturas */}
         {images.length > 1 && (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-3">
             {images.slice(1, 5).map((image, index) => {
               const realIndex = index + 1;
               const isLastShown = realIndex === 4 && images.length > 5;
@@ -70,7 +76,7 @@ export function PropertyGallery({
                   key={realIndex}
                   type="button"
                   onClick={() => openAt(realIndex)}
-                  className="h-24 overflow-hidden relative block group"
+                  className="h-20 md:h-24 overflow-hidden relative block group rounded-lg border border-gray-800 hover:border-gray-700 transition-colors"
                   aria-label={`Ver imagen ${realIndex + 1}`}
                 >
                   <Image
@@ -78,10 +84,10 @@ export function PropertyGallery({
                     alt={`${title} ${realIndex + 1}`}
                     fill
                     sizes="(max-width: 768px) 25vw, 200px"
-                    className="object-cover group-hover:scale-110 transition-transform"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {isLastShown && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white heading-serif text-xl">
+                    <div className="absolute inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center text-gray-50 text-lg font-semibold tracking-tight">
                       +{remaining}
                     </div>
                   )}

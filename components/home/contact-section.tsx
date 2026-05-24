@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowRight, MapPin, Phone, Mail, Clock } from "lucide-react";
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -9,7 +10,9 @@ export function ContactSection() {
     phone: "",
     message: "",
   });
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,58 +38,85 @@ export function ContactSection() {
   };
 
   return (
-    <section id="contacto" className="bg-charcoal-900 text-white py-24 md:py-32">
+    <section
+      id="contacto"
+      className="relative section-pad bg-gray-950 overflow-hidden"
+    >
+      <div className="absolute inset-0 -z-10 bg-glow-accent" />
+
       <div className="container-custom">
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
           {/* Left - Info */}
           <div>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="h-px w-12 bg-gold-400" />
-              <span className="label-tracking text-gold-400">
-                Contáctanos
-              </span>
-            </div>
-            
-            <h2 className="heading-serif text-4xl md:text-5xl lg:text-6xl mb-8 leading-tight">
-              Comencemos a
-              <br />
-              <span className="italic text-gold-400">trabajar juntos</span>
+            <span className="eyebrow mb-5">Contacto</span>
+
+            <h2 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tightest leading-[1.05] mb-6">
+              <span className="text-gradient">Comencemos a</span>{" "}
+              <span className="text-gradient-accent">trabajar juntos.</span>
             </h2>
-            
-            <p className="text-white/60 text-lg leading-relaxed font-light mb-12">
-              Sea cual sea tu objetivo, nuestro equipo está listo para acompañarte
-              con asesoramiento personalizado y discreto.
+
+            <p className="text-gray-400 text-lg leading-relaxed tracking-tight mb-10 max-w-md">
+              Sea cual sea tu objetivo, nuestro equipo esta listo para
+              acompanarte con asesoramiento personalizado y discreto.
             </p>
 
-            {/* Contact Info */}
-            <div className="space-y-8 pt-8 border-t border-white/10">
-              <div>
-                <div className="label-tracking text-gold-400 mb-2">Dirección</div>
-                <p className="text-white/80 font-light">
-                  Av. Principal 123<br />
+            {/* Contact Info Grid */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2 text-accent-300">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-xs uppercase tracking-widest">
+                    Direccion
+                  </span>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  Av. Principal 123
+                  <br />
                   Buenos Aires, Argentina
                 </p>
               </div>
-              
-              <div>
-                <div className="label-tracking text-gold-400 mb-2">Teléfono</div>
-                <a href="tel:+541112345678" className="text-white/80 font-light hover:text-gold-400 transition-colors">
+
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2 text-accent-300">
+                  <Phone className="h-4 w-4" />
+                  <span className="text-xs uppercase tracking-widest">
+                    Telefono
+                  </span>
+                </div>
+                <a
+                  href="tel:+541112345678"
+                  className="text-sm text-gray-300 hover:text-gray-50 transition-colors"
+                >
                   +54 11 1234-5678
                 </a>
               </div>
-              
-              <div>
-                <div className="label-tracking text-gold-400 mb-2">Email</div>
-                <a href="mailto:info@barrerabrokers.com" className="text-white/80 font-light hover:text-gold-400 transition-colors">
+
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2 text-accent-300">
+                  <Mail className="h-4 w-4" />
+                  <span className="text-xs uppercase tracking-widest">
+                    Email
+                  </span>
+                </div>
+                <a
+                  href="mailto:info@barrerabrokers.com"
+                  className="text-sm text-gray-300 hover:text-gray-50 transition-colors break-all"
+                >
                   info@barrerabrokers.com
                 </a>
               </div>
 
-              <div>
-                <div className="label-tracking text-gold-400 mb-2">Horarios</div>
-                <p className="text-white/80 font-light">
-                  Lunes a Viernes: 9:00 - 19:00<br />
-                  Sábados: 10:00 - 14:00
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2 text-accent-300">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-xs uppercase tracking-widest">
+                    Horario
+                  </span>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  Lun a Vie 9-19hs
+                  <br />
+                  Sab 10-14hs
                 </p>
               </div>
             </div>
@@ -94,74 +124,99 @@ export function ContactSection() {
 
           {/* Right - Form */}
           <div>
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form
+              onSubmit={handleSubmit}
+              className="card p-8 space-y-5 backdrop-blur-md bg-gray-900/80"
+            >
               <div>
-                <label htmlFor="name" className="label-tracking text-gold-400 block mb-3">
-                  Nombre Completo
+                <label
+                  htmlFor="name"
+                  className="block text-xs font-medium tracking-tight text-gray-300 mb-2"
+                >
+                  Nombre completo
                 </label>
                 <input
                   type="text"
                   id="name"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light"
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="form-input"
                   placeholder="Tu nombre"
                 />
               </div>
 
-              <div>
-                <label htmlFor="email" className="label-tracking text-gold-400 block mb-3">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light"
-                  placeholder="tu@email.com"
-                />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-xs font-medium tracking-tight text-gray-300 mb-2"
+                  >
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    className="form-input"
+                    placeholder="tu@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="block text-xs font-medium tracking-tight text-gray-300 mb-2"
+                  >
+                    Telefono
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    className="form-input"
+                    placeholder="+54 11 1234-5678"
+                  />
+                </div>
               </div>
 
               <div>
-                <label htmlFor="phone" className="label-tracking text-gold-400 block mb-3">
-                  Teléfono
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light"
-                  placeholder="+54 11 1234-5678"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="message" className="label-tracking text-gold-400 block mb-3">
+                <label
+                  htmlFor="message"
+                  className="block text-xs font-medium tracking-tight text-gray-300 mb-2"
+                >
                   Mensaje
                 </label>
                 <textarea
                   id="message"
                   required
-                  rows={4}
+                  rows={5}
                   value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full bg-transparent border-b border-white/30 py-3 text-white focus:border-gold-400 focus:outline-none transition-colors font-light resize-none"
-                  placeholder="Cuéntanos cómo podemos ayudarte..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, message: e.target.value })
+                  }
+                  className="form-input resize-none"
+                  placeholder="Contanos como podemos ayudarte..."
                 />
               </div>
 
               {status === "success" && (
-                <div className="border border-gold-400 text-gold-400 px-6 py-4 label-tracking">
+                <div className="rounded-md border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent-300">
                   Mensaje enviado. Te contactaremos pronto.
                 </div>
               )}
 
               {status === "error" && (
-                <div className="border border-red-400 text-red-400 px-6 py-4 label-tracking">
+                <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                   Hubo un error. Por favor intenta nuevamente.
                 </div>
               )}
@@ -169,9 +224,16 @@ export function ContactSection() {
               <button
                 type="submit"
                 disabled={status === "loading"}
-                className="btn-outline-light disabled:opacity-50 disabled:cursor-not-allowed mt-8"
+                className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {status === "loading" ? "Enviando..." : "Enviar Mensaje"}
+                {status === "loading" ? (
+                  <>Enviando...</>
+                ) : (
+                  <>
+                    Enviar mensaje
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </form>
           </div>

@@ -16,40 +16,47 @@ export default async function PropertiesPage({
   const category = searchParams.categoria;
   const properties = await getProperties(category ? { category } : {});
 
+  const activeCategory = category
+    ? PROPERTY_CATEGORIES.find((c) => c.value === category)
+    : null;
+
   return (
     <div className="min-h-screen">
       <Header />
-      
-      <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4">
+
+      <main className="pt-32 pb-24">
+        <div className="container-custom">
           {/* Header */}
-          <div className="mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              {category
-                ? PROPERTY_CATEGORIES.find((c) => c.value === category)?.label
-                : "Todas las Propiedades"}
+          <div className="mb-10 max-w-3xl">
+            <span className="eyebrow mb-5">Catalogo</span>
+            <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tightest leading-[1.05] mb-5">
+              <span className="text-gradient">
+                {activeCategory ? activeCategory.label : "Todas las propiedades"}
+              </span>
             </h1>
-            <p className="text-lg text-gray-600">
-              {category
-                ? PROPERTY_CATEGORIES.find((c) => c.value === category)?.description
-                : "Explora nuestro catálogo completo de propiedades disponibles"}
+            <p className="text-lg text-gray-400 leading-relaxed tracking-tight">
+              {activeCategory
+                ? activeCategory.description
+                : "Explora nuestro catalogo completo de propiedades disponibles."}
             </p>
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <div className="flex items-center space-x-2 mb-4">
-              <Filter className="h-5 w-5 text-gray-600" />
-              <h3 className="font-semibold text-gray-900">Filtrar por Categoría</h3>
+          <div className="card p-5 mb-8">
+            <div className="flex items-center gap-2 mb-4 text-gray-400">
+              <Filter className="h-4 w-4" />
+              <span className="text-xs font-medium tracking-tight uppercase">
+                Filtrar por categoria
+              </span>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
               <a
                 href="/propiedades"
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-3.5 py-1.5 text-sm rounded-md border transition-all ${
                   !category
-                    ? "bg-primary-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    ? "bg-accent border-accent text-white shadow-glow"
+                    : "bg-gray-900 border-gray-800 text-gray-300 hover:bg-gray-850 hover:border-gray-700"
                 }`}
               >
                 Todas
@@ -58,10 +65,10 @@ export default async function PropertiesPage({
                 <a
                   key={cat.value}
                   href={`/propiedades?categoria=${cat.value}`}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
+                  className={`px-3.5 py-1.5 text-sm rounded-md border transition-all ${
                     category === cat.value
-                      ? "bg-primary-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-accent border-accent text-white shadow-glow"
+                      : "bg-gray-900 border-gray-800 text-gray-300 hover:bg-gray-850 hover:border-gray-700"
                   }`}
                 >
                   {cat.label}
@@ -72,18 +79,18 @@ export default async function PropertiesPage({
 
           {/* Properties Grid */}
           {properties.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {properties.map((property) => (
                 <PropertyCard key={property.id} property={property} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 bg-gray-50 rounded-xl">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <div className="card p-16 text-center">
+              <h3 className="text-lg font-semibold tracking-tight text-gray-50 mb-2">
                 No hay propiedades disponibles
               </h3>
-              <p className="text-gray-600">
-                Vuelve pronto para ver nuevas propiedades en esta categoría
+              <p className="text-gray-400 text-sm">
+                Volve pronto para ver nuevas propiedades en esta categoria.
               </p>
             </div>
           )}

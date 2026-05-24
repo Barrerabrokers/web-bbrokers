@@ -1,80 +1,100 @@
+import {
+  Building2,
+  Hammer,
+  Home,
+  Key,
+  TrendingUp,
+  Sparkles,
+} from "lucide-react";
+
 const services = [
   {
-    number: "01",
-    title: "En Desarrollo",
-    description: "Proyectos en construcción con financiación especial y entregas programadas en ubicaciones premium.",
+    icon: Hammer,
+    title: "En desarrollo",
+    description:
+      "Proyectos en construccion con financiacion especial y entregas programadas en ubicaciones premium.",
   },
   {
-    number: "02",
-    title: "En Pozo",
-    description: "Inversiones en etapa inicial con los mejores precios y condiciones de pago flexibles.",
+    icon: Building2,
+    title: "En pozo",
+    description:
+      "Inversiones en etapa inicial con los mejores precios y condiciones de pago flexibles.",
   },
   {
-    number: "03",
+    icon: Home,
     title: "Usados",
-    description: "Propiedades listas para escriturar e ingresar, cuidadosamente seleccionadas.",
+    description:
+      "Propiedades listas para escriturar e ingresar, cuidadosamente seleccionadas por nuestro equipo.",
   },
   {
-    number: "04",
+    icon: Key,
     title: "Alquileres",
-    description: "Opciones de renta temporaria y permanente en las ubicaciones más cotizadas.",
+    description:
+      "Opciones de renta temporaria y permanente en las ubicaciones mas cotizadas de la ciudad.",
   },
   {
-    number: "05",
+    icon: TrendingUp,
     title: "Inversiones",
-    description: "Oportunidades de inversión inmobiliaria con alto retorno y proyección.",
+    description:
+      "Oportunidades inmobiliarias con alto retorno y proyeccion validadas por nuestros analistas.",
   },
   {
-    number: "06",
+    icon: Sparkles,
     title: "Oportunidades",
-    description: "Propiedades exclusivas con precios especiales por tiempo limitado.",
+    description:
+      "Propiedades exclusivas con precios especiales por tiempo limitado, fuera de mercado.",
   },
 ];
 
 export function ServicesSection() {
   return (
-    <section id="servicios" className="py-24 md:py-32 bg-white">
+    <section id="servicios" className="relative section-pad bg-gray-950">
       <div className="container-custom">
         {/* Header */}
-        <div className="max-w-3xl mb-20">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-px w-12 bg-gold-600" />
-            <span className="label-tracking text-gold-600">
-              Nuestros Servicios
-            </span>
-          </div>
-          <h2 className="heading-serif text-4xl md:text-5xl lg:text-6xl mb-6 text-charcoal-900">
-            Especialistas en cada
-            <br />
-            <span className="italic">tipo de propiedad</span>
+        <div className="max-w-3xl mb-16">
+          <span className="eyebrow mb-5">Nuestros servicios</span>
+          <h2 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tightest leading-[1.05] mb-6">
+            <span className="text-gradient">Especialistas en cada</span>{" "}
+            <span className="text-gradient-accent">tipo de propiedad.</span>
           </h2>
-          <p className="text-charcoal-500 text-lg leading-relaxed font-light">
-            Ofrecemos un portafolio diverso adaptado a las necesidades específicas
-            de cada cliente, desde primeras inversiones hasta carteras complejas.
+          <p className="text-gray-400 text-lg leading-relaxed tracking-tight">
+            Ofrecemos un portafolio diverso adaptado a las necesidades
+            especificas de cada cliente, desde primeras inversiones hasta
+            carteras complejas.
           </p>
         </div>
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {services.map((service, index) => (
-            <div
-              key={index}
-              className="group p-10 border-t border-charcoal-200 hover:bg-charcoal-50 transition-all duration-500 cursor-pointer"
-            >
-              <div className="flex items-baseline justify-between mb-6">
-                <span className="heading-serif text-5xl text-charcoal-200 group-hover:text-gold-600 transition-colors duration-500">
-                  {service.number}
-                </span>
-                <div className="h-px w-12 bg-charcoal-300 group-hover:w-20 group-hover:bg-gold-600 transition-all duration-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-800/60 border border-gray-800 rounded-xl overflow-hidden">
+          {services.map((service, index) => {
+            const Icon = service.icon;
+            return (
+              <div
+                key={index}
+                className="group relative bg-gray-950 hover:bg-gray-900 transition-colors duration-300 p-7"
+              >
+                {/* Icon */}
+                <div className="inline-flex items-center justify-center h-10 w-10 rounded-lg border border-gray-800 bg-gray-900 text-accent-300 mb-5 group-hover:border-accent/40 group-hover:shadow-glow transition-all duration-300">
+                  <Icon className="h-5 w-5" />
+                </div>
+
+                {/* Number tag */}
+                <div className="absolute top-7 right-7 text-xs tracking-tight text-gray-600">
+                  0{index + 1}
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-semibold tracking-tight text-gray-50 mb-2">
+                  {service.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-sm text-gray-400 leading-relaxed tracking-tight">
+                  {service.description}
+                </p>
               </div>
-              <h3 className="heading-serif text-2xl md:text-3xl text-charcoal-900 mb-4">
-                {service.title}
-              </h3>
-              <p className="text-charcoal-500 leading-relaxed font-light">
-                {service.description}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

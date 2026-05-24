@@ -1,73 +1,162 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Instagram, Linkedin } from "lucide-react";
+import { Github, Instagram, Linkedin, Twitter } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-charcoal-900 text-white border-t border-white/10">
-      <div className="container-custom py-20">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+    <footer className="border-t border-gray-800 bg-gray-950">
+      <div className="container-custom py-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           {/* Brand */}
-          <div className="md:col-span-2">
-            <Link href="/" className="inline-block mb-6 group">
-              <div className="relative h-40 w-40">
+          <div className="col-span-2">
+            <Link href="/" className="flex items-center gap-3 mb-5 group">
+              <div className="relative h-9 w-9">
                 <Image
                   src="/logo.png"
                   alt="Barrera Brokers"
                   fill
-                  className="object-contain object-left"
+                  className="object-contain"
                 />
               </div>
+              <span className="text-base font-semibold tracking-tight text-gray-50">
+                Barrera Brokers
+              </span>
             </Link>
-            <p className="text-white/60 font-light leading-relaxed max-w-md mb-8">
+            <p className="text-sm text-gray-400 leading-relaxed max-w-md mb-6 tracking-tight">
               Real estate excellence desde el ano 2000. Tu socio de confianza
               para encontrar, invertir y rentabilizar propiedades exclusivas
               en Buenos Aires.
             </p>
-            <div className="flex space-x-6">
-              <a href="#" className="text-white/60 hover:text-gold-400 transition-colors" aria-label="Facebook">
-                <Facebook className="h-5 w-5" />
+            <div className="flex gap-2">
+              <a
+                href="#"
+                className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-gray-800 text-gray-400 hover:text-gray-50 hover:border-gray-700 hover:bg-gray-900 transition-all"
+                aria-label="Twitter"
+              >
+                <Twitter className="h-4 w-4" />
               </a>
-              <a href="#" className="text-white/60 hover:text-gold-400 transition-colors" aria-label="Instagram">
-                <Instagram className="h-5 w-5" />
+              <a
+                href="#"
+                className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-gray-800 text-gray-400 hover:text-gray-50 hover:border-gray-700 hover:bg-gray-900 transition-all"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-4 w-4" />
               </a>
-              <a href="#" className="text-white/60 hover:text-gold-400 transition-colors" aria-label="LinkedIn">
-                <Linkedin className="h-5 w-5" />
+              <a
+                href="#"
+                className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-gray-800 text-gray-400 hover:text-gray-50 hover:border-gray-700 hover:bg-gray-900 transition-all"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="h-4 w-4" />
               </a>
             </div>
           </div>
 
-          {/* Navigation */}
+          {/* Navegacion */}
           <div>
-            <h3 className="label-tracking text-gold-400 mb-6">Navegacion</h3>
-            <ul className="space-y-3">
-              <li><a href="#inicio" className="text-white/60 hover:text-white transition-colors font-light">Inicio</a></li>
-              <li><a href="#propiedades" className="text-white/60 hover:text-white transition-colors font-light">Propiedades</a></li>
-              <li><a href="#servicios" className="text-white/60 hover:text-white transition-colors font-light">Servicios</a></li>
-              <li><a href="#nosotros" className="text-white/60 hover:text-white transition-colors font-light">Nosotros</a></li>
-              <li><a href="#contacto" className="text-white/60 hover:text-white transition-colors font-light">Contacto</a></li>
+            <h3 className="text-xs font-semibold tracking-tight text-gray-50 mb-4 uppercase">
+              Navegacion
+            </h3>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <a
+                  href="/#inicio"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Inicio
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#propiedades"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Propiedades
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#servicios"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Servicios
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#nosotros"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Nosotros
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#contacto"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Contacto
+                </a>
+              </li>
             </ul>
           </div>
 
-          {/* Categories */}
+          {/* Categorias */}
           <div>
-            <h3 className="label-tracking text-gold-400 mb-6">Categorias</h3>
-            <ul className="space-y-3">
-              <li><Link href="/propiedades?categoria=desarrollo" className="text-white/60 hover:text-white transition-colors font-light">En Desarrollo</Link></li>
-              <li><Link href="/propiedades?categoria=pozo" className="text-white/60 hover:text-white transition-colors font-light">En Pozo</Link></li>
-              <li><Link href="/propiedades?categoria=usados" className="text-white/60 hover:text-white transition-colors font-light">Usados</Link></li>
-              <li><Link href="/propiedades?categoria=rentals" className="text-white/60 hover:text-white transition-colors font-light">Alquileres</Link></li>
-              <li><Link href="/propiedades?categoria=inversiones" className="text-white/60 hover:text-white transition-colors font-light">Inversiones</Link></li>
+            <h3 className="text-xs font-semibold tracking-tight text-gray-50 mb-4 uppercase">
+              Categorias
+            </h3>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <Link
+                  href="/propiedades?categoria=desarrollo"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  En desarrollo
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/propiedades?categoria=pozo"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  En pozo
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/propiedades?categoria=usados"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Usados
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/propiedades?categoria=rentals"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Alquileres
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/propiedades?categoria=inversiones"
+                  className="text-gray-400 hover:text-gray-50 transition-colors"
+                >
+                  Inversiones
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-white/40 text-sm font-light">
-            &copy; {new Date().getFullYear()} Barrera Brokers. Todos los derechos reservados.
+        <div className="mt-14 pt-6 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-3">
+          <p className="text-xs text-gray-500 tracking-tight">
+            &copy; {new Date().getFullYear()} Barrera Brokers. Todos los
+            derechos reservados.
           </p>
-          <p className="text-white/40 text-sm font-light">
+          <p className="text-xs text-gray-500 tracking-tight">
             Buenos Aires, Argentina
           </p>
         </div>
