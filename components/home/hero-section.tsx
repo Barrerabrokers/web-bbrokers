@@ -1,78 +1,90 @@
-"use client";
+import Link from "next/link";
 
-import { ArrowDown } from "lucide-react";
-import { YouTubeBackground } from "@/components/youtube-background";
-
-// Video de YouTube de Buenos Aires (HD)
-// https://www.youtube.com/watch?v=xuih_txfQP0
-const YOUTUBE_VIDEO_ID = "xuih_txfQP0";
-
+/**
+ * Hero — Obsidian Assembly style
+ *
+ * Estructura: pequeño label "Coordinates" en topcenter + headline manifesto
+ * gigante en serif italic + body manifesto declarativo en serif + CTAs.
+ *
+ * Sobre fondo bone (warm off-white) con grain texture para sensación
+ * editorial. Sin video.
+ */
 export function HeroSection() {
   return (
     <section
       id="inicio"
-      className="relative h-screen min-h-[760px] w-full overflow-hidden bg-ink-700"
+      className="relative min-h-screen flex flex-col bg-bone text-ink overflow-hidden"
     >
-      {/* YouTube video background (fullscreen, no controls, looping) */}
-      <YouTubeBackground
-        videoId={YOUTUBE_VIDEO_ID}
-        fallbackSrc="/buenos-aires.mp4"
-        posterSrc="https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=1920&q=80"
+      {/* Subtle paper grain */}
+      <div className="absolute inset-0 bg-grain pointer-events-none opacity-60" />
+
+      {/* Yellow accent corner mark (signature) */}
+      <div
+        aria-hidden="true"
+        className="absolute top-0 right-0 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at top right, rgba(212,185,78,0.18) 0%, transparent 70%)",
+        }}
       />
 
-      {/* Luxury overlay: dark gradient bottom for text legibility */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-ink-700/30 via-ink-700/20 to-ink-700/80 pointer-events-none" />
-
-      {/* Top eyebrow */}
-      <div className="absolute top-0 left-0 right-0 z-10">
-        <div className="container-custom pt-32 md:pt-36">
-          <div className="flex items-center justify-center">
-            <span className="text-[11px] uppercase tracking-widest text-white/85">
-              Buenos Aires &middot; Argentina &middot; Est. 2000
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content centered */}
-      <div className="relative z-10 h-full flex flex-col items-center justify-center px-6 text-center">
-        <div className="animate-fade-in-up max-w-5xl">
-          <h1 className="font-display font-light text-white leading-[0.98] tracking-[-0.025em] text-[52px] sm:text-[72px] md:text-[100px] lg:text-[128px]">
-            Barrera &amp; Co
-            <br />
-            <span className="italic">Real Estate</span>
-          </h1>
-
-          <p className="mt-8 md:mt-10 text-white/90 text-base md:text-lg max-w-xl mx-auto leading-relaxed font-light">
-            Your Buenos Aires Real Estate Experts.
-            <br />
-            Acompanamos a quienes buscan invertir, habitar y rentabilizar las
-            propiedades mas exclusivas de Argentina.
+      {/* Top brand line */}
+      <div className="relative z-10 container-custom pt-24 md:pt-32">
+        <div className="flex items-center justify-between">
+          <p className="font-display font-light text-2xl md:text-3xl text-ink tracking-tight">
+            Coordinates
           </p>
+          <p className="font-display italic font-light text-2xl md:text-3xl text-ink tracking-tight">
+            A Private Assembly
+          </p>
+        </div>
+      </div>
 
-          <div className="mt-10 md:mt-12 flex flex-wrap items-center justify-center gap-3">
-            <a href="#propiedades" className="btn-outline-light">
-              Ver propiedades
-            </a>
-            <a
-              href="#contacto"
-              className="text-[11px] uppercase tracking-widest text-white/85 hover:text-white px-4 py-3.5 transition-colors"
-            >
-              Hablemos &rarr;
-            </a>
+      {/* Manifest content */}
+      <div className="relative z-10 container-custom flex-1 flex items-center py-16 md:py-20">
+        <div className="grid grid-cols-12 gap-6 w-full">
+          <div className="col-span-12 md:col-span-10 lg:col-span-9 lg:col-start-2 animate-fade-in-up">
+            <p className="font-display font-light text-ink text-[44px] sm:text-[64px] md:text-[80px] lg:text-[100px] xl:text-[120px] leading-[1.02] tracking-[-0.025em]">
+              <span className="block">
+                Barrera Brokers coordina <span className="italic">propiedades</span>
+              </span>
+              <span className="block">
+                e <span className="italic">inversiones</span> a traves de
+              </span>
+              <span className="block">Buenos Aires.</span>
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Scroll hint */}
-      <a
-        href="#propiedades"
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/70 hover:text-white transition-colors"
-        aria-label="Scroll"
-      >
-        <span className="text-[10px] uppercase tracking-widest">Scroll</span>
-        <ArrowDown className="h-3.5 w-3.5 animate-bounce" />
-      </a>
+      {/* Footer block: subtitle + CTAs */}
+      <div className="relative z-10 container-custom pb-12 md:pb-16">
+        <div className="grid grid-cols-12 gap-6 pt-10 border-t border-ink/15">
+          <div className="col-span-12 md:col-span-6 lg:col-span-5">
+            <p className="text-ink/75 text-base md:text-lg leading-relaxed max-w-md">
+              Una seleccion curada de propiedades, mantenida con discrecion.
+              Su presencia es intencional, modelada por la ubicacion mas que
+              por la visibilidad. El acceso es considerado, no asumido.
+            </p>
+          </div>
+
+          <div className="col-span-12 md:col-span-5 md:col-start-8 flex flex-col md:items-end gap-4">
+            <div className="flex flex-wrap gap-3">
+              <Link href="#propiedades" className="btn-primary">
+                Ver propiedades
+              </Link>
+              <Link href="#contacto" className="btn-outline">
+                Hablemos
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-baseline justify-between text-[10px] uppercase tracking-widest text-ink/55">
+          <span>Buenos Aires</span>
+          <span>Est. 2000</span>
+        </div>
+      </div>
     </section>
   );
 }

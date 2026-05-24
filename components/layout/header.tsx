@@ -24,21 +24,16 @@ export function Header() {
     { href: "/#contacto", label: "Contacto" },
   ];
 
-  // White header on scroll, transparent on top of hero
-  const headerClass = scrolled || isMenuOpen
-    ? "bg-white/95 backdrop-blur-md border-b border-ink/10"
-    : "bg-transparent border-b border-transparent";
-
-  const textColor = scrolled || isMenuOpen ? "text-ink" : "text-white";
-  const textHover = scrolled || isMenuOpen ? "hover:text-accent" : "hover:text-accent-300";
-
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerClass}`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-1500 pointer-events-none ${
+        scrolled || isMenuOpen ? "bg-bone/85 backdrop-blur-md border-b border-ink/10" : ""
+      }`}
+      style={{ transitionTimingFunction: "var(--f-cubic)" }}
     >
       <div className="container-custom">
-        <div className="flex items-center justify-between h-20">
-          {/* Logo */}
+        <div className="flex items-center justify-between h-20 pointer-events-auto">
+          {/* Logo - Obsidian Assembly stack style */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative h-10 w-10 flex-shrink-0">
               <Image
@@ -46,16 +41,18 @@ export function Header() {
                 alt="Barrera Brokers"
                 fill
                 priority
-                className={`object-contain transition-all ${
-                  scrolled || isMenuOpen ? "" : "brightness-0 invert"
-                }`}
+                className="object-contain"
               />
             </div>
-            <div className="hidden sm:flex items-baseline gap-2">
-              <span
-                className={`font-display font-light text-2xl tracking-[-0.02em] transition-colors ${textColor}`}
-              >
-                Barrera <span className="italic">Brokers</span>
+            <div className="hidden sm:flex flex-col leading-[0.85]">
+              <span className="text-[11px] uppercase tracking-widest text-ink/65">
+                The
+              </span>
+              <span className="font-display font-light text-2xl md:text-[28px] text-ink tracking-[-0.02em] -ml-0.5">
+                Barrera
+              </span>
+              <span className="font-display italic font-light text-2xl md:text-[28px] text-ink tracking-[-0.02em] -ml-0.5">
+                Brokers
               </span>
             </div>
           </Link>
@@ -66,7 +63,7 @@ export function Header() {
               <a
                 key={item.href}
                 href={item.href}
-                className={`text-[12px] uppercase tracking-widest transition-colors ${textColor} ${textHover}`}
+                className="text-[12px] uppercase tracking-widest text-ink/75 hover:text-ink transition-colors duration-300"
               >
                 {item.label}
               </a>
@@ -77,23 +74,18 @@ export function Header() {
           <div className="hidden lg:flex items-center gap-3">
             <Link
               href="/login"
-              className={`text-[11px] uppercase tracking-widest transition-colors px-2 ${textColor} ${textHover}`}
+              className="text-[11px] uppercase tracking-widest text-ink/65 hover:text-ink transition-colors duration-300 px-2"
             >
               Portal
             </Link>
-            <Link
-              href="/#contacto"
-              className={
-                scrolled || isMenuOpen ? "btn-primary" : "btn-outline-light"
-              }
-            >
+            <Link href="/#contacto" className="btn-primary">
               Hablemos
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className={`lg:hidden p-2 rounded-full transition-colors ${textColor}`}
+            className="lg:hidden p-2 text-ink rounded-full transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -107,7 +99,7 @@ export function Header() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden pb-6 pt-2 space-y-1 animate-fade-in-down">
+          <div className="lg:hidden pb-6 pt-2 space-y-1 animate-fade-in-down pointer-events-auto">
             {menuItems.map((item) => (
               <a
                 key={item.href}

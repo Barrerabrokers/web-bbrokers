@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, MapPin, Clock } from "lucide-react";
 
+/**
+ * Admission / Contact section - Obsidian Assembly style
+ * Yellow background with form on top of dark gradient.
+ * "Admission" / private inquiry feel.
+ */
 export function ContactSection() {
   const [formData, setFormData] = useState({
     name: "",
@@ -40,201 +44,187 @@ export function ContactSection() {
   return (
     <section
       id="contacto"
-      className="relative py-24 md:py-32 lg:py-40 bg-white border-t border-ink/10"
+      className="relative bg-accent text-ink overflow-hidden"
     >
-      <div className="container-custom">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
-          <span className="eyebrow mb-6">Get in Touch</span>
-          <h2 className="lp-h2 mt-6 mb-6">
-            Hablemos de tu <span className="italic">proximo paso.</span>
-          </h2>
-          <p className="text-ink/65 text-base md:text-lg leading-relaxed">
-            Sea cual sea tu objetivo, nuestro equipo esta listo para
-            acompanarte con asesoramiento personalizado y discreto.
-          </p>
-        </div>
+      {/* Top gradient overlay (Obsidian Assembly admission section trick) */}
+      <div
+        className="absolute inset-x-0 top-0 h-32 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(26,24,20,1) 0%, rgba(26,24,20,0.5) 50%, rgba(26,24,20,0) 100%)",
+        }}
+      />
 
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
-          {/* Left - Info */}
-          <div className="space-y-10">
-            <div className="grid sm:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-accent">
-                  <Mail className="h-4 w-4" />
-                  <span className="text-[10px] uppercase tracking-widest">
-                    Email
-                  </span>
-                </div>
-                <a
-                  href="mailto:info@barrerabrokers.com"
-                  className="block font-display text-2xl text-ink hover:text-accent transition-colors leading-tight"
-                >
-                  info@barrerabrokers.com
-                </a>
-              </div>
-
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-accent">
-                  <Phone className="h-4 w-4" />
-                  <span className="text-[10px] uppercase tracking-widest">
-                    Telefono
-                  </span>
-                </div>
-                <a
-                  href="tel:+541112345678"
-                  className="block font-display text-2xl text-ink hover:text-accent transition-colors leading-tight"
-                >
-                  +54 11 1234-5678
-                </a>
-              </div>
-
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-accent">
-                  <MapPin className="h-4 w-4" />
-                  <span className="text-[10px] uppercase tracking-widest">
-                    Oficina
-                  </span>
-                </div>
-                <p className="text-ink text-base leading-relaxed">
-                  Av. Principal 123
-                  <br />
-                  Buenos Aires, Argentina
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-accent">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-[10px] uppercase tracking-widest">
-                    Horario
-                  </span>
-                </div>
-                <p className="text-ink text-base leading-relaxed">
-                  Lun a Vie 9-19hs
-                  <br />
-                  Sab 10-14hs
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-10 border-t border-ink/10">
-              <p className="font-display italic text-2xl md:text-3xl text-ink leading-tight">
-                &ldquo;Hace mas de dos decadas que conectamos a las personas
-                indicadas con las propiedades que cambian sus vidas.&rdquo;
-              </p>
-              <p className="mt-4 text-[11px] uppercase tracking-widest text-ink/55">
-                — Maria Barrera, CEO &amp; Fundadora
-              </p>
-            </div>
+      <div className="relative z-10 section-pad pt-32 md:pt-40">
+        <div className="container-custom">
+          {/* Big title with mask fade */}
+          <div className="text-center mb-16 md:mb-24">
+            <p className="font-display italic font-light text-2xl md:text-3xl text-ink/55 mb-6">
+              Admission
+            </p>
+            <h2 className="font-display font-light text-[44px] md:text-[88px] lg:text-[120px] tracking-[-0.025em] leading-[0.96] text-ink max-w-5xl mx-auto">
+              El acceso es <span className="italic">considerado,</span>
+              <br />
+              no asumido.
+            </h2>
+            <p className="mt-8 max-w-2xl mx-auto text-ink/75 text-base md:text-lg leading-relaxed">
+              Si queres saber mas sobre nuestras propiedades disponibles o
+              tenes una operacion en mente, dejanos tus datos. Nos pondremos
+              en contacto.
+            </p>
           </div>
 
-          {/* Right - Form */}
-          <div className="lg:pl-8">
-            <form onSubmit={handleSubmit} className="space-y-7">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3"
-                >
+          {/* Form */}
+          <div className="max-w-3xl mx-auto">
+            <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
                   Nombre
                 </label>
                 <input
                   type="text"
-                  id="name"
                   required
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="form-input"
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
                   placeholder="Tu nombre completo"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3"
-                  >
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    className="form-input"
-                    placeholder="tu@email.com"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="phone"
-                    className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3"
-                  >
-                    Telefono
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    className="form-input"
-                    placeholder="+54 11 1234-5678"
-                  />
-                </div>
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="tu@email.com"
+                />
               </div>
 
-              <div>
-                <label
-                  htmlFor="message"
-                  className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3"
-                >
-                  Mensaje
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Telefono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="+54 11 1234-5678"
+                />
+              </div>
+
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Ciudad
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="Buenos Aires"
+                />
+              </div>
+
+              <div className="col-span-12 mt-4">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Contanos
                 </label>
                 <textarea
-                  id="message"
                   required
-                  rows={5}
+                  rows={4}
                   value={formData.message}
                   onChange={(e) =>
                     setFormData({ ...formData, message: e.target.value })
                   }
-                  className="form-input resize-none"
-                  placeholder="Contanos como podemos ayudarte..."
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300 resize-none"
+                  placeholder="En que estas pensando..."
                 />
               </div>
 
               {status === "success" && (
-                <div className="text-sm text-ink border-l-2 border-accent pl-4 py-2">
-                  Mensaje enviado. Te contactaremos pronto.
+                <div className="col-span-12 text-sm text-ink border-l-2 border-ink pl-4 py-2">
+                  Mensaje recibido. Vamos a contactarte pronto.
                 </div>
               )}
 
               {status === "error" && (
-                <div className="text-sm text-ink border-l-2 border-red-500 pl-4 py-2">
+                <div className="col-span-12 text-sm text-ink border-l-2 border-red-700 pl-4 py-2">
                   Hubo un error. Por favor intenta nuevamente.
                 </div>
               )}
 
-              <div className="pt-4">
+              <div className="col-span-12 mt-8 flex justify-center">
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center justify-center gap-2 px-8 py-4 pb-5 bg-ink text-bone text-[11px] uppercase tracking-widest font-medium rounded-[6px] hover:bg-ink-600 transition-all duration-900 disabled:opacity-50 disabled:cursor-not-allowed min-w-[260px]"
+                  style={{ transitionTimingFunction: "var(--f-cubic)" }}
                 >
-                  {status === "loading" ? "Enviando..." : "Enviar mensaje"}
+                  {status === "loading" ? "Enviando..." : "Enviar consulta"}
+                  <span className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Direct contact info bottom */}
+      <div className="relative z-10 border-t border-ink/15 py-12">
+        <div className="container-custom">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Email
+              </p>
+              <a
+                href="mailto:info@barrerabrokers.com"
+                className="font-display text-base md:text-lg text-ink hover:text-ink-600 transition-colors duration-300"
+              >
+                info@barrerabrokers.com
+              </a>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Telefono
+              </p>
+              <a
+                href="tel:+541112345678"
+                className="font-display text-base md:text-lg text-ink hover:text-ink-600 transition-colors duration-300"
+              >
+                +54 11 1234-5678
+              </a>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Direccion
+              </p>
+              <p className="text-sm text-ink leading-relaxed">
+                Av. Principal 123
+                <br />
+                Buenos Aires
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Horario
+              </p>
+              <p className="text-sm text-ink leading-relaxed">
+                Lun-Vie 9-19hs
+                <br />
+                Sab 10-14hs
+              </p>
+            </div>
           </div>
         </div>
       </div>
