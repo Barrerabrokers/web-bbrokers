@@ -47,14 +47,14 @@ export function PropertyActions({ propertyId, propertyTitle }: Props) {
         <Link
           href={`/propiedades/${propertyId}`}
           target="_blank"
-          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-gray-400 hover:text-gray-50 hover:bg-gray-800 transition-colors"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-ink/60 hover:text-ink hover:bg-cream-300 transition-colors"
           title="Ver en el sitio"
         >
           <Eye className="h-4 w-4" />
         </Link>
         <Link
           href={`/admin/propiedades/${propertyId}/editar`}
-          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-accent-300 hover:bg-accent/10 transition-colors"
+          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-accent hover:bg-accent/10 transition-colors"
           title="Editar"
         >
           <Edit className="h-4 w-4" />
@@ -71,11 +71,11 @@ export function PropertyActions({ propertyId, propertyTitle }: Props) {
       {/* Confirm modal */}
       {showConfirm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 backdrop-blur-sm p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-cream-200/85 backdrop-blur-sm p-4 animate-fade-in"
           onClick={() => !isDeleting && setShowConfirm(false)}
         >
           <div
-            className="card max-w-md w-full p-6 backdrop-blur-md bg-gray-900/95"
+            className="card max-w-md w-full p-6 backdrop-blur-md bg-cream-100/95"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-4 mb-5">
@@ -83,10 +83,10 @@ export function PropertyActions({ propertyId, propertyTitle }: Props) {
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1">
+                <h3 className="text-base font-semibold tracking-tight text-ink mb-1">
                   Eliminar propiedad?
                 </h3>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-ink/60">
                   Estas seguro de eliminar &quot;{propertyTitle}&quot;? Esta
                   accion no se puede deshacer.
                 </p>

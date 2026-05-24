@@ -14,17 +14,17 @@ export default async function PropertiesAdminPage() {
   const statusStyles: Record<string, string> = {
     disponible: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
     reservada: "bg-amber-500/10 border-amber-500/30 text-amber-300",
-    vendida: "bg-gray-500/10 border-gray-700 text-gray-400",
+    vendida: "bg-gray-500/10 border-ink/25 text-ink/60",
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-50 mb-1">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-ink mb-1">
             Propiedades
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-ink/60">
             Gestiona todas las propiedades del catalogo
           </p>
         </div>
@@ -44,7 +44,7 @@ export default async function PropertiesAdminPage() {
             key={property.id}
             className="card-hover overflow-hidden md:flex"
           >
-            <div className="md:w-56 h-44 md:h-auto relative bg-gray-900 flex-shrink-0">
+            <div className="md:w-56 h-44 md:h-auto relative bg-cream-100 flex-shrink-0">
               {property.images && property.images.length > 0 ? (
                 <Image
                   src={property.images[0]}
@@ -54,7 +54,7 @@ export default async function PropertiesAdminPage() {
                   sizes="224px"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-600">
+                <div className="w-full h-full flex items-center justify-center text-ink/40">
                   <Building2 className="h-10 w-10" />
                 </div>
               )}
@@ -73,10 +73,10 @@ export default async function PropertiesAdminPage() {
                       {property.status}
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1 truncate">
+                  <h3 className="text-base font-semibold tracking-tight text-ink mb-1 truncate">
                     {property.title}
                   </h3>
-                  <p className="text-xs text-gray-500 mb-2 truncate">
+                  <p className="text-xs text-ink0 mb-2 truncate">
                     {property.location}
                   </p>
                   <p className="text-xl font-semibold tracking-tightest text-gradient-accent">
@@ -90,11 +90,11 @@ export default async function PropertiesAdminPage() {
                 />
               </div>
 
-              <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-500 pt-3 border-t border-gray-800">
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-ink0 pt-3 border-t border-ink/15">
                 {property.bedrooms ? (
                   <span>
                     Dorm:{" "}
-                    <span className="text-gray-300 font-medium">
+                    <span className="text-ink/75 font-medium">
                       {property.bedrooms}
                     </span>
                   </span>
@@ -102,20 +102,20 @@ export default async function PropertiesAdminPage() {
                 {property.bathrooms ? (
                   <span>
                     Banos:{" "}
-                    <span className="text-gray-300 font-medium">
+                    <span className="text-ink/75 font-medium">
                       {property.bathrooms}
                     </span>
                   </span>
                 ) : null}
                 <span>
                   Area:{" "}
-                  <span className="text-gray-300 font-medium">
+                  <span className="text-ink/75 font-medium">
                     {property.area}m2
                   </span>
                 </span>
                 <span>
                   Fecha:{" "}
-                  <span className="text-gray-300 font-medium">
+                  <span className="text-ink/75 font-medium">
                     {new Date(property.createdAt).toLocaleDateString()}
                   </span>
                 </span>
@@ -127,11 +127,11 @@ export default async function PropertiesAdminPage() {
 
       {properties.length === 0 && (
         <div className="card p-16 text-center">
-          <Building2 className="h-10 w-10 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-base font-semibold tracking-tight text-gray-50 mb-1">
+          <Building2 className="h-10 w-10 text-ink/40 mx-auto mb-4" />
+          <h3 className="text-base font-semibold tracking-tight text-ink mb-1">
             No hay propiedades
           </h3>
-          <p className="text-sm text-gray-400 mb-5">
+          <p className="text-sm text-ink/60 mb-5">
             Comenza agregando tu primera propiedad al catalogo.
           </p>
           <Link

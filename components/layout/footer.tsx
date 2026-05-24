@@ -1,163 +1,126 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Github, Instagram, Linkedin, Twitter } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-gray-800 bg-gray-950">
-      <div className="container-custom py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-          {/* Brand */}
-          <div className="col-span-2">
-            <Link href="/" className="flex items-center gap-3 mb-5 group">
+    <footer className="bg-cream-900 text-cream-100">
+      <div className="container-custom pt-20 pb-10">
+        {/* Big wordmark */}
+        <div className="border-b border-cream-100/15 pb-12 mb-12">
+          <Link href="/" className="inline-block group">
+            <span className="font-display text-[64px] md:text-[120px] lg:text-[160px] leading-[0.92] tracking-tightest text-cream-100 group-hover:text-accent-300 transition-colors">
+              Barrera <span className="italic">Brokers</span>
+            </span>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-12 gap-6 md:gap-8">
+          {/* Logo + tagline */}
+          <div className="col-span-12 md:col-span-4 lg:col-span-5">
+            <div className="flex items-center gap-3 mb-5">
               <div className="relative h-9 w-9">
                 <Image
                   src="/logo.png"
                   alt="Barrera Brokers"
                   fill
-                  className="object-contain"
+                  className="object-contain brightness-0 invert"
                 />
               </div>
-              <span className="text-base font-semibold tracking-tight text-gray-50">
-                Barrera Brokers
+              <span className="text-[11px] uppercase tracking-widest text-cream-100/60">
+                Real Estate Excellence
               </span>
-            </Link>
-            <p className="text-sm text-gray-400 leading-relaxed max-w-md mb-6 tracking-tight">
-              Real estate excellence desde el ano 2000. Tu socio de confianza
-              para encontrar, invertir y rentabilizar propiedades exclusivas
-              en Buenos Aires.
-            </p>
-            <div className="flex gap-2">
-              <a
-                href="#"
-                className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-gray-800 text-gray-400 hover:text-gray-50 hover:border-gray-700 hover:bg-gray-900 transition-all"
-                aria-label="Twitter"
-              >
-                <Twitter className="h-4 w-4" />
-              </a>
-              <a
-                href="#"
-                className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-gray-800 text-gray-400 hover:text-gray-50 hover:border-gray-700 hover:bg-gray-900 transition-all"
-                aria-label="Instagram"
-              >
-                <Instagram className="h-4 w-4" />
-              </a>
-              <a
-                href="#"
-                className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-gray-800 text-gray-400 hover:text-gray-50 hover:border-gray-700 hover:bg-gray-900 transition-all"
-                aria-label="LinkedIn"
-              >
-                <Linkedin className="h-4 w-4" />
-              </a>
             </div>
+            <p className="text-cream-100/70 leading-relaxed max-w-md text-sm">
+              Real estate excellence desde el ano 2000. Tu socio de confianza
+              para encontrar, invertir y rentabilizar propiedades exclusivas en
+              Buenos Aires.
+            </p>
           </div>
 
           {/* Navegacion */}
-          <div>
-            <h3 className="text-xs font-semibold tracking-tight text-gray-50 mb-4 uppercase">
+          <div className="col-span-6 md:col-span-2 lg:col-span-2">
+            <h3 className="text-[10px] uppercase tracking-widest text-cream-100/50 mb-5">
               Navegacion
             </h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <a
-                  href="/#inicio"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Inicio
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/#propiedades"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Propiedades
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/#servicios"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Servicios
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/#nosotros"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Nosotros
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/#contacto"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Contacto
-                </a>
-              </li>
+            <ul className="space-y-2.5">
+              {[
+                { href: "/#inicio", label: "Inicio" },
+                { href: "/#propiedades", label: "Propiedades" },
+                { href: "/#servicios", label: "Servicios" },
+                { href: "/#nosotros", label: "Nosotros" },
+                { href: "/#contacto", label: "Contacto" },
+              ].map((it) => (
+                <li key={it.href}>
+                  <a
+                    href={it.href}
+                    className="text-sm text-cream-100/85 hover:text-cream-100 transition-colors"
+                  >
+                    {it.label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Categorias */}
-          <div>
-            <h3 className="text-xs font-semibold tracking-tight text-gray-50 mb-4 uppercase">
+          <div className="col-span-6 md:col-span-2 lg:col-span-2">
+            <h3 className="text-[10px] uppercase tracking-widest text-cream-100/50 mb-5">
               Categorias
             </h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <Link
-                  href="/propiedades?categoria=desarrollo"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  En desarrollo
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/propiedades?categoria=pozo"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  En pozo
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/propiedades?categoria=usados"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Usados
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/propiedades?categoria=rentals"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Alquileres
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/propiedades?categoria=inversiones"
-                  className="text-gray-400 hover:text-gray-50 transition-colors"
-                >
-                  Inversiones
-                </Link>
-              </li>
+            <ul className="space-y-2.5">
+              {[
+                { href: "/propiedades?categoria=desarrollo", label: "Desarrollo" },
+                { href: "/propiedades?categoria=pozo", label: "En pozo" },
+                { href: "/propiedades?categoria=usados", label: "Usados" },
+                { href: "/propiedades?categoria=rentals", label: "Alquileres" },
+                { href: "/propiedades?categoria=inversiones", label: "Inversiones" },
+              ].map((it) => (
+                <li key={it.href}>
+                  <Link
+                    href={it.href}
+                    className="text-sm text-cream-100/85 hover:text-cream-100 transition-colors"
+                  >
+                    {it.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
+          </div>
+
+          {/* Contact */}
+          <div className="col-span-12 md:col-span-4 lg:col-span-3">
+            <h3 className="text-[10px] uppercase tracking-widest text-cream-100/50 mb-5">
+              Contacto
+            </h3>
+            <div className="space-y-3">
+              <a
+                href="mailto:info@barrerabrokers.com"
+                className="block font-display text-xl md:text-2xl text-cream-100 hover:text-accent-300 transition-colors leading-tight"
+              >
+                info@barrerabrokers.com
+              </a>
+              <a
+                href="tel:+541112345678"
+                className="block text-sm text-cream-100/85 hover:text-cream-100 transition-colors"
+              >
+                +54 11 1234-5678
+              </a>
+              <p className="text-sm text-cream-100/70 leading-relaxed">
+                Av. Principal 123
+                <br />
+                Buenos Aires, Argentina
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-14 pt-6 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-gray-500 tracking-tight">
-            &copy; {new Date().getFullYear()} Barrera Brokers. Todos los
-            derechos reservados.
+        <div className="mt-16 pt-6 border-t border-cream-100/15 flex flex-col md:flex-row justify-between items-center gap-3">
+          <p className="text-xs text-cream-100/50">
+            &copy; {new Date().getFullYear()} Barrera Brokers. Todos los derechos
+            reservados.
           </p>
-          <p className="text-xs text-gray-500 tracking-tight">
-            Buenos Aires, Argentina
+          <p className="text-xs text-cream-100/50 uppercase tracking-widest">
+            Buenos Aires &middot; Argentina
           </p>
         </div>
       </div>

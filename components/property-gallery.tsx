@@ -31,36 +31,35 @@ export function PropertyGallery({
         <button
           type="button"
           onClick={() => openAt(0)}
-          className="relative h-[420px] md:h-[520px] w-full overflow-hidden block group rounded-xl border border-gray-800"
+          className="relative h-[440px] md:h-[560px] w-full overflow-hidden block group bg-cream-300"
           aria-label="Ver galeria"
         >
           <Image
             src={images[0]}
             alt={title}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
             priority
             sizes="(max-width: 1024px) 100vw, 66vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950/40 via-transparent to-gray-950/20" />
 
-          <div className="absolute top-4 left-4">
-            <span className="pill bg-gray-950/70 backdrop-blur-md capitalize">
+          <div className="absolute top-5 left-5">
+            <span className="text-[10px] uppercase tracking-widest bg-ink/30 backdrop-blur-sm text-cream-100 px-3 py-1.5 rounded-full">
               {category}
             </span>
           </div>
 
           {images.length > 1 && (
-            <div className="absolute bottom-4 left-4">
-              <span className="pill bg-gray-950/70 backdrop-blur-md">
+            <div className="absolute bottom-5 left-5">
+              <span className="text-[10px] uppercase tracking-widest bg-ink/30 backdrop-blur-sm text-cream-100 px-3 py-1.5 rounded-full">
                 {images.length} fotos
               </span>
             </div>
           )}
 
-          <div className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-md bg-gray-950/80 backdrop-blur-md border border-gray-800 px-3 py-1.5 text-xs text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-cream-100/90 backdrop-blur-md px-4 py-2 text-xs uppercase tracking-widest text-ink opacity-0 group-hover:opacity-100 transition-opacity">
             <Expand className="h-3.5 w-3.5" />
-            <span>Ver galeria</span>
+            Ver galeria
           </div>
         </button>
 
@@ -76,7 +75,7 @@ export function PropertyGallery({
                   key={realIndex}
                   type="button"
                   onClick={() => openAt(realIndex)}
-                  className="h-20 md:h-24 overflow-hidden relative block group rounded-lg border border-gray-800 hover:border-gray-700 transition-colors"
+                  className="h-24 md:h-28 overflow-hidden relative block group bg-cream-300"
                   aria-label={`Ver imagen ${realIndex + 1}`}
                 >
                   <Image
@@ -87,7 +86,7 @@ export function PropertyGallery({
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {isLastShown && (
-                    <div className="absolute inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center text-gray-50 text-lg font-semibold tracking-tight">
+                    <div className="absolute inset-0 bg-ink/70 backdrop-blur-sm flex items-center justify-center text-cream-100 font-display text-2xl">
                       +{remaining}
                     </div>
                   )}

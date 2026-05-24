@@ -1,45 +1,30 @@
-import {
-  Building2,
-  Hammer,
-  Home,
-  Key,
-  TrendingUp,
-  Sparkles,
-} from "lucide-react";
-
 const services = [
   {
-    icon: Hammer,
     title: "En desarrollo",
     description:
       "Proyectos en construccion con financiacion especial y entregas programadas en ubicaciones premium.",
   },
   {
-    icon: Building2,
     title: "En pozo",
     description:
       "Inversiones en etapa inicial con los mejores precios y condiciones de pago flexibles.",
   },
   {
-    icon: Home,
     title: "Usados",
     description:
       "Propiedades listas para escriturar e ingresar, cuidadosamente seleccionadas por nuestro equipo.",
   },
   {
-    icon: Key,
     title: "Alquileres",
     description:
       "Opciones de renta temporaria y permanente en las ubicaciones mas cotizadas de la ciudad.",
   },
   {
-    icon: TrendingUp,
     title: "Inversiones",
     description:
       "Oportunidades inmobiliarias con alto retorno y proyeccion validadas por nuestros analistas.",
   },
   {
-    icon: Sparkles,
     title: "Oportunidades",
     description:
       "Propiedades exclusivas con precios especiales por tiempo limitado, fuera de mercado.",
@@ -48,54 +33,60 @@ const services = [
 
 export function ServicesSection() {
   return (
-    <section id="servicios" className="relative section-pad bg-gray-950">
+    <section
+      id="servicios"
+      className="relative section-pad bg-cream-100 border-t border-ink/10"
+    >
       <div className="container-custom">
-        {/* Header */}
-        <div className="max-w-3xl mb-16">
-          <span className="eyebrow mb-5">Nuestros servicios</span>
-          <h2 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tightest leading-[1.05] mb-6">
-            <span className="text-gradient">Especialistas en cada</span>{" "}
-            <span className="text-gradient-accent">tipo de propiedad.</span>
-          </h2>
-          <p className="text-gray-400 text-lg leading-relaxed tracking-tight">
-            Ofrecemos un portafolio diverso adaptado a las necesidades
-            especificas de cada cliente, desde primeras inversiones hasta
-            carteras complejas.
-          </p>
+        {/* Header asymmetric */}
+        <div className="grid grid-cols-12 gap-6 mb-20 md:mb-28">
+          <div className="col-span-12 md:col-span-1">
+            <span className="number-marker">02.</span>
+          </div>
+          <div className="col-span-12 md:col-span-7">
+            <p className="eyebrow mb-6">Nuestros servicios</p>
+            <h2 className="font-display text-[56px] md:text-[88px] lg:text-[112px] leading-[0.95] tracking-tightest text-ink">
+              Especialistas
+              <br />
+              en cada <span className="italic-display">tipo</span>
+              <br />
+              de propiedad.
+            </h2>
+          </div>
+          <div className="col-span-12 md:col-span-3 md:col-start-10 flex items-end">
+            <p className="text-ink/70 leading-relaxed text-base md:text-lg">
+              Ofrecemos un portafolio diverso adaptado a las necesidades de
+              cada cliente, desde primeras inversiones hasta carteras
+              complejas.
+            </p>
+          </div>
         </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-800/60 border border-gray-800 rounded-xl overflow-hidden">
-          {services.map((service, index) => {
-            const Icon = service.icon;
-            return (
-              <div
-                key={index}
-                className="group relative bg-gray-950 hover:bg-gray-900 transition-colors duration-300 p-7"
-              >
-                {/* Icon */}
-                <div className="inline-flex items-center justify-center h-10 w-10 rounded-lg border border-gray-800 bg-gray-900 text-accent-300 mb-5 group-hover:border-accent/40 group-hover:shadow-glow transition-all duration-300">
-                  <Icon className="h-5 w-5" />
-                </div>
-
-                {/* Number tag */}
-                <div className="absolute top-7 right-7 text-xs tracking-tight text-gray-600">
-                  0{index + 1}
-                </div>
-
-                {/* Title */}
-                <h3 className="text-xl font-semibold tracking-tight text-gray-50 mb-2">
+        {/* Editorial numbered list */}
+        <ul className="border-t border-ink/15">
+          {services.map((service, index) => (
+            <li
+              key={index}
+              className="group grid grid-cols-12 gap-4 md:gap-8 py-8 md:py-10 border-b border-ink/15 hover:bg-cream-200/40 transition-colors"
+            >
+              <div className="col-span-2 md:col-span-1">
+                <span className="font-display text-2xl md:text-3xl text-ink/40 group-hover:text-accent transition-colors">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+              </div>
+              <div className="col-span-10 md:col-span-4">
+                <h3 className="font-display text-3xl md:text-5xl tracking-tight text-ink leading-tight">
                   {service.title}
                 </h3>
-
-                {/* Description */}
-                <p className="text-sm text-gray-400 leading-relaxed tracking-tight">
+              </div>
+              <div className="col-span-12 md:col-span-7 flex items-center">
+                <p className="text-ink/70 text-base md:text-lg leading-relaxed max-w-2xl">
                   {service.description}
                 </p>
               </div>
-            );
-          })}
-        </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

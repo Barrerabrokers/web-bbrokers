@@ -31,7 +31,7 @@ export function AdminSidebar() {
       : baseMenuItems;
 
   return (
-    <aside className="w-60 bg-gray-950 border-r border-gray-800 min-h-[calc(100vh-56px)] sticky top-14 hidden md:block">
+    <aside className="w-60 bg-cream-200 border-r border-ink/15 min-h-[calc(100vh-56px)] sticky top-14 hidden md:block">
       <nav className="p-3 space-y-0.5">
         {menuItems.map((item) => {
           const isActive = pathname === item.href;
@@ -44,14 +44,14 @@ export function AdminSidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm",
                 isActive
-                  ? "bg-gray-900 text-gray-50 border border-gray-800"
-                  : "text-gray-400 hover:text-gray-50 hover:bg-gray-900 border border-transparent"
+                  ? "bg-cream-100 text-ink border border-ink/15"
+                  : "text-ink/60 hover:text-ink hover:bg-cream-200 border border-transparent"
               )}
             >
               <Icon
                 className={cn(
                   "h-4 w-4 flex-shrink-0",
-                  isActive ? "text-accent-300" : ""
+                  isActive ? "text-accent" : ""
                 )}
               />
               <span className="tracking-tight">{item.label}</span>

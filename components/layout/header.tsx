@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,7 +11,7 @@ export function Header() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 16);
+      setScrolled(window.scrollY > 24);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -26,17 +26,17 @@ export function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled || isMenuOpen
-          ? "bg-gray-950/80 backdrop-blur-xl border-b border-gray-800"
+          ? "bg-cream-200/85 backdrop-blur-md border-b border-ink/10"
           : "bg-transparent border-b border-transparent"
       }`}
     >
       <div className="container-custom">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative h-9 w-9 flex-shrink-0">
+            <div className="relative h-10 w-10 flex-shrink-0">
               <Image
                 src="/logo.png"
                 alt="Barrera Brokers"
@@ -45,23 +45,20 @@ export function Header() {
                 className="object-contain"
               />
             </div>
-            <div className="hidden sm:flex items-baseline gap-2">
-              <span className="text-[15px] font-semibold tracking-tight text-gray-50">
+            <div className="hidden sm:flex items-baseline gap-2.5">
+              <span className="font-display text-2xl tracking-tight text-ink">
                 Barrera Brokers
-              </span>
-              <span className="hidden md:inline text-[11px] tracking-tight text-gray-500">
-                Real Estate
               </span>
             </div>
           </Link>
 
           {/* Desktop Menu */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-10">
             {menuItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="px-3 py-1.5 text-sm text-gray-300 hover:text-gray-50 rounded-md hover:bg-gray-900 transition-colors"
+                className="text-sm tracking-tight text-ink/70 hover:text-ink transition-colors"
               >
                 {item.label}
               </a>
@@ -69,22 +66,21 @@ export function Header() {
           </nav>
 
           {/* Right CTAs */}
-          <div className="hidden lg:flex items-center gap-2">
-            <Link href="/login" className="btn-ghost text-sm">
-              Portal Agentes
-            </Link>
+          <div className="hidden lg:flex items-center gap-3">
             <Link
-              href="/#contacto"
-              className="btn-primary text-sm"
+              href="/login"
+              className="text-xs uppercase tracking-widest text-ink/70 hover:text-ink transition-colors px-3"
             >
+              Portal
+            </Link>
+            <Link href="/#contacto" className="btn-primary">
               Hablemos
-              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-2 text-gray-300 hover:text-gray-50 hover:bg-gray-900 rounded-md transition-colors"
+            className="lg:hidden p-2 text-ink hover:bg-ink/5 rounded-full transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -98,18 +94,18 @@ export function Header() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden pb-4 pt-2 space-y-1 animate-fade-in-down">
+          <div className="lg:hidden pb-6 pt-2 space-y-1 animate-fade-in-down">
             {menuItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="block px-3 py-2.5 text-sm text-gray-300 hover:text-gray-50 hover:bg-gray-900 rounded-md transition-colors"
+                className="block px-3 py-3 text-base text-ink/80 hover:text-ink hover:bg-ink/5 rounded-md transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.label}
               </a>
             ))}
-            <div className="pt-3 mt-3 border-t border-gray-800 flex flex-col gap-2">
+            <div className="pt-4 mt-4 border-t border-ink/10 flex flex-col gap-3">
               <Link
                 href="/login"
                 className="btn-outline justify-center w-full"
@@ -123,7 +119,6 @@ export function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Hablemos
-                <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
