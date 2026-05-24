@@ -12,32 +12,40 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null;
+          }
+
+          const agent = await getAgentByEmail(credentials.email);
+
+          if (!agent) {
+            return null;
+          }
+
+          // Comparar password hasheado con bcrypt
+          const isPasswordValid = await compare(
+            credentials.password,
+            agent.password
+          );
+
+          if (!isPasswordValid) {
+            return null;
+          }
+
+          return {
+            id: agent.id,
+            email: agent.email,
+            name: agent.name,
+            role: agent.role,
+          };
+        } catch (err) {
+          // Si la DB falla o cualquier dependencia revienta, devolvemos null
+          // en vez de propagar la excepcion para que NextAuth no muestre
+          // el error generico "Server configuration". Logueamos para Vercel.
+          console.error("[next-auth][authorize] error:", err);
           return null;
         }
-
-        const agent = await getAgentByEmail(credentials.email);
-
-        if (!agent) {
-          return null;
-        }
-
-        // Comparar password hasheado con bcrypt
-        const isPasswordValid = await compare(
-          credentials.password,
-          agent.password
-        );
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: agent.id,
-          email: agent.email,
-          name: agent.name,
-          role: agent.role,
-        };
       },
     }),
   ],

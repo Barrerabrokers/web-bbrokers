@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Save, ArrowLeft, Upload, X } from "lucide-react";
+import { Save, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { PROPERTY_CATEGORIES } from "@/types";
 import { supabase } from "@/lib/supabase";
+import {
+  ImageUploader,
+  type ImageItem,
+} from "@/components/admin/image-uploader";
 
 export default function EditPropertyPage() {
   const router = useRouter();
@@ -16,9 +20,10 @@ export default function EditPropertyPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState("");
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [existingImages, setExistingImages] = useState<string[]>([]);
+
+  // Estado unificado del uploader (mezcla existentes + nuevas)
+  const [items, setItems] = useState<ImageItem[]>([]);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -61,7 +66,12 @@ export default function EditPropertyPage() {
           features: (data.features || []).join("\n"),
           status: data.status || "disponible",
         });
-        setExistingImages(data.images || []);
+
+        const existingItems: ImageItem[] = (data.images || []).map(
+          (url: string) => ({ kind: "existing" as const, url })
+        );
+        setItems(existingItems);
+        setPrimaryIndex(0);
       } catch (err) {
         setError("Error cargando la propiedad");
       } finally {
@@ -72,66 +82,54 @@ export default function EditPropertyPage() {
     if (propertyId) fetchProperty();
   }, [propertyId]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const validFiles = files.filter((file) => {
-      if (file.size > 10 * 1024 * 1024) {
-        setError(`${file.name} es muy grande (max 10MB)`);
-        return false;
-      }
-      return true;
-    });
-
-    setImageFiles((prev) => [...prev, ...validFiles]);
-
-    validFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviews((prev) => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeNewImage = (index: number) => {
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const uploadImages = async (): Promise<string[]> => {
-    if (imageFiles.length === 0) return [];
+  const buildFinalImageUrls = async (): Promise<string[]> => {
+    if (items.length === 0) return [];
 
     setUploadingImages(true);
-    const uploadedUrls: string[] = [];
-
     try {
-      for (const file of imageFiles) {
-        const ext = file.name.split(".").pop();
+      const urls: string[] = [];
+
+      for (const item of items) {
+        if (item.kind === "existing") {
+          urls.push(item.url);
+          continue;
+        }
+
+        const file = item.file;
+        const ext = file.name.split(".").pop() || "jpg";
         const fileName = `${Date.now()}-${Math.random()
           .toString(36)
           .substring(7)}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from("properties")
-          .upload(fileName, file, { cacheControl: "3600", upsert: false });
+          .upload(fileName, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type,
+          });
 
         if (uploadError) {
-          throw new Error(`Error subiendo ${file.name}: ${uploadError.message}`);
+          throw new Error(
+            `Error subiendo ${file.name}: ${uploadError.message}`
+          );
         }
 
         const { data: urlData } = supabase.storage
           .from("properties")
           .getPublicUrl(fileName);
-        uploadedUrls.push(urlData.publicUrl);
+
+        urls.push(urlData.publicUrl);
       }
 
-      return uploadedUrls;
+      // Reordenar para que la imagen marcada como principal vaya primero
+      if (primaryIndex > 0 && primaryIndex < urls.length) {
+        const primary = urls[primaryIndex];
+        const rest = urls.filter((_, i) => i !== primaryIndex);
+        return [primary, ...rest];
+      }
+
+      return urls;
     } finally {
       setUploadingImages(false);
     }
@@ -143,15 +141,13 @@ export default function EditPropertyPage() {
     setIsLoading(true);
 
     try {
-      // Subir imágenes nuevas si hay
-      const newImageUrls = await uploadImages();
-      const allImages = [...existingImages, ...newImageUrls];
-
-      if (allImages.length === 0) {
+      if (items.length === 0) {
         setError("Debe haber al menos una imagen");
         setIsLoading(false);
         return;
       }
+
+      const imageUrls = await buildFinalImageUrls();
 
       const response = await fetch(`/api/properties/${propertyId}`, {
         method: "PATCH",
@@ -161,9 +157,11 @@ export default function EditPropertyPage() {
           price: parseFloat(formData.price),
           expenses: formData.expenses ? parseFloat(formData.expenses) : null,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
-          bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
+          bathrooms: formData.bathrooms
+            ? parseInt(formData.bathrooms)
+            : undefined,
           area: parseFloat(formData.area),
-          images: allImages,
+          images: imageUrls,
           features: formData.features
             .split("\n")
             .filter(Boolean)
@@ -208,7 +206,9 @@ export default function EditPropertyPage() {
         <h1 className="heading-serif text-3xl text-charcoal-900 mb-2">
           Editar Propiedad
         </h1>
-        <p className="text-charcoal-500">Modifica la informacion de la propiedad</p>
+        <p className="text-charcoal-500">
+          Modifica la informacion de la propiedad
+        </p>
       </div>
 
       {error && (
@@ -221,74 +221,17 @@ export default function EditPropertyPage() {
         onSubmit={handleSubmit}
         className="bg-white border border-charcoal-100 p-8"
       >
-        {/* Imágenes existentes */}
-        {existingImages.length > 0 && (
-          <div className="mb-6">
-            <label className="label-tracking text-charcoal-700 block mb-3">
-              Imagenes actuales
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {existingImages.map((url, index) => (
-                <div key={index} className="relative group aspect-square">
-                  <img
-                    src={url}
-                    alt={`Imagen ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeExistingImage(index)}
-                    className="absolute top-2 right-2 bg-red-500 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  {index === 0 && (
-                    <div className="absolute bottom-2 left-2 bg-gold-500 text-white text-xs px-2 py-1 label-tracking">
-                      Principal
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Subir nuevas imágenes */}
+        {/* Imagenes (existentes + nuevas) */}
         <div className="mb-8 pb-8 border-b border-charcoal-100">
-          <label className="label-tracking text-charcoal-700 block mb-4">
-            Agregar nuevas imagenes
-          </label>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {imagePreviews.map((preview, index) => (
-              <div key={index} className="relative group aspect-square">
-                <img
-                  src={preview}
-                  alt={`Nueva ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeNewImage(index)}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-
-            <label className="aspect-square border-2 border-dashed border-charcoal-300 hover:border-gold-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-charcoal-500 hover:text-gold-600">
-              <Upload className="h-8 w-8 mb-2" />
-              <span className="label-tracking text-xs">Subir imagen</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageChange}
-                className="hidden"
-              />
-            </label>
-          </div>
+          <ImageUploader
+            items={items}
+            primaryIndex={primaryIndex}
+            onChange={(nextItems, nextPrimary) => {
+              setItems(nextItems);
+              setPrimaryIndex(nextPrimary);
+            }}
+            label="Imagenes de la propiedad"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -379,7 +322,7 @@ export default function EditPropertyPage() {
 
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
-              Expensas (USD/mes)
+              Expensas (ARS/mes)
             </label>
             <input
               type="number"

@@ -1,8 +1,8 @@
-import Image from "next/image";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { PropertyGallery } from "@/components/property-gallery";
 import { getPropertyById } from "@/lib/db";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatPriceARS } from "@/lib/utils";
 import {
   MapPin,
   Bed,
@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   Mail,
   Phone,
-  DollarSign,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -57,40 +57,12 @@ export default async function PropertyDetailPage({
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">
-              {/* Image Gallery */}
-              <div className="space-y-4">
-                <div className="relative h-[500px] overflow-hidden">
-                  <Image
-                    src={property.images[0]}
-                    alt={property.title}
-                    fill
-                    className="object-cover"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-gold-500 text-white px-4 py-2 label-tracking capitalize">
-                      {property.category}
-                    </span>
-                  </div>
-                </div>
-
-                {property.images.length > 1 && (
-                  <div className="grid grid-cols-4 gap-4">
-                    {property.images.slice(1, 5).map((image, index) => (
-                      <div
-                        key={index}
-                        className="h-24 overflow-hidden relative"
-                      >
-                        <Image
-                          src={image}
-                          alt={`${property.title} ${index + 2}`}
-                          fill
-                          className="object-cover hover:scale-110 transition-transform cursor-pointer"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Image Gallery con Lightbox */}
+              <PropertyGallery
+                images={property.images}
+                title={property.title}
+                category={property.category}
+              />
 
               {/* Property Details */}
               <div className="bg-white border border-charcoal-100 p-8">
@@ -111,7 +83,7 @@ export default async function PropertyDetailPage({
                     </div>
                     {property.expenses ? (
                       <div className="text-sm text-charcoal-500 mb-2">
-                        + Expensas: {formatPrice(property.expenses)}/mes
+                        + Expensas: {formatPriceARS(property.expenses)}/mes
                       </div>
                     ) : null}
                     <span
@@ -166,13 +138,13 @@ export default async function PropertyDetailPage({
                   {property.expenses ? (
                     <div className="text-center">
                       <div className="bg-gold-100 w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                        <DollarSign className="h-6 w-6 text-gold-600" />
+                        <Receipt className="h-6 w-6 text-gold-600" />
                       </div>
                       <div className="heading-serif text-xl text-charcoal-900">
-                        ${property.expenses}
+                        {formatPriceARS(property.expenses)}
                       </div>
                       <div className="text-sm text-charcoal-500">
-                        Expensas/mes
+                        Expensas/mes (ARS)
                       </div>
                     </div>
                   ) : null}

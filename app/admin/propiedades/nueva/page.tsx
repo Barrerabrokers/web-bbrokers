@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Save, ArrowLeft, Upload, X } from "lucide-react";
+import { Save, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { PROPERTY_CATEGORIES } from "@/types";
 import { supabase } from "@/lib/supabase";
+import {
+  ImageUploader,
+  type ImageItem,
+} from "@/components/admin/image-uploader";
 
 export default function NewPropertyPage() {
   const router = useRouter();
@@ -14,8 +18,10 @@ export default function NewPropertyPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState("");
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
+  // Estado unificado del uploader
+  const [items, setItems] = useState<ImageItem[]>([]);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -32,46 +38,23 @@ export default function NewPropertyPage() {
     status: "disponible" as const,
   });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-
-    if (files.length === 0) return;
-
-    const validFiles = files.filter((file) => {
-      if (file.size > 10 * 1024 * 1024) {
-        setError(`${file.name} es muy grande (max 10MB)`);
-        return false;
-      }
-      return true;
-    });
-
-    setImageFiles((prev) => [...prev, ...validFiles]);
-
-    validFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviews((prev) => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeImage = (index: number) => {
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Subir imagenes directamente a Supabase Storage desde el CLIENTE
-  // (evita limite de 4.5MB de Vercel)
-  const uploadImages = async (): Promise<string[]> => {
-    if (imageFiles.length === 0) return [];
+  // Sube los archivos nuevos a Supabase y devuelve sus URLs
+  // en el mismo orden de los items (los existentes ya tienen URL).
+  const buildFinalImageUrls = async (): Promise<string[]> => {
+    if (items.length === 0) return [];
 
     setUploadingImages(true);
-    const uploadedUrls: string[] = [];
-
     try {
-      for (const file of imageFiles) {
-        const ext = file.name.split(".").pop();
+      const urls: string[] = [];
+
+      for (const item of items) {
+        if (item.kind === "existing") {
+          urls.push(item.url);
+          continue;
+        }
+
+        const file = item.file;
+        const ext = file.name.split(".").pop() || "jpg";
         const fileName = `${Date.now()}-${Math.random()
           .toString(36)
           .substring(7)}.${ext}`;
@@ -81,6 +64,7 @@ export default function NewPropertyPage() {
           .upload(fileName, file, {
             cacheControl: "3600",
             upsert: false,
+            contentType: file.type,
           });
 
         if (uploadError) {
@@ -93,10 +77,17 @@ export default function NewPropertyPage() {
           .from("properties")
           .getPublicUrl(fileName);
 
-        uploadedUrls.push(urlData.publicUrl);
+        urls.push(urlData.publicUrl);
       }
 
-      return uploadedUrls;
+      // Reordenar para que la imagen marcada como principal vaya primero
+      if (primaryIndex > 0 && primaryIndex < urls.length) {
+        const primary = urls[primaryIndex];
+        const rest = urls.filter((_, i) => i !== primaryIndex);
+        return [primary, ...rest];
+      }
+
+      return urls;
     } finally {
       setUploadingImages(false);
     }
@@ -106,7 +97,7 @@ export default function NewPropertyPage() {
     e.preventDefault();
     setError("");
 
-    if (imageFiles.length === 0) {
+    if (items.length === 0) {
       setError("Debes subir al menos una imagen");
       return;
     }
@@ -114,8 +105,7 @@ export default function NewPropertyPage() {
     setIsLoading(true);
 
     try {
-      // 1. Subir imágenes directamente a Supabase
-      const imageUrls = await uploadImages();
+      const imageUrls = await buildFinalImageUrls();
 
       if (imageUrls.length === 0) {
         setError("Error al subir las imagenes");
@@ -123,16 +113,19 @@ export default function NewPropertyPage() {
         return;
       }
 
-      // 2. Crear la propiedad con las URLs
       const response = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           price: parseFloat(formData.price),
-          expenses: formData.expenses ? parseFloat(formData.expenses) : undefined,
+          expenses: formData.expenses
+            ? parseFloat(formData.expenses)
+            : undefined,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
-          bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
+          bathrooms: formData.bathrooms
+            ? parseInt(formData.bathrooms)
+            : undefined,
           area: parseFloat(formData.area),
           images: imageUrls,
           features: formData.features
@@ -189,50 +182,15 @@ export default function NewPropertyPage() {
       >
         {/* Image Upload Section */}
         <div className="mb-8 pb-8 border-b border-charcoal-100">
-          <label className="label-tracking text-charcoal-700 block mb-4">
-            Imagenes de la propiedad *
-          </label>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {imagePreviews.map((preview, index) => (
-              <div key={index} className="relative group aspect-square">
-                <img
-                  src={preview}
-                  alt={`Preview ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                {index === 0 && (
-                  <div className="absolute bottom-2 left-2 bg-gold-500 text-white text-xs px-2 py-1 label-tracking">
-                    Principal
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <label className="aspect-square border-2 border-dashed border-charcoal-300 hover:border-gold-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-charcoal-500 hover:text-gold-600">
-              <Upload className="h-8 w-8 mb-2" />
-              <span className="label-tracking text-xs">Subir imagen</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageChange}
-                className="hidden"
-              />
-            </label>
-          </div>
-
-          <p className="text-xs text-charcoal-500">
-            Formatos: JPG, PNG, WebP. Maximo 10MB por imagen. La primera imagen
-            sera la principal.
-          </p>
+          <ImageUploader
+            items={items}
+            primaryIndex={primaryIndex}
+            onChange={(nextItems, nextPrimary) => {
+              setItems(nextItems);
+              setPrimaryIndex(nextPrimary);
+            }}
+            label="Imagenes de la propiedad *"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -326,7 +284,7 @@ export default function NewPropertyPage() {
 
           <div>
             <label className="label-tracking text-charcoal-700 block mb-2">
-              Expensas (USD/mes)
+              Expensas (ARS/mes)
             </label>
             <input
               type="number"
@@ -337,7 +295,7 @@ export default function NewPropertyPage() {
                 setFormData({ ...formData, expenses: e.target.value })
               }
               className="w-full px-4 py-3 border border-charcoal-200 focus:border-gold-500 focus:outline-none"
-              placeholder="500"
+              placeholder="150000"
             />
           </div>
 
