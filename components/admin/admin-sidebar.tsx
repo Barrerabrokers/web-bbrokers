@@ -9,11 +9,14 @@ import {
   Plus,
   FileText,
   Users,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const baseMenuItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/desarrollos", label: "Desarrollos", icon: Layers },
+  { href: "/admin/desarrollos/nuevo", label: "Nuevo desarrollo", icon: Plus },
   { href: "/admin/propiedades", label: "Propiedades", icon: Building2 },
   { href: "/admin/propiedades/nueva", label: "Nueva propiedad", icon: Plus },
   { href: "/admin/contactos", label: "Contactos", icon: FileText },
