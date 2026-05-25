@@ -26,7 +26,7 @@ export default async function DesarrollosPage() {
             className="absolute top-0 right-0 w-[40vw] h-[40vw] max-w-[600px] pointer-events-none"
             style={{
               background:
-                "radial-gradient(ellipse at top right, rgba(214,184,92,0.15) 0%, transparent 60%)",
+            "radial-gradient(ellipse at top right, rgba(107,74,53,0.22) 0%, transparent 60%)",
             }}
           />
 

@@ -51,7 +51,7 @@ export function HeroSection() {
         className="absolute top-0 right-0 w-[50vw] h-[50vw] max-w-[800px] max-h-[800px] pointer-events-none z-10"
         style={{
           background:
-            "radial-gradient(ellipse at top right, rgba(214,184,92,0.12) 0%, transparent 60%)",
+            "radial-gradient(ellipse at top right, rgba(122,82,60,0.28) 0%, transparent 60%)",
         }}
       />
 

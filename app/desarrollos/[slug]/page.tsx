@@ -131,7 +131,7 @@ export default async function DevelopmentDetailPage({
           <div className="container-custom">
             <div className="grid grid-cols-12 gap-6 md:gap-12">
               <div className="col-span-12 lg:col-span-7">
-                <p className="text-[11px] uppercase tracking-widest text-accent mb-4">
+                <p className="text-[11px] uppercase tracking-widest text-accent-700 mb-4">
                   El proyecto
                 </p>
                 <h2 className="font-display font-light text-3xl md:text-5xl tracking-[-0.02em] leading-tight text-ink mb-8">
@@ -152,7 +152,7 @@ export default async function DevelopmentDetailPage({
                           key={f}
                           className="flex items-start gap-2 text-ink/75"
                         >
-                          <Check className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-accent-700 mt-1 flex-shrink-0" />
                           <span>{f}</span>
                         </li>
                       ))}
@@ -165,7 +165,7 @@ export default async function DevelopmentDetailPage({
               <div className="col-span-12 lg:col-span-5">
                 {development.amenities.length > 0 && (
                   <div className="bg-bone-50 border border-ink/15 rounded-lg p-8 sticky top-28">
-                    <p className="text-[11px] uppercase tracking-widest text-accent mb-4">
+                    <p className="text-[11px] uppercase tracking-widest text-accent-700 mb-4">
                       Amenities
                     </p>
                     <h3 className="font-display font-light text-2xl text-ink mb-6">
@@ -177,7 +177,7 @@ export default async function DevelopmentDetailPage({
                           key={a}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bone border border-ink/15 rounded-full text-xs uppercase tracking-widest text-ink"
                         >
-                          <Check className="h-3 w-3 text-accent" />
+                          <Check className="h-3 w-3 text-accent-700" />
                           {a}
                         </span>
                       ))}
@@ -193,7 +193,7 @@ export default async function DevelopmentDetailPage({
         {development.images.length > 1 && (
           <section className="bg-bone text-ink pb-20 md:pb-28 border-t border-ink/15 pt-20">
             <div className="container-custom">
-              <p className="text-[11px] uppercase tracking-widest text-accent mb-4">
+              <p className="text-[11px] uppercase tracking-widest text-accent-700 mb-4">
                 Galería
               </p>
               <h2 className="font-display font-light text-3xl md:text-5xl tracking-[-0.02em] leading-tight text-ink mb-10">

@@ -3,18 +3,31 @@
 @tailwind utilities;
 
 /* ==============================================
-   THEME TOKENS — Obsidian Assembly inspired
-   bone (warm off-white) + ink (warm black) + yellow + brown
+   THEME TOKENS — Obsidian Assembly palette
+   Quiet luxury: obsidian black + ivory + smoked bronze
    ============================================== */
 :root {
-  --c-black: 26 24 20;
-  --c-black-rgb: 26, 24, 20;
-  --c-white: 244 237 224;
-  --c-white-rgb: 244, 237, 224;
-  --c-yellow: 214 184 92;
-  --c-yellow-rgb: 214, 184, 92;
-  --c-brown: 58 46 34;
-  --c-brown-rgb: 58, 46, 34;
+  --c-black: 10 10 11;
+  --c-black-rgb: 10, 10, 11;
+  --c-charcoal: 21 20 21;
+  --c-charcoal-rgb: 21, 20, 21;
+  --c-white: 241 234 222;
+  --c-white-rgb: 241, 234, 222;
+  --c-ivory: 241 234 222;
+  --c-ivory-rgb: 241, 234, 222;
+  --c-warm-beige: 200 180 156;
+  --c-warm-beige-rgb: 200, 180, 156;
+  --c-stone: 184 158 132;
+  --c-stone-rgb: 184, 158, 132;
+  --c-bronze: 107 74 53;
+  --c-bronze-rgb: 107, 74, 53;
+  --c-soft-bronze: 122 82 60;
+  --c-soft-bronze-rgb: 122, 82, 60;
+  --c-olive: 95 102 84;
+  --c-olive-rgb: 95, 102, 84;
+  /* Legacy alias (any leftover refs) */
+  --c-yellow: 200 180 156;
+  --c-yellow-rgb: 200, 180, 156;
   --c-grey: 73 66 56;
   --c-grey-rgb: 73, 66, 56;
 
@@ -41,8 +54,8 @@
   }
 
   ::selection {
-    background-color: rgb(var(--c-yellow));
-    color: rgb(var(--c-black));
+    background-color: rgb(var(--c-bronze));
+    color: rgb(var(--c-ivory));
   }
 }
 
@@ -308,5 +321,5 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--c-yellow));
+  background: rgb(var(--c-bronze));
 }

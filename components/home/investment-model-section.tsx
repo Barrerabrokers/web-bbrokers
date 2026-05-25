@@ -100,7 +100,7 @@ export function InvestmentModelSection() {
         className="absolute top-0 right-0 w-[50vw] h-[50vw] max-w-[700px] pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at top right, rgba(214,184,92,0.15) 0%, transparent 60%)",
+            "radial-gradient(ellipse at top right, rgba(107,74,53,0.22) 0%, transparent 60%)",
         }}
       />
 
@@ -121,7 +121,7 @@ export function InvestmentModelSection() {
 
           <div className="col-span-12 md:col-span-7 md:col-start-3">
             <p
-              className={`text-[11px] uppercase tracking-widest text-accent mb-4 transition-all duration-1000 ${
+              className={`text-[11px] uppercase tracking-widest text-accent-700 mb-4 transition-all duration-1000 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
               style={{ transitionDelay: "100ms" }}
@@ -166,10 +166,10 @@ export function InvestmentModelSection() {
 
               {/* Step number */}
               <div className="flex items-center justify-between mb-6">
-                <span className="font-display italic font-light text-xl text-accent">
+                <span className="font-display italic font-light text-xl text-accent-700">
                   {step.no}
                 </span>
-                <step.icon className="h-6 w-6 text-ink/40 group-hover:text-accent transition-colors duration-500" />
+                <step.icon className="h-6 w-6 text-ink/40 group-hover:text-accent-700 transition-colors duration-500" />
               </div>
 
               {/* Value highlight */}
@@ -193,7 +193,7 @@ export function InvestmentModelSection() {
               {/* Arrow connector (hidden on mobile and last item) */}
               {idx < steps.length - 1 && (
                 <div className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10">
-                  <ArrowRight className="h-5 w-5 text-accent" />
+                  <ArrowRight className="h-5 w-5 text-accent-700" />
                 </div>
               )}
             </div>
@@ -217,7 +217,7 @@ export function InvestmentModelSection() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {benefits.map((benefit, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-accent-700 flex-shrink-0" />
                   <span className="text-ink/75">{benefit}</span>
                 </div>
               ))}

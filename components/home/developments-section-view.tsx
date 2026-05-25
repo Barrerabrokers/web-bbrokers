@@ -41,7 +41,7 @@ export function DevelopmentsSectionView({ highlighted, others }: Props) {
         className="absolute bottom-0 left-0 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at bottom left, rgba(214,184,92,0.08) 0%, transparent 60%)",
+            "radial-gradient(ellipse at bottom left, rgba(107,74,53,0.18) 0%, transparent 60%)",
         }}
       />
 
