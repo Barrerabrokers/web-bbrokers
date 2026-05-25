@@ -22,7 +22,7 @@ export function HeroSection() {
         className="absolute top-0 right-0 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at top right, rgba(184,154,62,0.18) 0%, transparent 70%)",
+            "radial-gradient(ellipse at top right, rgba(214,184,92,0.18) 0%, transparent 70%)",
         }}
       />
 
