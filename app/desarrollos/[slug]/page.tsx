@@ -9,6 +9,8 @@ import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { UnitsList } from "@/components/development/units-list";
 import { DevelopmentGallery } from "@/components/development/development-gallery";
+import { Reveal } from "@/components/ui/reveal";
+import { ParallaxImage } from "@/components/ui/parallax-image";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,11 +38,13 @@ export default async function DevelopmentDetailPage({
         <section className="relative bg-ink text-bone pt-24">
           <div className="relative h-[60vh] md:h-[75vh] overflow-hidden">
             {primaryImage && (
-              <Image
+              <ParallaxImage
                 src={primaryImage}
                 alt={development.name}
                 fill
                 priority
+                speed={-80}
+                wrapperClassName="absolute inset-0"
                 className="object-cover"
                 sizes="100vw"
               />
@@ -49,35 +53,43 @@ export default async function DevelopmentDetailPage({
 
             <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
               <div className="container-custom">
-                <Link
-                  href="/desarrollos"
-                  className="inline-flex items-center gap-2 text-bone/70 hover:text-accent text-[11px] uppercase tracking-widest mb-6"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Todos los desarrollos
-                </Link>
+                <Reveal variant="fade-up" duration={1000}>
+                  <Link
+                    href="/desarrollos"
+                    className="inline-flex items-center gap-2 text-bone/70 hover:text-accent text-[11px] uppercase tracking-widest mb-6"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Todos los desarrollos
+                  </Link>
+                </Reveal>
 
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="px-3 py-1.5 bg-accent text-ink text-[10px] uppercase tracking-widest font-medium rounded-full">
-                    {DEVELOPMENT_STATUS_LABELS[development.status]}
-                  </span>
-                  {development.availableUnits !== undefined && (
-                    <span className="px-3 py-1.5 bg-bone/10 backdrop-blur-sm text-bone text-[10px] uppercase tracking-widest rounded-full border border-bone/20">
-                      {development.availableUnits} unidades disponibles
+                <Reveal variant="fade-up" delay={150} duration={1200}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="px-3 py-1.5 bg-accent text-ink text-[10px] uppercase tracking-widest font-medium rounded-full">
+                      {DEVELOPMENT_STATUS_LABELS[development.status]}
                     </span>
-                  )}
-                </div>
+                    {development.availableUnits !== undefined && (
+                      <span className="px-3 py-1.5 bg-bone/10 backdrop-blur-sm text-bone text-[10px] uppercase tracking-widest rounded-full border border-bone/20">
+                        {development.availableUnits} unidades disponibles
+                      </span>
+                    )}
+                  </div>
+                </Reveal>
 
-                <h1 className="font-display font-light text-[40px] md:text-[72px] lg:text-[96px] tracking-[-0.03em] leading-[0.95] text-bone max-w-5xl">
-                  {development.name}
-                </h1>
+                <Reveal variant="clip-up" delay={300} duration={1600}>
+                  <h1 className="font-display font-light text-[40px] md:text-[72px] lg:text-[96px] tracking-[-0.03em] leading-[0.95] text-bone max-w-5xl">
+                    {development.name}
+                  </h1>
+                </Reveal>
 
-                <div className="flex items-center gap-2 mt-5 text-bone/70">
-                  <MapPin className="h-4 w-4" />
-                  <span className="text-base">
-                    {development.address} · {development.location}
-                  </span>
-                </div>
+                <Reveal variant="fade-up" delay={500} duration={1200}>
+                  <div className="flex items-center gap-2 mt-5 text-bone/70">
+                    <MapPin className="h-4 w-4" />
+                    <span className="text-base">
+                      {development.address} · {development.location}
+                    </span>
+                  </div>
+                </Reveal>
               </div>
             </div>
           </div>
@@ -131,15 +143,21 @@ export default async function DevelopmentDetailPage({
           <div className="container-custom">
             <div className="grid grid-cols-12 gap-6 md:gap-12">
               <div className="col-span-12 lg:col-span-7">
-                <p className="text-[11px] uppercase tracking-widest text-accent-700 mb-4">
-                  El proyecto
-                </p>
-                <h2 className="font-display font-light text-3xl md:text-5xl tracking-[-0.02em] leading-tight text-ink mb-8">
-                  {development.shortDescription || "Conocé el desarrollo"}
-                </h2>
-                <div className="prose prose-lg max-w-none text-ink/75 leading-relaxed whitespace-pre-line">
-                  {development.description}
-                </div>
+                <Reveal variant="fade-up" duration={1100}>
+                  <p className="text-[11px] uppercase tracking-widest text-accent-700 mb-4">
+                    El proyecto
+                  </p>
+                </Reveal>
+                <Reveal variant="clip-up" delay={150} duration={1500}>
+                  <h2 className="font-display font-light text-3xl md:text-5xl tracking-[-0.02em] leading-tight text-ink mb-8">
+                    {development.shortDescription || "Conocé el desarrollo"}
+                  </h2>
+                </Reveal>
+                <Reveal variant="fade-up" delay={350} duration={1200}>
+                  <div className="prose prose-lg max-w-none text-ink/75 leading-relaxed whitespace-pre-line">
+                    {development.description}
+                  </div>
+                </Reveal>
 
                 {development.features.length > 0 && (
                   <div className="mt-10 pt-8 border-t border-ink/15">

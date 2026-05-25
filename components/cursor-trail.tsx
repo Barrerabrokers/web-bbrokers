@@ -1,149 +1,152 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
- * CursorTrail — efecto de estela siguiendo el mouse.
+ * SmartCursor (export name kept as CursorTrail for compatibility)
  *
- * Usa canvas full-screen fixed, dibuja puntos que aparecen en la posicion
- * del mouse y se desvanecen progresivamente con un fade + shrink suave.
+ * Cursor minimalista de dos capas inspirado en Obsidian Assembly:
+ * - Punto pequeño que sigue el mouse con leve lag (lerp)
+ * - Anillo/circle más grande que escala al hover sobre links/botones
+ * - El anillo se vuelve translúcido warm-beige (--c-warm-beige)
  *
- * - Solo se activa en pointer:fine (desktop). En touch devices no hace nada.
- * - Respeta prefers-reduced-motion.
- * - Mix-blend-mode multiply para integrarse con cualquier fondo.
- * - Color del trail tomado de --c-yellow (CSS variable).
+ * Detecta automáticamente: a, button, [role="button"], [data-cursor="hover"]
+ * Skip en touch devices y prefers-reduced-motion.
  */
 export function CursorTrail() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dotRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Skip si el dispositivo no es desktop o el usuario pidio reduced motion
     const isFinePointer = window.matchMedia("(pointer: fine)").matches;
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
     if (!isFinePointer || reduceMotion) return;
+    setEnabled(true);
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+    if (!dot || !ring) return;
 
-    const dpr = window.devicePixelRatio || 1;
-
-    const resize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    // Lee el color accent desde CSS var (rgb triplet)
-    const rootStyles = getComputedStyle(document.documentElement);
-    const yellowRgb =
-      rootStyles.getPropertyValue("--c-yellow-rgb").trim() ||
-      "212, 185, 78";
-
-    type Point = { x: number; y: number; vx: number; vy: number; life: number };
-    const points: Point[] = [];
-    const MAX_POINTS = 40;
-    const MAX_LIFE = 35; // frames (~580ms a 60fps)
-
-    let mouseX = -100;
-    let mouseY = -100;
-    let lastEmitX = mouseX;
-    let lastEmitY = mouseY;
-    let mouseInside = false;
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let dotX = mouseX;
+    let dotY = mouseY;
+    let ringX = mouseX;
+    let ringY = mouseY;
+    let isHovering = false;
+    let isPointerDown = false;
 
     const handleMove = (e: MouseEvent) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
-      mouseInside = true;
-    };
-    const handleLeave = () => {
-      mouseInside = false;
     };
 
-    window.addEventListener("mousemove", handleMove, { passive: true });
-    window.addEventListener("mouseleave", handleLeave);
-    window.addEventListener("blur", handleLeave);
+    const handleEnter = (e: Event) => {
+      const target = e.target as HTMLElement;
+      // Detect hover-eligible elements
+      if (
+        target.closest("a, button, [role='button'], input, textarea, select, [data-cursor='hover']")
+      ) {
+        isHovering = true;
+        ring.classList.add("cursor-ring-hover");
+      }
+    };
+    const handleLeave = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.closest("a, button, [role='button'], input, textarea, select, [data-cursor='hover']")
+      ) {
+        isHovering = false;
+        ring.classList.remove("cursor-ring-hover");
+      }
+    };
+
+    const handleDown = () => {
+      isPointerDown = true;
+      ring.classList.add("cursor-ring-down");
+    };
+    const handleUp = () => {
+      isPointerDown = false;
+      ring.classList.remove("cursor-ring-down");
+    };
 
     let raf = 0;
-    const animate = () => {
-      // Emit nuevo punto si el mouse se movio
-      const dx = mouseX - lastEmitX;
-      const dy = mouseY - lastEmitY;
-      const dist = Math.hypot(dx, dy);
-      if (mouseInside && dist > 2) {
-        points.push({
-          x: mouseX,
-          y: mouseY,
-          vx: dx * 0.05,
-          vy: dy * 0.05,
-          life: 0,
-        });
-        lastEmitX = mouseX;
-        lastEmitY = mouseY;
-        if (points.length > MAX_POINTS) {
-          points.splice(0, points.length - MAX_POINTS);
-        }
-      }
+    const loop = () => {
+      // Dot follows almost instantly
+      dotX += (mouseX - dotX) * 0.55;
+      dotY += (mouseY - dotY) * 0.55;
+      // Ring lags behind for cinematic feel
+      ringX += (mouseX - ringX) * 0.16;
+      ringY += (mouseY - ringY) * 0.16;
 
-      // Update + render
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = points.length - 1; i >= 0; i--) {
-        const p = points[i];
-        p.life += 1;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.92;
-        p.vy *= 0.92;
-
-        if (p.life >= MAX_LIFE) {
-          points.splice(i, 1);
-          continue;
-        }
-
-        const t = p.life / MAX_LIFE;
-        const radius = 14 * (1 - t * 0.85);
-        const alpha = 0.55 * (1 - t);
-
-        // Glow exterior + core mas brillante
-        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-        grad.addColorStop(0, `rgba(${yellowRgb}, ${alpha})`);
-        grad.addColorStop(1, `rgba(${yellowRgb}, 0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      raf = requestAnimationFrame(animate);
+      dot.style.transform = `translate3d(${dotX}px, ${dotY}px, 0) translate(-50%, -50%)`;
+      ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate(-50%, -50%)`;
+      raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(animate);
+    raf = requestAnimationFrame(loop);
+
+    window.addEventListener("mousemove", handleMove, { passive: true });
+    document.addEventListener("mouseover", handleEnter, true);
+    document.addEventListener("mouseout", handleLeave, true);
+    document.addEventListener("mousedown", handleDown);
+    document.addEventListener("mouseup", handleUp);
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseleave", handleLeave);
-      window.removeEventListener("blur", handleLeave);
+      document.removeEventListener("mouseover", handleEnter, true);
+      document.removeEventListener("mouseout", handleLeave, true);
+      document.removeEventListener("mousedown", handleDown);
+      document.removeEventListener("mouseup", handleUp);
     };
   }, []);
 
+  if (!enabled) return null;
+
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="fixed inset-0 pointer-events-none z-[60]"
-      style={{ mixBlendMode: "multiply" }}
-    />
+    <>
+      {/* Anillo grande con lag */}
+      <div
+        ref={ringRef}
+        aria-hidden="true"
+        className="cursor-ring fixed top-0 left-0 pointer-events-none z-[60] h-9 w-9 rounded-full border border-bone/40 mix-blend-difference transition-[width,height,border-color,background-color,opacity] duration-300 ease-out"
+        style={{ willChange: "transform" }}
+      />
+      {/* Punto pequeño con respuesta inmediata */}
+      <div
+        ref={dotRef}
+        aria-hidden="true"
+        className="cursor-dot fixed top-0 left-0 pointer-events-none z-[61] h-1 w-1 rounded-full bg-bone mix-blend-difference"
+        style={{ willChange: "transform" }}
+      />
+
+      <style jsx global>{`
+        @media (pointer: fine) {
+          html,
+          body,
+          a,
+          button,
+          [role="button"] {
+            cursor: none !important;
+          }
+        }
+
+        .cursor-ring-hover {
+          width: 56px !important;
+          height: 56px !important;
+          background-color: rgba(var(--c-warm-beige-rgb), 0.18);
+          border-color: rgba(var(--c-warm-beige-rgb), 0.55);
+        }
+
+        .cursor-ring-down {
+          transform-origin: center;
+          width: 24px !important;
+          height: 24px !important;
+        }
+      `}</style>
+    </>
   );
 }

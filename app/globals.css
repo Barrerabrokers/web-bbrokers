@@ -41,8 +41,16 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
     color-scheme: light;
+  }
+
+  /* When Lenis takes over, html gets data-lenis-prevent-touch on touch devices */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  html.lenis-smooth {
+    scroll-behavior: auto !important;
   }
 
   body {

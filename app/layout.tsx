@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
+import { SmoothScroll } from "@/components/smooth-scroll";
 
 // Switzer alternative: Plus Jakarta Sans (modern geometric sans, similar proportions)
 const plusJakarta = Plus_Jakarta_Sans({
@@ -54,6 +55,7 @@ export default function RootLayout({
     <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
       <body className="font-sans bg-bone text-ink antialiased">
         <Providers>{children}</Providers>
+        <SmoothScroll />
         <CursorTrail />
       </body>
     </html>
