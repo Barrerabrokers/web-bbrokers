@@ -12,7 +12,7 @@ export function Footer() {
               Barrera <span className="italic">Brokers</span>
             </span>
             <span className="block mt-3 text-[10px] uppercase tracking-widest text-bone/55">
-              Desarrollos en la ciudad de Buenos Aires &middot; Est. 2000
+              Desarrollos e inversiones inmobiliarias &middot; Buenos Aires &middot; Est. 2000
             </span>
           </Link>
         </div>
@@ -31,9 +31,9 @@ export function Footer() {
               </div>
             </div>
             <p className="text-bone/70 leading-relaxed max-w-md text-sm">
-              Trabajamos en venta, alquiler, desarrollos e inversiones
-              inmobiliarias en CABA y zona norte. Mas de dos decadas
-              acompanando a propietarios, inquilinos e inversores.
+              Especialistas en desarrollos inmobiliarios e inversiones en
+              Buenos Aires. Ingresá en pozo, financiá en cuotas y
+              multiplicá tu capital con retornos del 30-40%.
             </p>
           </div>
 
@@ -45,9 +45,10 @@ export function Footer() {
             <ul className="space-y-2.5">
               {[
                 { href: "/#inicio", label: "Inicio" },
+                { href: "/#desarrollos", label: "Desarrollos" },
+                { href: "/#modelo", label: "Inversión" },
+                { href: "/#renta", label: "Renta" },
                 { href: "/#propiedades", label: "Propiedades" },
-                { href: "/#servicios", label: "Servicios" },
-                { href: "/#nosotros", label: "Nosotros" },
                 { href: "/#contacto", label: "Contacto" },
               ].map((it) => (
                 <li key={it.href}>
