@@ -61,6 +61,136 @@ export interface ContactForm {
   propertyId?: string;
 }
 
+// ====================================================================
+// DEVELOPMENTS & UNITS
+// ====================================================================
+
+export type DevelopmentStatus =
+  | "pre_venta"
+  | "en_construccion"
+  | "finalizado"
+  | "entregado";
+
+export type UnitStatus = "disponible" | "reservada" | "vendida";
+
+export type DevelopmentImageType =
+  | "fachada"
+  | "espacios_comunes"
+  | "render"
+  | "amenities"
+  | "otro";
+
+export type UnitImageType = "foto" | "plano" | "render" | "otro";
+
+export interface DevelopmentImage {
+  id?: string;
+  url: string;
+  type?: DevelopmentImageType;
+  caption?: string;
+  displayOrder?: number;
+  isPrimary?: boolean;
+}
+
+export interface UnitImage {
+  id?: string;
+  url: string;
+  type?: UnitImageType;
+  displayOrder?: number;
+  isPrimary?: boolean;
+}
+
+export interface Unit {
+  id: string;
+  developmentId: string;
+  unitNumber: string;
+  floor?: string;
+  bedrooms: number;
+  bathrooms: number;
+  area: number;
+  balconyArea?: number;
+  totalArea?: number;
+  price: number;
+  currency?: string;
+  expenses?: number;
+  orientation?: string;
+  status: UnitStatus;
+  description?: string;
+  features: string[];
+  images: UnitImage[];
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export interface Development {
+  id: string;
+  name: string;
+  slug: string;
+  shortDescription?: string;
+  description: string;
+  location: string;
+  address: string;
+  status: DevelopmentStatus;
+  totalUnits?: number;
+  completionDate?: string;
+  progress: number;
+  priceFrom?: number;
+  currency?: string;
+  amenities: string[];
+  features: string[];
+  highlight?: boolean;
+  agentId?: string;
+  images: DevelopmentImage[];
+  units?: Unit[];
+  // Stats from view
+  availableUnits?: number;
+  unitsCount?: number;
+  minPriceAvailable?: number;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export const DEVELOPMENT_STATUS_LABELS: Record<DevelopmentStatus, string> = {
+  pre_venta: "Pre-venta",
+  en_construccion: "En construcción",
+  finalizado: "Finalizado",
+  entregado: "Entregado",
+};
+
+export const DEVELOPMENT_IMAGE_TYPES: {
+  value: DevelopmentImageType;
+  label: string;
+}[] = [
+  { value: "fachada", label: "Fachada" },
+  { value: "espacios_comunes", label: "Espacios comunes" },
+  { value: "amenities", label: "Amenities" },
+  { value: "render", label: "Render" },
+  { value: "otro", label: "Otro" },
+];
+
+export const UNIT_IMAGE_TYPES: { value: UnitImageType; label: string }[] = [
+  { value: "foto", label: "Foto" },
+  { value: "plano", label: "Plano" },
+  { value: "render", label: "Render" },
+  { value: "otro", label: "Otro" },
+];
+
+export const COMMON_AMENITIES = [
+  "Pileta",
+  "Gimnasio",
+  "SUM",
+  "Laundry",
+  "Solarium",
+  "Parrilla",
+  "Sala de juegos",
+  "Coworking",
+  "Seguridad 24hs",
+  "Bauleras",
+  "Cocheras",
+  "Roof top",
+  "Spa",
+  "Jardín",
+];
+
 export const PROPERTY_CATEGORIES: {
   value: PropertyCategory;
   label: string;

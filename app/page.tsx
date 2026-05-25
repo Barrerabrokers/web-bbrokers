@@ -1,23 +1,44 @@
 import { HeroSection } from "@/components/home/hero-section";
-import { ServicesSection } from "@/components/home/services-section";
+import { DevelopmentsSection } from "@/components/home/developments-section";
+import { InvestmentModelSection } from "@/components/home/investment-model-section";
+import { RentalSection } from "@/components/home/rental-section";
+import { StatsSection } from "@/components/home/stats-section";
+import { PropertiesSection } from "@/components/home/properties-section";
 import { AboutSection } from "@/components/home/about-section";
 import { ContactSection } from "@/components/home/contact-section";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { PropertiesSection } from "@/components/home/properties-section";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-ink">
       <Header />
       <main>
+        {/* Hero - Dark cinematic with video */}
         <HeroSection />
+        
+        {/* Desarrollos - Main investment projects */}
+        <DevelopmentsSection />
+        
+        {/* Modelo de Inversión - How it works */}
+        <InvestmentModelSection />
+        
+        {/* Renta Temporaria - Airbnb management */}
+        <RentalSection />
+        
+        {/* Estadísticas - Key numbers */}
+        <StatsSection />
+        
+        {/* Propiedades - Available properties */}
         <PropertiesSection />
-        <ServicesSection />
+        
+        {/* About - Company info */}
         <AboutSection />
+        
+        {/* Contacto - Contact form */}
         <ContactSection />
       </main>
       <Footer />
