@@ -5,17 +5,14 @@ export function Footer() {
   return (
     <footer className="bg-ink text-bone">
       <div className="container-custom pt-24 pb-10">
-        {/* Top: big italic wordmark stacked */}
+        {/* Top wordmark */}
         <div className="border-b border-bone/15 pb-16">
           <Link href="/" className="inline-block group">
-            <span className="block text-[10px] uppercase tracking-widest text-bone/55 mb-3">
-              The
-            </span>
             <span className="block font-display font-light text-[64px] md:text-[120px] lg:text-[160px] leading-[0.92] tracking-[-0.04em] text-bone group-hover:text-accent transition-colors duration-900">
               Barrera <span className="italic">Brokers</span>
             </span>
             <span className="block mt-3 text-[10px] uppercase tracking-widest text-bone/55">
-              A Private Real Estate Assembly · Buenos Aires · Est. 2000
+              Desarrollos en la ciudad de Buenos Aires &middot; Est. 2000
             </span>
           </Link>
         </div>
@@ -34,10 +31,9 @@ export function Footer() {
               </div>
             </div>
             <p className="text-bone/70 leading-relaxed max-w-md text-sm">
-              Coordinamos espacios distribuidos, operaciones y desarrollo
-              inmobiliario en Buenos Aires. Cada propiedad es una decision
-              patrimonial; nos involucramos en cada paso, con la atencion y
-              discrecion que merece.
+              Trabajamos en venta, alquiler, desarrollos e inversiones
+              inmobiliarias en CABA y zona norte. Mas de dos decadas
+              acompanando a propietarios, inquilinos e inversores.
             </p>
           </div>
 

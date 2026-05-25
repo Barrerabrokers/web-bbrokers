@@ -3,21 +3,21 @@ import Image from "next/image";
 const values = [
   {
     no: "01",
-    title: "Discrecion",
+    title: "Trayectoria",
     description:
-      "Operaciones cuidadas, mantenidas con confidencialidad y atencion al detalle.",
+      "Mas de 25 anos operando en Buenos Aires, con conocimiento profundo de cada barrio y tipologia de propiedad.",
   },
   {
     no: "02",
-    title: "Continuidad",
+    title: "Equipo",
     description:
-      "Mas de dos decadas conociendo el mercado y las personas que lo conforman.",
+      "Profesionales matriculados, especialistas en venta, alquiler, desarrollos e inversiones, trabajando en coordinacion.",
   },
   {
     no: "03",
-    title: "Acompanamiento",
+    title: "Atencion",
     description:
-      "Cada propiedad es una decision patrimonial. Nos involucramos en cada paso.",
+      "Cada cliente recibe asesoramiento personalizado, desde la primera visita hasta la firma de la escritura o el contrato.",
   },
 ];
 
@@ -30,13 +30,13 @@ const team = [
   },
   {
     name: "Carlos Rodriguez",
-    role: "Director",
+    role: "Director comercial",
     image:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=90",
   },
   {
     name: "Laura Martinez",
-    role: "Senior",
+    role: "Agente senior",
     image:
       "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=600&q=90",
   },
@@ -51,31 +51,8 @@ const team = [
 export function AboutSection() {
   return (
     <section id="nosotros" className="bg-bone text-ink">
-      {/* Connection / About manifesto */}
+      {/* About */}
       <div className="section-pad border-t border-ink/15">
-        <div className="container-custom">
-          <div className="grid grid-cols-12 gap-6 mb-16 md:mb-20">
-            <div className="col-span-12 md:col-span-1">
-              <p className="font-display italic font-light text-xl md:text-2xl text-ink/40">
-                Connection
-              </p>
-            </div>
-            <div className="col-span-12 md:col-span-10 md:col-start-3">
-              <p className="font-display font-light text-2xl md:text-4xl lg:text-[44px] leading-[1.15] tracking-tight text-ink">
-                Una vez completada la operacion, esta continua independientemente,
-                llevando consigo su punto de origen sin representarlo
-                directamente. Estos lugares y propiedades son moldeados por un
-                pequeno grupo de personas trabajando a traves de ubicaciones
-                y disciplinas. Su involucramiento es{" "}
-                <span className="italic text-accent-600">continuo y colaborativo.</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* About: foto + texto + valores */}
-      <div className="section-pad bg-bone-50">
         <div className="container-custom">
           <div className="grid grid-cols-12 gap-6 md:gap-10 lg:gap-16 items-start">
             {/* Imagen 7 cols */}
@@ -90,24 +67,32 @@ export function AboutSection() {
                 />
               </div>
               <div className="mt-3 flex items-baseline justify-between text-[10px] uppercase tracking-widest text-ink/55">
-                <span>Buenos Aires HQ</span>
+                <span>Buenos Aires</span>
                 <span>Est. 2000</span>
               </div>
             </div>
 
-            {/* Texto 5 cols */}
+            {/* Texto */}
             <div className="col-span-12 md:col-span-4 md:col-start-9 order-1 md:order-2 flex flex-col gap-12">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-accent mb-5">
-                  About
-                </p>
+                <div className="flex items-baseline gap-3 mb-6">
+                  <span className="font-display italic font-light text-xl text-ink/40">
+                    03
+                  </span>
+                  <p className="text-[11px] uppercase tracking-widest text-accent">
+                    Nosotros
+                  </p>
+                </div>
+
                 <h3 className="font-display font-light text-4xl md:text-5xl tracking-[-0.02em] leading-[1] text-ink mb-8">
-                  Una organizacion <span className="italic">independiente</span>
+                  Una inmobiliaria{" "}
+                  <span className="italic">independiente</span>
                 </h3>
                 <p className="text-ink/75 text-base md:text-lg leading-relaxed">
-                  Coordinamos espacios distribuidos, operaciones y desarrollo
-                  inmobiliario en Buenos Aires y el AMBA, manteniendo cada
-                  proyecto con la atencion y discrecion que merece.
+                  Nacimos en el ano 2000 con la idea de ofrecer un servicio
+                  inmobiliario claro, profesional y centrado en cada cliente.
+                  Hoy, mas de dos decadas despues, seguimos con el mismo
+                  equipo y la misma forma de trabajar.
                 </p>
               </div>
 
@@ -116,7 +101,7 @@ export function AboutSection() {
                   +500
                 </div>
                 <div className="mt-2 text-[10px] uppercase tracking-widest text-ink/60">
-                  Propiedades coordinadas
+                  Operaciones realizadas
                 </div>
               </div>
 
@@ -124,7 +109,7 @@ export function AboutSection() {
                 {values.map((v) => (
                   <div key={v.no} className="flex gap-5">
                     <span className="font-display italic font-light text-lg text-accent">
-                      ({v.no})
+                      {v.no}
                     </span>
                     <div>
                       <h4 className="font-display font-light text-xl text-ink mb-1 tracking-tight">
@@ -142,19 +127,22 @@ export function AboutSection() {
         </div>
       </div>
 
-      {/* People */}
-      <div className="section-pad border-t border-ink/15">
+      {/* Equipo */}
+      <div className="section-pad bg-bone-50 border-t border-ink/15">
         <div className="container-custom">
           <div className="grid grid-cols-12 gap-6 mb-12 md:mb-16">
             <div className="col-span-12 md:col-span-1">
               <p className="font-display italic font-light text-xl md:text-2xl text-ink/40">
-                People
+                04
               </p>
             </div>
             <div className="col-span-12 md:col-span-10 md:col-start-3">
+              <p className="text-[11px] uppercase tracking-widest text-ink/50 mb-4">
+                Equipo
+              </p>
               <h2 className="font-display font-light text-[36px] md:text-[64px] lg:text-[80px] tracking-[-0.025em] leading-[1.02] text-ink">
-                Un grupo pequeno, trabajando{" "}
-                <span className="italic">a traves de ubicaciones.</span>
+                Las personas <span className="italic">detras</span> de
+                cada operacion.
               </h2>
             </div>
           </div>
@@ -174,7 +162,7 @@ export function AboutSection() {
                 <div className="border-t border-ink/15 pt-3">
                   <div className="flex items-baseline gap-2 mb-1">
                     <span className="font-display italic font-light text-base text-accent">
-                      ({String(idx + 1).padStart(2, "0")})
+                      {String(idx + 1).padStart(2, "0")}
                     </span>
                     <h4 className="font-display font-light text-xl md:text-2xl text-ink leading-tight tracking-tight">
                       {member.name}

@@ -21,21 +21,22 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Barrera Brokers — A Private Real Estate Assembly",
+  title: "Barrera Brokers — Desarrollos en la ciudad de Buenos Aires",
   description:
-    "Barrera Brokers coordina propiedades, inversiones y oportunidades discretas en Buenos Aires. Acompanamos cada decision patrimonial con cuidado y experiencia.",
+    "Barrera Brokers desarrolla, comercializa y administra propiedades en la ciudad de Buenos Aires. Mas de 25 anos de experiencia en venta, alquiler, inversiones y desarrollos inmobiliarios.",
   keywords: [
     "bienes raices",
-    "propiedades de lujo",
-    "inmobiliaria premium",
+    "desarrollos inmobiliarios",
+    "propiedades Buenos Aires",
+    "inmobiliaria",
     "inversiones",
     "Barrera Brokers",
     "Buenos Aires",
   ],
   authors: [{ name: "Barrera Brokers" }],
   openGraph: {
-    title: "Barrera Brokers — A Private Real Estate Assembly",
-    description: "Coordinated real estate across Buenos Aires.",
+    title: "Barrera Brokers — Desarrollos en la ciudad de Buenos Aires",
+    description: "Desarrollos, propiedades e inversiones inmobiliarias en Buenos Aires.",
     url: "https://barrerabrokers.com",
     siteName: "Barrera Brokers",
     locale: "es_ES",
