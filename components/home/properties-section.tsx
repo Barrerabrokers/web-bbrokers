@@ -14,25 +14,29 @@ export async function PropertiesSection() {
       className="relative section-pad bg-bone text-ink border-t border-ink/15"
     >
       <div className="container-custom">
-        {/* Section header - Obsidian Assembly style "places" intro */}
+        {/* Section header */}
         <div className="grid grid-cols-12 gap-6 mb-16 md:mb-24">
-          <div className="col-span-12 md:col-span-6 lg:col-span-5">
-            <p className="font-display font-light text-2xl md:text-3xl text-ink/50 mb-4">
-              Places
+          <div className="col-span-12 md:col-span-1">
+            <p className="font-display italic font-light text-xl md:text-2xl text-ink/40">
+              01
+            </p>
+          </div>
+
+          <div className="col-span-12 md:col-span-6 lg:col-span-6 md:col-start-3">
+            <p className="text-[11px] uppercase tracking-widest text-ink/50 mb-4">
+              Propiedades
             </p>
             <h2 className="font-display font-light text-[40px] md:text-[64px] lg:text-[80px] tracking-[-0.025em] leading-[1.02] text-ink">
-              Estas propiedades no se{" "}
-              <span className="italic">anuncian masivamente.</span>
+              Una seleccion de propiedades{" "}
+              <span className="italic">disponibles</span> en Buenos Aires.
             </h2>
           </div>
 
-          <div className="col-span-12 md:col-span-5 md:col-start-8 lg:col-start-8 flex items-end">
-            <p className="font-display font-light text-xl md:text-2xl lg:text-3xl text-ink/80 leading-[1.3]">
-              Hay <span className="italic font-display">{featured.length || "varias"}</span>{" "}
-              en circulacion en este momento, cada una establecida en un
-              contexto especifico y mantenida con discrecion. Su presencia es
-              intencional, modelada por la ubicacion mas que por la
-              visibilidad.
+          <div className="col-span-12 md:col-span-3 md:col-start-10 flex items-end">
+            <p className="text-ink/65 text-base leading-relaxed">
+              Departamentos, casas y desarrollos en venta y alquiler.
+              Cada propiedad presentada con sus datos clave y galeria
+              completa.
             </p>
           </div>
         </div>
@@ -60,10 +64,9 @@ export async function PropertiesSection() {
                     style={{ transitionTimingFunction: "var(--f-cubic)" }}
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
-                  {/* Yellow corner mark on hover */}
                   <div className="absolute top-3 left-3 flex items-center gap-2.5 text-bone">
                     <span className="font-display italic font-light text-2xl">
-                      ({String(idx + 1).padStart(2, "0")})
+                      {String(idx + 1).padStart(2, "0")}
                     </span>
                   </div>
                   <div className="absolute top-3 right-3 h-9 w-9 rounded-full bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-900">
@@ -73,7 +76,7 @@ export async function PropertiesSection() {
 
                 <div className="space-y-2">
                   <p className="text-[10px] uppercase tracking-widest text-ink/50">
-                    {property.location} · {property.category}
+                    {property.location} &middot; {property.category}
                   </p>
 
                   <h3 className="font-display font-light text-2xl md:text-3xl leading-[1.05] tracking-[-0.01em] text-ink line-clamp-2 pt-1 group-hover:italic transition-all duration-900">

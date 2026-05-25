@@ -3,9 +3,7 @@
 import { useState } from "react";
 
 /**
- * Admission / Contact section - Obsidian Assembly style
- * Yellow background with form on top of dark gradient.
- * "Admission" / private inquiry feel.
+ * Contacto section — accent background con form.
  */
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -46,7 +44,7 @@ export function ContactSection() {
       id="contacto"
       className="relative bg-accent text-ink overflow-hidden"
     >
-      {/* Top gradient overlay (Obsidian Assembly admission section trick) */}
+      {/* Top dark gradient overlay for transition */}
       <div
         className="absolute inset-x-0 top-0 h-32 pointer-events-none"
         style={{
@@ -57,21 +55,26 @@ export function ContactSection() {
 
       <div className="relative z-10 section-pad pt-32 md:pt-40">
         <div className="container-custom">
-          {/* Big title with mask fade */}
-          <div className="text-center mb-16 md:mb-24">
-            <p className="font-display italic font-light text-2xl md:text-3xl text-ink/55 mb-6">
-              Admission
-            </p>
-            <h2 className="font-display font-light text-[44px] md:text-[88px] lg:text-[120px] tracking-[-0.025em] leading-[0.96] text-ink max-w-5xl mx-auto">
-              El acceso es <span className="italic">considerado,</span>
-              <br />
-              no asumido.
-            </h2>
-            <p className="mt-8 max-w-2xl mx-auto text-ink/75 text-base md:text-lg leading-relaxed">
-              Si queres saber mas sobre nuestras propiedades disponibles o
-              tenes una operacion en mente, dejanos tus datos. Nos pondremos
-              en contacto.
-            </p>
+          <div className="grid grid-cols-12 gap-6 mb-16 md:mb-24">
+            <div className="col-span-12 md:col-span-1">
+              <p className="font-display italic font-light text-xl md:text-2xl text-ink/40">
+                05
+              </p>
+            </div>
+            <div className="col-span-12 md:col-span-10 md:col-start-3 text-center md:text-left">
+              <p className="text-[11px] uppercase tracking-widest text-ink/55 mb-6">
+                Contacto
+              </p>
+              <h2 className="font-display font-light text-[44px] md:text-[80px] lg:text-[100px] tracking-[-0.025em] leading-[0.96] text-ink max-w-5xl">
+                Hablemos de tu proximo{" "}
+                <span className="italic">proyecto.</span>
+              </h2>
+              <p className="mt-8 max-w-2xl text-ink/75 text-base md:text-lg leading-relaxed">
+                Sea cual sea tu objetivo, dejanos tus datos y te
+                contactamos a la brevedad. Tambien podes escribirnos por
+                email o llamarnos directo.
+              </p>
+            </div>
           </div>
 
           {/* Form */}
@@ -126,18 +129,18 @@ export function ContactSection() {
 
               <div className="col-span-12 md:col-span-6">
                 <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
-                  Ciudad
+                  Zona de interes
                 </label>
                 <input
                   type="text"
                   className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
-                  placeholder="Buenos Aires"
+                  placeholder="Palermo, Belgrano, etc."
                 />
               </div>
 
               <div className="col-span-12 mt-4">
                 <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
-                  Contanos
+                  Tu consulta
                 </label>
                 <textarea
                   required
@@ -147,13 +150,13 @@ export function ContactSection() {
                     setFormData({ ...formData, message: e.target.value })
                   }
                   className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300 resize-none"
-                  placeholder="En que estas pensando..."
+                  placeholder="Contanos como podemos ayudarte..."
                 />
               </div>
 
               {status === "success" && (
                 <div className="col-span-12 text-sm text-ink border-l-2 border-ink pl-4 py-2">
-                  Mensaje recibido. Vamos a contactarte pronto.
+                  Mensaje recibido. Te contactamos pronto.
                 </div>
               )}
 
@@ -179,7 +182,7 @@ export function ContactSection() {
         </div>
       </div>
 
-      {/* Direct contact info bottom */}
+      {/* Direct contact info */}
       <div className="relative z-10 border-t border-ink/15 py-12">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

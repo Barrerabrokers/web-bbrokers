@@ -33,7 +33,7 @@ export function Header() {
     >
       <div className="container-custom">
         <div className="flex items-center justify-between h-20 pointer-events-auto">
-          {/* Logo - Obsidian Assembly stack style */}
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative h-10 w-10 flex-shrink-0">
               <Image
@@ -44,15 +44,9 @@ export function Header() {
                 className="object-contain"
               />
             </div>
-            <div className="hidden sm:flex flex-col leading-[0.85]">
-              <span className="text-[11px] uppercase tracking-widest text-ink/65">
-                The
-              </span>
-              <span className="font-display font-light text-2xl md:text-[28px] text-ink tracking-[-0.02em] -ml-0.5">
-                Barrera
-              </span>
-              <span className="font-display italic font-light text-2xl md:text-[28px] text-ink tracking-[-0.02em] -ml-0.5">
-                Brokers
+            <div className="hidden sm:flex items-baseline gap-2">
+              <span className="font-display font-light text-2xl tracking-[-0.02em] text-ink">
+                Barrera <span className="italic">Brokers</span>
               </span>
             </div>
           </Link>
