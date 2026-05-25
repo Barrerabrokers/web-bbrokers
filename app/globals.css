@@ -331,3 +331,35 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--c-bronze));
 }
+
+/* ==============================================
+   SMART CURSOR
+   Activo solo cuando JS detecta pointer:fine y agrega clase
+   ============================================== */
+@media (pointer: fine) {
+  html.smart-cursor-active,
+  html.smart-cursor-active body,
+  html.smart-cursor-active a,
+  html.smart-cursor-active button,
+  html.smart-cursor-active [role="button"],
+  html.smart-cursor-active input,
+  html.smart-cursor-active textarea,
+  html.smart-cursor-active select,
+  html.smart-cursor-active label {
+    cursor: none !important;
+  }
+}
+
+/* Hover state: el ring crece y se tinta warm-beige */
+.cursor-ring-hover {
+  width: 56px !important;
+  height: 56px !important;
+  background-color: rgba(var(--c-warm-beige-rgb), 0.18);
+  border-color: rgba(var(--c-warm-beige-rgb), 0.6) !important;
+}
+
+/* Click feedback: el ring se contrae */
+.cursor-ring-down {
+  width: 24px !important;
+  height: 24px !important;
+}
