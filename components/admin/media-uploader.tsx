@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Image as ImageIcon, Video } from "lucide-react";
 import { ImageUploader, type ImageItem } from "./image-uploader";
 import { VideoUploader } from "./video-uploader";
+import { QrUpload } from "./qr-upload";
 
 interface MediaUploaderProps {
   // Images
@@ -30,6 +31,21 @@ export function MediaUploader({
   imageHelperText,
 }: MediaUploaderProps) {
   const [activeTab, setActiveTab] = useState<"images" | "video">("images");
+
+  // When QR upload pushes files, add them as "existing" images
+  const handleQrFiles = useCallback(
+    (urls: string[]) => {
+      const newItems: ImageItem[] = urls.map((url) => ({
+        kind: "existing" as const,
+        url,
+        id: `qr-${Date.now()}-${Math.random()}`,
+      }));
+      const next = [...items, ...newItems];
+      const nextPrimary = items.length === 0 ? 0 : primaryIndex;
+      onImagesChange(next, nextPrimary);
+    },
+    [items, primaryIndex, onImagesChange]
+  );
 
   return (
     <div>
@@ -73,13 +89,19 @@ export function MediaUploader({
 
       {/* Tab content */}
       {activeTab === "images" && (
-        <ImageUploader
-          items={items}
-          primaryIndex={primaryIndex}
-          onChange={onImagesChange}
-          label={imageLabel}
-          helperText={imageHelperText}
-        />
+        <>
+          <ImageUploader
+            items={items}
+            primaryIndex={primaryIndex}
+            onChange={onImagesChange}
+            label={imageLabel}
+            helperText={imageHelperText}
+          />
+          {/* QR Upload option */}
+          <div className="mt-4">
+            <QrUpload onFilesReceived={handleQrFiles} />
+          </div>
+        </>
       )}
 
       {activeTab === "video" && (
