@@ -7,10 +7,8 @@ import { Save, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { COMMON_AMENITIES, DEVELOPMENT_IMAGE_TYPES } from "@/types";
 import { supabase } from "@/lib/supabase";
-import {
-  ImageUploader,
-  type ImageItem,
-} from "@/components/admin/image-uploader";
+import { type ImageItem } from "@/components/admin/image-uploader";
+import { MediaUploader } from "@/components/admin/media-uploader";
 
 type ImageMeta = { type: string; caption: string };
 
@@ -24,6 +22,7 @@ export default function NewDevelopmentPage() {
   const [items, setItems] = useState<ImageItem[]>([]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [imageMeta, setImageMeta] = useState<ImageMeta[]>([]);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -164,6 +163,7 @@ export default function NewDevelopmentPage() {
           highlight: formData.highlight,
           agentId: session?.user?.id,
           images,
+          videoUrl: videoUrl || undefined,
         }),
       });
 
@@ -210,12 +210,15 @@ export default function NewDevelopmentPage() {
       <form onSubmit={handleSubmit} className="card p-8">
         {/* IMAGES SECTION */}
         <div className="mb-8 pb-8 border-b border-ink/15">
-          <ImageUploader
+          <MediaUploader
             items={items}
             primaryIndex={primaryIndex}
-            onChange={handleItemsChange}
-            label="Imágenes del desarrollo *"
-            helperText="Subí imágenes de la fachada, espacios comunes, amenities, renders, etc. La marcada con estrella será la principal."
+            onImagesChange={handleItemsChange}
+            videoUrl={videoUrl}
+            onVideoChange={setVideoUrl}
+            imageLabel="Imágenes del desarrollo *"
+            videoLabel="Video del desarrollo"
+            imageHelperText="Subí imágenes de la fachada, espacios comunes, amenities, renders, etc."
           />
 
           {items.length > 0 && (

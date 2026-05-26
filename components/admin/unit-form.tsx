@@ -6,10 +6,8 @@ import Link from "next/link";
 import { Save, ArrowLeft, Trash2 } from "lucide-react";
 import { UNIT_IMAGE_TYPES, Unit } from "@/types";
 import { supabase } from "@/lib/supabase";
-import {
-  ImageUploader,
-  type ImageItem,
-} from "@/components/admin/image-uploader";
+import { type ImageItem } from "@/components/admin/image-uploader";
+import { MediaUploader } from "@/components/admin/media-uploader";
 
 type ImageMeta = { type: string };
 
@@ -52,6 +50,7 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
   const [items, setItems] = useState<ImageItem[]>(initialItems);
   const [primaryIndex, setPrimaryIndex] = useState(initialPrimary);
   const [imageMeta, setImageMeta] = useState<ImageMeta[]>(initialMeta);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
 
   const [formData, setFormData] = useState({
@@ -248,12 +247,15 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
       <form onSubmit={handleSubmit} className="card p-8">
         {/* IMAGES */}
         <div className="mb-8 pb-8 border-b border-ink/15">
-          <ImageUploader
+          <MediaUploader
             items={items}
             primaryIndex={primaryIndex}
-            onChange={handleItemsChange}
-            label="Imágenes y planos de la unidad"
-            helperText="Subí fotos de la unidad y planos. Marcá el tipo de cada imagen."
+            onImagesChange={handleItemsChange}
+            videoUrl={videoUrl}
+            onVideoChange={setVideoUrl}
+            imageLabel="Imágenes y planos de la unidad"
+            videoLabel="Video de la unidad"
+            imageHelperText="Subí fotos de la unidad y planos. Marcá el tipo de cada imagen."
           />
 
           {items.length > 0 && (
