@@ -92,7 +92,7 @@ export function Footer() {
           <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
             &copy; {new Date().getFullYear()} Barrera Brokers
           </p>
-          <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
+          <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]"> 
             Buenos Aires · Argentina
           </p>
         </div>
