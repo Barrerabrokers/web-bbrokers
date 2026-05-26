@@ -1,141 +1,141 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [isAtTop, setIsAtTop] = useState(true);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setScrolled(scrollY > 24);
-      setIsAtTop(scrollY < 100);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Initial check
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const menuItems = [
+  const navItems = [
     { href: "/#desarrollos", label: "Desarrollos" },
     { href: "/#modelo", label: "Inversión" },
     { href: "/#renta", label: "Renta" },
-    { href: "/#estadisticas", label: "Estadísticas" },
     { href: "/#propiedades", label: "Propiedades" },
-    { href: "/#contacto", label: "Contacto" },
   ];
 
-  // Dynamic colors based on scroll position
-  const headerBg = scrolled || isMenuOpen
-    ? "bg-ink/95 backdrop-blur-md border-b border-bone/10"
-    : "";
-  const textColor = isAtTop && !scrolled ? "text-bone" : "text-bone";
-  const logoFilter = ""; // Logo is always visible
-
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 pointer-events-none ${headerBg}`}
-      style={{ transitionTimingFunction: "var(--f-cubic)" }}
-    >
-      <div className="container-custom">
-        <div className="flex items-center justify-between h-20 pointer-events-auto">
+    <>
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
+          scrolled
+            ? "py-3 bg-obsidian/80 backdrop-blur-xl border-b border-ivory/[0.06]"
+            : "py-5"
+        }`}
+        style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
+      >
+        <div className="container-custom flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative h-10 w-10 flex-shrink-0">
-              <Image
-                src="/logo.png"
-                alt="Barrera Brokers"
-                fill
-                priority
-                className={`object-contain ${logoFilter}`}
-              />
-            </div>
-            <div className="hidden sm:flex items-baseline gap-2">
-              <span className={`font-display font-light text-2xl tracking-[-0.02em] ${textColor} transition-colors duration-500`}>
-                Barrera <span className="italic">Brokers</span>
-              </span>
-            </div>
+          <Link href="/" className="flex flex-col">
+            <span className="font-display text-xl text-ivory tracking-tight">
+              Barrera <em className="not-italic font-normal">Brokers</em>
+            </span>
+            <span className="text-[9px] uppercase tracking-[0.2em] text-ivory/40 mt-0.5">
+              Buenos Aires · Est. 2000
+            </span>
           </Link>
 
-
-
-          {/* Desktop Menu */}
-          <nav className="hidden lg:flex items-center gap-8">
-            {menuItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className={`text-[11px] uppercase tracking-widest ${textColor}/70 hover:${textColor} hover:text-accent transition-colors duration-300`}
-              >
+          {/* Center nav — desktop */}
+          <nav className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-full border border-ivory/[0.08] bg-ivory/[0.03] backdrop-blur-md">
+            {navItems.map((item) => (
+              <a key={item.href} href={item.href} className="nav-pill">
                 {item.label}
               </a>
             ))}
           </nav>
 
-          {/* Right CTAs */}
-          <div className="hidden lg:flex items-center gap-3">
-            <Link
-              href="/login"
-              className={`text-[11px] uppercase tracking-widest ${textColor}/60 hover:text-accent transition-colors duration-300 px-2`}
+          {/* Right side */}
+          <div className="flex items-center gap-3">
+            <Link href="/#contacto" className="hidden md:inline-flex btn-primary">
+              Agendar consulta
+            </Link>
+
+            {/* Hamburger capsule */}
+            <button
+              onClick={() => setIsMenuOpen(true)}
+              className="lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-full border border-ivory/[0.15] bg-ivory/[0.05] backdrop-blur-md transition-all hover:bg-ivory/[0.1]"
+              aria-label="Abrir menú"
             >
-              Portal
-            </Link>
-            <Link href="/#contacto" className="btn-primary">
-              Invertir ahora
-            </Link>
+              <div className="flex flex-col gap-[5px]">
+                <span className="block w-4 h-[1.5px] bg-ivory" />
+                <span className="block w-3 h-[1.5px] bg-ivory/60" />
+              </div>
+              <span className="text-[10px] uppercase tracking-[0.15em] text-ivory/70 hidden sm:block">
+                Menú
+              </span>
+            </button>
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className={`lg:hidden p-2 ${textColor} rounded-full transition-colors`}
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </button>
         </div>
+      </header>
 
-        {/* Mobile Menu */}
+      {/* Fullscreen menu */}
+      <AnimatePresence>
         {isMenuOpen && (
-          <div className="lg:hidden pb-6 pt-2 space-y-1 animate-fade-in-down pointer-events-auto bg-ink">
-            {menuItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="block px-3 py-3 text-base text-bone/80 hover:text-bone hover:bg-bone/5 rounded-md transition-colors"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+            className="fixed inset-0 z-[100] bg-obsidian/98 backdrop-blur-2xl flex flex-col"
+          >
+            {/* Close button */}
+            <div className="container-custom flex justify-end pt-6">
+              <button
                 onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-ivory/[0.15] text-ivory/70 hover:text-ivory transition-colors"
               >
-                {item.label}
-              </a>
-            ))}
-            <div className="pt-4 mt-4 border-t border-bone/15 flex flex-col gap-3">
-              <Link
-                href="/login"
-                className="btn-outline-light justify-center w-full"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Portal Inversores
-              </Link>
+                <span className="text-[10px] uppercase tracking-[0.15em]">Cerrar</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Nav links */}
+            <nav className="flex-1 flex flex-col items-center justify-center gap-2">
+              {[
+                ...navItems,
+                { href: "/#nosotros", label: "Nosotros" },
+                { href: "/#contacto", label: "Contacto" },
+              ].map((item, idx) => (
+                <motion.a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + idx * 0.06, duration: 0.6, ease: [0.19, 1, 0.22, 1] }}
+                  className="font-display text-4xl md:text-6xl text-ivory/80 hover:text-ivory transition-colors duration-300 py-2"
+                >
+                  {item.label}
+                </motion.a>
+              ))}
+            </nav>
+
+            {/* Bottom info */}
+            <div className="container-custom pb-8 flex items-end justify-between">
+              <div className="text-[11px] text-ivory/30 uppercase tracking-[0.15em]">
+                <p>info@barrerabrokers.com</p>
+                <p className="mt-1">+54 11 1234-5678</p>
+              </div>
               <Link
                 href="/#contacto"
-                className="btn-primary justify-center w-full"
                 onClick={() => setIsMenuOpen(false)}
+                className="btn-primary"
               >
-                Invertir ahora
+                Agendar consulta
               </Link>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
-    </header>
+      </AnimatePresence>
+    </>
   );
 }

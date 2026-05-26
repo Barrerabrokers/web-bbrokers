@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
+import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
 import { SmoothScroll } from "@/components/smooth-scroll";
 
-// Switzer alternative: Plus Jakarta Sans (modern geometric sans, similar proportions)
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -13,35 +12,30 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-// OTJubilee-Platinum / Voyage alternative: Cormorant Garamond (high-contrast serif)
-const cormorant = Cormorant_Garamond({
+const playfair = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  weight: ["300", "400", "500"],
+  weight: ["400", "500", "600"],
   style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
-  title: "Barrera Brokers — Desarrollos en la ciudad de Buenos Aires",
+  title: "Barrera Brokers — Desarrollos Inmobiliarios en Buenos Aires",
   description:
-    "Barrera Brokers desarrolla, comercializa y administra propiedades en la ciudad de Buenos Aires. Mas de 25 anos de experiencia en venta, alquiler, inversiones y desarrollos inmobiliarios.",
+    "Desarrollos en pozo, renta temporaria e inversiones inmobiliarias premium en Buenos Aires. Más de 25 años de experiencia.",
   keywords: [
-    "bienes raices",
     "desarrollos inmobiliarios",
-    "propiedades Buenos Aires",
-    "inmobiliaria",
-    "inversiones",
-    "Barrera Brokers",
+    "inversión en pozo",
     "Buenos Aires",
+    "renta temporaria",
+    "Barrera Brokers",
   ],
-  authors: [{ name: "Barrera Brokers" }],
   openGraph: {
-    title: "Barrera Brokers — Desarrollos en la ciudad de Buenos Aires",
-    description: "Desarrollos, propiedades e inversiones inmobiliarias en Buenos Aires.",
-    url: "https://barrerabrokers.com",
+    title: "Barrera Brokers — Desarrollos Inmobiliarios",
+    description: "Inversiones inmobiliarias premium en Buenos Aires.",
     siteName: "Barrera Brokers",
-    locale: "es_ES",
+    locale: "es_AR",
     type: "website",
   },
 };
@@ -52,8 +46,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
-      <body className="font-sans bg-bone text-ink antialiased">
+    <html lang="es" className={`${plusJakarta.variable} ${playfair.variable}`}>
+      <body className="font-sans bg-obsidian text-ivory antialiased">
         <Providers>{children}</Providers>
         <SmoothScroll />
         <CursorTrail />

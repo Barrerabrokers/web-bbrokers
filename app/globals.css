@@ -3,363 +3,267 @@
 @tailwind utilities;
 
 /* ==============================================
-   THEME TOKENS — Obsidian Assembly palette
-   Quiet luxury: obsidian black + ivory + smoked bronze
+   OBSIDIAN ASSEMBLY INSPIRED — Barrera Brokers
+   Obsidian black + copper gradients + ivory text
    ============================================== */
 :root {
-  /* PALETA MONOCROMÁTICA — solo ink (#151415) + bone (#F1EADE) */
-  --c-black: 21 20 21;
-  --c-black-rgb: 21, 20, 21;
-  --c-ink: 21 20 21;
-  --c-ink-rgb: 21, 20, 21;
-  --c-white: 241 234 222;
-  --c-white-rgb: 241, 234, 222;
-  --c-bone: 241 234 222;
-  --c-bone-rgb: 241, 234, 222;
-  /* Aliases legacy — todos mapean al monocromo */
-  --c-charcoal: 21 20 21;
-  --c-charcoal-rgb: 21, 20, 21;
-  --c-ivory: 241 234 222;
-  --c-ivory-rgb: 241, 234, 222;
-  --c-warm-beige: 241 234 222;
-  --c-warm-beige-rgb: 241, 234, 222;
-  --c-stone: 163 156 142;
-  --c-stone-rgb: 163, 156, 142;
-  --c-bronze: 21 20 21;
-  --c-bronze-rgb: 21, 20, 21;
-  --c-yellow: 241 234 222;
-  --c-yellow-rgb: 241, 234, 222;
-  --c-grey: 58 52 47;
-  --c-grey-rgb: 58, 52, 47;
+  --obsidian: 10 10 11;
+  --obsidian-rgb: 10, 10, 11;
+  --ivory: 241 234 222;
+  --ivory-rgb: 241, 234, 222;
+  --copper: 122 82 60;
+  --copper-rgb: 122, 82, 60;
+  --copper-dark: 90 59 43;
+  --copper-dark-rgb: 90, 59, 43;
 
-  --f-cubic: cubic-bezier(0.6, 0, 0.2, 1);
-  --f-cubic-in: cubic-bezier(0, 0, 0.2, 1);
-  --f-fast: cubic-bezier(0.5, 0, 0.1, 1);
-  --f-smooth: cubic-bezier(0.45, 0.05, 0.55, 0.95);
-
-  --g-gap: 1.5rem;
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @layer base {
   html {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
-  /* When Lenis takes over, html gets data-lenis-prevent-touch on touch devices */
-  html.lenis,
-  html.lenis body {
+  html.lenis, html.lenis body {
     height: auto;
-  }
-  html.lenis-smooth {
-    scroll-behavior: auto !important;
   }
 
   body {
-    background-color: rgb(var(--c-white));
-    color: rgb(var(--c-black));
+    background-color: rgb(var(--obsidian));
+    color: rgb(var(--ivory));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1;
   }
 
   ::selection {
-    background-color: rgb(var(--c-bronze));
-    color: rgb(var(--c-ivory));
+    background-color: rgba(var(--copper-rgb), 0.4);
+    color: rgb(var(--ivory));
   }
 }
 
 @layer components {
+  /* Container */
   .container-custom {
-    @apply max-w-[1480px] mx-auto px-6 md:px-10 lg:px-16;
+    @apply max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12;
   }
 
-  .heading-display,
-  .heading-serif {
-    @apply font-display font-light tracking-tight leading-[1];
+  /* === TYPOGRAPHY === */
+  .heading-display {
+    @apply font-display font-normal tracking-tight leading-[0.95];
   }
 
   .label-tracking {
-    @apply uppercase tracking-widest text-[11px] font-medium;
+    @apply uppercase tracking-[0.15em] text-[11px] font-medium;
   }
 
   .eyebrow {
-    @apply inline-flex items-center gap-3 text-[11px] font-medium tracking-widest uppercase;
+    @apply label-tracking text-ivory/50;
   }
 
-  .eyebrow::before {
-    content: "";
-    @apply inline-block h-px w-10 bg-current opacity-50;
-  }
-
-  /* === BUTTONS - Obsidian Assembly signature with corner dot === */
+  /* === BUTTONS — Glassmorphism smoked bronze === */
   .btn-primary {
     @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-4 pb-5
-           bg-accent text-ink
-           text-[11px] uppercase tracking-widest font-medium
-           rounded-[6px]
+           px-7 py-4
+           text-[11px] uppercase tracking-[0.15em] font-medium
+           rounded-full
            overflow-hidden
-           transition-all duration-900;
-    transition-timing-function: var(--f-cubic);
-  }
-
-  .btn-primary::after {
-    content: "";
-    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-ink;
+           transition-all duration-500;
+    background: rgba(var(--copper-rgb), 0.55);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--ivory-rgb), 0.12);
+    color: rgb(var(--ivory));
+    transition-timing-function: var(--ease-out-expo);
   }
 
   .btn-primary:hover {
-    @apply bg-ink text-bone;
-  }
-
-  .btn-primary:hover::after {
-    @apply bg-accent;
+    background: rgba(var(--copper-rgb), 0.75);
+    border-color: rgba(var(--ivory-rgb), 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(var(--copper-rgb), 0.3);
   }
 
   .btn-outline {
     @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-4 pb-5
-           bg-transparent text-ink border border-ink
-           text-[11px] uppercase tracking-widest font-medium
-           rounded-[6px]
+           px-7 py-4
+           text-[11px] uppercase tracking-[0.15em] font-medium
+           rounded-full
            overflow-hidden
-           transition-all duration-900;
-    transition-timing-function: var(--f-cubic);
-  }
-
-  .btn-outline::after {
-    content: "";
-    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-ink;
+           transition-all duration-500;
+    background: transparent;
+    border: 1px solid rgba(var(--ivory-rgb), 0.2);
+    color: rgb(var(--ivory));
+    transition-timing-function: var(--ease-out-expo);
   }
 
   .btn-outline:hover {
-    @apply bg-ink text-bone;
+    background: rgba(var(--ivory-rgb), 0.05);
+    border-color: rgba(var(--ivory-rgb), 0.4);
+    transform: translateY(-1px);
   }
 
-  .btn-outline:hover::after {
-    @apply bg-accent;
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2
+           text-[11px] uppercase tracking-[0.15em] font-medium
+           text-ivory/60 hover:text-ivory
+           transition-colors duration-300;
+  }
+
+  /* === NAV PILL (capsule buttons) === */
+  .nav-pill {
+    @apply px-4 py-2 rounded-full text-[11px] uppercase tracking-[0.12em] font-medium
+           transition-all duration-300;
+    color: rgba(var(--ivory-rgb), 0.6);
+    border: 1px solid transparent;
+  }
+
+  .nav-pill:hover {
+    color: rgb(var(--ivory));
+    background: rgba(var(--ivory-rgb), 0.05);
+    border-color: rgba(var(--ivory-rgb), 0.1);
+  }
+
+  .nav-pill.active {
+    color: rgb(var(--ivory));
+    background: rgba(var(--ivory-rgb), 0.08);
+    border-color: rgba(var(--ivory-rgb), 0.15);
+  }
+
+  /* === CARDS === */
+  .card-dark {
+    @apply rounded-xl overflow-hidden;
+    background: rgba(var(--ivory-rgb), 0.03);
+    border: 1px solid rgba(var(--ivory-rgb), 0.08);
+    transition: all 0.5s var(--ease-out-expo);
+  }
+
+  .card-dark:hover {
+    border-color: rgba(var(--ivory-rgb), 0.15);
+    background: rgba(var(--ivory-rgb), 0.05);
+  }
+
+  /* === SECTION HELPERS === */
+  .section-pad {
+    @apply py-24 md:py-32 lg:py-40;
+  }
+
+  .section-number {
+    @apply font-display text-[13px] tracking-[0.2em] text-ivory/30;
+  }
+
+  /* === DECORATIVE === */
+  .line-h {
+    @apply h-px w-full;
+    background: linear-gradient(90deg, transparent, rgba(var(--ivory-rgb), 0.15), transparent);
+  }
+
+  .line-v {
+    @apply w-px h-full;
+    background: linear-gradient(180deg, transparent, rgba(var(--ivory-rgb), 0.15), transparent);
+  }
+
+  /* Copper gradient glow */
+  .glow-copper {
+    background: radial-gradient(
+      ellipse at top,
+      rgba(var(--copper-rgb), 0.15) 0%,
+      transparent 60%
+    );
+  }
+
+  /* === FORM INPUTS (dark theme) === */
+  .input-dark {
+    @apply w-full bg-transparent
+           text-ivory placeholder-ivory/30
+           px-0 py-4 text-base
+           transition-colors duration-300;
+    border-bottom: 1px solid rgba(var(--ivory-rgb), 0.15);
+  }
+
+  .input-dark:hover {
+    border-color: rgba(var(--ivory-rgb), 0.3);
+  }
+
+  .input-dark:focus {
+    outline: none;
+    border-color: rgba(var(--copper-rgb), 0.6);
+  }
+
+  /* === SCROLLBAR === */
+  .pill {
+    @apply inline-flex items-center gap-1.5 px-3 py-1
+           border rounded-full
+           text-[11px] uppercase tracking-[0.12em] font-medium;
+    border-color: rgba(var(--ivory-rgb), 0.15);
+    color: rgba(var(--ivory-rgb), 0.7);
+  }
+
+  /* Legacy compat */
+  .card {
+    @apply rounded-xl overflow-hidden;
+    background: rgba(var(--ivory-rgb), 0.03);
+    border: 1px solid rgba(var(--ivory-rgb), 0.08);
+  }
+
+  .form-input-boxed {
+    @apply w-full bg-obsidian-100 border rounded-lg px-4 py-3 text-sm text-ivory placeholder-ivory/40 transition-colors duration-300;
+    border-color: rgba(var(--ivory-rgb), 0.1);
+  }
+  .form-input-boxed:focus {
+    outline: none;
+    border-color: rgba(var(--copper-rgb), 0.5);
   }
 
   .btn-outline-light {
-    @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-4 pb-5
-           bg-transparent text-bone border border-bone/40
-           text-[11px] uppercase tracking-widest font-medium
-           rounded-[6px]
-           overflow-hidden
-           transition-all duration-900;
-    transition-timing-function: var(--f-cubic);
-  }
-
-  .btn-outline-light::after {
-    content: "";
-    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-bone;
-  }
-
-  .btn-outline-light:hover {
-    @apply bg-accent text-ink border-accent;
-  }
-
-  .btn-outline-light:hover::after {
-    @apply bg-ink;
+    @apply btn-outline;
   }
 
   .btn-accent {
     @apply btn-primary;
   }
 
-  .btn-reverse {
-    @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-4 pb-5
-           bg-bone/10 text-accent border-t-2 border-bone/20
-           text-[11px] uppercase tracking-widest font-medium
-           rounded-[6px]
-           overflow-hidden
-           backdrop-blur-sm
-           transition-all duration-900;
-    transition-timing-function: var(--f-cubic);
-  }
-
-  .btn-reverse::after {
-    content: "";
-    @apply absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent;
-  }
-
-  .btn-reverse:hover {
-    @apply bg-accent text-ink border-accent;
-  }
-
-  .btn-reverse:hover::after {
-    @apply bg-ink;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm
-           text-ink/70 rounded-full
-           hover:text-ink
-           transition-colors duration-300;
-  }
-
-  .input,
-  .form-input {
-    @apply w-full bg-transparent border-b border-ink/30
-           text-ink placeholder-ink/40
-           px-0 py-3 text-base
-           hover:border-ink/60
-           focus:outline-none focus:border-ink
-           transition-colors duration-300;
-  }
-
-  .form-input-boxed {
-    @apply w-full bg-bone-50 border border-ink/15
-           text-ink placeholder-ink/40
-           rounded-[6px] px-4 py-3 text-sm
-           hover:border-ink/30
-           focus:outline-none focus:border-accent
-           transition-colors duration-300;
-  }
-
-  .card {
-    @apply bg-bone-50 border border-ink/10 rounded-[6px];
-  }
-
-  .card-hover {
-    @apply card transition-all duration-900;
-  }
-  .card-hover:hover {
-    @apply border-ink/30;
-  }
-
-  .pill {
-    @apply inline-flex items-center gap-1.5 px-3 py-1
-           border border-ink/20 bg-bone-50/90 backdrop-blur-sm text-ink
-           text-[11px] uppercase tracking-widest font-medium rounded-full;
-  }
-
-  .section-pad {
-    @apply py-24 md:py-32 lg:py-40;
-  }
-
-  .section-light {
-    @apply bg-bone text-ink;
-  }
-  .section-dark {
-    @apply bg-ink text-bone;
-  }
-
-  .tt-1, .tt-2, .tt-3 {
-    @apply font-display font-light tracking-tight leading-[1.05];
-  }
-
-  .caption {
-    @apply font-display font-light text-2xl md:text-3xl lg:text-4xl tracking-tight leading-[1.15];
-  }
-
-  .subtitle {
-    @apply font-display font-light text-3xl md:text-5xl lg:text-6xl tracking-tight leading-[1.05];
-  }
-
-  .lp-h1 {
-    @apply font-display font-light text-[44px] md:text-[80px] lg:text-[120px] tracking-[-0.025em] leading-[0.96];
-  }
-
-  .lp-h2 {
-    @apply font-display font-light text-[36px] md:text-[64px] lg:text-[88px] tracking-[-0.02em] leading-[1];
-  }
-
-  .lp-h3 {
-    @apply font-display font-light text-2xl md:text-3xl tracking-[-0.01em] leading-[1.1];
-  }
-
-  .link-underline {
-    @apply relative inline-flex items-center;
-  }
-  .link-underline::after {
-    content: "";
-    @apply absolute -bottom-1 left-0 h-px w-full bg-current origin-right scale-x-100
-           transition-transform duration-900;
-    transition-timing-function: var(--f-cubic);
-  }
-  .link-underline:hover::after {
-    @apply origin-left scale-x-0;
-  }
-
-  .link-yellow {
-    @apply text-accent hover:text-accent-300 transition-colors duration-300;
-  }
-}
-
-@layer utilities {
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .italic-display {
-    @apply font-display italic;
+  .heading-serif {
+    @apply font-display font-normal tracking-tight leading-[1];
   }
 
   .bg-grain {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 256px 256px;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
   }
 }
 
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: rgb(var(--c-white));
+  background: rgb(var(--obsidian));
 }
-
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--c-black-rgb), 0.2);
-  border-radius: 8px;
-  border: 2px solid rgb(var(--c-white));
+  background: rgba(var(--ivory-rgb), 0.15);
+  border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--c-bronze));
+  background: rgba(var(--copper-rgb), 0.5);
 }
 
-/* ==============================================
-   SMART CURSOR
-   Activo solo cuando JS detecta pointer:fine y agrega clase
-   ============================================== */
+/* Smart cursor */
 @media (pointer: fine) {
   html.smart-cursor-active,
-  html.smart-cursor-active body,
-  html.smart-cursor-active a,
-  html.smart-cursor-active button,
-  html.smart-cursor-active [role="button"],
-  html.smart-cursor-active input,
-  html.smart-cursor-active textarea,
-  html.smart-cursor-active select,
-  html.smart-cursor-active label {
+  html.smart-cursor-active *  {
     cursor: none !important;
   }
 }
 
-/* Hover state: el ring crece y se tinta warm-beige */
 .cursor-ring-hover {
   width: 56px !important;
   height: 56px !important;
-  background-color: rgba(var(--c-warm-beige-rgb), 0.18);
-  border-color: rgba(var(--c-warm-beige-rgb), 0.6) !important;
+  background-color: rgba(var(--copper-rgb), 0.2);
+  border-color: rgba(var(--copper-rgb), 0.6) !important;
 }
 
-/* Click feedback: el ring se contrae */
 .cursor-ring-down {
   width: 24px !important;
   height: 24px !important;
