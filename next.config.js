@@ -9,6 +9,11 @@ const nextConfig = {
     ],
     unoptimized: true,
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '12mb',
+    },
+  },
 };
 
 module.exports = nextConfig;

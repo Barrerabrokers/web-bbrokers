@@ -140,8 +140,14 @@ export function DevelopmentEditor({ development }: Props) {
         });
 
         if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error || "Error subiendo imagen");
+          let errorMsg = "Error subiendo imagen";
+          try {
+            const err = await response.json();
+            errorMsg = err.error || errorMsg;
+          } catch {
+            errorMsg = `Error del servidor: ${response.status}`;
+          }
+          throw new Error(errorMsg);
         }
 
         const data = await response.json();
@@ -174,8 +180,19 @@ export function DevelopmentEditor({ development }: Props) {
     });
 
     if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || "Error subiendo brochure");
+      let errorMsg = "Error subiendo brochure";
+      try {
+        const err = await response.json();
+        errorMsg = err.error || errorMsg;
+      } catch {
+        const text = await response.text();
+        if (text.toLowerCase().includes("entity too large") || text.toLowerCase().includes("request en")) {
+          errorMsg = "El archivo es demasiado grande. Máximo 4.5MB en Vercel.";
+        } else {
+          errorMsg = `Error del servidor: ${response.status}`;
+        }
+      }
+      throw new Error(errorMsg);
     }
 
     const data = await response.json();
