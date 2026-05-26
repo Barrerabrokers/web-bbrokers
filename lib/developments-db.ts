@@ -139,7 +139,7 @@ export async function createDevelopment(data: {
   features?: string[];
   highlight?: boolean;
   agentId?: string;
-  images?: { url: string; type?: string; caption?: string }[];
+  images?: { url: string; type?: string; caption?: string; isPrimary?: boolean }[];
 }): Promise<{ development: Development | null; error: string | null }> {
   let sql;
   try {
@@ -170,12 +170,15 @@ export async function createDevelopment(data: {
     if (data.images && data.images.length > 0) {
       for (let i = 0; i < data.images.length; i++) {
         const img = data.images[i];
+        // Si vino isPrimary explícito lo usamos, sino el primero es portada
+        const anyHasPrimary = data.images.some((x: any) => x.isPrimary === true);
+        const isPrimary = anyHasPrimary ? !!img.isPrimary : i === 0;
         await sql`
           INSERT INTO development_images (
             development_id, url, type, caption, display_order, is_primary
           ) VALUES (
             ${developmentId}, ${img.url}, ${img.type || "otro"},
-            ${img.caption || null}, ${i}, ${i === 0}
+            ${img.caption || null}, ${i}, ${isPrimary}
           )
         `;
       }
@@ -250,14 +253,16 @@ export async function updateDevelopment(
 
     if (images && Array.isArray(images)) {
       await sql`DELETE FROM development_images WHERE development_id = ${id}`;
+      const anyHasPrimary = images.some((x: any) => x.isPrimary === true);
       for (let idx = 0; idx < images.length; idx++) {
         const img = images[idx];
+        const isPrimary = anyHasPrimary ? !!img.isPrimary : idx === 0;
         await sql`
           INSERT INTO development_images (
             development_id, url, type, caption, display_order, is_primary
           ) VALUES (
             ${id}, ${img.url}, ${img.type || "otro"},
-            ${img.caption || null}, ${idx}, ${idx === 0}
+            ${img.caption || null}, ${idx}, ${isPrimary}
           )
         `;
       }
@@ -340,7 +345,7 @@ export async function createUnit(data: {
   status?: string;
   description?: string;
   features?: string[];
-  images?: { url: string; type?: string }[];
+  images?: { url: string; type?: string; isPrimary?: boolean }[];
 }): Promise<{ unit: Unit | null; error: string | null }> {
   let sql;
   try {
@@ -366,14 +371,16 @@ export async function createUnit(data: {
     const unitId = result[0].id;
 
     if (data.images && data.images.length > 0) {
+      const anyHasPrimary = data.images.some((x: any) => x.isPrimary === true);
       for (let i = 0; i < data.images.length; i++) {
         const img = data.images[i];
+        const isPrimary = anyHasPrimary ? !!img.isPrimary : i === 0;
         await sql`
           INSERT INTO unit_images (
             unit_id, url, type, display_order, is_primary
           ) VALUES (
             ${unitId}, ${img.url}, ${img.type || "foto"},
-            ${i}, ${i === 0}
+            ${i}, ${isPrimary}
           )
         `;
       }
@@ -436,11 +443,13 @@ export async function updateUnit(
 
     if (images && Array.isArray(images)) {
       await sql`DELETE FROM unit_images WHERE unit_id = ${id}`;
+      const anyHasPrimary = images.some((x: any) => x.isPrimary === true);
       for (let idx = 0; idx < images.length; idx++) {
         const img = images[idx];
+        const isPrimary = anyHasPrimary ? !!img.isPrimary : idx === 0;
         await sql`
           INSERT INTO unit_images (unit_id, url, type, display_order, is_primary)
-          VALUES (${id}, ${img.url}, ${img.type || "foto"}, ${idx}, ${idx === 0})
+          VALUES (${id}, ${img.url}, ${img.type || "foto"}, ${idx}, ${isPrimary})
         `;
       }
     }

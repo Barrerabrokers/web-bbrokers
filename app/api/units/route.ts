@@ -10,6 +10,7 @@ import { z } from "zod";
 const imageSchema = z.object({
   url: z.string().url(),
   type: z.string().optional(),
+  isPrimary: z.boolean().optional(),
 });
 
 const unitSchema = z.object({

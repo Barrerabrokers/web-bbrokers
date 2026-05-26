@@ -11,6 +11,7 @@ const imageSchema = z.object({
   url: z.string().url(),
   type: z.string().optional(),
   caption: z.string().optional(),
+  isPrimary: z.boolean().optional(),
 });
 
 const developmentSchema = z.object({

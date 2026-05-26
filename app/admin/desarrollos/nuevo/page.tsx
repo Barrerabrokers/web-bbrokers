@@ -79,7 +79,7 @@ export default function NewDevelopmentPage() {
     if (items.length === 0) return [];
     setUploadingImages(true);
     try {
-      const urls: { url: string; type: string; caption?: string }[] = [];
+      const urls: { url: string; type: string; caption?: string; isPrimary: boolean }[] = [];
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -110,19 +110,15 @@ export default function NewDevelopmentPage() {
           url = urlData.publicUrl;
         }
 
+        // Respetamos el orden visual del usuario y marcamos portada con flag
         urls.push({
           url,
           type: meta.type,
           caption: meta.caption || undefined,
+          isPrimary: i === primaryIndex,
         });
       }
 
-      // Reorder so primary goes first
-      if (primaryIndex > 0 && primaryIndex < urls.length) {
-        const primary = urls[primaryIndex];
-        const rest = urls.filter((_, i) => i !== primaryIndex);
-        return [primary, ...rest];
-      }
       return urls;
     } finally {
       setUploadingImages(false);

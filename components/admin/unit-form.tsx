@@ -96,7 +96,7 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
     if (items.length === 0) return [];
     setUploadingImages(true);
     try {
-      const urls: { url: string; type: string }[] = [];
+      const urls: { url: string; type: string; isPrimary: boolean }[] = [];
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const meta = imageMeta[i] || { type: "foto" };
@@ -125,14 +125,10 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
           url = urlData.publicUrl;
         }
 
-        urls.push({ url, type: meta.type });
+        // Respetamos el orden visual y marcamos la portada con flag isPrimary
+        urls.push({ url, type: meta.type, isPrimary: i === primaryIndex });
       }
 
-      if (primaryIndex > 0 && primaryIndex < urls.length) {
-        const primary = urls[primaryIndex];
-        const rest = urls.filter((_, i) => i !== primaryIndex);
-        return [primary, ...rest];
-      }
       return urls;
     } finally {
       setUploadingImages(false);
