@@ -86,7 +86,7 @@ export function RentalSection() {
         className="absolute top-1/2 right-0 w-[40vw] h-[40vw] max-w-[600px] -translate-y-1/2 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at center right, rgba(107,74,53,0.18) 0%, transparent 60%)",
+            "radial-gradient(ellipse at center right, rgba(21,20,21,0.12) 0%, transparent 60%)",
         }}
       />
 

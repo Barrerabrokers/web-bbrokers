@@ -7,29 +7,30 @@
    Quiet luxury: obsidian black + ivory + smoked bronze
    ============================================== */
 :root {
-  --c-black: 10 10 11;
-  --c-black-rgb: 10, 10, 11;
-  --c-charcoal: 21 20 21;
-  --c-charcoal-rgb: 21, 20, 21;
+  /* PALETA MONOCROMÁTICA — solo ink (#151415) + bone (#F1EADE) */
+  --c-black: 21 20 21;
+  --c-black-rgb: 21, 20, 21;
+  --c-ink: 21 20 21;
+  --c-ink-rgb: 21, 20, 21;
   --c-white: 241 234 222;
   --c-white-rgb: 241, 234, 222;
+  --c-bone: 241 234 222;
+  --c-bone-rgb: 241, 234, 222;
+  /* Aliases legacy — todos mapean al monocromo */
+  --c-charcoal: 21 20 21;
+  --c-charcoal-rgb: 21, 20, 21;
   --c-ivory: 241 234 222;
   --c-ivory-rgb: 241, 234, 222;
-  --c-warm-beige: 200 180 156;
-  --c-warm-beige-rgb: 200, 180, 156;
-  --c-stone: 184 158 132;
-  --c-stone-rgb: 184, 158, 132;
-  --c-bronze: 107 74 53;
-  --c-bronze-rgb: 107, 74, 53;
-  --c-soft-bronze: 122 82 60;
-  --c-soft-bronze-rgb: 122, 82, 60;
-  --c-olive: 95 102 84;
-  --c-olive-rgb: 95, 102, 84;
-  /* Legacy alias (any leftover refs) */
-  --c-yellow: 200 180 156;
-  --c-yellow-rgb: 200, 180, 156;
-  --c-grey: 73 66 56;
-  --c-grey-rgb: 73, 66, 56;
+  --c-warm-beige: 241 234 222;
+  --c-warm-beige-rgb: 241, 234, 222;
+  --c-stone: 163 156 142;
+  --c-stone-rgb: 163, 156, 142;
+  --c-bronze: 21 20 21;
+  --c-bronze-rgb: 21, 20, 21;
+  --c-yellow: 241 234 222;
+  --c-yellow-rgb: 241, 234, 222;
+  --c-grey: 58 52 47;
+  --c-grey-rgb: 58, 52, 47;
 
   --f-cubic: cubic-bezier(0.6, 0, 0.2, 1);
   --f-cubic-in: cubic-bezier(0, 0, 0.2, 1);

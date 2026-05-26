@@ -100,7 +100,7 @@ export function InvestmentModelSection() {
         className="absolute top-0 right-0 w-[50vw] h-[50vw] max-w-[700px] pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at top right, rgba(107,74,53,0.22) 0%, transparent 60%)",
+            "radial-gradient(ellipse at top right, rgba(21,20,21,0.15) 0%, transparent 60%)",
         }}
       />
 
