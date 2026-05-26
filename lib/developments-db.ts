@@ -139,6 +139,7 @@ export async function createDevelopment(data: {
   features?: string[];
   highlight?: boolean;
   agentId?: string;
+  brochureUrl?: string;
   images?: { url: string; type?: string; caption?: string; isPrimary?: boolean }[];
 }): Promise<{ development: Development | null; error: string | null }> {
   let sql;
@@ -151,7 +152,7 @@ export async function createDevelopment(data: {
       INSERT INTO developments (
         name, slug, short_description, description, location, address,
         status, total_units, completion_date, progress, price_from,
-        amenities, features, highlight, agent_id
+        amenities, features, highlight, agent_id, brochure_url
       ) VALUES (
         ${data.name}, ${slug}, ${data.shortDescription || null},
         ${data.description}, ${data.location}, ${data.address},
@@ -159,7 +160,7 @@ export async function createDevelopment(data: {
         ${data.completionDate || null}, ${data.progress || 0},
         ${data.priceFrom || null}, ${data.amenities || []},
         ${data.features || []}, ${data.highlight || false},
-        ${data.agentId || null}
+        ${data.agentId || null}, ${data.brochureUrl || null}
       )
       RETURNING id
     `;
@@ -228,6 +229,7 @@ export async function updateDevelopment(
       amenities: "amenities",
       features: "features",
       highlight: "highlight",
+      brochureUrl: "brochure_url",
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {
@@ -526,6 +528,7 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
     features: data.features || [],
     highlight: data.highlight,
     agentId: data.agent_id,
+    brochureUrl: data.brochure_url || undefined,
     images,
     availableUnits,
     unitsCount: allUnits.length,

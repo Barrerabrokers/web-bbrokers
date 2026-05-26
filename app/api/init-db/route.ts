@@ -259,6 +259,14 @@ export async function POST(request: NextRequest) {
         results.push("Schema cache refresh enviado");
       } catch {}
 
+      // Migrations: add new columns if they don't exist
+      try {
+        await sql.unsafe(`ALTER TABLE developments ADD COLUMN IF NOT EXISTS brochure_url TEXT;`);
+        results.push("Columna brochure_url en developments OK");
+      } catch (e: any) {
+        results.push(`Error columna brochure_url: ${e.message}`);
+      }
+
       await sql.end();
     } catch (error: any) {
       if (sql) {

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2 } from "lucide-react";
+import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2, FileText, Upload, X } from "lucide-react";
 import { COMMON_AMENITIES, Development, DevelopmentImage, DEVELOPMENT_IMAGE_TYPES, DevelopmentImageType } from "@/types";
 import { ImageUploader, ImageItem } from "./image-uploader";
 
@@ -43,6 +43,12 @@ export function DevelopmentEditor({ development }: Props) {
       id: img.id || `existing-${img.url}`,
     }))
   );
+
+  // === BROCHURE STATE ===
+  const [brochureUrl, setBrochureUrl] = useState<string>(development.brochureUrl || "");
+  const [brochureFile, setBrochureFile] = useState<File | null>(null);
+  const [brochureExpanded, setBrochureExpanded] = useState(false);
+  const [isUploadingBrochure, setIsUploadingBrochure] = useState(false);
 
   const [imagePrimaryIndex, setImagePrimaryIndex] = useState<number>(() => {
     const idx = (development.images || []).findIndex((img) => img.isPrimary);
@@ -154,6 +160,28 @@ export function DevelopmentEditor({ development }: Props) {
     return result;
   };
 
+  // Upload brochure PDF if new file selected
+  const uploadBrochure = async (): Promise<string | undefined> => {
+    if (!brochureFile) return brochureUrl || undefined;
+
+    const uploadFormData = new FormData();
+    uploadFormData.append("files", brochureFile);
+    uploadFormData.append("folder", "brochures");
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: uploadFormData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Error subiendo brochure");
+    }
+
+    const data = await response.json();
+    return data.urls[0];
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -163,6 +191,9 @@ export function DevelopmentEditor({ development }: Props) {
     try {
       // First upload any new images
       const images = await uploadAndBuildImages();
+
+      // Upload brochure if new file
+      const finalBrochureUrl = await uploadBrochure();
 
       const response = await fetch(`/api/developments/${development.id}`, {
         method: "PUT",
@@ -189,6 +220,7 @@ export function DevelopmentEditor({ development }: Props) {
             .filter(Boolean),
           highlight: formData.highlight,
           images,
+          brochureUrl: finalBrochureUrl || null,
         }),
       });
 
@@ -609,6 +641,139 @@ export function DevelopmentEditor({ development }: Props) {
             )}
 
             {/* Save images button */}
+            <div className="flex justify-end pt-3">
+              <button
+                type="button"
+                onClick={handleSave as any}
+                disabled={isLoading}
+                className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isLoading ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      {/* ====== BROCHURE SECTION ====== */}
+      <div className="card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setBrochureExpanded(!brochureExpanded)}
+          className="w-full flex items-center justify-between p-5 hover:bg-cream-100 transition-colors"
+        >
+          <div className="text-left">
+            <h2 className="font-semibold text-ink flex items-center gap-2">
+              <FileText className="h-5 w-5 text-accent-700" />
+              Brochure PDF
+            </h2>
+            <p className="text-xs text-ink/60 mt-0.5">
+              {brochureExpanded
+                ? "Ocultar"
+                : brochureUrl
+                ? "Brochure cargado · Click para editar"
+                : "Subir brochure del desarrollo en PDF"}
+            </p>
+          </div>
+          {brochureExpanded ? (
+            <ChevronUp className="h-5 w-5 text-ink/60" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-ink/60" />
+          )}
+        </button>
+
+        {brochureExpanded && (
+          <div className="border-t border-ink/15 p-6 space-y-4">
+            {/* Current brochure */}
+            {brochureUrl && !brochureFile && (
+              <div className="flex items-center gap-3 p-4 bg-cream-50 border border-ink/10 rounded-lg">
+                <FileText className="h-8 w-8 text-accent-700 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">
+                    Brochure actual
+                  </p>
+                  <a
+                    href={brochureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-accent-700 hover:underline truncate block"
+                  >
+                    Ver PDF
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrochureUrl("");
+                    setBrochureFile(null);
+                  }}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Eliminar brochure"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {/* New file selected */}
+            {brochureFile && (
+              <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <FileText className="h-8 w-8 text-emerald-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">
+                    {brochureFile.name}
+                  </p>
+                  <p className="text-xs text-ink/60">
+                    {(brochureFile.size / (1024 * 1024)).toFixed(2)} MB · Listo para subir
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBrochureFile(null)}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Cancelar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Upload button */}
+            {!brochureFile && (
+              <div>
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-3 border-2 border-dashed border-ink/20 hover:border-accent rounded-lg transition-colors">
+                  <Upload className="h-5 w-5 text-accent-700" />
+                  <span className="text-sm text-ink">
+                    {brochureUrl ? "Reemplazar brochure" : "Subir brochure PDF"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 10 * 1024 * 1024) {
+                          setError("El PDF es muy grande (máx 10MB)");
+                          return;
+                        }
+                        setBrochureFile(file);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <p className="text-xs text-ink/50 mt-2">
+                  PDF · Máximo 10MB · Se mostrará en una página pública para clientes
+                </p>
+              </div>
+            )}
+
+            {/* Save button */}
             <div className="flex justify-end pt-3">
               <button
                 type="button"

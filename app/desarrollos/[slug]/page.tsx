@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Calendar, Building2, Check } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Building2, Check, FileText } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getDevelopmentBySlug } from "@/lib/developments-db";
@@ -134,6 +134,20 @@ export default async function DevelopmentDetailPage({
                   {development.unitsCount || 0}
                 </div>
               </div>
+              {development.brochureUrl && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
+                    Brochure
+                  </p>
+                  <Link
+                    href={`/desarrollos/${development.slug}/brochure`}
+                    className="font-display font-light text-xl md:text-2xl text-accent hover:text-accent-300 flex items-center gap-2 transition-colors"
+                  >
+                    <FileText className="h-5 w-5" />
+                    Ver PDF
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </section>
