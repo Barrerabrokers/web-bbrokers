@@ -293,7 +293,7 @@ export async function POST(request: NextRequest) {
       if (exists) {
         const { error: updateError } = await supabase.storage.updateBucket("properties", {
           public: true,
-          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg"],
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"],
           fileSizeLimit: 10485760,
         });
         if (updateError) {
@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
       } else {
         const { error: bucketError } = await supabase.storage.createBucket("properties", {
           public: true,
-          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg"],
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"],
           fileSizeLimit: 10485760,
         });
 
