@@ -9,10 +9,15 @@ export async function GET() {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "MISSING",
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "MISSING",
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? "SET" : "MISSING",
-      NEXTAUTH_URL: process.env.NEXTAUTH_URL ? "SET" : "MISSING",
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL || "NOT SET (ok in Vercel, auto-detected)",
       DATABASE_URL: process.env.DATABASE_URL ? "SET" : "MISSING",
+      POSTGRES_URL: process.env.POSTGRES_URL ? "SET" : "MISSING",
+      POSTGRES_URL_NON_POOLING: process.env.POSTGRES_URL_NON_POOLING ? "SET" : "MISSING",
+      NODE_ENV: process.env.NODE_ENV || "unknown",
+      VERCEL_URL: process.env.VERCEL_URL || "NOT SET",
     },
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "NOT SET",
+    authCheck: {} as any,
     tables: {} as any,
     counts: {} as any,
     storageBuckets: [] as any,
@@ -20,6 +25,19 @@ export async function GET() {
     sampleProperties: [] as any,
     errors: [] as any,
   };
+
+  // Auth pre-flight check
+  try {
+    if (!process.env.NEXTAUTH_SECRET) {
+      checks.authCheck.status = "WILL FAIL";
+      checks.authCheck.reason = "NEXTAUTH_SECRET is not defined";
+    } else {
+      checks.authCheck.status = "OK";
+      checks.authCheck.secretLength = process.env.NEXTAUTH_SECRET.length;
+    }
+  } catch (e: any) {
+    checks.authCheck.error = e.message;
+  }
 
   try {
     const supabase = getServerSupabase();

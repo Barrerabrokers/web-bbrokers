@@ -9,11 +9,20 @@ import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const urlError = searchParams?.get("error");
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    urlError === "Configuration"
+      ? "Error de configuración del servidor. Contactá al administrador."
+      : urlError === "CredentialsSignin"
+      ? "Credenciales inválidas."
+      : ""
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
