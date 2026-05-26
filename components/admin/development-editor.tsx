@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import { COMMON_AMENITIES, Development } from "@/types";
+import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2 } from "lucide-react";
+import { COMMON_AMENITIES, Development, DevelopmentImage, DEVELOPMENT_IMAGE_TYPES, DevelopmentImageType } from "@/types";
+import { ImageUploader, ImageItem } from "./image-uploader";
 
 interface Props {
   development: Development;
@@ -12,6 +13,7 @@ interface Props {
 export function DevelopmentEditor({ development }: Props) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [imagesExpanded, setImagesExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -33,6 +35,68 @@ export function DevelopmentEditor({ development }: Props) {
     highlight: development.highlight || false,
   });
 
+  // === IMAGE STATE ===
+  const [imageItems, setImageItems] = useState<ImageItem[]>(() =>
+    (development.images || []).map((img) => ({
+      kind: "existing" as const,
+      url: img.url,
+      id: img.id || `existing-${img.url}`,
+    }))
+  );
+
+  const [imagePrimaryIndex, setImagePrimaryIndex] = useState<number>(() => {
+    const idx = (development.images || []).findIndex((img) => img.isPrimary);
+    return idx >= 0 ? idx : 0;
+  });
+
+  const [imagesMeta, setImagesMeta] = useState<
+    { type: DevelopmentImageType; caption: string }[]
+  >(() =>
+    (development.images || []).map((img) => ({
+      type: img.type || "otro",
+      caption: img.caption || "",
+    }))
+  );
+
+  const handleImagesChange = useCallback(
+    (newItems: ImageItem[], newPrimary: number) => {
+      // Rebuild meta to follow item reordering
+      setImagesMeta((prev) => {
+        const newMeta = newItems.map((item) => {
+          // Try to find the item in the old list by id
+          const oldIdx = imageItems.findIndex((old) => old.id === item.id);
+          if (oldIdx >= 0 && oldIdx < prev.length) {
+            return prev[oldIdx];
+          }
+          return { type: "otro" as DevelopmentImageType, caption: "" };
+        });
+        return newMeta;
+      });
+      setImageItems(newItems);
+      setImagePrimaryIndex(newPrimary);
+    },
+    [imageItems]
+  );
+
+  const handleMetaChange = (
+    index: number,
+    field: "type" | "caption",
+    value: string
+  ) => {
+    setImagesMeta((prev) => {
+      const updated = [...prev];
+      if (!updated[index]) {
+        updated[index] = { type: "otro", caption: "" };
+      }
+      if (field === "type") {
+        updated[index].type = value as DevelopmentImageType;
+      } else {
+        updated[index].caption = value;
+      }
+      return updated;
+    });
+  };
+
   const toggleAmenity = (a: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -42,6 +106,53 @@ export function DevelopmentEditor({ development }: Props) {
     }));
   };
 
+  // Upload new image files and return final images array
+  const uploadAndBuildImages = async (): Promise<DevelopmentImage[]> => {
+    const result: DevelopmentImage[] = [];
+
+    for (let idx = 0; idx < imageItems.length; idx++) {
+      const item = imageItems[idx];
+      const meta = imagesMeta[idx] || { type: "otro", caption: "" };
+
+      if (item.kind === "existing") {
+        result.push({
+          url: item.url,
+          type: meta.type,
+          caption: meta.caption,
+          displayOrder: idx,
+          isPrimary: idx === imagePrimaryIndex,
+        });
+      } else {
+        // Upload new file
+        const formData = new FormData();
+        formData.append("files", item.file);
+        formData.append("folder", "developments");
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || "Error subiendo imagen");
+        }
+
+        const data = await response.json();
+        const url = data.urls[0];
+
+        result.push({
+          url,
+          type: meta.type,
+          caption: meta.caption,
+          displayOrder: idx,
+          isPrimary: idx === imagePrimaryIndex,
+        });
+      }
+    }
+
+    return result;
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +161,9 @@ export function DevelopmentEditor({ development }: Props) {
     setIsLoading(true);
 
     try {
+      // First upload any new images
+      const images = await uploadAndBuildImages();
+
       const response = await fetch(`/api/developments/${development.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -74,6 +188,7 @@ export function DevelopmentEditor({ development }: Props) {
             .map((s) => s.trim())
             .filter(Boolean),
           highlight: formData.highlight,
+          images,
         }),
       });
 
@@ -119,283 +234,399 @@ export function DevelopmentEditor({ development }: Props) {
     }
   };
 
-
   return (
-    <div className="card overflow-hidden">
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-5 hover:bg-cream-100 transition-colors"
-      >
-        <div className="text-left">
-          <h2 className="font-semibold text-ink">Información del desarrollo</h2>
-          <p className="text-xs text-ink/60 mt-0.5">
-            {expanded ? "Ocultar" : "Editar nombre, descripción, amenities y más"}
-          </p>
-        </div>
-        {expanded ? (
-          <ChevronUp className="h-5 w-5 text-ink/60" />
-        ) : (
-          <ChevronDown className="h-5 w-5 text-ink/60" />
-        )}
-      </button>
-
-      {expanded && (
-        <form
-          onSubmit={handleSave}
-          className="border-t border-ink/15 p-6"
+    <div className="space-y-4">
+      {/* ====== INFO SECTION ====== */}
+      <div className="card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between p-5 hover:bg-cream-100 transition-colors"
         >
-          {error && (
-            <div className="mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-2 text-sm">
-              {error}
-            </div>
+          <div className="text-left">
+            <h2 className="font-semibold text-ink">Información del desarrollo</h2>
+            <p className="text-xs text-ink/60 mt-0.5">
+              {expanded ? "Ocultar" : "Editar nombre, descripción, amenities y más"}
+            </p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-5 w-5 text-ink/60" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-ink/60" />
           )}
-          {success && (
-            <div className="mb-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 px-4 py-2 text-sm">
-              ✓ Cambios guardados
-            </div>
-          )}
+        </button>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="md:col-span-2">
-              <label className="label-tracking text-ink/85 block mb-2">
-                Nombre *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+        {expanded && (
+          <form
+            onSubmit={handleSave}
+            className="border-t border-ink/15 p-6"
+          >
+            {error && (
+              <div className="mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-2 text-sm">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="mb-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 px-4 py-2 text-sm">
+                ✓ Cambios guardados
+              </div>
+            )}
 
-            <div className="md:col-span-2">
-              <label className="label-tracking text-ink/85 block mb-2">
-                Descripción corta
-              </label>
-              <input
-                type="text"
-                value={formData.shortDescription}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    shortDescription: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-                maxLength={500}
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="md:col-span-2">
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Nombre *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
-            <div className="md:col-span-2">
-              <label className="label-tracking text-ink/85 block mb-2">
-                Descripción completa *
-              </label>
-              <textarea
-                required
-                rows={4}
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+              <div className="md:col-span-2">
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Descripción corta
+                </label>
+                <input
+                  type="text"
+                  value={formData.shortDescription}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      shortDescription: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                  maxLength={500}
+                />
+              </div>
 
+              <div className="md:col-span-2">
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Descripción completa *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
-            <div>
-              <label className="label-tracking text-ink/85 block mb-2">
-                Ubicación *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Ubicación *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
-            <div>
-              <label className="label-tracking text-ink/85 block mb-2">
-                Dirección *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Dirección *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
-            <div>
-              <label className="label-tracking text-ink/85 block mb-2">
-                Estado *
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value as any })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              >
-                <option value="pre_venta">Pre-venta</option>
-                <option value="en_construccion">En construcción</option>
-                <option value="finalizado">Finalizado</option>
-                <option value="entregado">Entregado</option>
-              </select>
-            </div>
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Estado *
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value as any })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                >
+                  <option value="pre_venta">Pre-venta</option>
+                  <option value="en_construccion">En construcción</option>
+                  <option value="finalizado">Finalizado</option>
+                  <option value="entregado">Entregado</option>
+                </select>
+              </div>
 
-            <div>
-              <label className="label-tracking text-ink/85 block mb-2">
-                Fecha de entrega
-              </label>
-              <input
-                type="text"
-                value={formData.completionDate}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    completionDate: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-                placeholder="Q4 2026"
-              />
-            </div>
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Fecha de entrega
+                </label>
+                <input
+                  type="text"
+                  value={formData.completionDate}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      completionDate: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                  placeholder="Q4 2026"
+                />
+              </div>
 
-            <div>
-              <label className="label-tracking text-ink/85 block mb-2">
-                Avance (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={formData.progress}
-                onChange={(e) =>
-                  setFormData({ ...formData, progress: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Avance (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.progress}
+                  onChange={(e) =>
+                    setFormData({ ...formData, progress: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
-            <div>
-              <label className="label-tracking text-ink/85 block mb-2">
-                Total unidades
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.totalUnits}
-                onChange={(e) =>
-                  setFormData({ ...formData, totalUnits: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Total unidades
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.totalUnits}
+                  onChange={(e) =>
+                    setFormData({ ...formData, totalUnits: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
+              <div className="md:col-span-2">
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Precio desde (USD)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.priceFrom}
+                  onChange={(e) =>
+                    setFormData({ ...formData, priceFrom: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
 
-            <div className="md:col-span-2">
-              <label className="label-tracking text-ink/85 block mb-2">
-                Precio desde (USD)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.priceFrom}
-                onChange={(e) =>
-                  setFormData({ ...formData, priceFrom: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
-            </div>
+              <div className="md:col-span-2">
+                <label className="label-tracking text-ink/85 block mb-3">
+                  Amenities
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {COMMON_AMENITIES.map((a) => {
+                    const active = formData.amenities.includes(a);
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleAmenity(a)}
+                        className={`px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border transition-colors ${
+                          active
+                            ? "bg-accent text-ink border-accent"
+                            : "bg-white text-ink/70 border-ink/20 hover:border-accent"
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            <div className="md:col-span-2">
-              <label className="label-tracking text-ink/85 block mb-3">
-                Amenities
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {COMMON_AMENITIES.map((a) => {
-                  const active = formData.amenities.includes(a);
-                  return (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => toggleAmenity(a)}
-                      className={`px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border transition-colors ${
-                        active
-                          ? "bg-accent text-ink border-accent"
-                          : "bg-white text-ink/70 border-ink/20 hover:border-accent"
-                      }`}
-                    >
-                      {a}
-                    </button>
-                  );
-                })}
+              <div className="md:col-span-2">
+                <label className="label-tracking text-ink/85 block mb-2">
+                  Características adicionales (una por línea)
+                </label>
+                <textarea
+                  rows={3}
+                  value={formData.features}
+                  onChange={(e) =>
+                    setFormData({ ...formData, features: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.highlight}
+                    onChange={(e) =>
+                      setFormData({ ...formData, highlight: e.target.checked })
+                    }
+                    className="h-4 w-4 accent-accent"
+                  />
+                  <span className="text-sm text-ink">Desarrollo destacado</span>
+                </label>
               </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="label-tracking text-ink/85 block mb-2">
-                Características adicionales (una por línea)
-              </label>
-              <textarea
-                rows={3}
-                value={formData.features}
-                onChange={(e) =>
-                  setFormData({ ...formData, features: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
-              />
+            <div className="flex items-center justify-between mt-6 pt-5 border-t border-ink/15">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 text-sm disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isDeleting ? "Eliminando..." : "Eliminar desarrollo"}
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isLoading ? "Guardando..." : "Guardar cambios"}
+              </button>
             </div>
+          </form>
+        )}
+      </div>
 
-            <div className="md:col-span-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.highlight}
-                  onChange={(e) =>
-                    setFormData({ ...formData, highlight: e.target.checked })
-                  }
-                  className="h-4 w-4 accent-accent"
-                />
-                <span className="text-sm text-ink">Desarrollo destacado</span>
-              </label>
+      {/* ====== IMAGES SECTION ====== */}
+      <div className="card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setImagesExpanded(!imagesExpanded)}
+          className="w-full flex items-center justify-between p-5 hover:bg-cream-100 transition-colors"
+        >
+          <div className="text-left">
+            <h2 className="font-semibold text-ink flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-accent-700" />
+              Fotos, Renders y Planos
+            </h2>
+            <p className="text-xs text-ink/60 mt-0.5">
+              {imagesExpanded
+                ? "Ocultar"
+                : `${imageItems.length} imagen${imageItems.length !== 1 ? "es" : ""} · Agregar fotos, renders y planos del desarrollo`}
+            </p>
+          </div>
+          {imagesExpanded ? (
+            <ChevronUp className="h-5 w-5 text-ink/60" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-ink/60" />
+          )}
+        </button>
+
+        {imagesExpanded && (
+          <div className="border-t border-ink/15 p-6 space-y-5">
+            {/* Image Uploader */}
+            <ImageUploader
+              items={imageItems}
+              primaryIndex={imagePrimaryIndex}
+              onChange={handleImagesChange}
+              label="Imágenes del desarrollo"
+              helperText="Agregá fotos, renders y planos. Tocá la estrella para elegir portada. Arrastrá para reordenar."
+            />
+
+            {/* Image metadata/classification */}
+            {imageItems.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-ink/10">
+                <h4 className="text-xs uppercase tracking-widest text-ink/60 font-medium">
+                  Clasificación de imágenes
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {imageItems.map((item, idx) => {
+                    const previewSrc =
+                      item.kind === "existing" ? item.url : item.preview;
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className="flex items-start gap-3 p-3 border border-ink/10 rounded-lg bg-cream-50"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-14 h-14 rounded overflow-hidden flex-shrink-0 bg-ink/5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={previewSrc}
+                            alt={`Imagen ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        {/* Fields */}
+                        <div className="flex-1 space-y-2 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-ink/50 font-medium">
+                              #{idx + 1}
+                            </span>
+                            <select
+                              value={imagesMeta[idx]?.type || "otro"}
+                              onChange={(e) =>
+                                handleMetaChange(idx, "type", e.target.value)
+                              }
+                              className="text-xs px-2 py-1 border border-ink/15 rounded focus:border-accent focus:outline-none bg-white"
+                            >
+                              {DEVELOPMENT_IMAGE_TYPES.map((t) => (
+                                <option key={t.value} value={t.value}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Descripción (opcional)"
+                            value={imagesMeta[idx]?.caption || ""}
+                            onChange={(e) =>
+                              handleMetaChange(idx, "caption", e.target.value)
+                            }
+                            className="w-full text-xs px-2 py-1 border border-ink/15 rounded focus:border-accent focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Save images button */}
+            <div className="flex justify-end pt-3">
+              <button
+                type="button"
+                onClick={handleSave as any}
+                disabled={isLoading}
+                className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isLoading ? "Guardando..." : "Guardar cambios"}
+              </button>
             </div>
           </div>
-
-          <div className="flex items-center justify-between mt-6 pt-5 border-t border-ink/15">
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 text-sm disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              {isDeleting ? "Eliminando..." : "Eliminar desarrollo"}
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isLoading ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
-        </form>
-      )}
+        )}
+      </div>
     </div>
   );
 }

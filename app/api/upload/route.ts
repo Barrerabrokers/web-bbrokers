@@ -16,6 +16,11 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
+    const folder = (formData.get("folder") as string) || "properties";
+
+    // Validar folder permitido
+    const allowedFolders = ["properties", "developments", "units", "agents"];
+    const safeFolder = allowedFolders.includes(folder) ? folder : "properties";
 
     if (!files || files.length === 0) {
       return NextResponse.json(
@@ -44,7 +49,7 @@ export async function POST(request: NextRequest) {
       // Generar nombre único
       const ext = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-      const filePath = `properties/${fileName}`;
+      const filePath = `${safeFolder}/${fileName}`;
 
       // Convertir File a ArrayBuffer
       const buffer = await file.arrayBuffer();
