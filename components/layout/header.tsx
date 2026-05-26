@@ -53,6 +53,12 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="hidden md:inline-flex text-[10px] uppercase tracking-[0.15em] text-ivory/50 hover:text-ivory transition-colors duration-300 px-3 py-2"
+            >
+              Portal
+            </Link>
             <Link href="/#contacto" className="hidden md:inline-flex btn-primary">
               Agendar consulta
             </Link>
