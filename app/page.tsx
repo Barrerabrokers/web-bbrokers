@@ -1,7 +1,7 @@
 import { HeroSection } from "@/components/home/hero-section";
 import { DevelopmentsSection } from "@/components/home/developments-section";
 import { InvestmentModelSection } from "@/components/home/investment-model-section";
-import { RentalSection } from "@/components/home/rental-section";
+import { RentalsSection } from "@/components/home/rentals-section";
 import { StatsSection } from "@/components/home/stats-section";
 import { PropertiesSection } from "@/components/home/properties-section";
 import { AboutSection } from "@/components/home/about-section";
@@ -26,8 +26,8 @@ export default function HomePage() {
         {/* Modelo de Inversión - How it works */}
         <InvestmentModelSection />
         
-        {/* Renta Temporaria - Airbnb management */}
-        <RentalSection />
+        {/* Rentals - Available rentals */}
+        <RentalsSection />
         
         {/* Estadísticas - Key numbers */}
         <StatsSection />
