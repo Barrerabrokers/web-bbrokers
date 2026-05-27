@@ -386,8 +386,9 @@ export async function getTeamMembers(): Promise<Omit<Agent, "password" | "email"
 
   const { data, error } = await supabase
     .from("agents")
-    .select("id, name, phone, photo, title, role, active, created_at")
+    .select("id, name, phone, photo, title, role, active, created_at, email")
     .eq("active", true)
+    .neq("email", "admin@barrerabrokers.com")
     .order("created_at", { ascending: true });
 
   if (error || !data) return [];
