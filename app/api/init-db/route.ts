@@ -274,6 +274,23 @@ export async function POST(request: NextRequest) {
         results.push(`Error columna title en agents: ${e.message}`);
       }
 
+      // Promote pablo@barrerabrokers.com to admin if exists
+      try {
+        const updated = await sql`
+          UPDATE agents
+          SET role = 'admin', active = true
+          WHERE email = 'pablo@barrerabrokers.com'
+          RETURNING id, email
+        `;
+        if (updated.length > 0) {
+          results.push(`pablo@barrerabrokers.com promovido a admin`);
+        } else {
+          results.push(`pablo@barrerabrokers.com no existe (registralo primero)`);
+        }
+      } catch (e: any) {
+        results.push(`Error promoviendo a pablo: ${e.message}`);
+      }
+
       await sql.end();
     } catch (error: any) {
       if (sql) {
