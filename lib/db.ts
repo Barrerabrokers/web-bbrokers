@@ -404,6 +404,26 @@ export async function getTeamMembers(): Promise<Omit<Agent, "password" | "email"
   }));
 }
 
+export async function deleteAgent(id: string): Promise<{ success: boolean; error: string | null }> {
+  let sql;
+  try {
+    sql = getPgConnection();
+    // Las FKs en properties.agent_id y developments.agent_id estan en ON DELETE SET NULL,
+    // asi que basta con eliminar al agente.
+    await sql`DELETE FROM agents WHERE id = ${id}`;
+    await sql.end();
+    return { success: true, error: null };
+  } catch (error: any) {
+    if (sql) {
+      try {
+        await sql.end();
+      } catch {}
+    }
+    console.error("Error deleting agent:", error);
+    return { success: false, error: error.message || "Unknown error" };
+  }
+}
+
 export async function updateAgent(
   id: string,
   data: { name?: string; phone?: string; photo?: string; title?: string; role?: string; active?: boolean }

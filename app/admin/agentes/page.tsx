@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Mail, Phone, Shield, User, Camera, Save, Loader2, X } from "lucide-react";
+import { UserPlus, Mail, Phone, Shield, User, Camera, Save, Loader2, X, Trash2 } from "lucide-react";
 import Image from "next/image";
 
 interface Agent {
@@ -25,6 +25,7 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
@@ -156,6 +157,42 @@ export default function AgentsPage() {
       setError("Error al guardar");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (agent: Agent) => {
+    setError("");
+    setSuccess("");
+
+    if (agent.id === session?.user?.id) {
+      setError("No podes eliminar tu propia cuenta");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Eliminar a "${agent.name}"? Esta accion no se puede deshacer.\n\nLas propiedades y desarrollos asociados quedaran sin agente asignado.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(agent.id);
+    try {
+      const res = await fetch(`/api/agents?id=${agent.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Error al eliminar");
+        return;
+      }
+
+      setSuccess("Agente eliminado");
+      fetchAgents();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError("Error al eliminar el agente");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -355,6 +392,19 @@ export default function AgentsPage() {
                   </span>
                   <button onClick={() => startEdit(agent)} className="text-xs text-accent hover:text-accent-600 font-medium">
                     Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(agent)}
+                    disabled={deletingId === agent.id || agent.id === session?.user?.id}
+                    title={agent.id === session?.user?.id ? "No podes eliminar tu propia cuenta" : "Eliminar agente"}
+                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {deletingId === agent.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Eliminar
                   </button>
                 </div>
               </div>
