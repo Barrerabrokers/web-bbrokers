@@ -216,6 +216,33 @@
     border-color: rgba(var(--copper-rgb), 0.5);
   }
 
+  /* === FORM INPUTS (light theme — admin) === */
+  .form-input {
+    @apply w-full bg-white text-ink placeholder:text-ink/40
+           border border-ink/15 rounded
+           px-4 py-3 text-sm
+           focus:border-accent focus:outline-none
+           transition-colors;
+  }
+
+  /*
+   * Asegurar contraste correcto en TODOS los inputs/textarea/select
+   * del area admin (fondo claro, letras oscuras), independientemente
+   * de las preferencias del navegador.
+   */
+  .admin-area {
+    color-scheme: light;
+  }
+  .admin-area input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .admin-area textarea,
+  .admin-area select {
+    @apply bg-white text-ink placeholder:text-ink/40;
+  }
+  .admin-area input::placeholder,
+  .admin-area textarea::placeholder {
+    color: rgba(21, 20, 21, 0.4);
+  }
+
   .btn-outline-light {
     @apply btn-outline;
   }
