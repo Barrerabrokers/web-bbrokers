@@ -10,6 +10,7 @@ import {
   FileText,
   Users,
   Layers,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,9 @@ const baseMenuItems = [
   { href: "/admin/contactos", label: "Contactos", icon: FileText },
 ];
 
-const adminMenuItems = [{ href: "/admin/agentes", label: "Agentes", icon: Users }];
+const adminMenuItems = [
+  { href: "/admin/agentes", label: "Agentes", icon: UserCog },
+];
 
 export function AdminSidebar() {
   const pathname = usePathname();

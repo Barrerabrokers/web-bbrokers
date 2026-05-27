@@ -8,8 +8,9 @@ import {
   Layers,
   Hammer,
   Home as HomeIcon,
+  UserCog,
 } from "lucide-react";
-import { getProperties } from "@/lib/db";
+import { getProperties, getAllAgents } from "@/lib/db";
 import { getDevelopments } from "@/lib/developments-db";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
@@ -18,10 +19,14 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminDashboard() {
-  const [properties, developments] = await Promise.all([
+  const [properties, developments, agents] = await Promise.all([
     getProperties(),
     getDevelopments(),
+    getAllAgents(),
   ]);
+
+  const activeAgents = agents.filter((a) => a.active).length;
+  const adminCount = agents.filter((a) => a.role === "admin").length;
 
   // Property stats
   const disponibles = properties.filter((p) => p.status === "disponible").length;
@@ -336,8 +341,45 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
+      {/* Equipo / Agentes */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-ink tracking-tight">
+            Equipo
+          </h2>
+          <Link
+            href="/admin/agentes"
+            className="inline-flex items-center gap-1 text-xs text-accent-700 hover:text-ink tracking-tight"
+          >
+            Gestionar agentes
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <Link
+          href="/admin/agentes"
+          className="group card p-6 hover:border-accent/40 hover:shadow-sm transition-all flex items-center justify-between"
+        >
+          <div className="flex items-center gap-5">
+            <div className="inline-flex items-center justify-center h-12 w-12 rounded-md bg-accent/10 border border-accent/40 text-accent-700">
+              <UserCog className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold tracking-tight text-ink mb-0.5">
+                Agentes y administradores
+              </h3>
+              <p className="text-sm text-ink/60">
+                {agents.length} {agents.length === 1 ? "miembro" : "miembros"} ·{" "}
+                {activeAgents} activos · {adminCount}{" "}
+                {adminCount === 1 ? "admin" : "admins"}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-ink/30 group-hover:text-accent-700 group-hover:translate-x-1 transition-all" />
+        </Link>
+      </div>
+
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
         <Link
           href="/admin/desarrollos/nuevo"
           className="group card p-6 hover:border-accent/40 hover:shadow-sm transition-all"
@@ -365,6 +407,21 @@ export default async function AdminDashboard() {
           </h3>
           <p className="text-sm text-ink/60">
             Publicá una nueva propiedad al catálogo.
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/agentes"
+          className="group card p-6 hover:border-accent/40 hover:shadow-sm transition-all"
+        >
+          <div className="inline-flex items-center justify-center h-9 w-9 rounded-md bg-accent/10 border border-accent/40 text-accent-700 mb-4">
+            <UserCog className="h-4 w-4" />
+          </div>
+          <h3 className="text-base font-semibold tracking-tight text-ink mb-1">
+            Gestionar equipo
+          </h3>
+          <p className="text-sm text-ink/60">
+            Editá fotos, cargos y datos de agentes.
           </p>
         </Link>
 
