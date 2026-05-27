@@ -267,6 +267,13 @@ export async function POST(request: NextRequest) {
         results.push(`Error columna brochure_url: ${e.message}`);
       }
 
+      try {
+        await sql.unsafe(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS title VARCHAR(255);`);
+        results.push("Columna title en agents OK");
+      } catch (e: any) {
+        results.push(`Error columna title en agents: ${e.message}`);
+      }
+
       await sql.end();
     } catch (error: any) {
       if (sql) {

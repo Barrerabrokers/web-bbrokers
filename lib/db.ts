@@ -381,6 +381,57 @@ export async function getAllAgents(): Promise<Agent[]> {
   return data.map(mapAgentFromDb);
 }
 
+export async function getTeamMembers(): Promise<Omit<Agent, "password" | "email">[]> {
+  const supabase = getServerSupabase();
+
+  const { data, error } = await supabase
+    .from("agents")
+    .select("id, name, phone, photo, title, role, active, created_at")
+    .eq("active", true)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) return [];
+  return data.map((d: any) => ({
+    id: d.id,
+    name: d.name,
+    phone: d.phone,
+    photo: d.photo,
+    title: d.title,
+    role: d.role,
+    active: d.active,
+    createdAt: d.created_at,
+  }));
+}
+
+export async function updateAgent(
+  id: string,
+  data: { name?: string; phone?: string; photo?: string; title?: string; role?: string; active?: boolean }
+): Promise<{ agent: Agent | null; error: string | null }> {
+  const supabase = getServerSupabase();
+
+  const updateData: any = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.phone !== undefined) updateData.phone = data.phone;
+  if (data.photo !== undefined) updateData.photo = data.photo;
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.role !== undefined) updateData.role = data.role;
+  if (data.active !== undefined) updateData.active = data.active;
+  updateData.updated_at = new Date().toISOString();
+
+  const { data: agent, error } = await supabase
+    .from("agents")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error || !agent) {
+    return { agent: null, error: error?.message || "Error al actualizar" };
+  }
+
+  return { agent: mapAgentFromDb(agent), error: null };
+}
+
 // ============================================================
 // CONTACTS
 // ============================================================
@@ -468,6 +519,7 @@ function mapAgentFromDb(data: any): Agent {
     password: data.password,
     phone: data.phone,
     photo: data.photo,
+    title: data.title,
     role: data.role,
     active: data.active,
     createdAt: data.created_at,

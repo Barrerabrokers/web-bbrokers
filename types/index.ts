@@ -48,6 +48,7 @@ export interface Agent {
   password: string;
   phone?: string;
   photo?: string;
+  title?: string;
   role: AgentRole;
   active: boolean;
   createdAt: Date | string;

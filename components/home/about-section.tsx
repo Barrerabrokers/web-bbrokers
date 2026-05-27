@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { User } from "lucide-react";
+import { getTeamMembers } from "@/lib/db";
 
 const values = [
   {
@@ -21,34 +23,9 @@ const values = [
   },
 ];
 
-const team = [
-  {
-    name: "Maria Barrera",
-    role: "Fundadora",
-    image:
-      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&q=90",
-  },
-  {
-    name: "Carlos Rodriguez",
-    role: "Director comercial",
-    image:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=90",
-  },
-  {
-    name: "Laura Martinez",
-    role: "Agente senior",
-    image:
-      "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=600&q=90",
-  },
-  {
-    name: "Jorge Fernandez",
-    role: "Inversiones",
-    image:
-      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&q=90",
-  },
-];
+export async function AboutSection() {
+  const team = await getTeamMembers();
 
-export function AboutSection() {
   return (
     <section id="nosotros" className="bg-bone text-ink">
       {/* About */}
@@ -147,34 +124,48 @@ export function AboutSection() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12">
-            {team.map((member, idx) => (
-              <div key={member.name} className="group">
-                <div className="relative aspect-[3/4] overflow-hidden bg-cream-200 mb-4">
-                  <Image
-                    src={member.image}
-                    alt={member.name}
-                    fill
-                    className="object-cover transition-transform duration-1500 group-hover:scale-[1.04]"
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
-                  />
-                </div>
-                <div className="border-t border-ink/15 pt-3">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-display italic font-light text-base text-accent">
-                      {String(idx + 1).padStart(2, "0")}
-                    </span>
-                    <h4 className="font-display font-light text-xl md:text-2xl text-ink leading-tight tracking-tight">
-                      {member.name}
-                    </h4>
+          {team.length > 0 ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12">
+              {team.map((member, idx) => (
+                <div key={member.id} className="group">
+                  <div className="relative aspect-[3/4] overflow-hidden bg-cream-200 mb-4">
+                    {member.photo ? (
+                      <Image
+                        src={member.photo}
+                        alt={member.name}
+                        fill
+                        className="object-cover transition-transform duration-1500 group-hover:scale-[1.04]"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-cream-200">
+                        <User className="h-16 w-16 text-ink/20" />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[10px] uppercase tracking-widest text-ink/55">
-                    {member.role}
-                  </p>
+                  <div className="border-t border-ink/15 pt-3">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="font-display italic font-light text-base text-accent">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <h4 className="font-display font-light text-xl md:text-2xl text-ink leading-tight tracking-tight">
+                        {member.name}
+                      </h4>
+                    </div>
+                    <p className="text-[10px] uppercase tracking-widest text-ink/55">
+                      {member.title || (member.role === "admin" ? "Administrador" : "Agente")}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-16 text-center">
+              <p className="text-ink/55 text-lg">
+                Pronto vas a conocer a nuestro equipo.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </section>
