@@ -21,288 +21,215 @@ export function DevelopmentsSectionView({ highlighted, others }: Props) {
       ([entry]) => {
         if (entry.isIntersecting) setIsVisible(true);
       },
-      { threshold: 0.1 }
+      { threshold: 0.05 }
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, []);
 
-  const noContent = !highlighted && others.length === 0;
+  const allDevs = highlighted
+    ? [highlighted, ...others]
+    : others;
 
+  const noContent = allDevs.length === 0;
 
   return (
     <section
       ref={sectionRef}
       id="desarrollos"
-      className="relative section-pad bg-ink text-bone"
+      className="relative section-pad bg-ink text-bone overflow-hidden"
     >
+      {/* Subtle background grain */}
       <div
         aria-hidden="true"
-        className="absolute bottom-0 left-0 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] pointer-events-none"
+        className="absolute inset-0 pointer-events-none opacity-[0.015]"
         style={{
-          background:
-            "radial-gradient(ellipse at bottom left, rgba(21,20,21,0.12) 0%, transparent 60%)",
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
         }}
       />
 
       <div className="container-custom relative z-10">
-        {/* Section header */}
-        <div className="grid grid-cols-12 gap-6 mb-16 md:mb-24">
-          <div className="col-span-12 md:col-span-1">
-            <p
-              className={`font-display italic font-light text-xl md:text-2xl text-accent transition-all duration-1000 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-              }`}
-            >
-              01
-            </p>
-          </div>
-
-          <div className="col-span-12 md:col-span-7 md:col-start-3">
-            <p
-              className={`text-[11px] uppercase tracking-widest text-accent mb-4 transition-all duration-1000 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-              }`}
-              style={{ transitionDelay: "100ms" }}
-            >
-              Desarrollos en curso
-            </p>
-            <h2
-              className={`font-display font-light text-[36px] md:text-[56px] lg:text-[72px] tracking-[-0.025em] leading-[1.02] text-bone transition-all duration-1000 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-              }`}
-              style={{ transitionDelay: "200ms" }}
-            >
-              Proyectos con <span className="italic">alta rentabilidad</span> en
-              las mejores zonas.
-            </h2>
-          </div>
-
-          <div className="col-span-12 md:col-span-3 md:col-start-10 flex items-end">
-            <p
-              className={`text-bone/60 text-base leading-relaxed transition-all duration-1000 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-              }`}
-              style={{ transitionDelay: "300ms" }}
-            >
-              Ingresá en etapa de pozo o construcción. Financiación flexible con
-              anticipo del 35% y saldo en cuotas.
-            </p>
+        {/* Section header — minimal editorial */}
+        <div className="mb-20 md:mb-32">
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 md:col-span-8">
+              <p
+                className={`text-[11px] uppercase tracking-[0.2em] text-accent mb-5 transition-all duration-1000 ease-out-expo ${
+                  isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+                }`}
+              >
+                Desarrollos en curso
+              </p>
+              <h2
+                className={`font-display font-light text-[clamp(2.5rem,6vw,5rem)] tracking-[-0.03em] leading-[1] text-bone transition-all duration-[1400ms] ease-out-expo ${
+                  isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+                }`}
+                style={{ transitionDelay: "150ms" }}
+              >
+                Proyectos con{" "}
+                <span className="italic">alta rentabilidad</span>
+                <br className="hidden md:block" /> en las mejores zonas.
+              </h2>
+            </div>
+            <div className="col-span-12 md:col-span-3 md:col-start-10 flex items-end">
+              <p
+                className={`text-bone/50 text-sm leading-relaxed transition-all duration-1000 ease-out-expo ${
+                  isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+                }`}
+                style={{ transitionDelay: "300ms" }}
+              >
+                Ingresá en etapa de pozo o construcción. Financiación flexible
+                con anticipo del 35%.
+              </p>
+            </div>
           </div>
         </div>
 
         {noContent && (
           <div className="border-t border-bone/15 py-16 text-center">
             <p className="text-bone/60 text-lg">
-              Pronto vamos a publicar nuestros desarrollos. Volvé en unos días.
+              Pronto vamos a publicar nuestros desarrollos.
             </p>
           </div>
         )}
 
+        {/* ═══════════════════════════════════════════════════
+            STAGGERED ASYMMETRIC GRID — Obsidian Assembly style
+            ═══════════════════════════════════════════════════ */}
+        {allDevs.length > 0 && (
+          <div className="grid grid-cols-12 gap-x-5 gap-y-16 md:gap-y-24">
+            {allDevs.map((dev, idx) => {
+              const primaryImage =
+                dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
+              const priceFrom = dev.minPriceAvailable ?? dev.priceFrom;
+              const isHighlighted = highlighted && dev.id === highlighted.id;
 
-        {/* Highlighted */}
-        {highlighted && (() => {
-          const dev = highlighted;
-          const primaryImage =
-            dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
-          const priceFrom = dev.minPriceAvailable ?? dev.priceFrom;
+              // Asymmetric positioning: alternate between left/right & different sizes
+              const layouts = [
+                // First: large, spans left
+                "col-span-12 md:col-span-7 md:col-start-1",
+                // Second: medium, offset right with top margin
+                "col-span-12 md:col-span-5 md:col-start-8 md:mt-32",
+                // Third: medium, left with offset
+                "col-span-12 md:col-span-6 md:col-start-2 md:-mt-12",
+                // Fourth: small, far right
+                "col-span-12 md:col-span-5 md:col-start-7 md:mt-20",
+              ];
 
-          return (
-            <div
-              className={`mb-16 transition-all duration-1000 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
-              }`}
-              style={{ transitionDelay: "400ms" }}
-            >
-              <Link href={`/desarrollos/${dev.slug}`} className="group block">
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-12 lg:col-span-8">
-                    <div className="relative aspect-[16/10] overflow-hidden bg-ink-600">
+              const aspectRatios = [
+                "aspect-[4/5]",
+                "aspect-[3/4]",
+                "aspect-[16/11]",
+                "aspect-[3/4]",
+              ];
+
+              const layout = layouts[idx % layouts.length];
+              const aspect = aspectRatios[idx % aspectRatios.length];
+
+              return (
+                <div
+                  key={dev.id}
+                  className={`${layout} transition-all duration-[1400ms] ease-out-expo ${
+                    isVisible
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-20"
+                  }`}
+                  style={{ transitionDelay: `${400 + idx * 200}ms` }}
+                >
+                  <Link
+                    href={`/desarrollos/${dev.slug}`}
+                    className="group block"
+                  >
+                    {/* Image */}
+                    <div
+                      className={`relative ${aspect} overflow-hidden bg-ink-800 mb-6`}
+                    >
                       {primaryImage && (
                         <Image
                           src={primaryImage}
                           alt={dev.name}
                           fill
-                          className="object-cover transition-transform duration-[2000ms] group-hover:scale-105"
-                          style={{ transitionTimingFunction: "var(--f-cubic)" }}
-                          sizes="(max-width: 1024px) 100vw, 66vw"
+                          className="object-cover transition-transform duration-[2000ms] ease-out-expo group-hover:scale-[1.04]"
+                          sizes="(max-width: 768px) 100vw, 50vw"
                         />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
-                      <div className="absolute top-4 left-4 flex items-center gap-2">
-                        <span className="px-3 py-1.5 bg-accent text-ink text-[10px] uppercase tracking-widest font-medium rounded-full">
+                      {/* Overlay on hover */}
+                      <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/20 transition-colors duration-700" />
+
+                      {/* Status badge */}
+                      <div className="absolute top-4 left-4">
+                        <span className="px-3 py-1.5 bg-accent text-ink text-[9px] uppercase tracking-[0.15em] font-medium rounded-full">
                           {DEVELOPMENT_STATUS_LABELS[dev.status]}
                         </span>
-                        <span className="px-3 py-1.5 bg-bone/10 backdrop-blur-sm text-bone text-[10px] uppercase tracking-widest rounded-full border border-bone/20">
-                          Destacado
-                        </span>
                       </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-6">
-                        <div className="flex items-end justify-between">
-                          <div>
-                            <h3 className="font-display font-light text-3xl md:text-4xl lg:text-5xl text-bone tracking-tight group-hover:italic transition-all duration-700">
-                              {dev.name}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-2 text-bone/60">
-                              <MapPin className="h-4 w-4" />
-                              <span className="text-sm">{dev.location}</span>
-                            </div>
-                          </div>
-                          <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
-                            <ArrowUpRight className="h-5 w-5 text-ink" />
-                          </div>
-                        </div>
+
+                      {/* Arrow on hover */}
+                      <div className="absolute bottom-5 right-5 h-11 w-11 rounded-full bg-bone flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-500 ease-out-expo">
+                        <ArrowUpRight className="h-5 w-5 text-ink" />
                       </div>
+
+                      {/* Bottom gradient */}
+                      <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-ink/60 via-transparent to-transparent pointer-events-none" />
                     </div>
-                  </div>
 
-
-                  <div className="col-span-12 lg:col-span-4 flex flex-col justify-between">
-                    <div className="space-y-6">
-                      <div className="border-b border-bone/15 pb-6">
-                        <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-2">
-                          Retorno estimado
-                        </p>
-                        <div className="font-display font-light text-5xl md:text-6xl text-accent tracking-tight">
-                          30-40%
-                        </div>
+                    {/* Content */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-bone/40 text-[10px] uppercase tracking-[0.2em]">
+                        <MapPin className="h-3 w-3" />
+                        <span>{dev.location}</span>
+                        {dev.completionDate && (
+                          <>
+                            <span className="text-bone/20">·</span>
+                            <span>Entrega {dev.completionDate}</span>
+                          </>
+                        )}
                       </div>
 
-                      {priceFrom && (
-                        <div className="border-b border-bone/15 pb-6">
-                          <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-2">
-                            Desde
-                          </p>
-                          <div className="font-display font-light text-3xl text-bone tracking-tight">
-                            {formatPrice(priceFrom)}
-                          </div>
-                        </div>
+                      <h3 className="font-display font-light text-[clamp(1.5rem,3vw,2.5rem)] text-bone tracking-[-0.02em] leading-[1.1] group-hover:italic transition-all duration-500">
+                        {dev.name}
+                      </h3>
+
+                      {dev.shortDescription && (
+                        <p className="text-bone/50 text-sm leading-relaxed line-clamp-2 max-w-md">
+                          {dev.shortDescription}
+                        </p>
                       )}
 
-                      <div className="grid grid-cols-2 gap-4">
-                        {dev.completionDate && (
+                      <div className="flex items-center gap-6 pt-4">
+                        {priceFrom && (
                           <div>
-                            <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
-                              Entrega
+                            <p className="text-[9px] uppercase tracking-[0.2em] text-bone/40 mb-0.5">
+                              Desde
                             </p>
-                            <div className="flex items-center gap-2 text-bone">
-                              <Calendar className="h-4 w-4 text-accent" />
-                              <span>{dev.completionDate}</span>
-                            </div>
+                            <span className="font-display text-lg text-accent">
+                              {formatPrice(priceFrom)}
+                            </span>
                           </div>
                         )}
-                        <div>
-                          <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
-                            Unidades
-                          </p>
-                          <span className="text-bone">
-                            {dev.unitsCount || 0} dptos
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-[10px] uppercase tracking-widest text-bone/50 mb-2">
-                          <span>Avance de obra</span>
-                          <span>{dev.progress}%</span>
-                        </div>
-                        <div className="h-1 bg-bone/15 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-accent rounded-full transition-all duration-1000"
-                            style={{ width: `${dev.progress}%` }}
-                          />
-                        </div>
+                        {dev.progress > 0 && (
+                          <div>
+                            <p className="text-[9px] uppercase tracking-[0.2em] text-bone/40 mb-0.5">
+                              Avance
+                            </p>
+                            <span className="font-display text-lg text-bone">
+                              {dev.progress}%
+                            </span>
+                          </div>
+                        )}
+                        {dev.availableUnits !== undefined && dev.availableUnits > 0 && (
+                          <div>
+                            <p className="text-[9px] uppercase tracking-[0.2em] text-bone/40 mb-0.5">
+                              Disponibles
+                            </p>
+                            <span className="font-display text-lg text-bone">
+                              {dev.availableUnits}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    <div className="mt-8">
-                      <span className="btn-outline-light w-full justify-center">
-                        Ver proyecto completo
-                      </span>
-                    </div>
-                  </div>
+                  </Link>
                 </div>
-              </Link>
-            </div>
-          );
-        })()}
-
-
-        {/* Other developments grid */}
-        {others.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-bone/15 pt-16">
-            {others.map((dev, idx) => {
-              const primaryImage =
-                dev.images.find((i) => i.isPrimary)?.url ||
-                dev.images[0]?.url;
-              const priceFrom = dev.minPriceAvailable ?? dev.priceFrom;
-
-              return (
-                <Link
-                  key={dev.id}
-                  href={`/desarrollos/${dev.slug}`}
-                  className={`group block transition-all duration-1000 ${
-                    isVisible
-                      ? "opacity-100 translate-y-0"
-                      : "opacity-0 translate-y-12"
-                  }`}
-                  style={{ transitionDelay: `${500 + idx * 100}ms` }}
-                >
-                  <div className="relative aspect-[4/5] overflow-hidden bg-ink-600 mb-5">
-                    {primaryImage && (
-                      <Image
-                        src={primaryImage}
-                        alt={dev.name}
-                        fill
-                        className="object-cover transition-transform duration-[1500ms] group-hover:scale-105"
-                        style={{
-                          transitionTimingFunction: "var(--f-cubic)",
-                        }}
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
-
-                    <div className="absolute top-3 left-3">
-                      <span className="px-2.5 py-1 bg-accent text-ink text-[9px] uppercase tracking-widest font-medium rounded-full">
-                        {DEVELOPMENT_STATUS_LABELS[dev.status]}
-                      </span>
-                    </div>
-
-                    {dev.availableUnits !== undefined && dev.availableUnits > 0 && (
-                      <div className="absolute top-3 right-3">
-                        <span className="flex items-center gap-1 px-2.5 py-1 bg-bone/10 backdrop-blur-sm text-bone text-[10px] uppercase tracking-widest rounded-full border border-bone/20">
-                          <TrendingUp className="h-3 w-3" />
-                          {dev.availableUnits} dispo
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
-                      <ArrowUpRight className="h-4 w-4 text-ink" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-bone/50 text-[10px] uppercase tracking-widest">
-                      <MapPin className="h-3 w-3" />
-                      {dev.location}
-                    </div>
-                    <h3 className="font-display font-light text-2xl text-bone tracking-tight group-hover:italic transition-all duration-500">
-                      {dev.name}
-                    </h3>
-                    <div className="flex items-baseline justify-between pt-3 border-t border-bone/15">
-                      <span className="font-display text-lg text-accent">
-                        {priceFrom ? formatPrice(priceFrom) : "—"}
-                      </span>
-                      {dev.completionDate && (
-                        <span className="text-[10px] uppercase tracking-widest text-bone/50">
-                          Entrega {dev.completionDate}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
               );
             })}
           </div>
@@ -310,9 +237,18 @@ export function DevelopmentsSectionView({ highlighted, others }: Props) {
 
         {/* CTA */}
         {!noContent && (
-          <div className="text-center mt-16 pt-12 border-t border-bone/15">
-            <Link href="/desarrollos" className="btn-outline-light">
-              Ver todos los desarrollos
+          <div
+            className={`text-center mt-24 md:mt-32 transition-all duration-1000 ease-out-expo ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
+            style={{ transitionDelay: `${400 + allDevs.length * 200 + 200}ms` }}
+          >
+            <Link
+              href="/desarrollos"
+              className="inline-flex items-center gap-3 text-[11px] uppercase tracking-[0.2em] text-bone/70 hover:text-accent transition-colors duration-300 group"
+            >
+              <span>Ver todos los desarrollos</span>
+              <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         )}
