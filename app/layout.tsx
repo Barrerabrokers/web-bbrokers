@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
@@ -47,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
-      <body className="font-sans antialiased" style={{ backgroundColor: "var(--oa-bg-cream)", color: "var(--oa-black)" }}>
+      <body className="font-sans bg-obsidian text-ivory antialiased">
         <Providers>{children}</Providers>
         <SmoothScroll />
         <CursorTrail />

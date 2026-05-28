@@ -9,8 +9,8 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "Cormorant Garamond", "Playfair Display", "Georgia", "serif"],
-        serif: ["var(--font-display)", "Cormorant Garamond", "Playfair Display", "Georgia", "serif"],
+        display: ["var(--font-display)", "Playfair Display", "Georgia", "serif"],
+        serif: ["var(--font-display)", "Playfair Display", "Georgia", "serif"],
       },
       colors: {
         obsidian: {
@@ -38,6 +38,7 @@ module.exports = {
           400: "#A07A5E",
           500: "#B89474",
         },
+        // Aliases for existing code compatibility
         ink: {
           DEFAULT: "#151415",
           50: "#F1EADE",
@@ -111,9 +112,18 @@ module.exports = {
         "slide-up": "slideUp 0.8s cubic-bezier(0.19, 1, 0.22, 1)",
       },
       keyframes: {
-        fadeIn: { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
-        fadeUp: { "0%": { opacity: "0", transform: "translateY(30px)" }, "100%": { opacity: "1", transform: "translateY(0)" } },
-        slideUp: { "0%": { transform: "translateY(100%)" }, "100%": { transform: "translateY(0)" } },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        fadeUp: {
+          "0%": { opacity: "0", transform: "translateY(30px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        slideUp: {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
       },
     },
   },

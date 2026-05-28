@@ -3,13 +3,9 @@ import { formatPrice } from "@/lib/utils";
 import { InteractiveShowcaseSection, ShowcaseItem } from "./interactive-showcase-section";
 
 export async function RentalsSection() {
-  let properties: Awaited<ReturnType<typeof getProperties>> = [];
-  try {
-    properties = await getProperties({ category: "rentals" });
-  } catch {
-    // DB no disponible
-  }
+  const properties = await getProperties({ category: "rentals" });
 
+  // If no rentals, try all properties as fallback
   const items: ShowcaseItem[] = properties.slice(0, 8).map((p) => ({
     id: p.id,
     href: `/propiedades/${p.id}`,
@@ -27,20 +23,18 @@ export async function RentalsSection() {
   return (
     <InteractiveShowcaseSection
       items={items}
-      sectionId="renta"
-      eyebrow="Renta temporaria"
+      sectionId="rentals"
+      eyebrow="Rentals"
       heading={
         <>
-          Propiedades en{" "}
-          <em className="not-italic" style={{ color: "var(--oa-brown)" }}>
-            alquiler
-          </em>{" "}
-          para inversores y residentes.
+          Propiedades en <span className="italic">alquiler</span> para
+          inversores y residentes.
         </>
       }
       description="Alquileres temporarios y permanentes en las mejores ubicaciones. Gestión integral incluida."
       ctaText="Ver todos los alquileres"
       ctaHref="/propiedades?category=rentals"
+      gradientColor="rgba(120,82,60,0.06)"
     />
   );
 }

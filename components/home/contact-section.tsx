@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 
+/**
+ * Contacto section — accent background con form.
+ */
 export function ContactSection() {
   const [formData, setFormData] = useState({
     name: "",
@@ -9,17 +12,21 @@ export function ContactSection() {
     phone: "",
     message: "",
   });
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
+
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
+
       if (response.ok) {
         setStatus("success");
         setFormData({ name: "", email: "", phone: "", message: "" });
@@ -27,7 +34,7 @@ export function ContactSection() {
       } else {
         setStatus("error");
       }
-    } catch {
+    } catch (error) {
       setStatus("error");
     }
   };
@@ -35,167 +42,139 @@ export function ContactSection() {
   return (
     <section
       id="contacto"
-      className="relative overflow-hidden"
-      style={{ backgroundColor: "var(--oa-bg)" }}
+      className="relative bg-accent text-ink overflow-hidden"
     >
-      {/* Grain */}
-      <div className="absolute inset-0 bg-grain opacity-50 pointer-events-none" />
-
-      {/* Círculos decorativos */}
+      {/* Top dark gradient overlay for transition */}
       <div
-        className="circle-deco"
+        className="absolute inset-x-0 top-0 h-32 pointer-events-none"
         style={{
-          width: "min(90vw, 800px)",
-          height: "min(90vw, 800px)",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          borderColor: "rgba(255,255,255,0.12)",
-        }}
-      />
-      <div
-        className="circle-deco"
-        style={{
-          width: "min(55vw, 480px)",
-          height: "min(55vw, 480px)",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          borderColor: "rgba(255,255,255,0.08)",
+          background:
+            "linear-gradient(180deg, rgba(26,24,20,1) 0%, rgba(26,24,20,0.5) 50%, rgba(26,24,20,0) 100%)",
         }}
       />
 
-      <div className="relative z-10 section-pad">
+      <div className="relative z-10 section-pad pt-32 md:pt-40">
         <div className="container-custom">
-
-          {/* ── HEADER ── */}
           <div className="grid grid-cols-12 gap-6 mb-16 md:mb-24">
             <div className="col-span-12 md:col-span-1">
-              <p
-                className="font-display italic font-light text-xl md:text-2xl"
-                style={{ color: "rgba(7,7,7,0.2)" }}
-              >
-                07
+              <p className="font-display italic font-light text-xl md:text-2xl text-ink/40">
+                05
               </p>
             </div>
-            <div className="col-span-12 md:col-span-10 md:col-start-3">
-              <p
-                className="label-tracking mb-6"
-                style={{ color: "rgba(7,7,7,0.5)" }}
-              >
+            <div className="col-span-12 md:col-span-10 md:col-start-3 text-center md:text-left">
+              <p className="text-[11px] uppercase tracking-widest text-ink/55 mb-6">
                 Contacto
               </p>
-              <h2
-                className="font-display font-light tracking-[-0.04em] leading-[0.92]"
-                style={{
-                  fontSize: "clamp(2.8rem, 8vw, 9rem)",
-                  color: "var(--oa-black)",
-                }}
-              >
-                Hablemos de tu próximo{" "}
-                <em className="not-italic" style={{ color: "var(--oa-brown)" }}>
-                  proyecto.
-                </em>
+              <h2 className="font-display font-light text-[44px] md:text-[80px] lg:text-[100px] tracking-[-0.025em] leading-[0.96] text-ink max-w-5xl">
+                Hablemos de tu proximo{" "}
+                <span className="italic">proyecto.</span>
               </h2>
-              <p
-                className="mt-8 max-w-2xl text-base leading-relaxed"
-                style={{ color: "rgba(7,7,7,0.6)", fontFamily: "var(--font-sans)" }}
-              >
-                Sea cual sea tu objetivo, dejanos tus datos y te contactamos a la brevedad.
-                También podés escribirnos por email o llamarnos directo.
+              <p className="mt-8 max-w-2xl text-ink/75 text-base md:text-lg leading-relaxed">
+                Sea cual sea tu objetivo, dejanos tus datos y te
+                contactamos a la brevedad. Tambien podes escribirnos por
+                email o llamarnos directo.
               </p>
             </div>
           </div>
 
-          {/* ── FORMULARIO ── */}
+          {/* Form */}
           <div className="max-w-3xl mx-auto">
             <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
-              {[
-                { label: "Nombre",        id: "name",    type: "text",  placeholder: "Tu nombre completo",  span: 6, key: "name"    },
-                { label: "Email",         id: "email",   type: "email", placeholder: "tu@email.com",         span: 6, key: "email"   },
-                { label: "Teléfono",      id: "phone",   type: "tel",   placeholder: "+54 11 1234-5678",     span: 6, key: "phone"   },
-                { label: "Zona de interés", id: "zone", type: "text",  placeholder: "Palermo, Belgrano…",   span: 6, key: null      },
-              ].map((field) => (
-                <div key={field.id} className={`col-span-12 md:col-span-${field.span}`}>
-                  <label
-                    className="block text-[9px] uppercase tracking-[0.2em] mb-3"
-                    style={{ color: "rgba(7,7,7,0.5)", fontFamily: "var(--font-sans)" }}
-                  >
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
-                    required={field.key !== null && field.key !== "phone"}
-                    value={field.key ? (formData as any)[field.key] ?? "" : ""}
-                    onChange={(e) =>
-                      field.key && setFormData({ ...formData, [field.key]: e.target.value })
-                    }
-                    className="input-dark"
-                    placeholder={field.placeholder}
-                  />
-                </div>
-              ))}
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="Tu nombre completo"
+                />
+              </div>
 
-              <div className="col-span-12 mt-2">
-                <label
-                  className="block text-[9px] uppercase tracking-[0.2em] mb-3"
-                  style={{ color: "rgba(7,7,7,0.5)", fontFamily: "var(--font-sans)" }}
-                >
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="tu@email.com"
+                />
+              </div>
+
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Telefono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="+54 11 1234-5678"
+                />
+              </div>
+
+              <div className="col-span-12 md:col-span-6">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
+                  Zona de interes
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300"
+                  placeholder="Palermo, Belgrano, etc."
+                />
+              </div>
+
+              <div className="col-span-12 mt-4">
+                <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-3">
                   Tu consulta
                 </label>
                 <textarea
                   required
                   rows={4}
                   value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="input-dark resize-none"
-                  placeholder="Contanos cómo podemos ayudarte…"
+                  onChange={(e) =>
+                    setFormData({ ...formData, message: e.target.value })
+                  }
+                  className="w-full bg-transparent border-b border-ink/30 text-ink placeholder-ink/40 px-0 py-3 text-base focus:outline-none focus:border-ink hover:border-ink/60 transition-colors duration-300 resize-none"
+                  placeholder="Contanos como podemos ayudarte..."
                 />
               </div>
 
               {status === "success" && (
-                <div
-                  className="col-span-12 text-sm pl-4 py-2"
-                  style={{
-                    color: "rgba(7,7,7,0.7)",
-                    borderLeft: "2px solid var(--oa-brown)",
-                    fontFamily: "var(--font-sans)",
-                  }}
-                >
+                <div className="col-span-12 text-sm text-ink border-l-2 border-ink pl-4 py-2">
                   Mensaje recibido. Te contactamos pronto.
                 </div>
               )}
 
               {status === "error" && (
-                <div
-                  className="col-span-12 text-sm pl-4 py-2"
-                  style={{
-                    color: "rgba(7,7,7,0.7)",
-                    borderLeft: "2px solid #c0392b",
-                    fontFamily: "var(--font-sans)",
-                  }}
-                >
-                  Hubo un error. Por favor intentá nuevamente.
+                <div className="col-span-12 text-sm text-ink border-l-2 border-red-700 pl-4 py-2">
+                  Hubo un error. Por favor intenta nuevamente.
                 </div>
               )}
 
-              <div className="col-span-12 mt-6 flex justify-center">
+              <div className="col-span-12 mt-8 flex justify-center">
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="relative inline-flex items-center justify-center gap-2 px-10 py-4 pb-5 rounded-lg text-[10px] uppercase tracking-[0.2em] font-medium transition-all duration-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[260px]"
-                  style={{
-                    background: "var(--oa-black)",
-                    color: "var(--oa-white)",
-                    fontFamily: "var(--font-sans)",
-                    transitionTimingFunction: "var(--ease-out-expo)",
-                  }}
+                  className="relative inline-flex items-center justify-center gap-2 px-8 py-4 pb-5 bg-ink text-bone text-[11px] uppercase tracking-widest font-medium rounded-[6px] hover:bg-ink-600 transition-all duration-900 disabled:opacity-50 disabled:cursor-not-allowed min-w-[260px]"
+                  style={{ transitionTimingFunction: "var(--f-cubic)" }}
                 >
-                  {status === "loading" ? "Enviando…" : "Enviar consulta"}
-                  <span
-                    className="absolute bottom-2 right-2.5 h-1.5 w-1.5 rounded-full"
-                    style={{ background: "var(--oa-bg)" }}
-                  />
+                  {status === "loading" ? "Enviando..." : "Enviar consulta"}
+                  <span className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
                 </button>
               </div>
             </form>
@@ -203,44 +182,52 @@ export function ContactSection() {
         </div>
       </div>
 
-      {/* ── INFO DIRECTA ── */}
-      <div
-        className="relative z-10 py-12"
-        style={{ borderTop: "1px solid rgba(7,7,7,0.1)" }}
-      >
+      {/* Direct contact info */}
+      <div className="relative z-10 border-t border-ink/15 py-12">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { label: "Email",     value: "info@barrerabrokers.com",  href: "mailto:info@barrerabrokers.com" },
-              { label: "Teléfono",  value: "+54 11 1234-5678",          href: "tel:+541112345678"              },
-              { label: "Dirección", value: "Av. Principal 123\nBuenos Aires" },
-              { label: "Horario",   value: "Lun–Vie 9–19hs\nSáb 10–14hs"    },
-            ].map((item) => (
-              <div key={item.label}>
-                <p
-                  className="label-tracking mb-2"
-                  style={{ color: "rgba(7,7,7,0.4)" }}
-                >
-                  {item.label}
-                </p>
-                {item.href ? (
-                  <a
-                    href={item.href}
-                    className="font-display text-base md:text-lg transition-colors duration-300"
-                    style={{ color: "var(--oa-black)" }}
-                  >
-                    {item.value}
-                  </a>
-                ) : (
-                  <p
-                    className="text-sm leading-relaxed whitespace-pre-line"
-                    style={{ color: "var(--oa-black)", fontFamily: "var(--font-sans)" }}
-                  >
-                    {item.value}
-                  </p>
-                )}
-              </div>
-            ))}
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Email
+              </p>
+              <a
+                href="mailto:info@barrerabrokers.com"
+                className="font-display text-base md:text-lg text-ink hover:text-ink-600 transition-colors duration-300"
+              >
+                info@barrerabrokers.com
+              </a>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Telefono
+              </p>
+              <a
+                href="tel:+541112345678"
+                className="font-display text-base md:text-lg text-ink hover:text-ink-600 transition-colors duration-300"
+              >
+                +54 11 1234-5678
+              </a>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Direccion
+              </p>
+              <p className="text-sm text-ink leading-relaxed">
+                Av. Principal 123
+                <br />
+                Buenos Aires
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Horario
+              </p>
+              <p className="text-sm text-ink leading-relaxed">
+                Lun-Vie 9-19hs
+                <br />
+                Sab 10-14hs
+              </p>
+            </div>
           </div>
         </div>
       </div>
