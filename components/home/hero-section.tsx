@@ -7,12 +7,15 @@ import { ChevronDown } from "lucide-react";
 /**
  * Lista de videos del hero.
  * Para sumar mas videos, copiar archivos a /public/ y agregarlos a este array.
- * Se reproducen en secuencia y al terminar el ultimo vuelven al primero.
+ * Se reproducen en secuencia. Si un archivo no existe (404), se saltea
+ * automaticamente al siguiente, asi que el orden y los nombres pueden
+ * irse ajustando segun los archivos que esten realmente en /public/.
  */
 const VIDEO_SOURCES = [
-  "/buenos-aires.mp4",
-  "/buenos-aires-2.mp4",
-  "/buenos-aires-3.mp4",
+  "/Buenos-Aires1.mp4",
+  "/Buenos-Aires2.mp4",
+  "/Buenos-Aires3.mp4",
+  "/buenos-aires.mp4", // fallback: video original ya commiteado
 ];
 
 /**
@@ -23,6 +26,7 @@ export function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [videoIndex, setVideoIndex] = useState(0);
+  const [failedSet, setFailedSet] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (videoRef.current) {
@@ -47,15 +51,31 @@ export function HeroSection() {
     }
   }, [videoIndex]);
 
+  // Avanza al siguiente video que no haya fallado.
+  // Si ya fallaron todos menos uno, queda en ese.
+  const nextValidIndex = (current: number, failed: Set<number>) => {
+    for (let step = 1; step <= VIDEO_SOURCES.length; step++) {
+      const candidate = (current + step) % VIDEO_SOURCES.length;
+      if (!failed.has(candidate)) return candidate;
+    }
+    return current; // todos fallaron, mantener
+  };
+
   const handleEnded = () => {
-    setVideoIndex((i) => (i + 1) % VIDEO_SOURCES.length);
+    setVideoIndex((i) => nextValidIndex(i, failedSet));
   };
 
   const handleError = () => {
-    // Si el archivo no existe (404) o falla, saltar al siguiente
-    if (VIDEO_SOURCES.length > 1) {
-      setVideoIndex((i) => (i + 1) % VIDEO_SOURCES.length);
-    }
+    // Marcar este indice como fallido y saltar al siguiente valido
+    setFailedSet((prev) => {
+      const next = new Set(prev);
+      next.add(videoIndex);
+      // Si todavia hay alguno que no fallo, avanzamos
+      if (next.size < VIDEO_SOURCES.length) {
+        setVideoIndex((i) => nextValidIndex(i, next));
+      }
+      return next;
+    });
   };
 
   return (
