@@ -1,5 +1,3 @@
-/* Las fuentes las maneja next/font/google en app/layout.tsx — no se necesita @import aquí */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,20 +5,19 @@
 /* ==============================================
    BARRERA BROKERS — Editorial Premium
    Paleta beige/caramelo · Serif gigante · Boutique
-   Inspirado en obsidianassembly.com
    ============================================== */
 
 :root {
-  /* Paleta principal */
+  /* ── Paleta nueva OA ── */
   --oa-bg:        #b89d87;
   --oa-bg-light:  #d8c4af;
   --oa-bg-cream:  #efe6d8;
   --oa-black:     #070707;
   --oa-brown:     #3a1d17;
   --oa-white:     #f8f5ef;
-  --oa-line:      rgba(255, 255, 255, 0.28);
+  --oa-line:      rgba(7, 7, 7, 0.1);
 
-  /* Valores RGB para opacity utilities */
+  /* RGB para opacidades */
   --oa-bg-rgb:        184, 157, 135;
   --oa-bg-light-rgb:  216, 196, 175;
   --oa-bg-cream-rgb:  239, 230, 216;
@@ -28,20 +25,24 @@
   --oa-brown-rgb:     58, 29, 23;
   --oa-white-rgb:     248, 245, 239;
 
-  /* Easing */
-  --ease-out-expo:  cubic-bezier(0.19, 1, 0.22, 1);
-  --ease-in-out:    cubic-bezier(0.65, 0, 0.35, 1);
+  /* ── SOBREESCRIBIR variables del sistema original ──
+     Así todo el código que usa --obsidian, --ivory, --copper
+     toma automáticamente la nueva paleta warm           */
+  --obsidian:     239 230 216;
+  --obsidian-rgb: 239, 230, 216;
+  --ivory:        7 7 7;
+  --ivory-rgb:    7, 7, 7;
+  --copper:       58 29 23;
+  --copper-rgb:   58, 29, 23;
+  --copper-dark:  42 20 16;
+  --copper-dark-rgb: 42, 20, 16;
 
-  /* Legacy compat (usado por componentes existentes) */
-  --obsidian:      239 230 216;   /* redirige a cream */
-  --ivory:         7 7 7;         /* redirige a black */
-  --copper:        58 29 23;
-  --copper-rgb:    58, 29, 23;
-  --ivory-rgb:     7, 7, 7;
-  --obsidian-rgb:  239, 230, 216;
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  --f-cubic:       cubic-bezier(0.19, 1, 0.22, 1);
 }
 
-/* ── Google Fonts fallback vía @font-face si import falla ── */
+/* ── BASE ── */
 @layer base {
   html {
     color-scheme: light;
@@ -59,42 +60,31 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "kern" 1, "liga" 1;
-    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, sans-serif;
-  }
-
-  h1, h2, h3 {
-    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-    font-weight: 300;
-    letter-spacing: -0.03em;
   }
 
   ::selection {
-    background-color: rgba(var(--oa-brown-rgb), 0.25);
+    background-color: rgba(var(--oa-brown-rgb), 0.2);
     color: var(--oa-black);
   }
 }
 
-/* ──────────────────────────────────────────────
-   COMPONENTES
-   ────────────────────────────────────────────── */
+/* ── COMPONENTES ── */
 @layer components {
 
-  /* Container */
   .container-custom {
     @apply max-w-[1440px] mx-auto px-5 md:px-8 lg:px-14;
   }
 
-  /* ── TIPOGRAFÍA ── */
+  /* Tipografía */
   .heading-display {
-    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+    font-family: var(--font-display), "Cormorant Garamond", Georgia, serif;
     font-weight: 300;
     letter-spacing: -0.04em;
     line-height: 0.92;
   }
 
   .heading-serif {
-    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+    font-family: var(--font-display), "Cormorant Garamond", Georgia, serif;
     font-weight: 300;
     letter-spacing: -0.03em;
     line-height: 1;
@@ -102,7 +92,6 @@
 
   .label-tracking {
     @apply uppercase tracking-[0.18em] text-[10px] font-medium;
-    font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
   }
 
   .eyebrow {
@@ -110,17 +99,16 @@
     color: rgba(var(--oa-brown-rgb), 0.7);
   }
 
-  /* ── BOTONES — Blanco con punto negro ── */
+  /* ── Botones: blanco con punto negro ── */
   .btn-primary {
     @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-3.5
+           px-7 py-3.5 pr-10
            text-[10px] uppercase tracking-[0.18em] font-medium
            rounded-full overflow-hidden
            transition-all duration-500;
     background: var(--oa-white);
     border: 1px solid rgba(var(--oa-black-rgb), 0.12);
     color: var(--oa-black);
-    font-family: 'Inter', sans-serif;
     transition-timing-function: var(--ease-out-expo);
   }
 
@@ -138,16 +126,17 @@
   }
 
   .btn-primary:hover::after {
-    transform: translateY(-50%) translateX(-2px) scale(1.3);
+    transform: translateY(-50%) translateX(-3px) scale(1.4);
   }
 
   .btn-primary:hover {
     background: var(--oa-bg-cream);
     border-color: rgba(var(--oa-black-rgb), 0.25);
     transform: translateY(-1px);
-    box-shadow: 0 8px 32px rgba(var(--oa-black-rgb), 0.1);
+    box-shadow: 0 8px 32px rgba(var(--oa-black-rgb), 0.08);
   }
 
+  /* Outline */
   .btn-outline {
     @apply relative inline-flex items-center justify-center gap-2
            px-7 py-3.5
@@ -157,42 +146,39 @@
     background: transparent;
     border: 1px solid rgba(var(--oa-black-rgb), 0.22);
     color: var(--oa-black);
-    font-family: 'Inter', sans-serif;
     transition-timing-function: var(--ease-out-expo);
   }
 
   .btn-outline:hover {
     background: rgba(var(--oa-black-rgb), 0.05);
-    border-color: rgba(var(--oa-black-rgb), 0.4);
+    border-color: rgba(var(--oa-black-rgb), 0.38);
     transform: translateY(-1px);
   }
 
-  /* alias para compatibilidad */
   .btn-outline-light { @apply btn-outline; }
   .btn-accent        { @apply btn-primary; }
 
-  /* ── NAV PILL (cápsulas de navegación) ── */
+  /* Nav pill */
   .nav-pill {
     @apply px-4 py-2 rounded-full text-[10px] uppercase tracking-[0.14em] font-medium
            transition-all duration-300;
-    color: rgba(var(--oa-black-rgb), 0.55);
+    color: rgba(var(--oa-black-rgb), 0.5);
     border: 1px solid transparent;
-    font-family: 'Inter', sans-serif;
   }
 
   .nav-pill:hover {
     color: var(--oa-black);
     background: rgba(var(--oa-black-rgb), 0.06);
-    border-color: rgba(var(--oa-black-rgb), 0.12);
+    border-color: rgba(var(--oa-black-rgb), 0.1);
   }
 
   .nav-pill.active {
     color: var(--oa-black);
     background: rgba(var(--oa-black-rgb), 0.08);
-    border-color: rgba(var(--oa-black-rgb), 0.18);
+    border-color: rgba(var(--oa-black-rgb), 0.15);
   }
 
-  /* ── CARDS ── */
+  /* Cards */
   .card-dark {
     @apply rounded-2xl overflow-hidden;
     background: rgba(var(--oa-white-rgb), 0.6);
@@ -203,112 +189,101 @@
   .card-dark:hover {
     border-color: rgba(var(--oa-black-rgb), 0.18);
     transform: scale(1.02) rotate(-0.3deg);
-    box-shadow: 0 24px 64px rgba(var(--oa-black-rgb), 0.1);
+    box-shadow: 0 24px 60px rgba(var(--oa-black-rgb), 0.08);
   }
 
   .card { @apply card-dark; }
 
-  /* ── SECTION HELPERS ── */
+  /* Secciones */
   .section-pad {
     @apply py-24 md:py-32 lg:py-40;
   }
 
   .section-number {
-    font-family: 'Cormorant Garamond', serif;
     @apply text-[13px] tracking-[0.2em];
-    color: rgba(var(--oa-brown-rgb), 0.4);
+    font-family: var(--font-display), serif;
+    color: rgba(var(--oa-brown-rgb), 0.35);
   }
 
-  /* ── LÍNEAS DECORATIVAS ── */
+  /* Líneas decorativas */
   .line-h {
     @apply h-px w-full;
-    background: linear-gradient(90deg, transparent, var(--oa-line), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--oa-black-rgb), 0.12), transparent);
   }
 
   .line-v {
     @apply w-px h-full;
-    background: linear-gradient(180deg, transparent, var(--oa-line), transparent);
+    background: linear-gradient(180deg, transparent, rgba(var(--oa-black-rgb), 0.12), transparent);
   }
 
-  /* Círculos decorativos finos */
+  /* Círculos decorativos */
   .circle-deco {
     border-radius: 50%;
-    border: 1px solid var(--oa-line);
+    border: 1px solid rgba(var(--oa-black-rgb), 0.07);
     pointer-events: none;
     position: absolute;
   }
 
-  /* ── GRAIN ── */
+  /* Grain */
   .bg-grain {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.025 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 200px 200px;
   }
 
-  /* ── INPUTS (formularios) ── */
+  /* Inputs */
   .input-dark {
-    @apply w-full bg-transparent
-           px-0 py-4 text-base
-           transition-colors duration-300;
+    @apply w-full bg-transparent px-0 py-4 text-base transition-colors duration-300;
     border-bottom: 1px solid rgba(var(--oa-black-rgb), 0.18);
     color: var(--oa-black);
-    font-family: 'Inter', sans-serif;
   }
+  .input-dark::placeholder { color: rgba(var(--oa-black-rgb), 0.32); }
+  .input-dark:hover  { border-color: rgba(var(--oa-black-rgb), 0.35); }
+  .input-dark:focus  { outline: none; border-color: rgba(var(--oa-brown-rgb), 0.65); }
 
-  .input-dark::placeholder {
-    color: rgba(var(--oa-black-rgb), 0.35);
-  }
-
-  .input-dark:hover {
-    border-color: rgba(var(--oa-black-rgb), 0.35);
-  }
-
-  .input-dark:focus {
-    outline: none;
-    border-color: rgba(var(--oa-brown-rgb), 0.7);
-  }
-
-  /* ── PILL tag ── */
+  /* Pill */
   .pill {
-    @apply inline-flex items-center gap-1.5 px-3 py-1
-           border rounded-full
+    @apply inline-flex items-center gap-1.5 px-3 py-1 border rounded-full
            text-[10px] uppercase tracking-[0.14em] font-medium;
     border-color: rgba(var(--oa-black-rgb), 0.15);
-    color: rgba(var(--oa-black-rgb), 0.65);
+    color: rgba(var(--oa-black-rgb), 0.6);
   }
 
-  /* ── ADMIN area (mantenemos fondo blanco) ── */
+  /* Glow */
+  .glow-copper {
+    background: radial-gradient(ellipse at top, rgba(var(--oa-brown-rgb), 0.08) 0%, transparent 60%);
+  }
+
+  /* Imágenes editoriales inclinadas */
+  .img-tilted {
+    transform: rotate(-1.2deg);
+    transition: transform 0.8s var(--ease-out-expo);
+  }
+  .img-tilted:hover {
+    transform: rotate(0deg) scale(1.02);
+  }
+
+  /* Form inputs (admin — siempre light) */
   .form-input {
     @apply w-full bg-white text-[#151415] placeholder:text-[#151415]/40
            border border-[#151415]/15 rounded
            px-4 py-3 text-sm
-           focus:border-[#7A523C] focus:outline-none
-           transition-colors;
+           focus:border-[#7A523C] focus:outline-none transition-colors;
   }
 
   .admin-area { color-scheme: light; }
 
   .form-input-boxed {
-    @apply w-full bg-white border rounded-lg px-4 py-3 text-sm text-[#151415] placeholder-[#151415]/40 transition-colors duration-300;
-    border-color: rgba(7, 7, 7, 0.1);
+    @apply w-full bg-white border rounded-lg px-4 py-3 text-sm
+           text-[#151415] placeholder-[#151415]/40 transition-colors duration-300;
+    border-color: rgba(21, 20, 21, 0.1);
   }
   .form-input-boxed:focus {
     outline: none;
     border-color: rgba(58, 29, 23, 0.5);
   }
-
-  /* ── GLOW sutil ── */
-  .glow-copper {
-    background: radial-gradient(
-      ellipse at top,
-      rgba(var(--oa-brown-rgb), 0.1) 0%,
-      transparent 60%
-    );
-  }
 }
 
-/* ──────────────────────────────────────────────
-   ADMIN — inputs siempre light
-   ────────────────────────────────────────────── */
+/* ── ADMIN inputs: siempre fondo blanco ── */
 .admin-area input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]),
 .admin-area textarea,
 .admin-area select {
@@ -318,8 +293,8 @@
 }
 .admin-area input::placeholder,
 .admin-area textarea::placeholder {
-  color: rgba(21, 20, 21, 0.4) !important;
-  -webkit-text-fill-color: rgba(21, 20, 21, 0.4);
+  color: rgba(21,20,21,0.4) !important;
+  -webkit-text-fill-color: rgba(21,20,21,0.4);
   opacity: 1;
 }
 .admin-area input:-webkit-autofill,
@@ -332,91 +307,26 @@
   caret-color: #151415;
 }
 
-/* ──────────────────────────────────────────────
-   SCROLLBAR
-   ────────────────────────────────────────────── */
+/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--oa-bg-cream); }
-::-webkit-scrollbar-thumb {
-  background: rgba(var(--oa-black-rgb), 0.18);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--oa-brown-rgb), 0.45);
-}
+::-webkit-scrollbar-thumb { background: rgba(var(--oa-black-rgb), 0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--oa-brown-rgb), 0.4); }
 
-/* ──────────────────────────────────────────────
-   CURSOR PERSONALIZADO
-   ────────────────────────────────────────────── */
+/* ── Cursor personalizado ── */
 @media (pointer: fine) {
   html.smart-cursor-active,
-  html.smart-cursor-active * {
-    cursor: none !important;
-  }
+  html.smart-cursor-active * { cursor: none !important; }
 }
 
 .cursor-ring-hover {
   width: 56px !important;
   height: 56px !important;
-  background-color: rgba(var(--oa-brown-rgb), 0.12);
-  border-color: rgba(var(--oa-brown-rgb), 0.5) !important;
+  background-color: rgba(var(--oa-brown-rgb), 0.1);
+  border-color: rgba(var(--oa-brown-rgb), 0.45) !important;
 }
 
 .cursor-ring-down {
   width: 24px !important;
   height: 24px !important;
 }
-
-/* ──────────────────────────────────────────────
-   ANIMACIONES GLOBALES
-   ────────────────────────────────────────────── */
-@keyframes revealUp {
-  from { opacity: 0; transform: translateY(32px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes revealFade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes clipReveal {
-  from { clip-path: inset(100% 0% 0% 0%); }
-  to   { clip-path: inset(0% 0% 0% 0%); }
-}
-
-/* Rotate sutil en imágenes inclinadas */
-@keyframes subtleFloat {
-  0%, 100% { transform: rotate(-1.5deg) translateY(0px); }
-  50%       { transform: rotate(-1.5deg) translateY(-8px); }
-}
-
-.img-tilted {
-  transform: rotate(-1.5deg);
-  transition: transform 0.8s var(--ease-out-expo);
-}
-.img-tilted:hover {
-  transform: rotate(0deg) scale(1.02);
-}
-
-/* ──────────────────────────────────────────────
-   OBSIDIAN ASSEMBLY LEGACY — mapeamos variables
-   antiguas a la nueva paleta para que los
-   componentes existentes funcionen sin romper.
-   ────────────────────────────────────────────── */
-
-/* bg-obsidian → cream */
-.bg-obsidian   { background-color: var(--oa-bg-cream) !important; }
-/* text-ivory → black */
-.text-ivory    { color: var(--oa-black) !important; }
-.text-bone     { color: var(--oa-black) !important; }
-/* text-accent → brown */
-.text-accent   { color: var(--oa-brown) !important; }
-/* bg-bone → white */
-.bg-bone       { background-color: var(--oa-white) !important; }
-/* bg-ink → bg */
-.bg-ink        { background-color: var(--oa-bg-cream) !important; }
-/* text-ink → black */
-.text-ink      { color: var(--oa-black) !important; }
-
-/* border-ivory/[n] — dejan de ser necesarios, pero no rompemos nada */

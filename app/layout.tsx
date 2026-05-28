@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Inter } from "next/font/google";
+import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
 import { SmoothScroll } from "@/components/smooth-scroll";
 
-const inter = Inter({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const cormorant = Cormorant_Garamond({
@@ -46,11 +46,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} ${cormorant.variable}`}>
-      <body
-        className="font-sans antialiased"
-        style={{ backgroundColor: "var(--oa-bg-cream)", color: "var(--oa-black)" }}
-      >
+    <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
+      <body className="font-sans antialiased" style={{ backgroundColor: "var(--oa-bg-cream)", color: "var(--oa-black)" }}>
         <Providers>{children}</Providers>
         <SmoothScroll />
         <CursorTrail />
