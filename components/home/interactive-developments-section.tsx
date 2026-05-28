@@ -25,43 +25,27 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
   const [direction, setDirection] = useState(0);
   const [hasEntered, setHasEntered] = useState(false);
 
-  // Mouse tilt for main card
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const rotateX = useSpring(useTransform(mouseY, [-300, 300], [3, -3]), {
-    stiffness: 150,
-    damping: 30,
-  });
-  const rotateY = useSpring(useTransform(mouseX, [-300, 300], [-3, 3]), {
-    stiffness: 150,
-    damping: 30,
-  });
+  const rotateX = useSpring(useTransform(mouseY, [-300, 300], [2, -2]), { stiffness: 150, damping: 30 });
+  const rotateY = useSpring(useTransform(mouseX, [-300, 300], [-2, 2]), { stiffness: 150, damping: 30 });
 
-  // Scroll-based parallax
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start end", "end start"] });
+  const parallaxY1     = useTransform(scrollYProgress, [0, 1], [80, -80]);
+  const parallaxY2     = useTransform(scrollYProgress, [0, 1], [120, -120]);
+  const parallaxY3     = useTransform(scrollYProgress, [0, 1], [60, -60]);
+  const parallaxScale  = useTransform(scrollYProgress, [0, 0.3], [0.93, 1]);
+  const parallaxOpacity = useTransform(scrollYProgress, [0, 0.18], [0, 1]);
 
-  const parallaxY1 = useTransform(scrollYProgress, [0, 1], [80, -80]);
-  const parallaxY2 = useTransform(scrollYProgress, [0, 1], [120, -120]);
-  const parallaxY3 = useTransform(scrollYProgress, [0, 1], [60, -60]);
-  const parallaxScale = useTransform(scrollYProgress, [0, 0.3], [0.92, 1]);
-  const parallaxOpacity = useTransform(scrollYProgress, [0, 0.2], [0, 1]);
-
-  // Intersection observer for entry animation
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setHasEntered(true);
-      },
-      { threshold: 0.1 }
+      ([entry]) => { if (entry.isIntersecting) setHasEntered(true); },
+      { threshold: 0.08 }
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, []);
 
-  // Navigation
   const nextProject = useCallback(() => {
     setDirection(1);
     setActiveIndex((prev) => (prev + 1) % developments.length);
@@ -69,12 +53,9 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
 
   const prevProject = useCallback(() => {
     setDirection(-1);
-    setActiveIndex((prev) =>
-      prev === 0 ? developments.length - 1 : prev - 1
-    );
+    setActiveIndex((prev) => (prev === 0 ? developments.length - 1 : prev - 1));
   }, [developments.length]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") nextProject();
@@ -84,24 +65,17 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [nextProject, prevProject]);
 
-  // Mouse move handler for tilt
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    mouseX.set(x);
-    mouseY.set(y);
+    mouseX.set(e.clientX - rect.left - rect.width / 2);
+    mouseY.set(e.clientY - rect.top - rect.height / 2);
   };
-
-  const handleMouseLeave = () => {
-    mouseX.set(0);
-    mouseY.set(0);
-  };
+  const handleMouseLeave = () => { mouseX.set(0); mouseY.set(0); };
 
   if (developments.length === 0) {
     return (
-      <section className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-        <p className="text-[#F1EADE]/60 text-lg">
+      <section className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--oa-bg-cream)" }}>
+        <p className="text-lg" style={{ color: "rgba(7,7,7,0.45)", fontFamily: "var(--font-sans)" }}>
           Pronto vamos a publicar nuestros desarrollos.
         </p>
       </section>
@@ -109,46 +83,19 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
   }
 
   const activeDev = developments[activeIndex];
-  const primaryImage =
-    activeDev.images.find((i) => i.isPrimary)?.url ||
-    activeDev.images[0]?.url;
+  const primaryImage = activeDev.images.find((i) => i.isPrimary)?.url || activeDev.images[0]?.url;
   const priceFrom = activeDev.minPriceAvailable ?? activeDev.priceFrom;
-
-  // Secondary cards (other developments for background collage)
   const secondaryDevs = developments.filter((_, i) => i !== activeIndex);
 
-  // Slide animation variants
   const slideVariants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 300 : -300,
-      opacity: 0,
-      scale: 0.9,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      scale: 1,
-    },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -300 : 300,
-      opacity: 0,
-      scale: 0.9,
-    }),
+    enter: (dir: number) => ({ x: dir > 0 ? 280 : -280, opacity: 0, scale: 0.92 }),
+    center: { x: 0, opacity: 1, scale: 1 },
+    exit: (dir: number) => ({ x: dir > 0 ? -280 : 280, opacity: 0, scale: 0.92 }),
   };
-
   const textVariants = {
-    enter: (dir: number) => ({
-      y: dir > 0 ? 40 : -40,
-      opacity: 0,
-    }),
-    center: {
-      y: 0,
-      opacity: 1,
-    },
-    exit: (dir: number) => ({
-      y: dir > 0 ? -40 : 40,
-      opacity: 0,
-    }),
+    enter: (dir: number) => ({ y: dir > 0 ? 30 : -30, opacity: 0 }),
+    center: { y: 0, opacity: 1 },
+    exit: (dir: number) => ({ y: dir > 0 ? -30 : 30, opacity: 0 }),
   };
 
   return (
@@ -157,108 +104,65 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
       id="desarrollos"
       className="relative min-h-screen overflow-hidden"
       style={{
-        background:
-          "linear-gradient(180deg, rgba(120,82,60,0.08) 0%, #0A0A0B 15%, #11100F 85%, #0A0A0B 100%)",
+        background: "linear-gradient(180deg, rgba(184,157,135,0.1) 0%, var(--oa-bg-cream) 12%, #e8ddd0 88%, var(--oa-bg-cream) 100%)",
       }}
     >
-      {/* Decorative diagonal lines */}
+      {/* Líneas diagonales */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute top-0 left-[20%] w-px h-full opacity-[0.06]"
-          style={{
-            background:
-              "linear-gradient(180deg, transparent 0%, #F1EADE 30%, #F1EADE 70%, transparent 100%)",
-            transform: "rotate(2deg)",
-          }}
-        />
-        <div
-          className="absolute top-0 right-[30%] w-px h-full opacity-[0.04]"
-          style={{
-            background:
-              "linear-gradient(180deg, transparent 0%, #F1EADE 40%, #F1EADE 60%, transparent 100%)",
-            transform: "rotate(-1.5deg)",
-          }}
-        />
-        <div
-          className="absolute top-0 right-[15%] w-px h-full opacity-[0.03]"
-          style={{
-            background:
-              "linear-gradient(180deg, transparent 10%, #F1EADE 50%, transparent 90%)",
-            transform: "rotate(1deg)",
-          }}
-        />
+        <div className="absolute top-0 left-[20%] w-px h-full" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(7,7,7,0.05) 35%, rgba(7,7,7,0.05) 65%, transparent 100%)", transform: "rotate(1.5deg)" }} />
+        <div className="absolute top-0 right-[28%] w-px h-full" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(7,7,7,0.03) 40%, rgba(7,7,7,0.03) 60%, transparent 100%)", transform: "rotate(-1deg)" }} />
       </div>
 
-      {/* Grain texture */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none opacity-[0.02]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
-        }}
-      />
+      {/* Grain */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none bg-grain opacity-40" />
 
-      <motion.div
-        style={{ scale: parallaxScale, opacity: parallaxOpacity }}
-        className="relative z-10 container-custom py-24 md:py-32 lg:py-40"
-      >
-        {/* Section header */}
+      <motion.div style={{ scale: parallaxScale, opacity: parallaxOpacity }} className="relative z-10 container-custom py-24 md:py-32 lg:py-40">
+
+        {/* ── HEADER ── */}
         <div className="mb-16 md:mb-24">
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={hasEntered ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, ease: [0.19, 1, 0.22, 1] }}
-            className="text-[11px] uppercase tracking-[0.25em] mb-5"
-            style={{ color: "rgba(241,234,222,0.68)" }}
+            className="label-tracking mb-5"
+            style={{ color: "rgba(7,7,7,0.5)" }}
           >
             Desarrollos en curso
           </motion.p>
           <motion.h2
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 36 }}
             animate={hasEntered ? { opacity: 1, y: 0 } : {}}
-            transition={{
-              duration: 1.2,
-              delay: 0.15,
-              ease: [0.19, 1, 0.22, 1],
-            }}
-            className="font-display font-light tracking-[-0.03em] leading-[1] text-[#F1EADE] max-w-3xl"
-            style={{ fontSize: "clamp(2.2rem, 5vw, 4.5rem)" }}
+            transition={{ duration: 1.2, delay: 0.12, ease: [0.19, 1, 0.22, 1] }}
+            className="font-display font-light tracking-[-0.04em] leading-[0.93] max-w-3xl"
+            style={{ fontSize: "clamp(2.2rem, 5vw, 5rem)", color: "var(--oa-black)" }}
           >
             Proyectos con{" "}
-            <span className="italic">alta rentabilidad</span> en las mejores
-            zonas.
+            <em className="not-italic" style={{ color: "var(--oa-brown)" }}>
+              alta rentabilidad
+            </em>{" "}
+            en las mejores zonas.
           </motion.h2>
         </div>
 
-        {/* Main layout: collage grid */}
+        {/* ── GRID PRINCIPAL ── */}
         <div className="relative grid grid-cols-12 gap-4 md:gap-6 min-h-[70vh] items-center">
-          {/* Secondary card LEFT — parallax */}
+
+          {/* Secondary LEFT */}
           {secondaryDevs[0] && (
-            <motion.div
-              style={{ y: parallaxY1 }}
-              className="hidden lg:block col-span-3 col-start-1"
-            >
+            <motion.div style={{ y: parallaxY1 }} className="hidden lg:block col-span-3 col-start-1">
               <SecondaryCard dev={secondaryDevs[0]} delay={0.3} hasEntered={hasEntered} />
             </motion.div>
           )}
 
-          {/* MAIN CARD — center */}
+          {/* MAIN CARD */}
           <div className="col-span-12 lg:col-span-6 lg:col-start-4 relative z-20">
             <motion.div
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
-              style={{
-                rotateX,
-                rotateY,
-                transformPerspective: 1200,
-              }}
+              style={{ rotateX, rotateY, transformPerspective: 1200 }}
               className="relative"
             >
-              {/* Main image with AnimatePresence */}
-              <div
-                className="relative aspect-[4/5] md:aspect-[3/4] overflow-hidden cursor-pointer"
-                style={{ borderRadius: "18px" }}
-              >
+              <div className="relative aspect-[4/5] md:aspect-[3/4] overflow-hidden cursor-pointer" style={{ borderRadius: "18px" }}>
                 <AnimatePresence initial={false} custom={direction} mode="wait">
                   <motion.div
                     key={activeIndex}
@@ -267,10 +171,7 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
                     initial="enter"
                     animate="center"
                     exit="exit"
-                    transition={{
-                      duration: 0.8,
-                      ease: [0.19, 1, 0.22, 1],
-                    }}
+                    transition={{ duration: 0.75, ease: [0.19, 1, 0.22, 1] }}
                     className="absolute inset-0"
                   >
                     <Link href={`/desarrollos/${activeDev.slug}`} className="block h-full group">
@@ -280,18 +181,15 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
                           alt={activeDev.name}
                           fill
                           priority
-                          className="object-cover transition-transform duration-[3000ms] ease-out group-hover:scale-[1.05]"
+                          className="object-cover transition-transform duration-[3000ms] ease-out group-hover:scale-[1.04]"
                           sizes="(max-width: 1024px) 100vw, 50vw"
                         />
                       )}
 
-                      {/* Dark overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/90 via-[#0A0A0B]/30 to-transparent" />
+                      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(58,29,23,0.88) 0%, rgba(58,29,23,0.3) 45%, transparent 100%)" }} />
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-colors duration-700" style={{ background: "rgba(58,29,23,0.1)" }} />
 
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-[#0A0A0B]/0 group-hover:bg-[#0A0A0B]/20 transition-colors duration-700" />
-
-                      {/* Status badge */}
+                      {/* Badge */}
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -299,19 +197,14 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
                         className="absolute top-5 left-5"
                       >
                         <span
-                          className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] font-medium rounded-full"
-                          style={{
-                            background: "rgba(120,82,60,0.45)",
-                            backdropFilter: "blur(16px)",
-                            color: "#F1EADE",
-                            border: "1px solid rgba(241,234,222,0.12)",
-                          }}
+                          className="px-4 py-1.5 text-[9px] uppercase tracking-[0.2em] font-medium rounded-full"
+                          style={{ background: "rgba(239,230,216,0.88)", backdropFilter: "blur(16px)", color: "var(--oa-brown)", border: "1px solid rgba(58,29,23,0.15)", fontFamily: "var(--font-sans)" }}
                         >
                           {DEVELOPMENT_STATUS_LABELS[activeDev.status]}
                         </span>
                       </motion.div>
 
-                      {/* Content at bottom */}
+                      {/* Bottom content */}
                       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
                         <AnimatePresence mode="wait" custom={direction}>
                           <motion.div
@@ -321,55 +214,32 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
                             initial="enter"
                             animate="center"
                             exit="exit"
-                            transition={{
-                              duration: 0.6,
-                              ease: [0.19, 1, 0.22, 1],
-                            }}
+                            transition={{ duration: 0.55, ease: [0.19, 1, 0.22, 1] }}
                           >
-                            <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(241,234,222,0.68)" }}>
+                            <div className="flex items-center gap-2 mb-3" style={{ color: "rgba(248,245,239,0.7)" }}>
                               <MapPin className="h-3.5 w-3.5" />
-                              <span className="text-[11px] uppercase tracking-[0.2em]">
-                                {activeDev.location}
-                              </span>
+                              <span className="text-[10px] uppercase tracking-[0.18em]" style={{ fontFamily: "var(--font-sans)" }}>{activeDev.location}</span>
                             </div>
-
-                            <h3
-                              className="font-display font-light text-[#F1EADE] tracking-[-0.02em] leading-[1.05] mb-4"
-                              style={{ fontSize: "clamp(1.8rem, 4vw, 3.2rem)" }}
-                            >
+                            <h3 className="font-display font-light tracking-[-0.03em] leading-[1.02] mb-4" style={{ fontSize: "clamp(1.8rem, 3.5vw, 3rem)", color: "var(--oa-white)" }}>
                               {activeDev.name}
                             </h3>
-
-                            {/* Stats row */}
                             <div className="flex items-center gap-6 flex-wrap">
                               {priceFrom && (
                                 <div>
-                                  <p className="text-[9px] uppercase tracking-[0.2em] mb-0.5" style={{ color: "rgba(241,234,222,0.5)" }}>
-                                    Desde
-                                  </p>
-                                  <span className="font-display text-lg text-[#B89474]">
-                                    {formatPrice(priceFrom)}
-                                  </span>
+                                  <p className="text-[8px] uppercase tracking-[0.2em] mb-0.5" style={{ color: "rgba(248,245,239,0.5)", fontFamily: "var(--font-sans)" }}>Desde</p>
+                                  <span className="font-display text-lg" style={{ color: "var(--oa-bg-light)" }}>{formatPrice(priceFrom)}</span>
                                 </div>
                               )}
                               {activeDev.completionDate && (
                                 <div>
-                                  <p className="text-[9px] uppercase tracking-[0.2em] mb-0.5" style={{ color: "rgba(241,234,222,0.5)" }}>
-                                    Entrega
-                                  </p>
-                                  <span className="font-display text-lg text-[#F1EADE]">
-                                    {activeDev.completionDate}
-                                  </span>
+                                  <p className="text-[8px] uppercase tracking-[0.2em] mb-0.5" style={{ color: "rgba(248,245,239,0.5)", fontFamily: "var(--font-sans)" }}>Entrega</p>
+                                  <span className="font-display text-lg" style={{ color: "var(--oa-white)" }}>{activeDev.completionDate}</span>
                                 </div>
                               )}
                               {activeDev.progress > 0 && (
                                 <div>
-                                  <p className="text-[9px] uppercase tracking-[0.2em] mb-0.5" style={{ color: "rgba(241,234,222,0.5)" }}>
-                                    Avance
-                                  </p>
-                                  <span className="font-display text-lg text-[#F1EADE]">
-                                    {activeDev.progress}%
-                                  </span>
+                                  <p className="text-[8px] uppercase tracking-[0.2em] mb-0.5" style={{ color: "rgba(248,245,239,0.5)", fontFamily: "var(--font-sans)" }}>Avance</p>
+                                  <span className="font-display text-lg" style={{ color: "var(--oa-white)" }}>{activeDev.progress}%</span>
                                 </div>
                               )}
                             </div>
@@ -377,17 +247,10 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
                         </AnimatePresence>
                       </div>
 
-                      {/* CTA arrow */}
+                      {/* Arrow hover */}
                       <div className="absolute bottom-6 right-6 md:bottom-8 md:right-8">
-                        <div
-                          className="h-12 w-12 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500"
-                          style={{
-                            background: "rgba(120,82,60,0.45)",
-                            backdropFilter: "blur(16px)",
-                            border: "1px solid rgba(241,234,222,0.12)",
-                          }}
-                        >
-                          <ArrowUpRight className="h-5 w-5 text-[#F1EADE]" />
+                        <div className="h-11 w-11 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500" style={{ background: "var(--oa-white)", border: "1px solid rgba(7,7,7,0.1)" }}>
+                          <ArrowUpRight className="h-4 w-4" style={{ color: "var(--oa-black)" }} />
                         </div>
                       </div>
                     </Link>
@@ -396,119 +259,66 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
 
                 {/* Counter */}
                 <div className="absolute bottom-6 right-6 md:bottom-8 md:right-8 z-30 pointer-events-none">
-                  <span
-                    className="font-display font-light text-sm tracking-widest"
-                    style={{ color: "rgba(241,234,222,0.5)" }}
-                  >
+                  <span className="font-display font-light text-sm tracking-widest" style={{ color: "rgba(248,245,239,0.5)" }}>
                     {activeIndex + 1} / {developments.length}
                   </span>
                 </div>
               </div>
 
-              {/* Navigation arrows — centered over main card */}
+              {/* Nav arrows */}
               {developments.length > 1 && (
                 <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 z-30 flex justify-between px-4 md:-mx-8 pointer-events-none">
-                  <button
-                    onClick={prevProject}
-                    className="pointer-events-auto h-14 w-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
-                    style={{
-                      background: "rgba(10,10,11,0.7)",
-                      backdropFilter: "blur(16px)",
-                      border: "1px solid rgba(241,234,222,0.12)",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.borderColor =
-                        "rgba(241,234,222,0.35)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.borderColor =
-                        "rgba(241,234,222,0.12)")
-                    }
-                    aria-label="Proyecto anterior"
-                  >
-                    <ArrowLeft className="h-5 w-5 text-[#F1EADE]" />
-                  </button>
-                  <button
-                    onClick={nextProject}
-                    className="pointer-events-auto h-14 w-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
-                    style={{
-                      background: "rgba(10,10,11,0.7)",
-                      backdropFilter: "blur(16px)",
-                      border: "1px solid rgba(241,234,222,0.12)",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.borderColor =
-                        "rgba(241,234,222,0.35)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.borderColor =
-                        "rgba(241,234,222,0.12)")
-                    }
-                    aria-label="Proyecto siguiente"
-                  >
-                    <ArrowRight className="h-5 w-5 text-[#F1EADE]" />
-                  </button>
+                  {[{ fn: prevProject, Icon: ArrowLeft, label: "Anterior" }, { fn: nextProject, Icon: ArrowRight, label: "Siguiente" }].map(({ fn, Icon, label }) => (
+                    <button
+                      key={label}
+                      onClick={fn}
+                      className="pointer-events-auto rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                      style={{ width: "52px", height: "52px", background: "rgba(248,245,239,0.75)", backdropFilter: "blur(16px)", border: "1px solid rgba(7,7,7,0.1)" }}
+                      aria-label={label}
+                    >
+                      <Icon className="h-4 w-4" style={{ color: "var(--oa-black)" }} />
+                    </button>
+                  ))}
                 </div>
               )}
             </motion.div>
 
-            {/* CTA below main card */}
+            {/* CTA */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={hasEntered ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.8, duration: 0.8, ease: [0.19, 1, 0.22, 1] }}
               className="mt-6 text-center"
             >
               <Link
                 href={`/desarrollos/${activeDev.slug}`}
-                className="inline-flex items-center gap-3 px-6 py-3 rounded-full text-[11px] uppercase tracking-[0.2em] transition-all duration-300 hover:scale-[1.02]"
-                style={{
-                  background: "rgba(120,82,60,0.45)",
-                  backdropFilter: "blur(16px)",
-                  color: "#F1EADE",
-                  border: "1px solid rgba(241,234,222,0.12)",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(241,234,222,0.35)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(241,234,222,0.12)")
-                }
+                className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full text-[10px] uppercase tracking-[0.18em] transition-all duration-300 hover:scale-[1.03]"
+                style={{ background: "rgba(7,7,7,0.07)", color: "var(--oa-black)", border: "1px solid rgba(7,7,7,0.1)", fontFamily: "var(--font-sans)" }}
               >
                 <span>Ver proyecto</span>
-                <ArrowUpRight className="h-4 w-4" />
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </motion.div>
           </div>
 
-          {/* Secondary card RIGHT — parallax */}
+          {/* Secondary RIGHT */}
           {secondaryDevs[1] && (
-            <motion.div
-              style={{ y: parallaxY2 }}
-              className="hidden lg:block col-span-3 col-start-10"
-            >
+            <motion.div style={{ y: parallaxY2 }} className="hidden lg:block col-span-3 col-start-10">
               <SecondaryCard dev={secondaryDevs[1]} delay={0.5} hasEntered={hasEntered} />
             </motion.div>
           )}
         </div>
 
-        {/* Bottom secondary cards row — mobile visible */}
+        {/* ── BOTTOM THUMBNAILS ── */}
         {secondaryDevs.length > 0 && (
           <div className="mt-16 md:mt-24">
-            <motion.div
-              style={{ y: parallaxY3 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4"
-            >
+            <motion.div style={{ y: parallaxY3 }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {secondaryDevs.slice(0, 4).map((dev, idx) => (
                 <motion.div
                   key={dev.id}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 24 }}
                   animate={hasEntered ? { opacity: 1, y: 0 } : {}}
-                  transition={{
-                    delay: 0.6 + idx * 0.15,
-                    duration: 0.9,
-                    ease: [0.19, 1, 0.22, 1],
-                  }}
+                  transition={{ delay: 0.55 + idx * 0.12, duration: 0.9, ease: [0.19, 1, 0.22, 1] }}
                 >
                   <SmallCard dev={dev} />
                 </motion.div>
@@ -517,17 +327,19 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
           </div>
         )}
 
-        {/* "Ver todos" link */}
+        {/* Ver todos */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={hasEntered ? { opacity: 1 } : {}}
-          transition={{ delay: 1.2, duration: 0.8 }}
+          transition={{ delay: 1.1, duration: 0.8 }}
           className="text-center mt-16 md:mt-20"
         >
           <Link
             href="/desarrollos"
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] transition-colors duration-300 hover:text-[#B89474]"
-            style={{ color: "rgba(241,234,222,0.5)" }}
+            className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] transition-colors duration-300"
+            style={{ color: "rgba(7,7,7,0.45)", fontFamily: "var(--font-sans)" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--oa-brown)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "rgba(7,7,7,0.45)")}
           >
             <span>Ver todos los desarrollos</span>
             <ArrowUpRight className="h-3.5 w-3.5" />
@@ -538,125 +350,49 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
   );
 }
 
-// ═══════════════════════════════════════════════════
-// SECONDARY CARD — Shown in the collage parallax
-// ═══════════════════════════════════════════════════
-function SecondaryCard({
-  dev,
-  delay,
-  hasEntered,
-}: {
-  dev: Development;
-  delay: number;
-  hasEntered: boolean;
-}) {
-  const img =
-    dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
-
+/* ── SECONDARY CARD ── */
+function SecondaryCard({ dev, delay, hasEntered }: { dev: Development; delay: number; hasEntered: boolean }) {
+  const img = dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40, clipPath: "inset(20% 0% 20% 0%)" }}
-      animate={
-        hasEntered
-          ? { opacity: 1, y: 0, clipPath: "inset(0% 0% 0% 0%)" }
-          : {}
-      }
-      transition={{
-        delay,
-        duration: 1.2,
-        ease: [0.19, 1, 0.22, 1],
-      }}
+      initial={{ opacity: 0, y: 40, clipPath: "inset(18% 0% 18% 0%)" }}
+      animate={hasEntered ? { opacity: 1, y: 0, clipPath: "inset(0% 0% 0% 0%)" } : {}}
+      transition={{ delay, duration: 1.1, ease: [0.19, 1, 0.22, 1] }}
     >
       <Link
         href={`/desarrollos/${dev.slug}`}
         className="group block relative aspect-[3/4] overflow-hidden"
-        style={{
-          borderRadius: "14px",
-          border: "1px solid rgba(241,234,222,0.12)",
-        }}
+        style={{ borderRadius: "14px", border: "1px solid rgba(7,7,7,0.08)" }}
       >
-        {img && (
-          <Image
-            src={img}
-            alt={dev.name}
-            fill
-            className="object-cover transition-transform duration-[2500ms] ease-out group-hover:scale-[1.06]"
-            sizes="25vw"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/80 via-[#0A0A0B]/20 to-transparent" />
-
-        {/* Hover border glow */}
-        <div
-          className="absolute inset-0 rounded-[14px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{ boxShadow: "inset 0 0 0 1px rgba(241,234,222,0.35)" }}
-        />
-
+        {img && <Image src={img} alt={dev.name} fill className="object-cover transition-transform duration-[2500ms] ease-out group-hover:scale-[1.06]" sizes="25vw" />}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(58,29,23,0.85) 0%, rgba(58,29,23,0.2) 50%, transparent 100%)" }} />
+        <div className="absolute inset-0 rounded-[14px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(7,7,7,0.2)" }} />
         <div className="absolute bottom-4 left-4 right-4">
-          <p
-            className="text-[9px] uppercase tracking-[0.2em] mb-1"
-            style={{ color: "rgba(241,234,222,0.5)" }}
-          >
-            {dev.location}
-          </p>
-          <h4 className="font-display font-light text-base text-[#F1EADE] leading-tight group-hover:italic transition-all duration-500">
-            {dev.name}
-          </h4>
+          <p className="text-[8px] uppercase tracking-[0.18em] mb-1" style={{ color: "rgba(248,245,239,0.55)", fontFamily: "var(--font-sans)" }}>{dev.location}</p>
+          <h4 className="font-display font-light text-base leading-tight group-hover:italic transition-all duration-500" style={{ color: "var(--oa-white)" }}>{dev.name}</h4>
         </div>
       </Link>
     </motion.div>
   );
 }
 
-// ═══════════════════════════════════════════════════
-// SMALL CARD — Bottom row thumbnails
-// ═══════════════════════════════════════════════════
+/* ── SMALL CARD ── */
 function SmallCard({ dev }: { dev: Development }) {
-  const img =
-    dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
+  const img = dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
   const priceFrom = dev.minPriceAvailable ?? dev.priceFrom;
-
   return (
     <Link
       href={`/desarrollos/${dev.slug}`}
       className="group block relative aspect-square overflow-hidden"
-      style={{
-        borderRadius: "14px",
-        border: "1px solid rgba(241,234,222,0.12)",
-      }}
+      style={{ borderRadius: "12px", border: "1px solid rgba(7,7,7,0.08)" }}
     >
-      {img && (
-        <Image
-          src={img}
-          alt={dev.name}
-          fill
-          className="object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-[1.05]"
-          sizes="(max-width: 768px) 50vw, 25vw"
-        />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/85 via-[#0A0A0B]/30 to-transparent" />
-
-      {/* Hover border */}
-      <div
-        className="absolute inset-0 rounded-[14px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-        style={{ boxShadow: "inset 0 0 0 1px rgba(241,234,222,0.35)" }}
-      />
-
+      {img && <Image src={img} alt={dev.name} fill className="object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-[1.05]" sizes="(max-width: 768px) 50vw, 25vw" />}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(58,29,23,0.85) 0%, rgba(58,29,23,0.3) 50%, transparent 100%)" }} />
+      <div className="absolute inset-0 rounded-[12px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(7,7,7,0.2)" }} />
       <div className="absolute bottom-3 left-3 right-3">
-        <p
-          className="text-[8px] uppercase tracking-[0.2em] mb-0.5"
-          style={{ color: "rgba(241,234,222,0.5)" }}
-        >
-          {dev.location}
-        </p>
-        <h4 className="font-display font-light text-sm text-[#F1EADE] leading-tight truncate group-hover:italic transition-all duration-500">
-          {dev.name}
-        </h4>
-        {priceFrom && (
-          <p className="text-[10px] text-[#B89474] mt-1 font-display">
-            {formatPrice(priceFrom)}
-          </p>
-        )}
+        <p className="text-[8px] uppercase tracking-[0.18em] mb-0.5" style={{ color: "rgba(248,245,239,0.55)", fontFamily: "var(--font-sans)" }}>{dev.location}</p>
+        <h4 className="font-display font-light text-sm leading-tight truncate group-hover:italic transition-all duration-500" style={{ color: "var(--oa-white)" }}>{dev.name}</h4>
+        {priceFrom && <p className="text-[10px] mt-1 font-display" style={{ color: "var(--oa-bg-light)" }}>{formatPrice(priceFrom)}</p>}
       </div>
     </Link>
   );

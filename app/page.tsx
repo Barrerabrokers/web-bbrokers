@@ -14,31 +14,31 @@ export const revalidate = 0;
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-ink">
+    <div className="min-h-screen" style={{ backgroundColor: "var(--oa-bg-cream)" }}>
       <Header />
       <main>
-        {/* Hero - Dark cinematic with video */}
+        {/* Hero — inmersivo full-screen con video */}
         <HeroSection />
-        
-        {/* Desarrollos - Main investment projects */}
+
+        {/* Desarrollos — showcase interactivo */}
         <DevelopmentsSection />
-        
-        {/* Modelo de Inversión - How it works */}
+
+        {/* Modelo de Inversión — pasos del proceso */}
         <InvestmentModelSection />
-        
-        {/* Rentals - Available rentals */}
+
+        {/* Renta temporaria */}
         <RentalsSection />
-        
-        {/* Estadísticas - Key numbers */}
+
+        {/* Estadísticas — números clave */}
         <StatsSection />
-        
-        {/* Propiedades - Available properties */}
+
+        {/* Propiedades disponibles */}
         <PropertiesSection />
-        
-        {/* About - Company info */}
+
+        {/* Nosotros + Equipo */}
         <AboutSection />
-        
-        {/* Contacto - Contact form */}
+
+        {/* Contacto */}
         <ContactSection />
       </main>
       <Footer />

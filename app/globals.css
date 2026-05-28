@@ -3,257 +3,312 @@
 @tailwind utilities;
 
 /* ==============================================
-   OBSIDIAN ASSEMBLY INSPIRED — Barrera Brokers
-   Obsidian black + copper gradients + ivory text
+   BARRERA BROKERS — Editorial Premium
+   Paleta beige/caramelo · Serif gigante · Boutique
+   Inspirado en obsidianassembly.com
    ============================================== */
-:root {
-  --obsidian: 10 10 11;
-  --obsidian-rgb: 10, 10, 11;
-  --ivory: 241 234 222;
-  --ivory-rgb: 241, 234, 222;
-  --copper: 122 82 60;
-  --copper-rgb: 122, 82, 60;
-  --copper-dark: 90 59 43;
-  --copper-dark-rgb: 90, 59, 43;
 
-  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  /* Paleta principal */
+  --oa-bg:        #b89d87;
+  --oa-bg-light:  #d8c4af;
+  --oa-bg-cream:  #efe6d8;
+  --oa-black:     #070707;
+  --oa-brown:     #3a1d17;
+  --oa-white:     #f8f5ef;
+  --oa-line:      rgba(255, 255, 255, 0.28);
+
+  /* Valores RGB para opacity utilities */
+  --oa-bg-rgb:        184, 157, 135;
+  --oa-bg-light-rgb:  216, 196, 175;
+  --oa-bg-cream-rgb:  239, 230, 216;
+  --oa-black-rgb:     7, 7, 7;
+  --oa-brown-rgb:     58, 29, 23;
+  --oa-white-rgb:     248, 245, 239;
+
+  /* Easing */
+  --ease-out-expo:  cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out:    cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Legacy compat (usado por componentes existentes) */
+  --obsidian:      239 230 216;   /* redirige a cream */
+  --ivory:         7 7 7;         /* redirige a black */
+  --copper:        58 29 23;
+  --copper-rgb:    58, 29, 23;
+  --ivory-rgb:     7, 7, 7;
+  --obsidian-rgb:  239, 230, 216;
 }
 
+/* ── Google Fonts fallback vía @font-face si import falla ── */
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
+    scroll-behavior: smooth;
   }
 
-  html.lenis, html.lenis body {
+  html.lenis,
+  html.lenis body {
     height: auto;
   }
 
   body {
-    background-color: rgb(var(--obsidian));
-    color: rgb(var(--ivory));
+    background-color: var(--oa-bg-cream);
+    color: var(--oa-black);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "kern" 1;
+    font-feature-settings: "kern" 1, "liga" 1;
+    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+    font-weight: 300;
+    letter-spacing: -0.03em;
   }
 
   ::selection {
-    background-color: rgba(var(--copper-rgb), 0.4);
-    color: rgb(var(--ivory));
+    background-color: rgba(var(--oa-brown-rgb), 0.25);
+    color: var(--oa-black);
   }
 }
 
+/* ──────────────────────────────────────────────
+   COMPONENTES
+   ────────────────────────────────────────────── */
 @layer components {
+
   /* Container */
   .container-custom {
-    @apply max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12;
+    @apply max-w-[1440px] mx-auto px-5 md:px-8 lg:px-14;
   }
 
-  /* === TYPOGRAPHY === */
+  /* ── TIPOGRAFÍA ── */
   .heading-display {
-    @apply font-display font-normal tracking-tight leading-[0.95];
+    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 0.92;
+  }
+
+  .heading-serif {
+    font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+    font-weight: 300;
+    letter-spacing: -0.03em;
+    line-height: 1;
   }
 
   .label-tracking {
-    @apply uppercase tracking-[0.15em] text-[11px] font-medium;
+    @apply uppercase tracking-[0.18em] text-[10px] font-medium;
+    font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
   }
 
   .eyebrow {
-    @apply label-tracking text-ivory/50;
+    @apply label-tracking;
+    color: rgba(var(--oa-brown-rgb), 0.7);
   }
 
-  /* === BUTTONS — Glassmorphism smoked bronze === */
+  /* ── BOTONES — Blanco con punto negro ── */
   .btn-primary {
     @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-4
-           text-[11px] uppercase tracking-[0.15em] font-medium
-           rounded-full
-           overflow-hidden
+           px-7 py-3.5
+           text-[10px] uppercase tracking-[0.18em] font-medium
+           rounded-full overflow-hidden
            transition-all duration-500;
-    background: rgba(var(--copper-rgb), 0.55);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(var(--ivory-rgb), 0.12);
-    color: rgb(var(--ivory));
+    background: var(--oa-white);
+    border: 1px solid rgba(var(--oa-black-rgb), 0.12);
+    color: var(--oa-black);
+    font-family: 'Inter', sans-serif;
     transition-timing-function: var(--ease-out-expo);
   }
 
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--oa-black);
+    transition: transform 0.4s var(--ease-out-expo);
+  }
+
+  .btn-primary:hover::after {
+    transform: translateY(-50%) translateX(-2px) scale(1.3);
+  }
+
   .btn-primary:hover {
-    background: rgba(var(--copper-rgb), 0.75);
-    border-color: rgba(var(--ivory-rgb), 0.25);
+    background: var(--oa-bg-cream);
+    border-color: rgba(var(--oa-black-rgb), 0.25);
     transform: translateY(-1px);
-    box-shadow: 0 8px 32px rgba(var(--copper-rgb), 0.3);
+    box-shadow: 0 8px 32px rgba(var(--oa-black-rgb), 0.1);
   }
 
   .btn-outline {
     @apply relative inline-flex items-center justify-center gap-2
-           px-7 py-4
-           text-[11px] uppercase tracking-[0.15em] font-medium
-           rounded-full
-           overflow-hidden
+           px-7 py-3.5
+           text-[10px] uppercase tracking-[0.18em] font-medium
+           rounded-full overflow-hidden
            transition-all duration-500;
     background: transparent;
-    border: 1px solid rgba(var(--ivory-rgb), 0.2);
-    color: rgb(var(--ivory));
+    border: 1px solid rgba(var(--oa-black-rgb), 0.22);
+    color: var(--oa-black);
+    font-family: 'Inter', sans-serif;
     transition-timing-function: var(--ease-out-expo);
   }
 
   .btn-outline:hover {
-    background: rgba(var(--ivory-rgb), 0.05);
-    border-color: rgba(var(--ivory-rgb), 0.4);
+    background: rgba(var(--oa-black-rgb), 0.05);
+    border-color: rgba(var(--oa-black-rgb), 0.4);
     transform: translateY(-1px);
   }
 
-  .btn-ghost {
-    @apply inline-flex items-center gap-2 px-4 py-2
-           text-[11px] uppercase tracking-[0.15em] font-medium
-           text-ivory/60 hover:text-ivory
-           transition-colors duration-300;
-  }
+  /* alias para compatibilidad */
+  .btn-outline-light { @apply btn-outline; }
+  .btn-accent        { @apply btn-primary; }
 
-  /* === NAV PILL (capsule buttons) === */
+  /* ── NAV PILL (cápsulas de navegación) ── */
   .nav-pill {
-    @apply px-4 py-2 rounded-full text-[11px] uppercase tracking-[0.12em] font-medium
+    @apply px-4 py-2 rounded-full text-[10px] uppercase tracking-[0.14em] font-medium
            transition-all duration-300;
-    color: rgba(var(--ivory-rgb), 0.6);
+    color: rgba(var(--oa-black-rgb), 0.55);
     border: 1px solid transparent;
+    font-family: 'Inter', sans-serif;
   }
 
   .nav-pill:hover {
-    color: rgb(var(--ivory));
-    background: rgba(var(--ivory-rgb), 0.05);
-    border-color: rgba(var(--ivory-rgb), 0.1);
+    color: var(--oa-black);
+    background: rgba(var(--oa-black-rgb), 0.06);
+    border-color: rgba(var(--oa-black-rgb), 0.12);
   }
 
   .nav-pill.active {
-    color: rgb(var(--ivory));
-    background: rgba(var(--ivory-rgb), 0.08);
-    border-color: rgba(var(--ivory-rgb), 0.15);
+    color: var(--oa-black);
+    background: rgba(var(--oa-black-rgb), 0.08);
+    border-color: rgba(var(--oa-black-rgb), 0.18);
   }
 
-  /* === CARDS === */
+  /* ── CARDS ── */
   .card-dark {
-    @apply rounded-xl overflow-hidden;
-    background: rgba(var(--ivory-rgb), 0.03);
-    border: 1px solid rgba(var(--ivory-rgb), 0.08);
+    @apply rounded-2xl overflow-hidden;
+    background: rgba(var(--oa-white-rgb), 0.6);
+    border: 1px solid rgba(var(--oa-black-rgb), 0.08);
     transition: all 0.5s var(--ease-out-expo);
   }
 
   .card-dark:hover {
-    border-color: rgba(var(--ivory-rgb), 0.15);
-    background: rgba(var(--ivory-rgb), 0.05);
+    border-color: rgba(var(--oa-black-rgb), 0.18);
+    transform: scale(1.02) rotate(-0.3deg);
+    box-shadow: 0 24px 64px rgba(var(--oa-black-rgb), 0.1);
   }
 
-  /* === SECTION HELPERS === */
+  .card { @apply card-dark; }
+
+  /* ── SECTION HELPERS ── */
   .section-pad {
     @apply py-24 md:py-32 lg:py-40;
   }
 
   .section-number {
-    @apply font-display text-[13px] tracking-[0.2em] text-ivory/30;
+    font-family: 'Cormorant Garamond', serif;
+    @apply text-[13px] tracking-[0.2em];
+    color: rgba(var(--oa-brown-rgb), 0.4);
   }
 
-  /* === DECORATIVE === */
+  /* ── LÍNEAS DECORATIVAS ── */
   .line-h {
     @apply h-px w-full;
-    background: linear-gradient(90deg, transparent, rgba(var(--ivory-rgb), 0.15), transparent);
+    background: linear-gradient(90deg, transparent, var(--oa-line), transparent);
   }
 
   .line-v {
     @apply w-px h-full;
-    background: linear-gradient(180deg, transparent, rgba(var(--ivory-rgb), 0.15), transparent);
+    background: linear-gradient(180deg, transparent, var(--oa-line), transparent);
   }
 
-  /* Copper gradient glow */
-  .glow-copper {
-    background: radial-gradient(
-      ellipse at top,
-      rgba(var(--copper-rgb), 0.15) 0%,
-      transparent 60%
-    );
+  /* Círculos decorativos finos */
+  .circle-deco {
+    border-radius: 50%;
+    border: 1px solid var(--oa-line);
+    pointer-events: none;
+    position: absolute;
   }
 
-  /* === FORM INPUTS (dark theme) === */
+  /* ── GRAIN ── */
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+  }
+
+  /* ── INPUTS (formularios) ── */
   .input-dark {
     @apply w-full bg-transparent
-           text-ivory placeholder-ivory/30
            px-0 py-4 text-base
            transition-colors duration-300;
-    border-bottom: 1px solid rgba(var(--ivory-rgb), 0.15);
+    border-bottom: 1px solid rgba(var(--oa-black-rgb), 0.18);
+    color: var(--oa-black);
+    font-family: 'Inter', sans-serif;
+  }
+
+  .input-dark::placeholder {
+    color: rgba(var(--oa-black-rgb), 0.35);
   }
 
   .input-dark:hover {
-    border-color: rgba(var(--ivory-rgb), 0.3);
+    border-color: rgba(var(--oa-black-rgb), 0.35);
   }
 
   .input-dark:focus {
     outline: none;
-    border-color: rgba(var(--copper-rgb), 0.6);
+    border-color: rgba(var(--oa-brown-rgb), 0.7);
   }
 
-  /* === SCROLLBAR === */
+  /* ── PILL tag ── */
   .pill {
     @apply inline-flex items-center gap-1.5 px-3 py-1
            border rounded-full
-           text-[11px] uppercase tracking-[0.12em] font-medium;
-    border-color: rgba(var(--ivory-rgb), 0.15);
-    color: rgba(var(--ivory-rgb), 0.7);
+           text-[10px] uppercase tracking-[0.14em] font-medium;
+    border-color: rgba(var(--oa-black-rgb), 0.15);
+    color: rgba(var(--oa-black-rgb), 0.65);
   }
 
-  /* Legacy compat */
-  .card {
-    @apply rounded-xl overflow-hidden;
-    background: rgba(var(--ivory-rgb), 0.03);
-    border: 1px solid rgba(var(--ivory-rgb), 0.08);
-  }
-
-  .form-input-boxed {
-    @apply w-full bg-obsidian-100 border rounded-lg px-4 py-3 text-sm text-ivory placeholder-ivory/40 transition-colors duration-300;
-    border-color: rgba(var(--ivory-rgb), 0.1);
-  }
-  .form-input-boxed:focus {
-    outline: none;
-    border-color: rgba(var(--copper-rgb), 0.5);
-  }
-
-  /* === FORM INPUTS (light theme — admin) === */
+  /* ── ADMIN area (mantenemos fondo blanco) ── */
   .form-input {
-    @apply w-full bg-white text-ink placeholder:text-ink/40
-           border border-ink/15 rounded
+    @apply w-full bg-white text-[#151415] placeholder:text-[#151415]/40
+           border border-[#151415]/15 rounded
            px-4 py-3 text-sm
-           focus:border-accent focus:outline-none
+           focus:border-[#7A523C] focus:outline-none
            transition-colors;
   }
 
-  .admin-area {
-    color-scheme: light;
+  .admin-area { color-scheme: light; }
+
+  .form-input-boxed {
+    @apply w-full bg-white border rounded-lg px-4 py-3 text-sm text-[#151415] placeholder-[#151415]/40 transition-colors duration-300;
+    border-color: rgba(7, 7, 7, 0.1);
+  }
+  .form-input-boxed:focus {
+    outline: none;
+    border-color: rgba(58, 29, 23, 0.5);
   }
 
-  .btn-outline-light {
-    @apply btn-outline;
-  }
-
-  .btn-accent {
-    @apply btn-primary;
-  }
-
-  .heading-serif {
-    @apply font-display font-normal tracking-tight leading-[1];
-  }
-
-  .bg-grain {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
+  /* ── GLOW sutil ── */
+  .glow-copper {
+    background: radial-gradient(
+      ellipse at top,
+      rgba(var(--oa-brown-rgb), 0.1) 0%,
+      transparent 60%
+    );
   }
 }
 
-/* ==============================================
-   ADMIN — Forzar contraste alto en todos los inputs
-   Fondo blanco + letras oscuras, ignorando el tema
-   oscuro del navegador y cualquier clase utility.
-   Se usa !important para ganarle a la cascada de
-   utilities de Tailwind y al UA stylesheet dark.
-   ============================================== */
+/* ──────────────────────────────────────────────
+   ADMIN — inputs siempre light
+   ────────────────────────────────────────────── */
 .admin-area input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]),
 .admin-area textarea,
 .admin-area select {
@@ -277,25 +332,25 @@
   caret-color: #151415;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: rgb(var(--obsidian));
-}
+/* ──────────────────────────────────────────────
+   SCROLLBAR
+   ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--oa-bg-cream); }
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--ivory-rgb), 0.15);
+  background: rgba(var(--oa-black-rgb), 0.18);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--copper-rgb), 0.5);
+  background: rgba(var(--oa-brown-rgb), 0.45);
 }
 
-/* Smart cursor */
+/* ──────────────────────────────────────────────
+   CURSOR PERSONALIZADO
+   ────────────────────────────────────────────── */
 @media (pointer: fine) {
   html.smart-cursor-active,
-  html.smart-cursor-active *  {
+  html.smart-cursor-active * {
     cursor: none !important;
   }
 }
@@ -303,11 +358,65 @@
 .cursor-ring-hover {
   width: 56px !important;
   height: 56px !important;
-  background-color: rgba(var(--copper-rgb), 0.2);
-  border-color: rgba(var(--copper-rgb), 0.6) !important;
+  background-color: rgba(var(--oa-brown-rgb), 0.12);
+  border-color: rgba(var(--oa-brown-rgb), 0.5) !important;
 }
 
 .cursor-ring-down {
   width: 24px !important;
   height: 24px !important;
 }
+
+/* ──────────────────────────────────────────────
+   ANIMACIONES GLOBALES
+   ────────────────────────────────────────────── */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes revealFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes clipReveal {
+  from { clip-path: inset(100% 0% 0% 0%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+
+/* Rotate sutil en imágenes inclinadas */
+@keyframes subtleFloat {
+  0%, 100% { transform: rotate(-1.5deg) translateY(0px); }
+  50%       { transform: rotate(-1.5deg) translateY(-8px); }
+}
+
+.img-tilted {
+  transform: rotate(-1.5deg);
+  transition: transform 0.8s var(--ease-out-expo);
+}
+.img-tilted:hover {
+  transform: rotate(0deg) scale(1.02);
+}
+
+/* ──────────────────────────────────────────────
+   OBSIDIAN ASSEMBLY LEGACY — mapeamos variables
+   antiguas a la nueva paleta para que los
+   componentes existentes funcionen sin romper.
+   ────────────────────────────────────────────── */
+
+/* bg-obsidian → cream */
+.bg-obsidian   { background-color: var(--oa-bg-cream) !important; }
+/* text-ivory → black */
+.text-ivory    { color: var(--oa-black) !important; }
+.text-bone     { color: var(--oa-black) !important; }
+/* text-accent → brown */
+.text-accent   { color: var(--oa-brown) !important; }
+/* bg-bone → white */
+.bg-bone       { background-color: var(--oa-white) !important; }
+/* bg-ink → bg */
+.bg-ink        { background-color: var(--oa-bg-cream) !important; }
+/* text-ink → black */
+.text-ink      { color: var(--oa-black) !important; }
+
+/* border-ivory/[n] — dejan de ser necesarios, pero no rompemos nada */
