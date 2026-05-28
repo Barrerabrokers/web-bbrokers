@@ -99,12 +99,12 @@ export function HeroSection() {
         >
           <source src={VIDEO_SOURCES[videoIndex]} type="video/mp4" />
         </video>
-        {/* Overlay superior: oscuro suave para legibilidad del menú y headline */}
+        {/* Overlay oscuro para legibilidad del menú y headline */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.55) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.38) 45%, rgba(0,0,0,0.70) 100%)",
           }}
         />
         {/* Grain texture sutil */}
