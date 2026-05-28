@@ -80,7 +80,8 @@ export function HeroSection() {
   return (
     <section
       id="inicio"
-      className="relative min-h-screen flex flex-col bg-ink text-bone overflow-hidden"
+      className="relative min-h-screen flex flex-col overflow-hidden"
+      style={{ backgroundColor: "#0a0a0b" }}
     >
       {/* Video Background */}
       <div className="absolute inset-0 z-0">
@@ -92,15 +93,22 @@ export function HeroSection() {
           playsInline
           onEnded={handleEnded}
           onError={handleError}
-          className="absolute inset-0 w-full h-full object-cover opacity-40"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 1 }}
           poster="/buenos-aires-poster.jpg"
         >
           <source src={VIDEO_SOURCES[videoIndex]} type="video/mp4" />
         </video>
-        {/* Dark overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-ink/60 to-ink" />
-        {/* Grain texture */}
-        <div className="absolute inset-0 bg-grain opacity-30" />
+        {/* Overlay superior: oscuro suave para legibilidad del menú y headline */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.55) 100%)",
+          }}
+        />
+        {/* Grain texture sutil */}
+        <div className="absolute inset-0 bg-grain opacity-20" />
       </div>
 
       {/* Accent glow */}
@@ -116,13 +124,13 @@ export function HeroSection() {
       {/* Top label line */}
       <div className="relative z-20 container-custom pt-28 md:pt-36">
         <div
-          className={`flex items-center justify-between text-[11px] uppercase tracking-widest text-bone/50 transition-all duration-1500 ${
+          className={`flex items-center justify-between text-[11px] uppercase tracking-widest transition-all duration-1500 ${
             isLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
           }`}
-          style={{ transitionTimingFunction: "var(--f-cubic)" }}
+          style={{ transitionTimingFunction: "var(--f-cubic)", color: "rgba(255,255,255,0.6)" }}
         >
           <span className="flex items-center gap-3">
-            <span className="h-px w-8 bg-accent" />
+            <span className="h-px w-8" style={{ background: "rgba(255,255,255,0.5)" }} />
             Desarrollos Inmobiliarios
           </span>
           <span>Buenos Aires · Est. 2000</span>
@@ -134,13 +142,13 @@ export function HeroSection() {
         <div className="grid grid-cols-12 gap-6 w-full">
           <div className="col-span-12 lg:col-span-10 xl:col-span-9">
             <h1
-              className={`font-display font-light text-bone text-[40px] sm:text-[56px] md:text-[72px] lg:text-[96px] xl:text-[120px] leading-[0.95] tracking-[-0.03em] transition-all duration-[2000ms] ${
+              className={`font-display font-light text-[40px] sm:text-[56px] md:text-[72px] lg:text-[96px] xl:text-[120px] leading-[0.95] tracking-[-0.03em] transition-all duration-[2000ms] ${
                 isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16"
               }`}
-              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "200ms" }}
+              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "200ms", color: "#f8f5ef" }}
             >
               <span className="block">
-                Invertí en <span className="italic text-accent">desarrollos</span>
+                Invertí en <span className="italic" style={{ color: "#d8c4af" }}>desarrollos</span>
               </span>
               <span className="block">
                 desde el inicio.
@@ -148,10 +156,10 @@ export function HeroSection() {
             </h1>
 
             <p
-              className={`mt-10 md:mt-14 max-w-2xl text-bone/70 text-lg md:text-xl leading-relaxed transition-all duration-[2000ms] ${
+              className={`mt-10 md:mt-14 max-w-2xl text-lg md:text-xl leading-relaxed transition-all duration-[2000ms] ${
                 isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
               }`}
-              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "400ms" }}
+              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "400ms", color: "rgba(248,245,239,0.72)" }}
             >
               Ingresá cuando la obra recién empieza, financiá en cuotas con un
               anticipo del 35%, y al finalizar revendé con una ganancia del 30-40%
@@ -178,40 +186,40 @@ export function HeroSection() {
       {/* Stats strip */}
       <div className="relative z-20 container-custom pb-8">
         <div
-          className={`grid grid-cols-2 md:grid-cols-4 gap-6 py-8 border-t border-bone/15 transition-all duration-[2000ms] ${
+          className={`grid grid-cols-2 md:grid-cols-4 gap-6 py-8 transition-all duration-[2000ms] ${
             isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
-          style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "800ms" }}
+          style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "800ms", borderTop: "1px solid rgba(255,255,255,0.15)" }}
         >
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl text-accent tracking-tight">
+            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#d8c4af" }}>
               30-40%
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest text-bone/50">
+            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
               Retorno al finalizar
             </p>
           </div>
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl text-bone tracking-tight">
+            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
               35%
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest text-bone/50">
+            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
               Anticipo inicial
             </p>
           </div>
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl text-bone tracking-tight">
+            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
               24/7
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest text-bone/50">
+            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
               Gestión de renta
             </p>
           </div>
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl text-bone tracking-tight">
+            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
               +25
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest text-bone/50">
+            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
               Años de experiencia
             </p>
           </div>
@@ -222,10 +230,10 @@ export function HeroSection() {
       <div className="relative z-20 flex justify-center pb-8">
         <a
           href="#desarrollos"
-          className={`flex flex-col items-center gap-2 text-bone/40 hover:text-accent transition-all duration-700 ${
+          className={`flex flex-col items-center gap-2 transition-all duration-700 ${
             isLoaded ? "opacity-100" : "opacity-0"
           }`}
-          style={{ transitionDelay: "1200ms" }}
+          style={{ transitionDelay: "1200ms", color: "rgba(255,255,255,0.4)" }}
         >
           <span className="text-[10px] uppercase tracking-widest">Explorar</span>
           <ChevronDown className="h-5 w-5 animate-bounce" />
