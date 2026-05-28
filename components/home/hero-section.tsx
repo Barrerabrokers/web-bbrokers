@@ -15,7 +15,6 @@ const VIDEO_SOURCES = [
   "/Buenos-Aires1.mp4",
   "/Buenos-Aires2.mp4",
   "/Buenos-Aires3.mp4",
-  "/buenos-aires.mp4", // fallback: video original ya commiteado
 ];
 
 const FADE_MS = 1000; // duracion del crossfade entre videos
