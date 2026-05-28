@@ -5,12 +5,24 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 /**
+ * Lista de videos del hero.
+ * Para sumar mas videos, copiar archivos a /public/ y agregarlos a este array.
+ * Se reproducen en secuencia y al terminar el ultimo vuelven al primero.
+ */
+const VIDEO_SOURCES = [
+  "/buenos-aires.mp4",
+  "/buenos-aires-2.mp4",
+  "/buenos-aires-3.mp4",
+];
+
+/**
  * Hero — Obsidian Assembly inspired dark cinematic style
  * Video background with manifesto text for real estate investors
  */
 export function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [videoIndex, setVideoIndex] = useState(0);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -21,6 +33,31 @@ export function HeroSection() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Cuando cambia el video, recargar el <video> y reproducir
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.load();
+    v.playbackRate = 0.75;
+    const playPromise = v.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        // autoplay puede fallar en algunos navegadores; ignoramos
+      });
+    }
+  }, [videoIndex]);
+
+  const handleEnded = () => {
+    setVideoIndex((i) => (i + 1) % VIDEO_SOURCES.length);
+  };
+
+  const handleError = () => {
+    // Si el archivo no existe (404) o falla, saltar al siguiente
+    if (VIDEO_SOURCES.length > 1) {
+      setVideoIndex((i) => (i + 1) % VIDEO_SOURCES.length);
+    }
+  };
+
   return (
     <section
       id="inicio"
@@ -29,15 +66,17 @@ export function HeroSection() {
       {/* Video Background */}
       <div className="absolute inset-0 z-0">
         <video
+          key={VIDEO_SOURCES[videoIndex]}
           ref={videoRef}
           autoPlay
           muted
-          loop
           playsInline
+          onEnded={handleEnded}
+          onError={handleError}
           className="absolute inset-0 w-full h-full object-cover opacity-40"
           poster="/buenos-aires-poster.jpg"
         >
-          <source src="/buenos-aires.mp4" type="video/mp4" />
+          <source src={VIDEO_SOURCES[videoIndex]} type="video/mp4" />
         </video>
         {/* Dark overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-ink/60 to-ink" />
