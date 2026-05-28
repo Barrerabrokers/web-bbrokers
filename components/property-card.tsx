@@ -21,7 +21,7 @@ export function PropertyCard({ property }: { property: Property }) {
             src={property.images[0]}
             alt={property.title}
             fill
-            className="object-cover transition-all duration-[900ms]"
+            className="object-cover transition-all duration-[900ms] group-hover:scale-[1.05]"
             style={{
               transform: "rotate(-0.8deg) scale(1.04)",
               transformOrigin: "center center",
@@ -38,13 +38,6 @@ export function PropertyCard({ property }: { property: Property }) {
             borderRadius: "14px",
           }}
         />
-
-        {/* CSS: on hover, straighten + scale */}
-        <style jsx>{`
-          .group:hover .img-inner {
-            transform: rotate(0deg) scale(1.06) !important;
-          }
-        `}</style>
 
         {/* Badge categoría */}
         <div className="absolute top-4 left-4">
