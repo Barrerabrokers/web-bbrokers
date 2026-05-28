@@ -21,7 +21,12 @@ const values = [
 ];
 
 export async function AboutSection() {
-  const team = await getTeamMembers();
+  let team: Awaited<ReturnType<typeof getTeamMembers>> = [];
+  try {
+    team = await getTeamMembers();
+  } catch {
+    // Si la DB no está disponible, mostramos la sección sin equipo
+  }
 
   return (
     <section
