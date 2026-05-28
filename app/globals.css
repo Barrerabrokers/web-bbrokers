@@ -216,6 +216,19 @@
     border-color: rgba(var(--copper-rgb), 0.5);
   }
 
+  /* === FORM INPUTS (light theme — admin) === */
+  .form-input {
+    @apply w-full bg-white text-ink placeholder:text-ink/40
+           border border-ink/15 rounded
+           px-4 py-3 text-sm
+           focus:border-accent focus:outline-none
+           transition-colors;
+  }
+
+  .admin-area {
+    color-scheme: light;
+  }
+
   .btn-outline-light {
     @apply btn-outline;
   }
@@ -232,6 +245,36 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 200px 200px;
   }
+}
+
+/* ==============================================
+   ADMIN — Forzar contraste alto en todos los inputs
+   Fondo blanco + letras oscuras, ignorando el tema
+   oscuro del navegador y cualquier clase utility.
+   Se usa !important para ganarle a la cascada de
+   utilities de Tailwind y al UA stylesheet dark.
+   ============================================== */
+.admin-area input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]),
+.admin-area textarea,
+.admin-area select {
+  background-color: #ffffff !important;
+  color: #151415 !important;
+  -webkit-text-fill-color: #151415;
+}
+.admin-area input::placeholder,
+.admin-area textarea::placeholder {
+  color: rgba(21, 20, 21, 0.4) !important;
+  -webkit-text-fill-color: rgba(21, 20, 21, 0.4);
+  opacity: 1;
+}
+.admin-area input:-webkit-autofill,
+.admin-area input:-webkit-autofill:hover,
+.admin-area input:-webkit-autofill:focus,
+.admin-area textarea:-webkit-autofill,
+.admin-area select:-webkit-autofill {
+  -webkit-text-fill-color: #151415 !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  caret-color: #151415;
 }
 
 /* Scrollbar */

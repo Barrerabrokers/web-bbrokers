@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Edit3, Copy, Loader2 } from "lucide-react";
+import { Edit3, Copy, Loader2, Trash2 } from "lucide-react";
 import { Unit } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -21,6 +21,7 @@ const unitStatusStyles: Record<string, string> = {
 export function UnitsTable({ units, developmentId }: UnitsTableProps) {
   const router = useRouter();
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const handleDuplicate = async (unit: Unit) => {
@@ -77,6 +78,36 @@ export function UnitsTable({ units, developmentId }: UnitsTableProps) {
       setError(err.message || "Error al duplicar");
     } finally {
       setDuplicatingId(null);
+    }
+  };
+
+  const handleDelete = async (unit: Unit) => {
+    if (
+      !confirm(
+        `¿Eliminar la unidad "${unit.unitNumber}"? Esta accion no se puede deshacer.`
+      )
+    )
+      return;
+
+    setDeletingId(unit.id);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/units/${unit.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setError(data.error || "Error al eliminar");
+        return;
+      }
+
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "Error al eliminar");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -156,6 +187,20 @@ export function UnitsTable({ units, developmentId }: UnitsTableProps) {
                         <Copy className="h-3 w-3" />
                       )}
                       Duplicar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(unit)}
+                      disabled={deletingId === unit.id}
+                      className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs disabled:opacity-50 transition-colors"
+                      title="Eliminar unidad"
+                    >
+                      {deletingId === unit.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                      Eliminar
                     </button>
                   </div>
                 </td>

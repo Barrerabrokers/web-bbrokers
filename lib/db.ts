@@ -386,8 +386,9 @@ export async function getTeamMembers(): Promise<Omit<Agent, "password" | "email"
 
   const { data, error } = await supabase
     .from("agents")
-    .select("id, name, phone, photo, title, role, active, created_at")
+    .select("id, name, phone, photo, title, role, active, created_at, email")
     .eq("active", true)
+    .neq("email", "admin@barrerabrokers.com")
     .order("created_at", { ascending: true });
 
   if (error || !data) return [];
@@ -401,6 +402,26 @@ export async function getTeamMembers(): Promise<Omit<Agent, "password" | "email"
     active: d.active,
     createdAt: d.created_at,
   }));
+}
+
+export async function deleteAgent(id: string): Promise<{ success: boolean; error: string | null }> {
+  let sql;
+  try {
+    sql = getPgConnection();
+    // Las FKs en properties.agent_id y developments.agent_id estan en ON DELETE SET NULL,
+    // asi que basta con eliminar al agente.
+    await sql`DELETE FROM agents WHERE id = ${id}`;
+    await sql.end();
+    return { success: true, error: null };
+  } catch (error: any) {
+    if (sql) {
+      try {
+        await sql.end();
+      } catch {}
+    }
+    console.error("Error deleting agent:", error);
+    return { success: false, error: error.message || "Unknown error" };
+  }
 }
 
 export async function updateAgent(

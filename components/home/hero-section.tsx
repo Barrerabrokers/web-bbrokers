@@ -5,12 +5,28 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 /**
+ * Lista de videos del hero.
+ * Para sumar mas videos, copiar archivos a /public/ y agregarlos a este array.
+ * Se reproducen en secuencia. Si un archivo no existe (404), se saltea
+ * automaticamente al siguiente, asi que el orden y los nombres pueden
+ * irse ajustando segun los archivos que esten realmente en /public/.
+ */
+const VIDEO_SOURCES = [
+  "/Buenos-Aires1.mp4",
+  "/Buenos-Aires2.mp4",
+  "/Buenos-Aires3.mp4",
+  "/buenos-aires.mp4", // fallback: video original ya commiteado
+];
+
+/**
  * Hero — Obsidian Assembly inspired dark cinematic style
  * Video background with manifesto text for real estate investors
  */
 export function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [videoIndex, setVideoIndex] = useState(0);
+  const [failedSet, setFailedSet] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (videoRef.current) {
@@ -21,6 +37,47 @@ export function HeroSection() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Cuando cambia el video, recargar el <video> y reproducir
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.load();
+    v.playbackRate = 0.75;
+    const playPromise = v.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        // autoplay puede fallar en algunos navegadores; ignoramos
+      });
+    }
+  }, [videoIndex]);
+
+  // Avanza al siguiente video que no haya fallado.
+  // Si ya fallaron todos menos uno, queda en ese.
+  const nextValidIndex = (current: number, failed: Set<number>) => {
+    for (let step = 1; step <= VIDEO_SOURCES.length; step++) {
+      const candidate = (current + step) % VIDEO_SOURCES.length;
+      if (!failed.has(candidate)) return candidate;
+    }
+    return current; // todos fallaron, mantener
+  };
+
+  const handleEnded = () => {
+    setVideoIndex((i) => nextValidIndex(i, failedSet));
+  };
+
+  const handleError = () => {
+    // Marcar este indice como fallido y saltar al siguiente valido
+    setFailedSet((prev) => {
+      const next = new Set(prev);
+      next.add(videoIndex);
+      // Si todavia hay alguno que no fallo, avanzamos
+      if (next.size < VIDEO_SOURCES.length) {
+        setVideoIndex((i) => nextValidIndex(i, next));
+      }
+      return next;
+    });
+  };
+
   return (
     <section
       id="inicio"
@@ -29,15 +86,17 @@ export function HeroSection() {
       {/* Video Background */}
       <div className="absolute inset-0 z-0">
         <video
+          key={VIDEO_SOURCES[videoIndex]}
           ref={videoRef}
           autoPlay
           muted
-          loop
           playsInline
+          onEnded={handleEnded}
+          onError={handleError}
           className="absolute inset-0 w-full h-full object-cover opacity-40"
           poster="/buenos-aires-poster.jpg"
         >
-          <source src="/buenos-aires.mp4" type="video/mp4" />
+          <source src={VIDEO_SOURCES[videoIndex]} type="video/mp4" />
         </video>
         {/* Dark overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-ink/60 to-ink" />

@@ -33,7 +33,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-cream-200 text-ink">
+    <div className="admin-area min-h-screen bg-cream-200 text-ink">
       <AdminHeader />
       <div className="flex">
         <AdminSidebar />

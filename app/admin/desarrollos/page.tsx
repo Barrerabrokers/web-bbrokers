@@ -4,6 +4,7 @@ import { Plus, Building2, MapPin, Edit3 } from "lucide-react";
 import { getDevelopments } from "@/lib/developments-db";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { DevelopmentActions } from "@/components/admin/development-actions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -75,7 +76,7 @@ export default async function AdminDevelopmentsPage() {
                       <Building2 className="h-12 w-12" />
                     </div>
                   )}
-                  <div className="absolute top-3 left-3">
+                  <div className="absolute top-3 left-3 flex flex-col gap-2 items-start">
                     <span
                       className={`inline-block px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest font-medium border ${
                         statusStyles[dev.status] ?? statusStyles.entregado
@@ -83,14 +84,20 @@ export default async function AdminDevelopmentsPage() {
                     >
                       {DEVELOPMENT_STATUS_LABELS[dev.status]}
                     </span>
-                  </div>
-                  {dev.highlight && (
-                    <div className="absolute top-3 right-3">
+                    {dev.highlight && (
                       <span className="inline-block px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest font-medium bg-accent text-ink">
                         Destacado
                       </span>
+                    )}
+                  </div>
+                  <div className="absolute top-3 right-3">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-md shadow-sm">
+                      <DevelopmentActions
+                        developmentId={dev.id}
+                        developmentName={dev.name}
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
 
 
