@@ -12,81 +12,63 @@ const VIDEO_SOURCES = [
 
 /**
  * Hero con crossfade entre videos — doble buffer A/B.
- * Cuando el video activo termina, el video siguiente ya está cargado
- * en el buffer inactivo y aparece con fade-in instantáneo, sin negro.
+ * Los 3 videos rotan en secuencia: 0→1→2→0→1→2…
+ * Sin flash negro entre transiciones.
  */
 export function HeroSection() {
-  const [isLoaded, setIsLoaded]   = useState(false);
-  // qué buffer está "arriba" (visible): "a" o "b"
-  const [active, setActive]       = useState<"a" | "b">("a");
-  // qué src tiene cada buffer
-  const [srcA, setSrcA]           = useState(VIDEO_SOURCES[0]);
-  const [srcB, setSrcB]           = useState(VIDEO_SOURCES[1] ?? VIDEO_SOURCES[0]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [active, setActive]     = useState<"a" | "b">("a");
+  const [srcA, setSrcA]         = useState(VIDEO_SOURCES[0]);
+  const [srcB, setSrcB]         = useState(VIDEO_SOURCES[1]);
 
   const refA = useRef<HTMLVideoElement>(null);
   const refB = useRef<HTMLVideoElement>(null);
 
-  // índice del video que se cargará DESPUÉS del siguiente
-  const nextIdx = useRef(2);
-  const failedSet = useRef<Set<string>>(new Set());
+  // Siguiente índice en la cola circular (independiente de A/B)
+  // Empieza en 2 porque A=0 y B=1 ya están asignados
+  const queueIdx = useRef(2);
 
-  // Reproduce un elemento <video> de forma segura
   const playVideo = (el: HTMLVideoElement | null) => {
     if (!el) return;
+    el.currentTime = 0;
     el.playbackRate = 0.75;
     el.play().catch(() => {});
   };
 
-  // Al montar: arranca buffer A
+  const nextSrc = () => {
+    const src = VIDEO_SOURCES[queueIdx.current % VIDEO_SOURCES.length];
+    queueIdx.current++;
+    return src;
+  };
+
+  // Al montar: arranca A, precarga B
   useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 100);
     playVideo(refA.current);
-    // Precarga buffer B en silencio
     refB.current?.load();
     return () => clearTimeout(timer);
   }, []);
 
-  // Siguiente src válido que no haya fallado
-  const getNextSrc = useCallback(() => {
-    const total = VIDEO_SOURCES.length;
-    for (let i = 0; i < total; i++) {
-      const src = VIDEO_SOURCES[nextIdx.current % total];
-      nextIdx.current++;
-      if (!failedSet.current.has(src)) return src;
-    }
-    // Todos fallaron — repetir el primero que funcione
-    return VIDEO_SOURCES.find(s => !failedSet.current.has(s)) ?? VIDEO_SOURCES[0];
-  }, []);
-
-  // Cuando termina el video activo: crossfade al otro buffer
+  // A terminó → mostrar B, recargar A con el siguiente video
   const handleEndedA = useCallback(() => {
-    // B ya estaba precargado → lo ponemos visible y arrancamos
     setActive("b");
     playVideo(refB.current);
-    // Precargamos el siguiente en A (ahora oculto)
-    const next = getNextSrc();
+    const next = nextSrc();
     setSrcA(next);
-    // Esperamos a que A termine de cargar antes de hacer load
-    setTimeout(() => refA.current?.load(), 50);
-  }, [getNextSrc]);
+    setTimeout(() => refA.current?.load(), 80);
+  }, []);
 
+  // B terminó → mostrar A, recargar B con el siguiente video
   const handleEndedB = useCallback(() => {
     setActive("a");
     playVideo(refA.current);
-    const next = getNextSrc();
+    const next = nextSrc();
     setSrcB(next);
-    setTimeout(() => refB.current?.load(), 50);
-  }, [getNextSrc]);
+    setTimeout(() => refB.current?.load(), 80);
+  }, []);
 
-  const handleErrorA = useCallback(() => {
-    failedSet.current.add(srcA);
-    handleEndedA();
-  }, [srcA, handleEndedA]);
-
-  const handleErrorB = useCallback(() => {
-    failedSet.current.add(srcB);
-    handleEndedB();
-  }, [srcB, handleEndedB]);
+  const handleErrorA = useCallback(() => handleEndedA(), [handleEndedA]);
+  const handleErrorB = useCallback(() => handleEndedB(), [handleEndedB]);
 
   const FADE = "opacity 0.8s ease";
 
@@ -137,7 +119,7 @@ export function HeroSection() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.44) 45%, rgba(0,0,0,0.75) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.50) 45%, rgba(0,0,0,0.80) 100%)",
           }}
         />
         {/* Grain texture sutil */}
