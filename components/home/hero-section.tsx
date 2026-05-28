@@ -104,7 +104,7 @@ export function HeroSection() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.38) 45%, rgba(0,0,0,0.70) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.44) 45%, rgba(0,0,0,0.75) 100%)",
           }}
         />
         {/* Grain texture sutil */}
