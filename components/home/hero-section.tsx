@@ -7,9 +7,9 @@ import { ChevronDown } from "lucide-react";
 /**
  * Lista de videos del hero.
  * Para sumar mas videos, copiar archivos a /public/ y agregarlos a este array.
- * Se reproducen en secuencia. Si un archivo no existe (404), se saltea
- * automaticamente al siguiente, asi que el orden y los nombres pueden
- * irse ajustando segun los archivos que esten realmente en /public/.
+ * Se reproducen en secuencia con CROSSFADE entre uno y otro.
+ * Si un archivo no existe (404), el componente lo marca como fallido y
+ * salta al siguiente automaticamente.
  */
 const VIDEO_SOURCES = [
   "/Buenos-Aires1.mp4",
@@ -18,63 +18,121 @@ const VIDEO_SOURCES = [
   "/buenos-aires.mp4", // fallback: video original ya commiteado
 ];
 
+const FADE_MS = 1000; // duracion del crossfade entre videos
+
 /**
- * Hero — Obsidian Assembly inspired dark cinematic style
- * Video background with manifesto text for real estate investors
+ * Hero — fondo de video con crossfade suave entre 3 videos
+ * de Buenos Aires. Doble buffer: dos <video> apilados que
+ * alternan opacity para que la transicion sea continua.
  */
 export function HeroSection() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [videoIndex, setVideoIndex] = useState(0);
-  const [failedSet, setFailedSet] = useState<Set<number>>(new Set());
+  const videoARef = useRef<HTMLVideoElement>(null);
+  const videoBRef = useRef<HTMLVideoElement>(null);
+  const refs = [videoARef, videoBRef] as const;
 
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Buffer activo (el que se ve)
+  const [active, setActive] = useState<0 | 1>(0);
+
+  // Que video tiene cargado cada buffer
+  const [sources, setSources] = useState<[string, string]>(() => [
+    VIDEO_SOURCES[0],
+    VIDEO_SOURCES[1 % VIDEO_SOURCES.length],
+  ]);
+
+  // Cursor en VIDEO_SOURCES: indice del ultimo video asignado a un buffer
+  const [queueIdx, setQueueIdx] = useState(1 % VIDEO_SOURCES.length);
+
+  // Set de fuentes que fallaron, para no insistir
+  const [failedSrcs, setFailedSrcs] = useState<Set<string>>(new Set());
+
+  // Animacion de entrada del contenido
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = 0.75;
-    }
-    // Trigger animations after mount
     const timer = setTimeout(() => setIsLoaded(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  // Cuando cambia el video, recargar el <video> y reproducir
+  // Cuando cambian los src de los buffers, recargarlos y poner playbackRate
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.load();
-    v.playbackRate = 0.75;
-    const playPromise = v.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // autoplay puede fallar en algunos navegadores; ignoramos
-      });
+    refs.forEach((r) => {
+      const v = r.current;
+      if (!v) return;
+      try {
+        v.load();
+        v.playbackRate = 0.75;
+      } catch {}
+    });
+    // Asegurar que el activo este reproduciendo
+    const av = refs[active].current;
+    if (av) {
+      av.play().catch(() => {});
     }
-  }, [videoIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sources[0], sources[1]]);
 
-  // Avanza al siguiente video que no haya fallado.
-  // Si ya fallaron todos menos uno, queda en ese.
-  const nextValidIndex = (current: number, failed: Set<number>) => {
+  // Helper: encontrar el siguiente indice de VIDEO_SOURCES que no haya fallado
+  const findNextValidIndex = (start: number) => {
     for (let step = 1; step <= VIDEO_SOURCES.length; step++) {
-      const candidate = (current + step) % VIDEO_SOURCES.length;
-      if (!failed.has(candidate)) return candidate;
+      const candidate = (start + step) % VIDEO_SOURCES.length;
+      if (!failedSrcs.has(VIDEO_SOURCES[candidate])) return candidate;
     }
-    return current; // todos fallaron, mantener
+    return start; // todos fallaron, mantener
   };
 
-  const handleEnded = () => {
-    setVideoIndex((i) => nextValidIndex(i, failedSet));
-  };
-
-  const handleError = () => {
-    // Marcar este indice como fallido y saltar al siguiente valido
-    setFailedSet((prev) => {
-      const next = new Set(prev);
-      next.add(videoIndex);
-      // Si todavia hay alguno que no fallo, avanzamos
-      if (next.size < VIDEO_SOURCES.length) {
-        setVideoIndex((i) => nextValidIndex(i, next));
+  // Mientras el activo se acerca al final, "calentar" el otro buffer
+  // empezando a reproducirlo, asi al hacer el crossfade ya esta corriendo.
+  const handleTimeUpdate = (whichBuffer: 0 | 1) => {
+    if (whichBuffer !== active) return;
+    const v = refs[whichBuffer].current;
+    if (!v || !v.duration || isNaN(v.duration)) return;
+    const remaining = v.duration - v.currentTime;
+    if (remaining < FADE_MS / 1000 + 0.3) {
+      const other = refs[1 - whichBuffer].current;
+      if (other && other.paused && other.readyState >= 2) {
+        try {
+          other.currentTime = 0;
+        } catch {}
+        other.play().catch(() => {});
       }
+    }
+  };
+
+  // Cuando el video activo termina, swappeamos el buffer visible.
+  // Despues del fade, cargamos el proximo video en el buffer que salio.
+  const handleEnded = (whichBuffer: 0 | 1) => {
+    if (whichBuffer !== active) return;
+
+    const oldActive = active;
+    const newActive: 0 | 1 = oldActive === 0 ? 1 : 0;
+    setActive(newActive);
+
+    window.setTimeout(() => {
+      const nextIdx = findNextValidIndex(queueIdx);
+      setQueueIdx(nextIdx);
+      setSources((prev) => {
+        const updated: [string, string] = [prev[0], prev[1]];
+        updated[oldActive] = VIDEO_SOURCES[nextIdx];
+        return updated;
+      });
+    }, FADE_MS + 100);
+  };
+
+  // Si un video falla (404, codec), marcarlo y reemplazar ese buffer
+  const handleError = (whichBuffer: 0 | 1) => {
+    const failedSrc = sources[whichBuffer];
+    setFailedSrcs((prev) => {
+      const next = new Set(prev);
+      next.add(failedSrc);
       return next;
+    });
+    const idxFailed = VIDEO_SOURCES.indexOf(failedSrc);
+    const nextIdx = findNextValidIndex(idxFailed >= 0 ? idxFailed : queueIdx);
+    if (VIDEO_SOURCES[nextIdx] === failedSrc) return; // todos fallaron
+    setSources((prev) => {
+      const updated: [string, string] = [prev[0], prev[1]];
+      updated[whichBuffer] = VIDEO_SOURCES[nextIdx];
+      return updated;
     });
   };
 
@@ -83,25 +141,36 @@ export function HeroSection() {
       id="inicio"
       className="relative min-h-screen flex flex-col bg-ink text-bone overflow-hidden"
     >
-      {/* Video Background */}
+      {/* Doble buffer de video para crossfade continuo */}
       <div className="absolute inset-0 z-0">
-        <video
-          key={VIDEO_SOURCES[videoIndex]}
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          onEnded={handleEnded}
-          onError={handleError}
-          className="absolute inset-0 w-full h-full object-cover opacity-40"
-          poster="/buenos-aires-poster.jpg"
-        >
-          <source src={VIDEO_SOURCES[videoIndex]} type="video/mp4" />
-        </video>
-        {/* Dark overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-ink/60 to-ink" />
-        {/* Grain texture */}
-        <div className="absolute inset-0 bg-grain opacity-30" />
+        {([0, 1] as const).map((idx) => (
+          <video
+            key={`buffer-${idx}-${sources[idx]}`}
+            ref={refs[idx]}
+            autoPlay={idx === active}
+            muted
+            playsInline
+            preload="auto"
+            onTimeUpdate={() => handleTimeUpdate(idx)}
+            onEnded={() => handleEnded(idx)}
+            onError={() => handleError(idx)}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity ease-linear"
+            style={{
+              opacity: idx === active ? 0.7 : 0,
+              transitionDuration: `${FADE_MS}ms`,
+            }}
+            poster={idx === 0 ? "/buenos-aires-poster.jpg" : undefined}
+          >
+            <source src={sources[idx]} type="video/mp4" />
+          </video>
+        ))}
+
+        {/* Overlay degradado: arriba/centro mas claros para que se vea
+            el video, abajo mas oscuro para que las stats sean legibles */}
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/35 via-ink/20 to-ink/95" />
+
+        {/* Grain texture sutil */}
+        <div className="absolute inset-0 bg-grain opacity-15" />
       </div>
 
       {/* Accent glow */}
@@ -143,9 +212,7 @@ export function HeroSection() {
               <span className="block">
                 Invertí en <span className="italic text-accent">desarrollos</span>
               </span>
-              <span className="block">
-                desde el inicio.
-              </span>
+              <span className="block">desde el inicio.</span>
             </h1>
 
             <p
