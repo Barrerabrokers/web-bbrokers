@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -37,12 +38,23 @@ export function Header() {
       >
         <div className="container-custom flex items-center justify-between">
           {/* Logo — siempre blanco sobre el hero */}
-          <Link href="/" className="flex flex-col">
-            <span className="font-display text-xl tracking-tight" style={{ color: "#f8f5ef" }}>
-              Barrera <em className="not-italic font-normal">Brokers</em>
-            </span>
-            <span className="text-[9px] uppercase tracking-[0.2em] mt-0.5" style={{ color: "rgba(248,245,239,0.45)" }}>
-              Buenos Aires · Est. 2000
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/logo.svg"
+              alt="Barrera Brokers"
+              width={36}
+              height={36}
+              priority
+              className="h-9 w-9 object-contain"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
+            <span className="flex flex-col">
+              <span className="font-display text-xl tracking-tight leading-none" style={{ color: "#f8f5ef" }}>
+                Barrera <em className="not-italic font-normal">Brokers</em>
+              </span>
+              <span className="text-[9px] uppercase tracking-[0.2em] mt-1" style={{ color: "rgba(248,245,239,0.45)" }}>
+                Buenos Aires · Est. 2000
+              </span>
             </span>
           </Link>
 
