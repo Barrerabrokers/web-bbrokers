@@ -645,3 +645,126 @@ export async function updateSiteSettings(
     return { settings: null, error: err?.message || "Error al guardar settings" };
   }
 }
+
+
+
+// ============================================================
+// SITE SETTINGS — Extensión "Nosotros" (about-section)
+// ============================================================
+
+export type AboutSettings = {
+  aboutImage:             string;
+  aboutEyebrow:           string;
+  aboutTitle:             string;
+  aboutDescription:       string;
+  aboutStatNumber:        string;
+  aboutStatLabel:         string;
+  aboutValue1Title:       string;
+  aboutValue1Description: string;
+  aboutValue2Title:       string;
+  aboutValue2Description: string;
+  aboutValue3Title:       string;
+  aboutValue3Description: string;
+};
+
+export const DEFAULT_ABOUT_SETTINGS: AboutSettings = {
+  aboutImage: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=90",
+  aboutEyebrow: "Nosotros",
+  aboutTitle: "Una inmobiliaria independiente",
+  aboutDescription:
+    "Nacimos en el año 2000 con la idea de ofrecer un servicio inmobiliario claro, profesional y centrado en cada cliente. Hoy, más de dos décadas después, seguimos con el mismo equipo y la misma forma de trabajar.",
+  aboutStatNumber: "+500",
+  aboutStatLabel: "Operaciones realizadas",
+  aboutValue1Title: "Trayectoria",
+  aboutValue1Description:
+    "Más de 25 años operando en Buenos Aires, con conocimiento profundo de cada barrio y tipología de propiedad.",
+  aboutValue2Title: "Equipo",
+  aboutValue2Description:
+    "Profesionales matriculados, especialistas en venta, alquiler, desarrollos e inversiones, trabajando en coordinación.",
+  aboutValue3Title: "Atención",
+  aboutValue3Description:
+    "Cada cliente recibe asesoramiento personalizado, desde la primera visita hasta la firma de la escritura o el contrato.",
+};
+
+export type FullSiteSettings = SiteSettings & AboutSettings;
+
+export const DEFAULT_FULL_SETTINGS: FullSiteSettings = {
+  ...DEFAULT_SITE_SETTINGS,
+  ...DEFAULT_ABOUT_SETTINGS,
+};
+
+export async function getFullSiteSettings(): Promise<FullSiteSettings> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    const rows = await sql`SELECT * FROM site_settings WHERE id = 1 LIMIT 1`;
+    await sql.end();
+
+    if (!rows || rows.length === 0) return DEFAULT_FULL_SETTINGS;
+
+    const r = rows[0];
+    return {
+      companyName:     r.company_name     ?? DEFAULT_SITE_SETTINGS.companyName,
+      email:           r.email            ?? DEFAULT_SITE_SETTINGS.email,
+      phone:           r.phone            ?? DEFAULT_SITE_SETTINGS.phone,
+      whatsapp:        r.whatsapp         ?? DEFAULT_SITE_SETTINGS.whatsapp,
+      addressStreet:   r.address_street   ?? DEFAULT_SITE_SETTINGS.addressStreet,
+      addressCity:     r.address_city     ?? DEFAULT_SITE_SETTINGS.addressCity,
+      whatsappMessage: r.whatsapp_message ?? DEFAULT_SITE_SETTINGS.whatsappMessage,
+      aboutImage:             r.about_image               ?? DEFAULT_ABOUT_SETTINGS.aboutImage,
+      aboutEyebrow:           r.about_eyebrow             ?? DEFAULT_ABOUT_SETTINGS.aboutEyebrow,
+      aboutTitle:             r.about_title               ?? DEFAULT_ABOUT_SETTINGS.aboutTitle,
+      aboutDescription:       r.about_description         ?? DEFAULT_ABOUT_SETTINGS.aboutDescription,
+      aboutStatNumber:        r.about_stat_number         ?? DEFAULT_ABOUT_SETTINGS.aboutStatNumber,
+      aboutStatLabel:         r.about_stat_label          ?? DEFAULT_ABOUT_SETTINGS.aboutStatLabel,
+      aboutValue1Title:       r.about_value_1_title       ?? DEFAULT_ABOUT_SETTINGS.aboutValue1Title,
+      aboutValue1Description: r.about_value_1_description ?? DEFAULT_ABOUT_SETTINGS.aboutValue1Description,
+      aboutValue2Title:       r.about_value_2_title       ?? DEFAULT_ABOUT_SETTINGS.aboutValue2Title,
+      aboutValue2Description: r.about_value_2_description ?? DEFAULT_ABOUT_SETTINGS.aboutValue2Description,
+      aboutValue3Title:       r.about_value_3_title       ?? DEFAULT_ABOUT_SETTINGS.aboutValue3Title,
+      aboutValue3Description: r.about_value_3_description ?? DEFAULT_ABOUT_SETTINGS.aboutValue3Description,
+    };
+  } catch {
+    try { await sql?.end(); } catch {}
+    return DEFAULT_FULL_SETTINGS;
+  }
+}
+
+export async function updateFullSiteSettings(
+  data: Partial<FullSiteSettings>
+): Promise<{ settings: FullSiteSettings | null; error: string | null }> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    await sql`INSERT INTO site_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
+
+    if (data.companyName     !== undefined) await sql`UPDATE site_settings SET company_name     = ${data.companyName}     WHERE id = 1`;
+    if (data.email           !== undefined) await sql`UPDATE site_settings SET email            = ${data.email}           WHERE id = 1`;
+    if (data.phone           !== undefined) await sql`UPDATE site_settings SET phone            = ${data.phone}           WHERE id = 1`;
+    if (data.whatsapp        !== undefined) await sql`UPDATE site_settings SET whatsapp         = ${data.whatsapp}        WHERE id = 1`;
+    if (data.addressStreet   !== undefined) await sql`UPDATE site_settings SET address_street   = ${data.addressStreet}   WHERE id = 1`;
+    if (data.addressCity     !== undefined) await sql`UPDATE site_settings SET address_city     = ${data.addressCity}     WHERE id = 1`;
+    if (data.whatsappMessage !== undefined) await sql`UPDATE site_settings SET whatsapp_message = ${data.whatsappMessage} WHERE id = 1`;
+
+    if (data.aboutImage             !== undefined) await sql`UPDATE site_settings SET about_image               = ${data.aboutImage}             WHERE id = 1`;
+    if (data.aboutEyebrow           !== undefined) await sql`UPDATE site_settings SET about_eyebrow             = ${data.aboutEyebrow}           WHERE id = 1`;
+    if (data.aboutTitle             !== undefined) await sql`UPDATE site_settings SET about_title               = ${data.aboutTitle}             WHERE id = 1`;
+    if (data.aboutDescription       !== undefined) await sql`UPDATE site_settings SET about_description         = ${data.aboutDescription}       WHERE id = 1`;
+    if (data.aboutStatNumber        !== undefined) await sql`UPDATE site_settings SET about_stat_number         = ${data.aboutStatNumber}        WHERE id = 1`;
+    if (data.aboutStatLabel         !== undefined) await sql`UPDATE site_settings SET about_stat_label          = ${data.aboutStatLabel}         WHERE id = 1`;
+    if (data.aboutValue1Title       !== undefined) await sql`UPDATE site_settings SET about_value_1_title       = ${data.aboutValue1Title}       WHERE id = 1`;
+    if (data.aboutValue1Description !== undefined) await sql`UPDATE site_settings SET about_value_1_description = ${data.aboutValue1Description} WHERE id = 1`;
+    if (data.aboutValue2Title       !== undefined) await sql`UPDATE site_settings SET about_value_2_title       = ${data.aboutValue2Title}       WHERE id = 1`;
+    if (data.aboutValue2Description !== undefined) await sql`UPDATE site_settings SET about_value_2_description = ${data.aboutValue2Description} WHERE id = 1`;
+    if (data.aboutValue3Title       !== undefined) await sql`UPDATE site_settings SET about_value_3_title       = ${data.aboutValue3Title}       WHERE id = 1`;
+    if (data.aboutValue3Description !== undefined) await sql`UPDATE site_settings SET about_value_3_description = ${data.aboutValue3Description} WHERE id = 1`;
+
+    await sql.end();
+
+    const settings = await getFullSiteSettings();
+    return { settings, error: null };
+  } catch (err: any) {
+    try { await sql?.end(); } catch {}
+    return { settings: null, error: err?.message || "Error al guardar settings" };
+  }
+}

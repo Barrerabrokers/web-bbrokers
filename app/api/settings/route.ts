@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSiteSettings, updateSiteSettings } from "@/lib/db";
+import { getFullSiteSettings, updateFullSiteSettings } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/** GET — Público. Devuelve los settings actuales (con fallback a defaults). */
+/** GET — Público. Devuelve TODOS los settings (contacto + about). */
 export async function GET() {
   try {
-    const settings = await getSiteSettings();
+    const settings = await getFullSiteSettings();
     return NextResponse.json(settings, {
       headers: { "Cache-Control": "no-store, max-age=0" },
     });
@@ -27,8 +27,8 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
-    // Whitelist de campos editables
     const allowed = [
+      // Contacto / empresa
       "companyName",
       "email",
       "phone",
@@ -36,17 +36,41 @@ export async function PUT(request: NextRequest) {
       "addressStreet",
       "addressCity",
       "whatsappMessage",
+      // Nosotros
+      "aboutImage",
+      "aboutEyebrow",
+      "aboutTitle",
+      "aboutDescription",
+      "aboutStatNumber",
+      "aboutStatLabel",
+      "aboutValue1Title",
+      "aboutValue1Description",
+      "aboutValue2Title",
+      "aboutValue2Description",
+      "aboutValue3Title",
+      "aboutValue3Description",
     ] as const;
 
     const data: any = {};
     for (const k of allowed) {
-      if (body[k] !== undefined) data[k] = String(body[k]).trim();
+      if (body[k] !== undefined) data[k] = String(body[k]);
     }
 
-    // Sanity: WhatsApp solo dígitos
+    // Trim de strings cortos (mantener saltos de línea en descripciones)
+    const trimFields = [
+      "companyName", "email", "phone", "whatsapp",
+      "addressStreet", "addressCity",
+      "aboutImage", "aboutEyebrow", "aboutTitle",
+      "aboutStatNumber", "aboutStatLabel",
+      "aboutValue1Title", "aboutValue2Title", "aboutValue3Title",
+    ];
+    for (const k of trimFields) {
+      if (data[k]) data[k] = data[k].trim();
+    }
+
     if (data.whatsapp) data.whatsapp = data.whatsapp.replace(/[^\d]/g, "");
 
-    const { settings, error } = await updateSiteSettings(data);
+    const { settings, error } = await updateFullSiteSettings(data);
 
     if (error || !settings) {
       return NextResponse.json(

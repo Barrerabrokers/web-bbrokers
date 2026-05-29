@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSiteSettings } from "@/lib/db";
+import { getFullSiteSettings } from "@/lib/db";
 import { SettingsForm } from "./settings-form";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +10,11 @@ export const revalidate = 0;
 export default async function AdminSettingsPage() {
   const session = await getServerSession(authOptions);
 
-  // Solo admin
   if (!session || session.user?.role !== "admin") {
     redirect("/admin");
   }
 
-  const settings = await getSiteSettings();
+  const settings = await getFullSiteSettings();
 
   return (
     <div className="max-w-3xl">
@@ -24,11 +23,11 @@ export default async function AdminSettingsPage() {
           Administración
         </p>
         <h1 className="font-display text-3xl md:text-4xl text-ink tracking-tight mb-2">
-          Configuración de la empresa
+          Configuración del sitio
         </h1>
         <p className="text-sm text-ink/60 max-w-xl">
-          Estos datos se reflejan automáticamente en el header, footer, sección de
-          contacto y botón de WhatsApp del sitio público.
+          Estos datos se reflejan automáticamente en el header, footer, sección
+          de contacto, botón de WhatsApp y la sección &ldquo;Nosotros&rdquo; del sitio público.
         </p>
       </header>
 

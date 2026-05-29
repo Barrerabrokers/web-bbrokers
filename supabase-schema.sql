@@ -184,3 +184,34 @@ DROP TRIGGER IF EXISTS update_site_settings_updated_at ON site_settings;
 CREATE TRIGGER update_site_settings_updated_at
   BEFORE UPDATE ON site_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+
+-- ====================================================================
+-- Extension de site_settings — Sección "Nosotros"
+-- ====================================================================
+ALTER TABLE site_settings
+  ADD COLUMN IF NOT EXISTS about_image TEXT
+    DEFAULT 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=90',
+  ADD COLUMN IF NOT EXISTS about_eyebrow VARCHAR(100)
+    DEFAULT 'Nosotros',
+  ADD COLUMN IF NOT EXISTS about_title VARCHAR(255)
+    DEFAULT 'Una inmobiliaria independiente',
+  ADD COLUMN IF NOT EXISTS about_description TEXT
+    DEFAULT 'Nacimos en el año 2000 con la idea de ofrecer un servicio inmobiliario claro, profesional y centrado en cada cliente. Hoy, más de dos décadas después, seguimos con el mismo equipo y la misma forma de trabajar.',
+  ADD COLUMN IF NOT EXISTS about_stat_number VARCHAR(50)
+    DEFAULT '+500',
+  ADD COLUMN IF NOT EXISTS about_stat_label VARCHAR(255)
+    DEFAULT 'Operaciones realizadas',
+  ADD COLUMN IF NOT EXISTS about_value_1_title VARCHAR(100)
+    DEFAULT 'Trayectoria',
+  ADD COLUMN IF NOT EXISTS about_value_1_description TEXT
+    DEFAULT 'Más de 25 años operando en Buenos Aires, con conocimiento profundo de cada barrio y tipología de propiedad.',
+  ADD COLUMN IF NOT EXISTS about_value_2_title VARCHAR(100)
+    DEFAULT 'Equipo',
+  ADD COLUMN IF NOT EXISTS about_value_2_description TEXT
+    DEFAULT 'Profesionales matriculados, especialistas en venta, alquiler, desarrollos e inversiones, trabajando en coordinación.',
+  ADD COLUMN IF NOT EXISTS about_value_3_title VARCHAR(100)
+    DEFAULT 'Atención',
+  ADD COLUMN IF NOT EXISTS about_value_3_description TEXT
+    DEFAULT 'Cada cliente recibe asesoramiento personalizado, desde la primera visita hasta la firma de la escritura o el contrato.';

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const folder = (formData.get("folder") as string) || "properties";
 
     // Validar folder permitido
-    const allowedFolders = ["properties", "developments", "units", "agents", "brochures"];
+    const allowedFolders = ["properties", "developments", "units", "agents", "brochures", "settings"];
     const safeFolder = allowedFolders.includes(folder) ? folder : "properties";
 
     if (!files || files.length === 0) {
