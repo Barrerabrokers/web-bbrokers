@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
 import { SmoothScroll } from "@/components/smooth-scroll";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -51,6 +52,7 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <SmoothScroll />
         <CursorTrail />
+        <WhatsAppButton />
       </body>
     </html>
   );
