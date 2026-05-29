@@ -41,30 +41,35 @@ export function HeroSection() {
     return src;
   };
 
-  // Al montar: arranca A, precarga B
+  // Al montar: arranca A
   useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 100);
     playVideo(refA.current);
-    refB.current?.load();
     return () => clearTimeout(timer);
   }, []);
 
-  // A terminó → mostrar B, recargar A con el siguiente video
+  // Cuando cambia srcA y A NO está activo → recargar (precarga el siguiente)
+  useEffect(() => {
+    if (active !== "a") refA.current?.load();
+  }, [srcA, active]);
+
+  // Cuando cambia srcB y B NO está activo → recargar (precarga el siguiente)
+  useEffect(() => {
+    if (active !== "b") refB.current?.load();
+  }, [srcB, active]);
+
+  // A terminó → mostrar B, queueA con el siguiente video
   const handleEndedA = useCallback(() => {
     setActive("b");
     playVideo(refB.current);
-    const next = nextSrc();
-    setSrcA(next);
-    setTimeout(() => refA.current?.load(), 80);
+    setSrcA(nextSrc());
   }, []);
 
-  // B terminó → mostrar A, recargar B con el siguiente video
+  // B terminó → mostrar A, queueB con el siguiente video
   const handleEndedB = useCallback(() => {
     setActive("a");
     playVideo(refA.current);
-    const next = nextSrc();
-    setSrcB(next);
-    setTimeout(() => refB.current?.load(), 80);
+    setSrcB(nextSrc());
   }, []);
 
   const handleErrorA = useCallback(() => handleEndedA(), [handleEndedA]);
@@ -120,7 +125,7 @@ export function HeroSection() {
           style={{
             zIndex: 3,
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 45%, rgba(0,0,0,0.90) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.58) 45%, rgba(0,0,0,0.83) 100%)",
           }}
         />
         {/* Capa de negro transparente uniforme — oscurece más todo el video */}
