@@ -118,6 +118,7 @@ export function HeroSection() {
         <div
           className="absolute inset-0"
           style={{
+            zIndex: 3,
             background:
               "linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 45%, rgba(0,0,0,0.90) 100%)",
           }}
@@ -125,10 +126,10 @@ export function HeroSection() {
         {/* Capa de negro transparente uniforme — oscurece más todo el video */}
         <div
           className="absolute inset-0"
-          style={{ background: "rgba(0,0,0,0.35)" }}
+          style={{ zIndex: 4, background: "rgba(0,0,0,0.35)" }}
         />
         {/* Grain texture sutil */}
-        <div className="absolute inset-0 bg-grain opacity-20" />
+        <div className="absolute inset-0 bg-grain opacity-20" style={{ zIndex: 5 }} />
       </div>
 
       {/* Accent glow */}
