@@ -40,13 +40,12 @@ export function Header() {
           {/* Logo — siempre blanco sobre el hero */}
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/logo.svg"
+              src="/logo.png"
               alt="Barrera Brokers"
-              width={36}
-              height={36}
+              width={40}
+              height={40}
               priority
-              className="h-9 w-9 object-contain"
-              style={{ filter: "brightness(0) invert(1)" }}
+              className="h-10 w-10 object-contain"
             />
             <span className="flex flex-col">
               <span className="font-display text-xl tracking-tight leading-none" style={{ color: "#f8f5ef" }}>
