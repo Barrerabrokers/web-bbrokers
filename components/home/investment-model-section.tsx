@@ -90,20 +90,6 @@ export async function InvestmentModelSection() {
           </div>
         </div>
 
-        {/* Imagen opcional */}
-        {s.investmentImage && (
-          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg mb-16 md:mb-20 bg-cream-200">
-            <Image
-              src={s.investmentImage}
-              alt={s.investmentTitle}
-              fill
-              className="object-cover"
-              sizes="100vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/20 via-transparent to-transparent pointer-events-none" />
-          </div>
-        )}
-
         {/* Steps */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {steps.map((step, idx) => {
@@ -183,6 +169,21 @@ export async function InvestmentModelSection() {
             </div>
           </div>
         </div>
+
+        {/* ── Imagen al final — sin recortar ── */}
+        {s.investmentImage && (
+          <div className="mt-16 md:mt-24 flex justify-center">
+            <Image
+              src={s.investmentImage}
+              alt={s.investmentTitle}
+              width={1920}
+              height={1080}
+              className="w-auto max-w-full h-auto rounded-lg"
+              sizes="(max-width: 1024px) 100vw, 1024px"
+              style={{ maxHeight: "85vh" }}
+            />
+          </div>
+        )}
       </div>
     </section>
   );
