@@ -11,6 +11,7 @@ import {
   Users,
   Layers,
   UserCog,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const baseMenuItems = [
 
 const adminMenuItems = [
   { href: "/admin/agentes", label: "Agentes", icon: UserCog },
+  { href: "/admin/settings", label: "Configuración", icon: Settings },
 ];
 
 export function AdminSidebar() {

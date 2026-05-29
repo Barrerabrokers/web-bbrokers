@@ -2,16 +2,18 @@
 
 /**
  * WhatsAppButton — botón flotante siempre visible.
- * Abre WhatsApp Web/App con un mensaje predefinido.
- *
- * Para cambiar el número o el mensaje, editar las constantes abajo.
+ * Lee el número y mensaje desde site_settings (editable en /admin/settings).
+ * Usa defaults si la DB aún no respondió.
  */
 
-const PHONE_NUMBER = "541112345678"; // Sin "+", sin espacios, sin guiones
-const DEFAULT_MESSAGE = "Hola! Me interesa conocer más sobre los desarrollos de Barrera Brokers.";
+import { useSiteSettings } from "@/lib/use-site-settings";
 
 export function WhatsAppButton() {
-  const url = `https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(DEFAULT_MESSAGE)}`;
+  const { whatsapp, whatsappMessage } = useSiteSettings();
+
+  // Sanitiza por si vino con formato (igual el server lo limpia, pero defensivo)
+  const phone = whatsapp.replace(/[^\d]/g, "");
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage)}`;
 
   return (
     <a
@@ -19,7 +21,7 @@ export function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Contactar por WhatsApp"
-      className="group fixed bottom-6 left-6 z-[60] flex items-center justify-center rounded-full transition-all duration-500"
+      className="group fixed bottom-6 right-6 z-[60] flex items-center justify-center rounded-full transition-all duration-500"
       style={{
         width: "58px",
         height: "58px",

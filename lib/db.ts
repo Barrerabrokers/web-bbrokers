@@ -546,3 +546,102 @@ function mapAgentFromDb(data: any): Agent {
     createdAt: data.created_at,
   };
 }
+
+
+
+// ============================================================
+// SITE SETTINGS — singleton (id=1)
+// ============================================================
+
+export type SiteSettings = {
+  companyName:     string;
+  email:           string;
+  phone:           string;
+  whatsapp:        string;
+  addressStreet:   string;
+  addressCity:     string;
+  whatsappMessage: string;
+};
+
+/**
+ * Defaults usados cuando la DB no responde o la tabla aún no existe.
+ * Mantienen los valores hardcodeados originales para que la UI nunca
+ * quede vacía durante el primer deploy.
+ */
+export const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  companyName:     "Barrera Brokers",
+  email:           "info@barrerabrokers.com",
+  phone:           "+54 11 1234-5678",
+  whatsapp:        "541112345678",
+  addressStreet:   "Av. Principal 123",
+  addressCity:     "Buenos Aires, Argentina",
+  whatsappMessage: "Hola! Me interesa conocer más sobre los desarrollos de Barrera Brokers.",
+};
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    const rows = await sql`SELECT * FROM site_settings WHERE id = 1 LIMIT 1`;
+    await sql.end();
+
+    if (!rows || rows.length === 0) return DEFAULT_SITE_SETTINGS;
+
+    const r = rows[0];
+    return {
+      companyName:     r.company_name     ?? DEFAULT_SITE_SETTINGS.companyName,
+      email:           r.email            ?? DEFAULT_SITE_SETTINGS.email,
+      phone:           r.phone            ?? DEFAULT_SITE_SETTINGS.phone,
+      whatsapp:        r.whatsapp         ?? DEFAULT_SITE_SETTINGS.whatsapp,
+      addressStreet:   r.address_street   ?? DEFAULT_SITE_SETTINGS.addressStreet,
+      addressCity:     r.address_city     ?? DEFAULT_SITE_SETTINGS.addressCity,
+      whatsappMessage: r.whatsapp_message ?? DEFAULT_SITE_SETTINGS.whatsappMessage,
+    };
+  } catch (err) {
+    // DB no disponible o tabla aún no creada → fallback
+    try { await sql?.end(); } catch {}
+    return DEFAULT_SITE_SETTINGS;
+  }
+}
+
+export async function updateSiteSettings(
+  data: Partial<SiteSettings>
+): Promise<{ settings: SiteSettings | null; error: string | null }> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+
+    // Asegurar que la fila singleton exista
+    await sql`INSERT INTO site_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
+
+    // Update individual de cada campo si vino en el payload.
+    // Hacemos updates separados para evitar problemas con SET dinámico.
+    if (data.companyName     !== undefined) await sql`UPDATE site_settings SET company_name     = ${data.companyName}     WHERE id = 1`;
+    if (data.email           !== undefined) await sql`UPDATE site_settings SET email            = ${data.email}           WHERE id = 1`;
+    if (data.phone           !== undefined) await sql`UPDATE site_settings SET phone            = ${data.phone}           WHERE id = 1`;
+    if (data.whatsapp        !== undefined) await sql`UPDATE site_settings SET whatsapp         = ${data.whatsapp}        WHERE id = 1`;
+    if (data.addressStreet   !== undefined) await sql`UPDATE site_settings SET address_street   = ${data.addressStreet}   WHERE id = 1`;
+    if (data.addressCity     !== undefined) await sql`UPDATE site_settings SET address_city     = ${data.addressCity}     WHERE id = 1`;
+    if (data.whatsappMessage !== undefined) await sql`UPDATE site_settings SET whatsapp_message = ${data.whatsappMessage} WHERE id = 1`;
+
+    const rows = await sql`SELECT * FROM site_settings WHERE id = 1 LIMIT 1`;
+    await sql.end();
+
+    const r = rows[0];
+    return {
+      settings: {
+        companyName:     r.company_name,
+        email:           r.email,
+        phone:           r.phone,
+        whatsapp:        r.whatsapp,
+        addressStreet:   r.address_street,
+        addressCity:     r.address_city,
+        whatsappMessage: r.whatsapp_message,
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    try { await sql?.end(); } catch {}
+    return { settings: null, error: err?.message || "Error al guardar settings" };
+  }
+}

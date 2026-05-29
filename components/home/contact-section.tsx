@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useSiteSettings } from "@/lib/use-site-settings";
 
 /**
  * Contacto section — accent background con form.
  */
 export function ContactSection() {
+  const settings = useSiteSettings();
+  const telLink = `tel:+${settings.whatsapp.replace(/[^\d]/g, "")}`;
+  const city = settings.addressCity.split(",")[0].trim();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -191,10 +195,10 @@ export function ContactSection() {
                 Email
               </p>
               <a
-                href="mailto:info@barrerabrokers.com"
+                href={`mailto:${settings.email}`}
                 className="font-display text-base md:text-lg text-ink hover:text-ink-600 transition-colors duration-300"
               >
-                info@barrerabrokers.com
+                {settings.email}
               </a>
             </div>
             <div>
@@ -202,10 +206,10 @@ export function ContactSection() {
                 Telefono
               </p>
               <a
-                href="tel:+541112345678"
+                href={telLink}
                 className="font-display text-base md:text-lg text-ink hover:text-ink-600 transition-colors duration-300"
               >
-                +54 11 1234-5678
+                {settings.phone}
               </a>
             </div>
             <div>
@@ -213,9 +217,9 @@ export function ContactSection() {
                 Direccion
               </p>
               <p className="text-sm text-ink leading-relaxed">
-                Av. Principal 123
+                {settings.addressStreet}
                 <br />
-                Buenos Aires
+                {city}
               </p>
             </div>
             <div>

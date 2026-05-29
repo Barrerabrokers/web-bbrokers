@@ -4,10 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSiteSettings } from "@/lib/use-site-settings";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const settings = useSiteSettings();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -21,6 +23,12 @@ export function Header() {
     { href: "/#renta", label: "Renta" },
     { href: "/#propiedades", label: "Propiedades" },
   ];
+
+  // Render del wordmark: primera palabra normal, resto en italic
+  const [firstWord, ...rest] = settings.companyName.split(" ");
+  const restWords = rest.join(" ");
+  // Ciudad para subtítulo (sin país)
+  const city = settings.addressCity.split(",")[0].trim();
 
   return (
     <>
@@ -41,7 +49,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-3">
             <Image
               src="/logo.png"
-              alt="Barrera Brokers"
+              alt={settings.companyName}
               width={40}
               height={40}
               priority
@@ -49,10 +57,16 @@ export function Header() {
             />
             <span className="flex flex-col">
               <span className="font-display text-xl tracking-tight leading-none" style={{ color: "#f8f5ef" }}>
-                Barrera <em className="not-italic font-normal">Brokers</em>
+                {firstWord}
+                {restWords && (
+                  <>
+                    {" "}
+                    <em className="not-italic font-normal">{restWords}</em>
+                  </>
+                )}
               </span>
               <span className="text-[9px] uppercase tracking-[0.2em] mt-1" style={{ color: "rgba(248,245,239,0.45)" }}>
-                Buenos Aires · Est. 2000
+                {city} · Est. 2000
               </span>
             </span>
           </Link>
@@ -181,8 +195,8 @@ export function Header() {
             {/* Bottom info */}
             <div className="container-custom pb-8 flex items-end justify-between">
               <div className="text-[11px] text-ivory/30 uppercase tracking-[0.15em]">
-                <p>info@barrerabrokers.com</p>
-                <p className="mt-1">+54 11 1234-5678</p>
+                <p>{settings.email}</p>
+                <p className="mt-1">{settings.phone}</p>
               </div>
               <Link
                 href="/#contacto"

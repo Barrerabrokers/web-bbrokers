@@ -154,3 +154,33 @@ ON CONFLICT (email) DO NOTHING;
 -- 2. Configurar las variables de entorno en Vercel
 -- 3. Hacer redeploy
 -- ====================================================================
+
+
+
+-- ====================================================================
+-- TABLA: site_settings (Configuración global del sitio — singleton)
+-- ====================================================================
+-- Datos editables desde /admin/settings que se reflejan en
+-- header, footer, contacto, botón WhatsApp, etc.
+-- Patrón singleton: una sola row con id=1.
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS site_settings (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  company_name VARCHAR(255) NOT NULL DEFAULT 'Barrera Brokers',
+  email VARCHAR(255) NOT NULL DEFAULT 'info@barrerabrokers.com',
+  phone VARCHAR(50) NOT NULL DEFAULT '+54 11 1234-5678',
+  whatsapp VARCHAR(50) NOT NULL DEFAULT '541112345678',
+  address_street VARCHAR(255) NOT NULL DEFAULT 'Av. Principal 123',
+  address_city VARCHAR(255) NOT NULL DEFAULT 'Buenos Aires, Argentina',
+  whatsapp_message TEXT NOT NULL DEFAULT 'Hola! Me interesa conocer más sobre los desarrollos de Barrera Brokers.',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insertar la única fila si no existe
+INSERT INTO site_settings (id) VALUES (1)
+ON CONFLICT (id) DO NOTHING;
+
+DROP TRIGGER IF EXISTS update_site_settings_updated_at ON site_settings;
+CREATE TRIGGER update_site_settings_updated_at
+  BEFORE UPDATE ON site_settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
