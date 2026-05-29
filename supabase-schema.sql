@@ -215,3 +215,70 @@ ALTER TABLE site_settings
     DEFAULT 'Atención',
   ADD COLUMN IF NOT EXISTS about_value_3_description TEXT
     DEFAULT 'Cada cliente recibe asesoramiento personalizado, desde la primera visita hasta la firma de la escritura o el contrato.';
+
+
+
+-- ====================================================================
+-- Extension de site_settings — Sección "Inversión" (modelo de inversión)
+-- ====================================================================
+ALTER TABLE site_settings
+  ADD COLUMN IF NOT EXISTS investment_image TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS investment_eyebrow VARCHAR(100)
+    DEFAULT 'Modelo de inversión',
+  ADD COLUMN IF NOT EXISTS investment_title VARCHAR(255)
+    DEFAULT 'Cómo funciona la inversión en desarrollos.',
+  ADD COLUMN IF NOT EXISTS investment_description TEXT
+    DEFAULT 'Un proceso simple y transparente. Desde el anticipo hasta la renta o reventa, te acompañamos en cada paso.',
+
+  ADD COLUMN IF NOT EXISTS investment_step_1_title VARCHAR(255)
+    DEFAULT 'Ingresá con el 35%',
+  ADD COLUMN IF NOT EXISTS investment_step_1_highlight VARCHAR(100)
+    DEFAULT 'Anticipo inicial',
+  ADD COLUMN IF NOT EXISTS investment_step_1_value VARCHAR(50)
+    DEFAULT '35%',
+  ADD COLUMN IF NOT EXISTS investment_step_1_description TEXT
+    DEFAULT 'Reservá tu unidad con un anticipo inicial del 35% del valor. Asegurás precio de pozo y comenzás a capitalizar desde el día uno.',
+
+  ADD COLUMN IF NOT EXISTS investment_step_2_title VARCHAR(255)
+    DEFAULT 'Financiá el saldo',
+  ADD COLUMN IF NOT EXISTS investment_step_2_highlight VARCHAR(100)
+    DEFAULT 'Saldo en cuotas',
+  ADD COLUMN IF NOT EXISTS investment_step_2_value VARCHAR(50)
+    DEFAULT '65%',
+  ADD COLUMN IF NOT EXISTS investment_step_2_description TEXT
+    DEFAULT 'El 65% restante lo pagás en cuotas durante la construcción. Planes flexibles adaptados a tu capacidad de ahorro.',
+
+  ADD COLUMN IF NOT EXISTS investment_step_3_title VARCHAR(255)
+    DEFAULT 'Revendé con ganancia',
+  ADD COLUMN IF NOT EXISTS investment_step_3_highlight VARCHAR(100)
+    DEFAULT 'Retorno estimado',
+  ADD COLUMN IF NOT EXISTS investment_step_3_value VARCHAR(50)
+    DEFAULT '30-40%',
+  ADD COLUMN IF NOT EXISTS investment_step_3_description TEXT
+    DEFAULT 'Una vez finalizado el proyecto, vendé tu unidad en el mercado. La diferencia entre precio de pozo y valor terminado genera retornos del 30-40%.',
+
+  ADD COLUMN IF NOT EXISTS investment_step_4_title VARCHAR(255)
+    DEFAULT 'O generá renta pasiva',
+  ADD COLUMN IF NOT EXISTS investment_step_4_highlight VARCHAR(100)
+    DEFAULT 'Renta mensual',
+  ADD COLUMN IF NOT EXISTS investment_step_4_value VARCHAR(50)
+    DEFAULT '24/7',
+  ADD COLUMN IF NOT EXISTS investment_step_4_description TEXT
+    DEFAULT 'Si preferís mantener la propiedad, nosotros la administramos como alquiler temporario tipo Airbnb. Vos cobrás, nosotros nos encargamos de todo.',
+
+  ADD COLUMN IF NOT EXISTS investment_benefit_1 VARCHAR(255) DEFAULT 'Precio de pozo garantizado',
+  ADD COLUMN IF NOT EXISTS investment_benefit_2 VARCHAR(255) DEFAULT 'Asesoramiento legal incluido',
+  ADD COLUMN IF NOT EXISTS investment_benefit_3 VARCHAR(255) DEFAULT 'Seguimiento de obra en tiempo real',
+  ADD COLUMN IF NOT EXISTS investment_benefit_4 VARCHAR(255) DEFAULT 'Sin comisiones ocultas',
+  ADD COLUMN IF NOT EXISTS investment_benefit_5 VARCHAR(255) DEFAULT 'Gestión de reventa o alquiler',
+  ADD COLUMN IF NOT EXISTS investment_benefit_6 VARCHAR(255) DEFAULT 'Soporte post-entrega',
+
+  ADD COLUMN IF NOT EXISTS investment_benefits_title VARCHAR(255)
+    DEFAULT 'Todo lo que incluye invertir con nosotros.',
+
+  ADD COLUMN IF NOT EXISTS investment_cta_eyebrow VARCHAR(100)
+    DEFAULT 'Comenzá ahora',
+  ADD COLUMN IF NOT EXISTS investment_cta_title VARCHAR(255)
+    DEFAULT '¿Querés saber más sobre oportunidades de inversión?',
+  ADD COLUMN IF NOT EXISTS investment_cta_description TEXT
+    DEFAULT 'Agendá una llamada con nuestro equipo. Te explicamos las opciones disponibles, los planes de financiación y respondemos todas tus consultas.';

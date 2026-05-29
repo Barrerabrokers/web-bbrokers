@@ -686,12 +686,20 @@ export const DEFAULT_ABOUT_SETTINGS: AboutSettings = {
     "Cada cliente recibe asesoramiento personalizado, desde la primera visita hasta la firma de la escritura o el contrato.",
 };
 
-export type FullSiteSettings = SiteSettings & AboutSettings;
+// Forward declaration — Investment types are defined later in this file.
+// Para evitar reordering, redeclaramos un type vacío aquí que se mergea más abajo.
+export type FullSiteSettings = SiteSettings & AboutSettings & {
+  // Campos de Investment se completan dinámicamente con DEFAULT_INVESTMENT_SETTINGS
+  [k: string]: any;
+};
 
+// Singleton mutable que se completa al final del archivo (al cargarse el módulo).
+// Esto evita problemas con el orden de las declaraciones.
 export const DEFAULT_FULL_SETTINGS: FullSiteSettings = {
   ...DEFAULT_SITE_SETTINGS,
   ...DEFAULT_ABOUT_SETTINGS,
-};
+  // Investment defaults se asignan al final del archivo
+} as FullSiteSettings;
 
 export async function getFullSiteSettings(): Promise<FullSiteSettings> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
@@ -723,6 +731,44 @@ export async function getFullSiteSettings(): Promise<FullSiteSettings> {
       aboutValue2Description: r.about_value_2_description ?? DEFAULT_ABOUT_SETTINGS.aboutValue2Description,
       aboutValue3Title:       r.about_value_3_title       ?? DEFAULT_ABOUT_SETTINGS.aboutValue3Title,
       aboutValue3Description: r.about_value_3_description ?? DEFAULT_ABOUT_SETTINGS.aboutValue3Description,
+
+      // Investment
+      investmentImage:           r.investment_image           ?? DEFAULT_INVESTMENT_SETTINGS.investmentImage,
+      investmentEyebrow:         r.investment_eyebrow         ?? DEFAULT_INVESTMENT_SETTINGS.investmentEyebrow,
+      investmentTitle:           r.investment_title           ?? DEFAULT_INVESTMENT_SETTINGS.investmentTitle,
+      investmentDescription:     r.investment_description     ?? DEFAULT_INVESTMENT_SETTINGS.investmentDescription,
+
+      investmentStep1Title:       r.investment_step_1_title       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep1Title,
+      investmentStep1Highlight:   r.investment_step_1_highlight   ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep1Highlight,
+      investmentStep1Value:       r.investment_step_1_value       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep1Value,
+      investmentStep1Description: r.investment_step_1_description ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep1Description,
+
+      investmentStep2Title:       r.investment_step_2_title       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep2Title,
+      investmentStep2Highlight:   r.investment_step_2_highlight   ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep2Highlight,
+      investmentStep2Value:       r.investment_step_2_value       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep2Value,
+      investmentStep2Description: r.investment_step_2_description ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep2Description,
+
+      investmentStep3Title:       r.investment_step_3_title       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep3Title,
+      investmentStep3Highlight:   r.investment_step_3_highlight   ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep3Highlight,
+      investmentStep3Value:       r.investment_step_3_value       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep3Value,
+      investmentStep3Description: r.investment_step_3_description ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep3Description,
+
+      investmentStep4Title:       r.investment_step_4_title       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep4Title,
+      investmentStep4Highlight:   r.investment_step_4_highlight   ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep4Highlight,
+      investmentStep4Value:       r.investment_step_4_value       ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep4Value,
+      investmentStep4Description: r.investment_step_4_description ?? DEFAULT_INVESTMENT_SETTINGS.investmentStep4Description,
+
+      investmentBenefit1: r.investment_benefit_1 ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefit1,
+      investmentBenefit2: r.investment_benefit_2 ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefit2,
+      investmentBenefit3: r.investment_benefit_3 ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefit3,
+      investmentBenefit4: r.investment_benefit_4 ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefit4,
+      investmentBenefit5: r.investment_benefit_5 ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefit5,
+      investmentBenefit6: r.investment_benefit_6 ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefit6,
+      investmentBenefitsTitle: r.investment_benefits_title ?? DEFAULT_INVESTMENT_SETTINGS.investmentBenefitsTitle,
+
+      investmentCtaEyebrow:     r.investment_cta_eyebrow     ?? DEFAULT_INVESTMENT_SETTINGS.investmentCtaEyebrow,
+      investmentCtaTitle:       r.investment_cta_title       ?? DEFAULT_INVESTMENT_SETTINGS.investmentCtaTitle,
+      investmentCtaDescription: r.investment_cta_description ?? DEFAULT_INVESTMENT_SETTINGS.investmentCtaDescription,
     };
   } catch {
     try { await sql?.end(); } catch {}
@@ -759,6 +805,44 @@ export async function updateFullSiteSettings(
     if (data.aboutValue3Title       !== undefined) await sql`UPDATE site_settings SET about_value_3_title       = ${data.aboutValue3Title}       WHERE id = 1`;
     if (data.aboutValue3Description !== undefined) await sql`UPDATE site_settings SET about_value_3_description = ${data.aboutValue3Description} WHERE id = 1`;
 
+    // Investment
+    if (data.investmentImage           !== undefined) await sql`UPDATE site_settings SET investment_image           = ${data.investmentImage}           WHERE id = 1`;
+    if (data.investmentEyebrow         !== undefined) await sql`UPDATE site_settings SET investment_eyebrow         = ${data.investmentEyebrow}         WHERE id = 1`;
+    if (data.investmentTitle           !== undefined) await sql`UPDATE site_settings SET investment_title           = ${data.investmentTitle}           WHERE id = 1`;
+    if (data.investmentDescription     !== undefined) await sql`UPDATE site_settings SET investment_description     = ${data.investmentDescription}     WHERE id = 1`;
+
+    if (data.investmentStep1Title       !== undefined) await sql`UPDATE site_settings SET investment_step_1_title       = ${data.investmentStep1Title}       WHERE id = 1`;
+    if (data.investmentStep1Highlight   !== undefined) await sql`UPDATE site_settings SET investment_step_1_highlight   = ${data.investmentStep1Highlight}   WHERE id = 1`;
+    if (data.investmentStep1Value       !== undefined) await sql`UPDATE site_settings SET investment_step_1_value       = ${data.investmentStep1Value}       WHERE id = 1`;
+    if (data.investmentStep1Description !== undefined) await sql`UPDATE site_settings SET investment_step_1_description = ${data.investmentStep1Description} WHERE id = 1`;
+
+    if (data.investmentStep2Title       !== undefined) await sql`UPDATE site_settings SET investment_step_2_title       = ${data.investmentStep2Title}       WHERE id = 1`;
+    if (data.investmentStep2Highlight   !== undefined) await sql`UPDATE site_settings SET investment_step_2_highlight   = ${data.investmentStep2Highlight}   WHERE id = 1`;
+    if (data.investmentStep2Value       !== undefined) await sql`UPDATE site_settings SET investment_step_2_value       = ${data.investmentStep2Value}       WHERE id = 1`;
+    if (data.investmentStep2Description !== undefined) await sql`UPDATE site_settings SET investment_step_2_description = ${data.investmentStep2Description} WHERE id = 1`;
+
+    if (data.investmentStep3Title       !== undefined) await sql`UPDATE site_settings SET investment_step_3_title       = ${data.investmentStep3Title}       WHERE id = 1`;
+    if (data.investmentStep3Highlight   !== undefined) await sql`UPDATE site_settings SET investment_step_3_highlight   = ${data.investmentStep3Highlight}   WHERE id = 1`;
+    if (data.investmentStep3Value       !== undefined) await sql`UPDATE site_settings SET investment_step_3_value       = ${data.investmentStep3Value}       WHERE id = 1`;
+    if (data.investmentStep3Description !== undefined) await sql`UPDATE site_settings SET investment_step_3_description = ${data.investmentStep3Description} WHERE id = 1`;
+
+    if (data.investmentStep4Title       !== undefined) await sql`UPDATE site_settings SET investment_step_4_title       = ${data.investmentStep4Title}       WHERE id = 1`;
+    if (data.investmentStep4Highlight   !== undefined) await sql`UPDATE site_settings SET investment_step_4_highlight   = ${data.investmentStep4Highlight}   WHERE id = 1`;
+    if (data.investmentStep4Value       !== undefined) await sql`UPDATE site_settings SET investment_step_4_value       = ${data.investmentStep4Value}       WHERE id = 1`;
+    if (data.investmentStep4Description !== undefined) await sql`UPDATE site_settings SET investment_step_4_description = ${data.investmentStep4Description} WHERE id = 1`;
+
+    if (data.investmentBenefit1      !== undefined) await sql`UPDATE site_settings SET investment_benefit_1      = ${data.investmentBenefit1}      WHERE id = 1`;
+    if (data.investmentBenefit2      !== undefined) await sql`UPDATE site_settings SET investment_benefit_2      = ${data.investmentBenefit2}      WHERE id = 1`;
+    if (data.investmentBenefit3      !== undefined) await sql`UPDATE site_settings SET investment_benefit_3      = ${data.investmentBenefit3}      WHERE id = 1`;
+    if (data.investmentBenefit4      !== undefined) await sql`UPDATE site_settings SET investment_benefit_4      = ${data.investmentBenefit4}      WHERE id = 1`;
+    if (data.investmentBenefit5      !== undefined) await sql`UPDATE site_settings SET investment_benefit_5      = ${data.investmentBenefit5}      WHERE id = 1`;
+    if (data.investmentBenefit6      !== undefined) await sql`UPDATE site_settings SET investment_benefit_6      = ${data.investmentBenefit6}      WHERE id = 1`;
+    if (data.investmentBenefitsTitle !== undefined) await sql`UPDATE site_settings SET investment_benefits_title = ${data.investmentBenefitsTitle} WHERE id = 1`;
+
+    if (data.investmentCtaEyebrow     !== undefined) await sql`UPDATE site_settings SET investment_cta_eyebrow     = ${data.investmentCtaEyebrow}     WHERE id = 1`;
+    if (data.investmentCtaTitle       !== undefined) await sql`UPDATE site_settings SET investment_cta_title       = ${data.investmentCtaTitle}       WHERE id = 1`;
+    if (data.investmentCtaDescription !== undefined) await sql`UPDATE site_settings SET investment_cta_description = ${data.investmentCtaDescription} WHERE id = 1`;
+
     await sql.end();
 
     const settings = await getFullSiteSettings();
@@ -768,3 +852,99 @@ export async function updateFullSiteSettings(
     return { settings: null, error: err?.message || "Error al guardar settings" };
   }
 }
+
+
+
+// ============================================================
+// SITE SETTINGS — Extensión "Inversión" (investment-model-section)
+// ============================================================
+
+export type InvestmentSettings = {
+  investmentImage:           string;
+  investmentEyebrow:         string;
+  investmentTitle:           string;
+  investmentDescription:     string;
+
+  investmentStep1Title:       string;
+  investmentStep1Highlight:   string;
+  investmentStep1Value:       string;
+  investmentStep1Description: string;
+
+  investmentStep2Title:       string;
+  investmentStep2Highlight:   string;
+  investmentStep2Value:       string;
+  investmentStep2Description: string;
+
+  investmentStep3Title:       string;
+  investmentStep3Highlight:   string;
+  investmentStep3Value:       string;
+  investmentStep3Description: string;
+
+  investmentStep4Title:       string;
+  investmentStep4Highlight:   string;
+  investmentStep4Value:       string;
+  investmentStep4Description: string;
+
+  investmentBenefit1: string;
+  investmentBenefit2: string;
+  investmentBenefit3: string;
+  investmentBenefit4: string;
+  investmentBenefit5: string;
+  investmentBenefit6: string;
+  investmentBenefitsTitle: string;
+
+  investmentCtaEyebrow:     string;
+  investmentCtaTitle:       string;
+  investmentCtaDescription: string;
+};
+
+export const DEFAULT_INVESTMENT_SETTINGS: InvestmentSettings = {
+  investmentImage: "",
+  investmentEyebrow: "Modelo de inversión",
+  investmentTitle: "Cómo funciona la inversión en desarrollos.",
+  investmentDescription:
+    "Un proceso simple y transparente. Desde el anticipo hasta la renta o reventa, te acompañamos en cada paso.",
+
+  investmentStep1Title: "Ingresá con el 35%",
+  investmentStep1Highlight: "Anticipo inicial",
+  investmentStep1Value: "35%",
+  investmentStep1Description:
+    "Reservá tu unidad con un anticipo inicial del 35% del valor. Asegurás precio de pozo y comenzás a capitalizar desde el día uno.",
+
+  investmentStep2Title: "Financiá el saldo",
+  investmentStep2Highlight: "Saldo en cuotas",
+  investmentStep2Value: "65%",
+  investmentStep2Description:
+    "El 65% restante lo pagás en cuotas durante la construcción. Planes flexibles adaptados a tu capacidad de ahorro.",
+
+  investmentStep3Title: "Revendé con ganancia",
+  investmentStep3Highlight: "Retorno estimado",
+  investmentStep3Value: "30-40%",
+  investmentStep3Description:
+    "Una vez finalizado el proyecto, vendé tu unidad en el mercado. La diferencia entre precio de pozo y valor terminado genera retornos del 30-40%.",
+
+  investmentStep4Title: "O generá renta pasiva",
+  investmentStep4Highlight: "Renta mensual",
+  investmentStep4Value: "24/7",
+  investmentStep4Description:
+    "Si preferís mantener la propiedad, nosotros la administramos como alquiler temporario tipo Airbnb. Vos cobrás, nosotros nos encargamos de todo.",
+
+  investmentBenefit1: "Precio de pozo garantizado",
+  investmentBenefit2: "Asesoramiento legal incluido",
+  investmentBenefit3: "Seguimiento de obra en tiempo real",
+  investmentBenefit4: "Sin comisiones ocultas",
+  investmentBenefit5: "Gestión de reventa o alquiler",
+  investmentBenefit6: "Soporte post-entrega",
+  investmentBenefitsTitle: "Todo lo que incluye invertir con nosotros.",
+
+  investmentCtaEyebrow: "Comenzá ahora",
+  investmentCtaTitle: "¿Querés saber más sobre oportunidades de inversión?",
+  investmentCtaDescription:
+    "Agendá una llamada con nuestro equipo. Te explicamos las opciones disponibles, los planes de financiación y respondemos todas tus consultas.",
+};
+
+
+
+// Mergear los defaults de investment al singleton DEFAULT_FULL_SETTINGS
+// (forward declaration arriba; se completa acá ahora que ya cargó todo).
+Object.assign(DEFAULT_FULL_SETTINGS, DEFAULT_INVESTMENT_SETTINGS);

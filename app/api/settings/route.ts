@@ -49,6 +49,21 @@ export async function PUT(request: NextRequest) {
       "aboutValue2Description",
       "aboutValue3Title",
       "aboutValue3Description",
+      // Inversión
+      "investmentImage",
+      "investmentEyebrow",
+      "investmentTitle",
+      "investmentDescription",
+      "investmentStep1Title",       "investmentStep1Highlight",   "investmentStep1Value",       "investmentStep1Description",
+      "investmentStep2Title",       "investmentStep2Highlight",   "investmentStep2Value",       "investmentStep2Description",
+      "investmentStep3Title",       "investmentStep3Highlight",   "investmentStep3Value",       "investmentStep3Description",
+      "investmentStep4Title",       "investmentStep4Highlight",   "investmentStep4Value",       "investmentStep4Description",
+      "investmentBenefit1", "investmentBenefit2", "investmentBenefit3",
+      "investmentBenefit4", "investmentBenefit5", "investmentBenefit6",
+      "investmentBenefitsTitle",
+      "investmentCtaEyebrow",
+      "investmentCtaTitle",
+      "investmentCtaDescription",
     ] as const;
 
     const data: any = {};
