@@ -1,6 +1,17 @@
 import Link from "next/link";
+import { getSiteSettings } from "@/lib/db";
 
-export function Footer() {
+export async function Footer() {
+  const s = await getSiteSettings();
+
+  // Derivar tel: link sólo con dígitos
+  const telLink = `tel:+${s.whatsapp.replace(/[^\d]/g, "")}`;
+
+  // El nombre se renderiza con la primera palabra normal y el resto en italic
+  // (ej. "Barrera Brokers" → "Barrera <em>Brokers</em>")
+  const [firstWord, ...rest] = s.companyName.split(" ");
+  const restWords = rest.join(" ");
+
   return (
     <footer className="bg-obsidian border-t border-ivory/[0.06]">
       <div className="container-custom pt-20 pb-8">
@@ -8,12 +19,17 @@ export function Footer() {
         <div className="mb-16">
           <Link href="/" className="inline-block group">
             <span className="block font-display text-[48px] md:text-[80px] lg:text-[100px] leading-[0.9] tracking-tight text-ivory/90 group-hover:text-ivory transition-colors duration-500">
-              Barrera{" "}
-              <em className="not-italic">Brokers</em>
+              {firstWord}
+              {restWords && (
+                <>
+                  {" "}
+                  <em className="not-italic">{restWords}</em>
+                </>
+              )}
             </span>
           </Link>
           <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-ivory/30">
-            Desarrollos inmobiliarios · Buenos Aires · Est. 2000
+            Desarrollos inmobiliarios · {s.addressCity.split(",")[0]} · Est. 2000
           </p>
         </div>
 
@@ -66,21 +82,21 @@ export function Footer() {
             <h3 className="label-tracking text-ivory/40 mb-4">Contacto</h3>
             <div className="space-y-3">
               <a
-                href="mailto:info@barrerabrokers.com"
+                href={`mailto:${s.email}`}
                 className="block text-lg text-ivory/70 hover:text-ivory transition-colors duration-300"
               >
-                info@barrerabrokers.com
+                {s.email}
               </a>
               <a
-                href="tel:+541112345678"
+                href={telLink}
                 className="block text-sm text-ivory/50 hover:text-ivory transition-colors duration-300"
               >
-                +54 11 1234-5678
+                {s.phone}
               </a>
               <p className="text-sm text-ivory/40 leading-relaxed">
-                Av. Principal 123
+                {s.addressStreet}
                 <br />
-                Buenos Aires, Argentina
+                {s.addressCity}
               </p>
             </div>
           </div>
@@ -90,10 +106,10 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
-            &copy; {new Date().getFullYear()} Barrera Brokers
+            &copy; {new Date().getFullYear()} {s.companyName}
           </p>
-          <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]"> 
-            Buenos Aires · Argentina
+          <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
+            {s.addressCity}
           </p>
         </div>
       </div>

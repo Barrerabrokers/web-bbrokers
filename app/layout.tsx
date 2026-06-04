@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
+import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
 import { SmoothScroll } from "@/components/smooth-scroll";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -12,11 +13,11 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const playfair = Playfair_Display({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600"],
   style: ["normal", "italic"],
 });
 
@@ -46,11 +47,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${plusJakarta.variable} ${playfair.variable}`}>
+    <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
       <body className="font-sans bg-obsidian text-ivory antialiased">
         <Providers>{children}</Providers>
         <SmoothScroll />
         <CursorTrail />
+        <WhatsAppButton />
       </body>
     </html>
   );

@@ -4,27 +4,35 @@ import { useEffect, useRef } from "react";
 import Image, { ImageProps } from "next/image";
 
 interface ParallaxImageProps extends Omit<ImageProps, "ref"> {
-  /** Cantidad de parallax en px. Negativo = se mueve más lento que el scroll. */
+  /**
+   * Intensidad del parallax en px.
+   * Negativo = imagen "anclada" (sutil, premium).
+   * Rango sugerido: -30 a -80.
+   */
   speed?: number;
-  /** Wrapper className (sobre el div contenedor con overflow-hidden). */
+  /** Clase del wrapper (div con overflow-hidden). */
   wrapperClassName?: string;
+  /** Aplicar rotación leve a la imagen (efecto editorial). */
+  tilt?: number;
 }
 
 /**
- * ParallaxImage — Image de Next con parallax sutil basado en scroll.
+ * ParallaxImage — Next/Image con parallax suave.
  *
- * Diferencia clave con un parallax común: usa scroll relativo a la
- * posición del elemento en viewport (no scroll absoluto). Eso le da
- * la sensación cinemática suave y nunca se sale de su contenedor.
+ * Calcula el offset relativo a la posición del elemento
+ * en el viewport (no al scroll absoluto), lo que da una
+ * sensación cinematográfica premium y evita salirse del contenedor.
  *
- * Speed sugeridos:
- *   -40 a -80 → imagen "anclada" al fondo (sutil, premium)
- *   -120+ → más dramático (cuidado: puede marear)
+ * Inspirado en la estética de obsidianassembly.com:
+ * - Movimiento sutil, nunca distrae
+ * - Siempre dentro del bounding box del wrapper
+ * - Compatible con Lenis / smooth scroll
  */
 export function ParallaxImage({
-  speed = -50,
+  speed = -45,
   wrapperClassName = "",
   className = "",
+  tilt = 0,
   alt,
   ...imageProps
 }: ParallaxImageProps) {
@@ -36,26 +44,25 @@ export function ParallaxImage({
     const inner = innerRef.current;
     if (!wrapper || !inner) return;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) return;
 
     let raf = 0;
     const update = () => {
       const rect = wrapper.getBoundingClientRect();
       const vh = window.innerHeight;
-      // Progress: -1 (under viewport) to 1 (above viewport), 0 centered
+      // Progress: -1 (debajo del viewport) a +1 (encima), 0 = centro
       const progress =
         (rect.top + rect.height / 2 - vh / 2) / (vh / 2 + rect.height / 2);
       const offset = progress * speed;
-      inner.style.transform = `translate3d(0, ${offset}px, 0)`;
+      const rotate = tilt !== 0 ? ` rotate(${tilt}deg)` : "";
+      inner.style.transform = `translate3d(0, ${offset}px, 0)${rotate}`;
       raf = requestAnimationFrame(update);
     };
 
     raf = requestAnimationFrame(update);
     return () => cancelAnimationFrame(raf);
-  }, [speed]);
+  }, [speed, tilt]);
 
   return (
     <div
@@ -70,7 +77,7 @@ export function ParallaxImage({
         {/* Sobredimensiona la imagen para que el parallax no muestre bordes vacíos */}
         <div
           className={`relative w-full ${className}`}
-          style={{ height: "calc(100% + 120px)", marginTop: "-60px" }}
+          style={{ height: "calc(100% + 100px)", marginTop: "-50px" }}
         >
           <Image alt={alt} {...imageProps} />
         </div>
