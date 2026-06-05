@@ -2,121 +2,135 @@
 
 import { useMemo, useState } from "react";
 import { mapNeighborhoods, type MapNeighborhood } from "@/lib/map-neighborhoods";
+import { mapProjects } from "@/lib/map-projects";
 import { NeighborhoodPanel } from "@/components/map/NeighborhoodPanel";
 
-const districtShapes = [
-  "M 15 18 L 31 9 L 44 17 L 39 31 L 22 32 Z",
-  "M 31 9 L 52 13 L 61 27 L 44 37 L 39 31 L 44 17 Z",
-  "M 52 13 L 70 25 L 73 43 L 61 50 L 61 27 Z",
-  "M 22 32 L 39 31 L 44 37 L 40 51 L 21 53 L 10 40 Z",
-  "M 44 37 L 61 27 L 61 50 L 52 62 L 40 51 Z",
-  "M 61 50 L 73 43 L 80 58 L 72 73 L 59 66 Z",
-  "M 21 53 L 40 51 L 52 62 L 43 78 L 24 77 L 12 63 Z",
-  "M 52 62 L 59 66 L 72 73 L 63 88 L 43 78 Z",
+const avenues = [
+  "M 76 76 C 67 67, 58 56, 49 47 C 39 37, 29 27, 17 15",
+  "M 70 78 C 62 66, 56 57, 48 49 C 39 41, 31 33, 22 21",
+  "M 63 83 C 58 72, 55 63, 51 53 C 47 44, 43 36, 38 27",
+  "M 82 62 C 73 58, 63 55, 52 51 C 42 47, 34 42, 27 35",
 ];
 
+const parks = [
+  { x: 33, y: 25, w: 13, h: 8, r: -16 },
+  { x: 42, y: 39, w: 16, h: 9, r: -13 },
+  { x: 24, y: 15, w: 10, h: 6, r: -15 },
+  { x: 58, y: 45, w: 9, h: 5, r: -10 },
+];
+
+const buildings = Array.from({ length: 92 }, (_, index) => {
+  const col = index % 14;
+  const row = Math.floor(index / 14);
+  const x = 18 + col * 4.1 + (row % 2) * 1.4;
+  const y = 18 + row * 7.1;
+  const h = 2.4 + ((index * 7) % 9) * 0.55;
+  const tall = index % 13 === 0 || index % 17 === 0;
+  return { x, y, w: 1.8 + (index % 3) * 0.35, d: 1.6 + (index % 4) * 0.25, h: tall ? h + 5.5 : h };
+});
+
+function Building({ x, y, w, d, h }: { x: number; y: number; w: number; d: number; h: number }) {
+  return (
+    <g transform={`translate(${x} ${y})`} opacity="0.92">
+      <polygon points={`0,0 ${w},-${d} ${w},${-d - h} 0,${-h}`} fill="#d8c4af" opacity="0.78" />
+      <polygon points={`${w},-${d} ${w + 1.05},-${d - 0.55} ${w + 1.05},${-d - h + 0.55} ${w},${-d - h}`} fill="#8b6f5b" opacity="0.9" />
+      <polygon points={`0,${-h} ${w},${-d - h} ${w + 1.05},${-d - h + 0.55} 1.05,${-h + 0.55}`} fill="#f8f5ef" opacity="0.5" />
+    </g>
+  );
+}
+
 export function BuenosAiresMap() {
-  const [selected, setSelected] = useState<MapNeighborhood | null>(mapNeighborhoods[2]);
+  const [selected, setSelected] = useState<MapNeighborhood | null>(mapNeighborhoods[4]);
   const [hovered, setHovered] = useState<string | null>(null);
-  const active = useMemo(() => selected ?? mapNeighborhoods[2], [selected]);
+  const active = useMemo(() => selected ?? mapNeighborhoods[4], [selected]);
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#070707] text-[#f8f5ef]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(192,138,90,0.26),transparent_34%),radial-gradient(circle_at_82%_58%,rgba(255,107,74,0.16),transparent_32%),linear-gradient(180deg,#070707,#120d0a_58%,#070707)]" />
-      <div className="absolute inset-0 opacity-[0.11] [background-image:linear-gradient(rgba(248,245,239,.16)_1px,transparent_1px),linear-gradient(90deg,rgba(248,245,239,.16)_1px,transparent_1px)] [background-size:54px_54px]" />
+    <section className="relative h-screen w-screen overflow-hidden bg-[#070707] text-[#f8f5ef]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_15%,rgba(184,157,135,.28),transparent_28%),radial-gradient(circle_at_82%_58%,rgba(255,107,74,.15),transparent_32%),linear-gradient(120deg,#050505,#110d0a_48%,#050505)]" />
+      <div className="absolute inset-y-0 right-0 w-[37vw] bg-[linear-gradient(115deg,rgba(19,64,83,.12),rgba(27,89,116,.75)_42%,rgba(8,28,38,.92))]" />
 
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-[1500px] flex-col px-5 py-6 md:px-10 lg:px-14">
-        <header className="flex items-center justify-between gap-4">
-          <a href="/" className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/75 backdrop-blur-md transition hover:bg-white/10 hover:text-white">
-            Barrera Brokers
-          </a>
-          <div className="hidden rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-[10px] uppercase tracking-[0.22em] text-white/55 backdrop-blur-md md:block">
-            Mapa interactivo de inversión
-          </div>
-        </header>
-
-        <div className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="max-w-2xl">
-            <p className="mb-5 text-[11px] uppercase tracking-[0.34em] text-[#c9b8a0]">Buenos Aires · Real Estate Intelligence</p>
-            <h1 className="font-display text-[18vw] font-light leading-[0.78] tracking-[-0.075em] md:text-[8.8rem] lg:text-[9.6rem]">
-              Explorá
-              <span className="block italic text-[#d8c4af]">Buenos Aires</span>
-            </h1>
-            <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/65 md:text-xl">
-              Recorré las zonas con mayor demanda para invertir, vivir o generar renta temporaria en la Ciudad de Buenos Aires.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a href="#mapa-interactivo" className="rounded-full bg-[#f8f5ef] px-7 py-4 text-[10px] font-bold uppercase tracking-[0.22em] text-[#070707] transition hover:bg-[#d8c4af]">
-                Explorar mapa
-              </a>
-              <a href="/#contacto" className="rounded-full border border-white/15 px-7 py-4 text-[10px] font-bold uppercase tracking-[0.22em] text-white/80 transition hover:bg-white/10 hover:text-white">
-                Agendar consulta
-              </a>
-            </div>
-          </div>
-
-          <div id="mapa-interactivo" className="relative mx-auto w-full max-w-[760px]">
-            <div className="absolute -inset-8 rounded-[52px] bg-[#b89d87]/10 blur-3xl" />
-            <div className="relative rounded-[40px] border border-white/10 bg-white/[0.035] p-4 shadow-[0_40px_120px_rgba(0,0,0,.45)] backdrop-blur-xl md:p-7">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/45">Vista isométrica</p>
-                  <p className="font-display text-3xl font-light tracking-[-0.04em] text-white">CABA</p>
-                </div>
-                <div className="rounded-full border border-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/50">Night mode</div>
-              </div>
-
-              <div className="relative aspect-[1.08/1] overflow-hidden rounded-[30px] border border-white/10 bg-[#0d0a08]">
-                <svg viewBox="0 0 100 100" className="h-full w-full drop-shadow-2xl" role="img" aria-label="Mapa interactivo de Buenos Aires">
-                  <defs>
-                    <linearGradient id="baDistrict" x1="0" x2="1" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#3a1d17" />
-                      <stop offset="100%" stopColor="#b89d87" />
-                    </linearGradient>
-                    <filter id="glow"><feGaussianBlur stdDeviation="1.8" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                  </defs>
-
-                  <g transform="translate(2 3) rotate(-7 50 50) skewX(-8)">
-                    {districtShapes.map((d, index) => (
-                      <path key={d} d={d} fill="url(#baDistrict)" opacity={0.18 + index * 0.035} stroke="rgba(248,245,239,.18)" strokeWidth="0.28" />
-                    ))}
-                    <path d="M 76 22 C 91 39 93 65 76 92" fill="none" stroke="rgba(216,196,175,.42)" strokeWidth="1.2" strokeLinecap="round" />
-                    <path d="M 16 18 L 44 37 L 72 73" fill="none" stroke="rgba(248,245,239,.14)" strokeWidth="0.6" strokeDasharray="2 2" />
-                    <path d="M 24 77 L 44 37 L 70 25" fill="none" stroke="rgba(248,245,239,.10)" strokeWidth="0.6" strokeDasharray="2 2" />
-
-                    {mapNeighborhoods.map((item) => {
-                      const isActive = active.id === item.id;
-                      const isHovered = hovered === item.id;
-                      return (
-                        <g key={item.id} transform={`translate(${item.x} ${item.y})`} className="cursor-pointer" onMouseEnter={() => setHovered(item.id)} onMouseLeave={() => setHovered(null)} onClick={() => setSelected(item)}>
-                          <circle r={isActive ? 4.1 : 3.1} fill={item.accent} opacity="0.22" filter="url(#glow)" />
-                          <circle r={isActive ? 2.1 : 1.55} fill={item.accent} stroke="#f8f5ef" strokeWidth="0.32" />
-                          <circle r={isActive ? 6.3 : 4.8} fill="none" stroke={item.accent} strokeWidth="0.32" opacity={isActive || isHovered ? 0.85 : 0.28}>
-                            <animate attributeName="r" values="4.8;7.2;4.8" dur="3s" repeatCount="indefinite" />
-                            <animate attributeName="opacity" values=".55;.12;.55" dur="3s" repeatCount="indefinite" />
-                          </circle>
-                          {(isActive || isHovered) && (
-                            <text x="3.8" y="-3.2" fill="#f8f5ef" fontSize="2.8" fontWeight="600" letterSpacing=".04em">{item.name}</text>
-                          )}
-                        </g>
-                      );
-                    })}
-                  </g>
-                </svg>
-
-                <div className="pointer-events-none absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/50 backdrop-blur-md">
-                  Tocá un punto para explorar
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase tracking-[0.18em] text-white/45">
-                <div className="rounded-full border border-white/10 py-3">Demanda</div>
-                <div className="rounded-full border border-white/10 py-3">Renta</div>
-                <div className="rounded-full border border-white/10 py-3">m²</div>
-              </div>
-            </div>
-          </div>
+      <div className="absolute left-5 top-5 z-40 w-[min(92vw,420px)] rounded-[30px] border border-white/10 bg-[#080807]/85 p-6 shadow-2xl backdrop-blur-xl md:left-8 md:top-8 md:p-8">
+        <p className="mb-4 text-[10px] uppercase tracking-[0.3em] text-[#c9b8a0]">Barrera Brokers · mapa 3D</p>
+        <h1 className="font-display text-6xl font-light leading-[0.82] tracking-[-0.07em] md:text-7xl">
+          Corredor
+          <span className="block italic text-[#d8c4af]">Norte BA</span>
+        </h1>
+        <p className="mt-6 text-base leading-relaxed text-white/68">
+          De Puerto Madero a Núñez: las zonas clave para inversión, renta y desarrollo inmobiliario en Buenos Aires.
+        </p>
+        <div className="mt-6 grid gap-2">
+          {mapNeighborhoods.map((item) => (
+            <button key={item.id} onClick={() => setSelected(item)} className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${active.id === item.id ? "border-[#d8c4af]/50 bg-white/10 text-white" : "border-white/10 bg-white/[0.035] text-white/62 hover:bg-white/[0.075] hover:text-white"}`}>
+              <span className="text-sm">{item.name}</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-[#c9b8a0]">{item.demand}</span>
+            </button>
+          ))}
         </div>
+      </div>
+
+      <div className="absolute inset-0 z-10 flex items-center justify-center pt-16 md:pt-0">
+        <svg viewBox="0 0 100 100" className="h-[120vh] w-[150vw] min-w-[1200px] md:h-[112vh] md:w-[118vw]" role="img" aria-label="Plano 3D estilizado del corredor Puerto Madero a Núñez">
+          <defs>
+            <linearGradient id="land" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stopColor="#2a1711" />
+              <stop offset="58%" stopColor="#7a523c" />
+              <stop offset="100%" stopColor="#d8c4af" />
+            </linearGradient>
+            <linearGradient id="water" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stopColor="#123142" />
+              <stop offset="100%" stopColor="#1c6b8a" />
+            </linearGradient>
+            <filter id="softGlow"><feGaussianBlur stdDeviation="1.8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+
+          <g transform="translate(1 8) rotate(-14 50 50) skewX(-18) scale(1.08)">
+            <path d="M 10 12 C 28 4, 51 13, 67 28 C 82 42, 86 65, 75 88 C 54 91, 31 85, 14 68 C 3 51, 1 27, 10 12 Z" fill="url(#land)" opacity="0.95" />
+            <path d="M 70 9 C 94 23, 103 51, 86 95 L 103 105 L 103 0 Z" fill="url(#water)" opacity="0.9" />
+            <path d="M 72 18 C 84 35, 86 59, 76 88" fill="none" stroke="rgba(248,245,239,.35)" strokeWidth="0.7" />
+
+            {parks.map((park) => (
+              <rect key={`${park.x}-${park.y}`} x={park.x} y={park.y} width={park.w} height={park.h} rx="1.2" fill="#314f31" opacity="0.78" transform={`rotate(${park.r} ${park.x} ${park.y})`} />
+            ))}
+
+            {avenues.map((d) => (
+              <path key={d} d={d} fill="none" stroke="rgba(248,245,239,.34)" strokeWidth="0.55" strokeDasharray="1.7 1.3" />
+            ))}
+
+            <g opacity="0.78">
+              {buildings.map((b, index) => (
+                <Building key={index} {...b} />
+              ))}
+            </g>
+
+            {mapNeighborhoods.map((item) => {
+              const isActive = active.id === item.id;
+              const isHovered = hovered === item.id;
+              return (
+                <g key={item.id} transform={`translate(${item.x} ${item.y})`} className="cursor-pointer" onMouseEnter={() => setHovered(item.id)} onMouseLeave={() => setHovered(null)} onClick={() => setSelected(item)}>
+                  <circle r={isActive ? 4.8 : 3.3} fill={item.accent} opacity="0.22" filter="url(#softGlow)" />
+                  <circle r={isActive ? 2.3 : 1.6} fill={item.accent} stroke="#f8f5ef" strokeWidth="0.32" />
+                  <text x="3.7" y="-3" fill="#f8f5ef" fontSize="2.8" fontWeight="700" paintOrder="stroke" stroke="#070707" strokeWidth="0.8">{item.name}</text>
+                  {(isActive || isHovered) && <circle r="6.6" fill="none" stroke={item.accent} strokeWidth="0.35" opacity="0.8" />}
+                </g>
+              );
+            })}
+
+            {mapProjects.map((project) => (
+              <a key={project.id} href={project.href}>
+                <g transform={`translate(${project.x} ${project.y - 5})`} className="cursor-pointer">
+                  <line x1="0" y1="0" x2="0" y2="5" stroke="#f8f5ef" strokeWidth="0.5" />
+                  <path d="M 0 0 L 6 -2 L 6 2 L 0 3 Z" fill="#ff6b4a" stroke="#f8f5ef" strokeWidth="0.25" />
+                  <circle cx="0" cy="5" r="1.1" fill="#f8f5ef" />
+                  <text x="7" y="0.8" fill="#f8f5ef" fontSize="2.4" fontWeight="700" paintOrder="stroke" stroke="#070707" strokeWidth="0.75">{project.name}</text>
+                </g>
+              </a>
+            ))}
+          </g>
+        </svg>
+      </div>
+
+      <div className="absolute bottom-5 left-5 z-30 rounded-full border border-white/10 bg-black/35 px-5 py-3 text-[10px] uppercase tracking-[0.22em] text-white/55 backdrop-blur-md md:left-8">
+        Arrastrá / tocá los barrios y banderitas
       </div>
 
       {selected && <NeighborhoodPanel neighborhood={selected} onClose={() => setSelected(null)} />}
