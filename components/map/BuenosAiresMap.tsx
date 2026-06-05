@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { mapNeighborhoods, type MapNeighborhood } from "@/lib/map-neighborhoods";
-import { mapProjects } from "@/lib/map-projects";
 import { NeighborhoodPanel } from "@/components/map/NeighborhoodPanel";
 
 const avenues = [
@@ -48,25 +47,6 @@ export function BuenosAiresMap() {
     <section className="relative h-screen w-screen overflow-hidden bg-[#070707] text-[#f8f5ef]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_15%,rgba(184,157,135,.28),transparent_28%),radial-gradient(circle_at_82%_58%,rgba(255,107,74,.15),transparent_32%),linear-gradient(120deg,#050505,#110d0a_48%,#050505)]" />
       <div className="absolute inset-y-0 right-0 w-[37vw] bg-[linear-gradient(115deg,rgba(19,64,83,.12),rgba(27,89,116,.75)_42%,rgba(8,28,38,.92))]" />
-
-      <div className="absolute left-5 top-5 z-40 w-[min(92vw,420px)] rounded-[30px] border border-white/10 bg-[#080807]/85 p-6 shadow-2xl backdrop-blur-xl md:left-8 md:top-8 md:p-8">
-        <p className="mb-4 text-[10px] uppercase tracking-[0.3em] text-[#c9b8a0]">Barrera Brokers · mapa 3D</p>
-        <h1 className="font-display text-6xl font-light leading-[0.82] tracking-[-0.07em] md:text-7xl">
-          Corredor
-          <span className="block italic text-[#d8c4af]">Norte BA</span>
-        </h1>
-        <p className="mt-6 text-base leading-relaxed text-white/68">
-          De Puerto Madero a Núñez: las zonas clave para inversión, renta y desarrollo inmobiliario en Buenos Aires.
-        </p>
-        <div className="mt-6 grid gap-2">
-          {mapNeighborhoods.map((item) => (
-            <button key={item.id} onClick={() => setSelected(item)} className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${active.id === item.id ? "border-[#d8c4af]/50 bg-white/10 text-white" : "border-white/10 bg-white/[0.035] text-white/62 hover:bg-white/[0.075] hover:text-white"}`}>
-              <span className="text-sm">{item.name}</span>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-[#c9b8a0]">{item.demand}</span>
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="absolute inset-0 z-10 flex items-center justify-center pt-16 md:pt-0">
         <svg viewBox="0 0 100 100" className="h-[120vh] w-[150vw] min-w-[1200px] md:h-[112vh] md:w-[118vw]" role="img" aria-label="Plano 3D estilizado del corredor Puerto Madero a Núñez">
@@ -114,23 +94,8 @@ export function BuenosAiresMap() {
                 </g>
               );
             })}
-
-            {mapProjects.map((project) => (
-              <a key={project.id} href={project.href}>
-                <g transform={`translate(${project.x} ${project.y - 5})`} className="cursor-pointer">
-                  <line x1="0" y1="0" x2="0" y2="5" stroke="#f8f5ef" strokeWidth="0.5" />
-                  <path d="M 0 0 L 6 -2 L 6 2 L 0 3 Z" fill="#ff6b4a" stroke="#f8f5ef" strokeWidth="0.25" />
-                  <circle cx="0" cy="5" r="1.1" fill="#f8f5ef" />
-                  <text x="7" y="0.8" fill="#f8f5ef" fontSize="2.4" fontWeight="700" paintOrder="stroke" stroke="#070707" strokeWidth="0.75">{project.name}</text>
-                </g>
-              </a>
-            ))}
           </g>
         </svg>
-      </div>
-
-      <div className="absolute bottom-5 left-5 z-30 rounded-full border border-white/10 bg-black/35 px-5 py-3 text-[10px] uppercase tracking-[0.22em] text-white/55 backdrop-blur-md md:left-8">
-        Arrastrá / tocá los barrios y banderitas
       </div>
 
       {selected && <NeighborhoodPanel neighborhood={selected} onClose={() => setSelected(null)} />}
