@@ -1,25 +1,46 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const fallbackSupabaseUrl = "http://localhost:54321";
+const fallbackSupabaseAnonKey = "missing-supabase-anon-key";
+
+export function isSupabaseConfigured() {
+  return Boolean(supabaseUrl && supabaseAnonKey);
+}
+
+function assertSupabaseConfigured() {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    );
+  }
+}
 
 // Cliente para usar en el navegador y en componentes cliente
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-  },
-});
+export const supabase = createClient(
+  supabaseUrl || fallbackSupabaseUrl,
+  supabaseAnonKey || fallbackSupabaseAnonKey,
+  {
+    auth: {
+      persistSession: false,
+    },
+  }
+);
 
 // Cliente con service role key para operaciones del servidor
 // (saltea Row Level Security, usar solo en API routes)
 export function getServerSupabase() {
+  assertSupabaseConfigured();
+
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!serviceKey) {
     return supabase;
   }
   
-  return createClient(supabaseUrl, serviceKey, {
+  return createClient(supabaseUrl!, serviceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
