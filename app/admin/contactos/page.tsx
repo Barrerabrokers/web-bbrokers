@@ -1,6 +1,9 @@
 import { Mail, Phone, Calendar } from "lucide-react";
 import { getAllContacts } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ContactsPage() {
   const contacts = await getAllContacts();
 
