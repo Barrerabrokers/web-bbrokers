@@ -19,6 +19,7 @@ export function Header() {
 
   const navItems = [
     { href: "/#desarrollos", label: "Desarrollos" },
+    { href: "/mapa", label: "Mapa 3D" },
     { href: "/#modelo", label: "Inversión" },
     { href: "/#renta", label: "Renta" },
     { href: "/#propiedades", label: "Propiedades" },
