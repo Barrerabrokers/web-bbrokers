@@ -72,10 +72,7 @@ export function InteractiveShowcaseSection({
   });
 
   // Scroll parallax
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
+  const { scrollYProgress } = useScroll();
 
   const parallaxY1 = useTransform(scrollYProgress, [0, 1], [80, -80]);
   const parallaxY2 = useTransform(scrollYProgress, [0, 1], [120, -120]);
