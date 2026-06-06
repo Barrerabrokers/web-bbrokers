@@ -197,6 +197,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(developments[0]?.id || null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [sceneStatus, setSceneStatus] = useState<"idle" | "starting" | "ready" | "error">("idle");
+  const [sceneError, setSceneError] = useState<string | null>(null);
   const activeIdRef = useRef<string | null>(developments[0]?.id || null);
   const hoveredIdRef = useRef<string | null>(null);
 
@@ -218,6 +220,9 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     const mount = mountRef.current;
     if (!mount) return;
 
+    setSceneStatus("starting");
+    setSceneError(null);
+
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog("#081013", 18, 54);
 
@@ -225,12 +230,24 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     camera.position.set(-11, 16, 20);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo inicializar WebGL en este navegador.";
+      setSceneStatus("error");
+      setSceneError(message);
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setClearColor("#081013", 1);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
+    setSceneStatus("ready");
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -386,13 +403,35 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       window.removeEventListener("resize", onResize);
       controls.dispose();
       renderer.dispose();
-      mount.removeChild(renderer.domElement);
+      if (mount.contains(renderer.domElement)) {
+        mount.removeChild(renderer.domElement);
+      }
     };
   }, [positioned]);
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-[#081013] text-bone">
-      <div ref={mountRef} className="absolute inset-0" aria-label="Mapa 3D de Buenos Aires" />
+      <div
+        ref={mountRef}
+        className="absolute left-0 top-0 h-screen min-h-full w-full"
+        data-scene-status={sceneStatus}
+        aria-label="Mapa 3D de Buenos Aires"
+      />
+
+      {sceneStatus !== "ready" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#081013]">
+          <div className="mx-6 max-w-md rounded-lg border border-bone/15 bg-[#0a0a0b]/72 p-5 text-center backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-accent">
+              {sceneStatus === "error" ? "WebGL no disponible" : "Cargando mapa 3D"}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-bone/65">
+              {sceneStatus === "error"
+                ? `No pudimos iniciar la escena 3D. ${sceneError || ""}`
+                : "Preparando la maqueta interactiva de Buenos Aires..."}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(184,148,116,0.18),transparent_32%),linear-gradient(90deg,rgba(8,16,19,0.78)_0%,transparent_42%,rgba(8,16,19,0.62)_100%)]" />
 
