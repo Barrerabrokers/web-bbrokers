@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
-import { BuenosAiresMap } from "@/components/map/BuenosAiresMap";
+import { getDevelopments } from "@/lib/developments-db";
+import { DevelopmentsOnlyMap } from "@/components/map/DevelopmentsOnlyMap";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: "Mapa de Buenos Aires | Barrera Brokers",
+  title: "Mapa de desarrollos | Barrera Brokers",
   description:
-    "Mapa interactivo de barrios de Buenos Aires para analizar zonas de inversión, demanda y oportunidades inmobiliarias.",
+    "Mapa interactivo con los desarrollos reales cargados en Barrera Brokers.",
   openGraph: {
-    title: "Mapa de Buenos Aires | Barrera Brokers",
+    title: "Mapa de desarrollos | Barrera Brokers",
     description:
-      "Explorá las zonas con mayor demanda para invertir, vivir o generar renta temporaria en Buenos Aires.",
+      "Visualizá los emprendimientos cargados en la base de datos de Barrera Brokers.",
     type: "website",
     locale: "es_AR",
   },
 };
 
-export default function MapaPage() {
-  return <BuenosAiresMap />;
+export default async function MapaPage() {
+  const developments = await getDevelopments();
+
+  return <DevelopmentsOnlyMap developments={developments} />;
 }
