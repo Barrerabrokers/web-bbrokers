@@ -6,7 +6,6 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   ArrowUpRight,
-  Building2,
   Compass,
   MapPin,
   MousePointer2,
@@ -62,9 +61,9 @@ const POSITION_HINTS: Record<string, { x: number; z: number; neighborhood: strin
   "nuñez": { x: -12.6, z: -7.4, neighborhood: "Nunez" },
 };
 
-const AERIAL_HOME_TARGET = new THREE.Vector3(-2.5, 0, 0.5);
-const AERIAL_HOME_CAMERA = new THREE.Vector3(-4.2, 23, 5.4);
-const AERIAL_FOCUS_OFFSET = new THREE.Vector3(-1.8, 19, 4.7);
+const AERIAL_HOME_TARGET = new THREE.Vector3(-1.2, 0, 1.2);
+const AERIAL_HOME_CAMERA = new THREE.Vector3(-4.8, 52, 15.5);
+const AERIAL_FOCUS_OFFSET = new THREE.Vector3(-2.4, 30, 8.2);
 
 function getPosition(dev: MapDevelopment, index: number): PositionedDevelopment {
   const source = `${dev.name} ${dev.location} ${dev.address}`.toLowerCase();
@@ -101,7 +100,7 @@ function createTextSprite(text: string, color = "#f4eadc") {
   const texture = new THREE.CanvasTexture(canvas);
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(5.8, 1.45, 1);
+  sprite.scale.set(3.8, 0.95, 1);
   return sprite;
 }
 
@@ -131,11 +130,11 @@ function addNeighborhoodTerrace(
 
 function addRoad(scene: THREE.Scene, points: THREE.Vector3[], color = "#d5c7b2") {
   const curve = new THREE.CatmullRomCurve3(points);
-  const geometry = new THREE.TubeGeometry(curve, 48, 0.045, 8, false);
+  const geometry = new THREE.TubeGeometry(curve, 64, 0.055, 8, false);
   const material = new THREE.MeshStandardMaterial({
     color,
-    emissive: "#3b2d21",
-    emissiveIntensity: 0.16,
+    emissive: color,
+    emissiveIntensity: 0.04,
     roughness: 0.72,
   });
   const mesh = new THREE.Mesh(geometry, material);
@@ -143,27 +142,152 @@ function addRoad(scene: THREE.Scene, points: THREE.Vector3[], color = "#d5c7b2")
   return mesh;
 }
 
-function addRiver(scene: THREE.Scene) {
-  const shape = new THREE.Shape();
-  shape.moveTo(0.5, -17);
-  shape.bezierCurveTo(4.5, -11.5, 7.7, -5.5, 9.9, 1.4);
-  shape.bezierCurveTo(11.8, 7.5, 13.8, 12.5, 19.2, 17);
-  shape.lineTo(27, 17);
-  shape.lineTo(27, -17);
-  shape.lineTo(0.5, -17);
-
-  const geometry = new THREE.ShapeGeometry(shape);
+function addFlatRect(
+  scene: THREE.Scene,
+  x: number,
+  z: number,
+  width: number,
+  depth: number,
+  color: string,
+  y = 0.065,
+  rotation = -0.57
+) {
+  const geometry = new THREE.PlaneGeometry(width, depth);
   const material = new THREE.MeshStandardMaterial({
-    color: "#2f7580",
-    roughness: 0.38,
-    metalness: 0.08,
-    transparent: true,
-    opacity: 0.9,
+    color,
+    roughness: 0.82,
+    metalness: 0.02,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.y = 0.03;
+  mesh.rotation.z = rotation;
+  mesh.position.set(x, y, z);
   scene.add(mesh);
+  return mesh;
+}
+
+function addUrbanGrid(scene: THREE.Scene) {
+  for (let x = -15.5; x <= 7.5; x += 1.25) {
+    addFlatRect(scene, x, -0.8, 0.08, 23, "#c8cdd0", 0.075);
+  }
+
+  for (let z = -10.8; z <= 8.8; z += 1.25) {
+    addFlatRect(scene, -4.2, z, 25, 0.08, "#c8cdd0", 0.076);
+  }
+
+  [
+    { x: -10.8, z: -5.8, width: 0.28, depth: 18.5 },
+    { x: -3.2, z: -0.8, width: 0.24, depth: 21.5 },
+    { x: 3.2, z: 3.1, width: 0.26, depth: 18.5 },
+    { x: 7.8, z: 5.9, width: 0.32, depth: 15 },
+  ].forEach((road) => {
+    addFlatRect(scene, road.x, road.z, road.width, road.depth, "#6f777a", 0.09);
+    addFlatRect(scene, road.x, road.z, 0.035, road.depth, "#e7c75f", 0.095);
+  });
+
+  [
+    { x: -5.2, z: -7.6, width: 21, depth: 0.24 },
+    { x: -1.4, z: -2.7, width: 21, depth: 0.22 },
+    { x: 2.2, z: 2.1, width: 19, depth: 0.24 },
+    { x: 6.4, z: 6.8, width: 14, depth: 0.28 },
+  ].forEach((road) => {
+    addFlatRect(scene, road.x, road.z, road.width, road.depth, "#747b7d", 0.09);
+  });
+}
+
+function addRiver(scene: THREE.Scene) {
+  const shape = new THREE.Shape();
+  shape.moveTo(7.8, -17);
+  shape.bezierCurveTo(10.8, -10.5, 12.4, -4.5, 13.7, 1.8);
+  shape.bezierCurveTo(14.8, 7.6, 16.8, 12.5, 20.6, 17);
+  shape.lineTo(27, 17);
+  shape.lineTo(27, -17);
+  shape.lineTo(7.8, -17);
+
+  const geometry = new THREE.ShapeGeometry(shape);
+  const material = new THREE.MeshStandardMaterial({
+    color: "#9fc4d3",
+    roughness: 0.22,
+    metalness: 0.04,
+    transparent: true,
+    opacity: 0.96,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.035;
+  scene.add(mesh);
+}
+
+function addPuertoMaderoDocks(scene: THREE.Scene) {
+  const water = "#a7c6cf";
+  [
+    { x: 7.7, z: 4.1, width: 1.05, depth: 3.8 },
+    { x: 8.4, z: 6.7, width: 1.1, depth: 4.1 },
+    { x: 9.2, z: 9.3, width: 1.0, depth: 3.5 },
+  ].forEach((dock) => {
+    addFlatRect(scene, dock.x, dock.z, dock.width, dock.depth, water, 0.082);
+    addFlatRect(scene, dock.x - 0.68, dock.z, 0.08, dock.depth + 0.5, "#e8e8e3", 0.095);
+    addFlatRect(scene, dock.x + 0.68, dock.z, 0.08, dock.depth + 0.5, "#e8e8e3", 0.095);
+  });
+
+  addFlatRect(scene, 8.8, 7.1, 0.22, 8.8, "#6b7072", 0.1);
+  addFlatRect(scene, 7.1, 5.9, 0.24, 8.2, "#6b7072", 0.1);
+}
+
+function addEcologicalReserve(scene: THREE.Scene) {
+  const reserveShape = new THREE.Shape();
+  reserveShape.moveTo(9.4, 1.4);
+  reserveShape.bezierCurveTo(12.4, 0.2, 16.8, 1.1, 19.2, 4.7);
+  reserveShape.lineTo(20.9, 11.2);
+  reserveShape.bezierCurveTo(17.5, 13.5, 13.2, 13.2, 10.4, 10.2);
+  reserveShape.bezierCurveTo(8.7, 7.4, 8.4, 4.1, 9.4, 1.4);
+
+  const reserve = new THREE.Mesh(
+    new THREE.ShapeGeometry(reserveShape),
+    new THREE.MeshStandardMaterial({
+      color: "#6f8f55",
+      roughness: 0.9,
+      metalness: 0.01,
+    })
+  );
+  reserve.rotation.x = -Math.PI / 2;
+  reserve.position.y = 0.07;
+  scene.add(reserve);
+
+  [
+    { x: 14.1, z: 5.5, sx: 2.2, sz: 1.05, rotation: -0.24 },
+    { x: 16.4, z: 9.6, sx: 2.6, sz: 1.2, rotation: 0.35 },
+  ].forEach((lagoon) => {
+    const geometry = new THREE.CircleGeometry(1, 48);
+    geometry.scale(lagoon.sx, lagoon.sz, 1);
+    const mesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({
+        color: "#8db8c4",
+        roughness: 0.32,
+        metalness: 0.03,
+        transparent: true,
+        opacity: 0.82,
+      })
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = lagoon.rotation;
+    mesh.position.set(lagoon.x, 0.095, lagoon.z);
+    scene.add(mesh);
+  });
+
+  addRoad(
+    scene,
+    [
+      new THREE.Vector3(9.8, 0.13, 1.7),
+      new THREE.Vector3(13.8, 0.13, 2.1),
+      new THREE.Vector3(18.8, 0.13, 5.4),
+      new THREE.Vector3(19.6, 0.13, 10.6),
+      new THREE.Vector3(14.2, 0.13, 12.2),
+      new THREE.Vector3(10.2, 0.13, 9.3),
+    ],
+    "#dce2d3"
+  );
 }
 
 function addCoastline(scene: THREE.Scene) {
@@ -197,17 +321,18 @@ function addCoastline(scene: THREE.Scene) {
 
 function addParks(scene: THREE.Scene) {
   const parkMaterial = new THREE.MeshStandardMaterial({
-    color: "#3f6042",
+    color: "#5f9858",
     roughness: 0.88,
     metalness: 0.02,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.95,
   });
 
   [
-    { x: -2.8, z: -1.4, sx: 5.6, sz: 2.4, rotation: -0.5 },
-    { x: -9.8, z: -6, sx: 3.7, sz: 1.8, rotation: -0.55 },
-    { x: 9.4, z: 8.9, sx: 2.3, sz: 1.4, rotation: -0.62 },
+    { x: -2.8, z: -1.4, sx: 5.7, sz: 1.45, rotation: -0.57 },
+    { x: -9.8, z: -6, sx: 3.8, sz: 1.2, rotation: -0.57 },
+    { x: 5.2, z: 3.6, sx: 2.3, sz: 1.0, rotation: -0.57 },
+    { x: 9.4, z: 8.9, sx: 2.3, sz: 1.1, rotation: -0.62 },
   ].forEach((park) => {
     const geometry = new THREE.CircleGeometry(1, 48);
     geometry.scale(park.sx, park.sz, 1);
@@ -217,49 +342,88 @@ function addParks(scene: THREE.Scene) {
     mesh.position.set(park.x, 0.055, park.z);
     scene.add(mesh);
   });
+
+  const treeMaterial = new THREE.MeshStandardMaterial({ color: "#348344", roughness: 0.75 });
+  const trunkMaterial = new THREE.MeshStandardMaterial({ color: "#7a6041", roughness: 0.8 });
+  for (let i = 0; i < 130; i += 1) {
+    const band = i % 4;
+    const x = band === 0 ? -3.8 + Math.sin(i * 1.7) * 2.8 : band === 1 ? -10 + Math.sin(i) * 1.8 : 9.5 + Math.sin(i * 1.2) * 1.7;
+    const z = band === 0 ? -1.5 + Math.cos(i * 1.3) * 0.85 : band === 1 ? -6 + Math.cos(i * 1.4) * 0.7 : 8.6 + Math.cos(i) * 1.2;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.22, 6), trunkMaterial);
+    trunk.position.set(x, 0.17, z);
+    scene.add(trunk);
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), treeMaterial);
+    crown.position.set(x, 0.34, z);
+    scene.add(crown);
+  }
 }
 
 function addBuildings(scene: THREE.Scene) {
   const buildingMaterial = new THREE.MeshStandardMaterial({
-    color: "#d9ccba",
-    roughness: 0.78,
+    color: "#f3f4f2",
+    roughness: 0.64,
     metalness: 0.02,
   });
   const accentMaterial = new THREE.MeshStandardMaterial({
-    color: "#b89474",
-    roughness: 0.62,
-    metalness: 0.06,
+    color: "#dfe4e5",
+    roughness: 0.58,
+    metalness: 0.04,
+  });
+  const towerMaterial = new THREE.MeshStandardMaterial({
+    color: "#ffffff",
+    roughness: 0.48,
+    metalness: 0.05,
   });
 
-  for (let x = -16; x <= 12; x += 1.15) {
-    for (let z = -11; z <= 11; z += 1.15) {
-      const riverEdge = z > x * 0.74 + 1.8;
-      const farWest = z < x * 0.62 - 5.1;
+  for (let x = -16; x <= 9.2; x += 0.62) {
+    for (let z = -11.2; z <= 10.6; z += 0.62) {
+      const riverEdge = z > x * 0.74 + 2.9;
+      const farWest = z < x * 0.62 - 5.8;
       const inPalermoPark = x > -5.3 && x < 1.2 && z > -3.2 && z < 1.8;
       const inNunezPark = x > -12.1 && x < -8.2 && z > -7.5 && z < -4.8;
+      const inDocks = x > 6.5 && x < 10.2 && z > 2.1 && z < 11.1;
       const skip =
         riverEdge ||
         farWest ||
         inPalermoPark ||
         inNunezPark ||
-        Math.sin(x * 2.7 + z * 1.9) > 0.82;
+        inDocks ||
+        Math.abs(Math.sin(x * 3.1)) < 0.08 ||
+        Math.abs(Math.cos(z * 2.9)) < 0.08 ||
+        Math.sin(x * 6.7 + z * 5.1) > 0.93;
       if (skip) continue;
 
-      const height = 0.18 + Math.abs(Math.sin(x * 0.7) + Math.cos(z * 0.9)) * 0.55;
-      const maderoBoost = x > 6 && z > 3.5 ? 2.2 : 1;
-      const belgranoBoost = x < -6.5 && z < -2 ? 1.35 : 1;
-      const palermoBoost = x > -3.5 && x < 1.8 ? 1.18 : 1;
+      const height = 0.12 + Math.abs(Math.sin(x * 1.2) + Math.cos(z * 1.4)) * 0.32;
+      const maderoBoost = x > 5.7 && z > 3.2 ? 2.75 : 1;
+      const belgranoBoost = x < -6.5 && z < -2 ? 1.42 : 1;
+      const palermoBoost = x > -3.5 && x < 1.8 ? 1.25 : 1;
       const boost = Math.max(maderoBoost, belgranoBoost, palermoBoost);
-      const geometry = new THREE.BoxGeometry(0.36, height * boost, 0.42);
+      const geometry = new THREE.BoxGeometry(0.34, height * boost, 0.34);
       const mesh = new THREE.Mesh(
         geometry,
-        boost > 1.3 && Math.sin(x + z) > 0.1 ? accentMaterial : buildingMaterial
+        boost > 1.7 && Math.sin(x + z) > 0.1 ? accentMaterial : buildingMaterial
       );
       mesh.rotation.y = -0.55;
       mesh.position.set(x, (height * boost) / 2, z);
       scene.add(mesh);
     }
   }
+
+  [
+    { x: 8.8, z: 4.2, h: 2.9 },
+    { x: 9.4, z: 5.3, h: 3.4 },
+    { x: 10.2, z: 7.1, h: 3.1 },
+    { x: 9.8, z: 8.5, h: 3.7 },
+    { x: 7.3, z: 5.1, h: 2.4 },
+    { x: 6.6, z: 6.4, h: 2.7 },
+    { x: -8.2, z: -3.9, h: 2.0 },
+    { x: -12.2, z: -7.6, h: 1.9 },
+  ].forEach((tower) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.48, tower.h, 0.48), towerMaterial);
+    mesh.rotation.y = -0.55;
+    mesh.position.set(tower.x, tower.h / 2, tower.z);
+    scene.add(mesh);
+  });
 }
 
 function statusColor(status: DevelopmentStatus) {
@@ -279,21 +443,21 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   const controlsRef = useRef<OrbitControls | null>(null);
   const desiredCameraRef = useRef(AERIAL_HOME_CAMERA.clone());
   const desiredTargetRef = useRef(AERIAL_HOME_TARGET.clone());
-  const [activeId, setActiveId] = useState<string | null>(developments[0]?.id || null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [introOpen, setIntroOpen] = useState(true);
   const [tourActive, setTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
   const [sceneStatus, setSceneStatus] = useState<"idle" | "starting" | "ready" | "error">("idle");
   const [sceneError, setSceneError] = useState<string | null>(null);
-  const activeIdRef = useRef<string | null>(developments[0]?.id || null);
+  const activeIdRef = useRef<string | null>(null);
   const hoveredIdRef = useRef<string | null>(null);
 
   const positioned = useMemo(
     () => developments.map((dev, index) => getPosition(dev, index)),
     [developments]
   );
-  const active = positioned.find((dev) => dev.id === activeId) || positioned[0];
+  const active = positioned.find((dev) => dev.id === activeId) || null;
 
   const focusOn = useCallback((x: number, z: number) => {
     const camera = cameraRef.current;
@@ -306,6 +470,11 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       AERIAL_FOCUS_OFFSET.y,
       z + AERIAL_FOCUS_OFFSET.z
     );
+  }, []);
+
+  const showFullCorridor = useCallback(() => {
+    desiredTargetRef.current.copy(AERIAL_HOME_TARGET);
+    desiredCameraRef.current.copy(AERIAL_HOME_CAMERA);
   }, []);
 
   const focusDevelopment = useCallback(
@@ -366,9 +535,9 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     setSceneError(null);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#081013", 24, 66);
+    scene.fog = new THREE.Fog("#d8e9ef", 36, 78);
 
-    const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / mount.clientHeight, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(38, mount.clientWidth / mount.clientHeight, 0.1, 120);
     camera.position.copy(AERIAL_HOME_CAMERA);
     camera.lookAt(AERIAL_HOME_TARGET);
     desiredCameraRef.current.copy(camera.position);
@@ -388,7 +557,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setClearColor("#081013", 1);
+    renderer.setClearColor("#d8e9ef", 1);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
     setSceneStatus("ready");
@@ -397,29 +566,32 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.minDistance = 12;
-    controls.maxDistance = 34;
+    controls.minDistance = 18;
+    controls.maxDistance = 62;
     controls.minPolarAngle = Math.PI * 0.06;
     controls.maxPolarAngle = Math.PI * 0.16;
     controls.target.copy(AERIAL_HOME_TARGET);
     desiredTargetRef.current.copy(controls.target);
 
-    const ambient = new THREE.HemisphereLight("#d8f0ff", "#24170e", 2.2);
+    const ambient = new THREE.HemisphereLight("#ffffff", "#b6c5aa", 2.6);
     scene.add(ambient);
 
-    const sun = new THREE.DirectionalLight("#ffe0b0", 3.1);
-    sun.position.set(-10, 20, 12);
+    const sun = new THREE.DirectionalLight("#fff4d6", 3.6);
+    sun.position.set(-12, 28, 18);
     sun.castShadow = true;
     scene.add(sun);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(46, 34),
-      new THREE.MeshStandardMaterial({ color: "#161e1b", roughness: 0.92 })
+      new THREE.MeshStandardMaterial({ color: "#e2e5de", roughness: 0.88 })
     );
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
 
     addRiver(scene);
+    addEcologicalReserve(scene);
+    addPuertoMaderoDocks(scene);
+    addUrbanGrid(scene);
     addCoastline(scene);
     addParks(scene);
     NEIGHBORHOODS.forEach((district) => {
@@ -580,7 +752,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   }, [positioned]);
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#081013] text-bone">
+    <section className="relative min-h-screen overflow-hidden bg-[#d8e9ef] text-bone">
       <div
         ref={mountRef}
         className="absolute left-0 top-0 h-screen min-h-full w-full"
@@ -604,7 +776,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       )}
 
       {introOpen && sceneStatus === "ready" && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#081013]/54 px-5 backdrop-blur-[2px]">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#081013]/38 px-5 backdrop-blur-[1px]">
           <div className="max-w-3xl text-center">
             <p className="mb-5 text-[10px] uppercase tracking-[0.32em] text-accent">
               Explore Buenos Aires
@@ -620,7 +792,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
               onClick={() => {
                 setIntroOpen(false);
                 setTourActive(false);
-                focusOn(-1.9, 0);
+                showFullCorridor();
               }}
               className="mt-8 inline-flex items-center gap-2 rounded-full border border-accent/45 bg-accent px-7 py-3 text-[10px] font-medium uppercase tracking-[0.2em] text-ink transition hover:bg-bone"
             >
@@ -638,21 +810,29 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(184,148,116,0.2),transparent_30%),linear-gradient(90deg,rgba(8,16,19,0.78)_0%,rgba(8,16,19,0.24)_44%,rgba(8,16,19,0.5)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,16,19,0.2)_0%,transparent_28%,rgba(8,16,19,0.28)_100%),linear-gradient(90deg,rgba(8,16,19,0.42)_0%,transparent_38%,rgba(8,16,19,0.18)_100%)]" />
 
       <div className="relative z-10 flex min-h-screen flex-col justify-between p-5 md:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl pt-20 md:pt-24">
-            <p className="mb-4 text-[10px] uppercase tracking-[0.28em] text-accent">
+            <p className="mb-3 text-[10px] uppercase tracking-[0.28em] text-accent">
               Mapa interactivo 3D
             </p>
-            <h1 className="font-display text-4xl font-light leading-none tracking-tight md:text-6xl">
-              Corredor norte de Buenos Aires.
-            </h1>
-            <p className="mt-5 max-w-md text-sm leading-relaxed text-bone/65">
-              Desde Puerto Madero hasta Núñez, navega por zonas, selecciona proyectos
-              y abre la ficha de cada desarrollo.
-            </p>
+            {introOpen ? (
+              <>
+                <h1 className="font-display text-4xl font-light leading-none tracking-tight md:text-6xl">
+                  Corredor norte de Buenos Aires.
+                </h1>
+                <p className="mt-5 max-w-md text-sm leading-relaxed text-bone/65">
+                  Desde Puerto Madero hasta Núñez, navega por zonas, selecciona proyectos
+                  y abre la ficha de cada desarrollo.
+                </p>
+              </>
+            ) : (
+              <h1 className="font-display text-2xl font-light leading-none tracking-tight md:text-3xl">
+                Puerto Madero → Núñez
+              </h1>
+            )}
           </div>
 
           <div className="mt-20 hidden flex-wrap items-center justify-end gap-2 md:flex">
@@ -685,7 +865,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
           </div>
         </div>
 
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-2 lg:hidden">
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-2 md:hidden">
           <button
             onClick={() => {
               if (tourActive) {
@@ -713,8 +893,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
           ))}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[300px_1fr_380px] lg:items-end">
-          <div className="hidden rounded-lg border border-bone/15 bg-[#0a0a0b]/58 p-4 backdrop-blur-xl lg:block">
+        <div className="grid gap-4 md:grid-cols-[240px_1fr_320px] md:items-end lg:grid-cols-[300px_1fr_380px]">
+          <div className="hidden rounded-lg border border-bone/15 bg-[#0a0a0b]/58 p-4 backdrop-blur-xl md:block">
             <p className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-bone/45">
               <Route className="h-3.5 w-3.5" />
               Puerto Madero → Núñez
@@ -745,10 +925,10 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
             </div>
           </div>
 
-          <div className="hidden lg:block" />
+          <div className="hidden md:block" />
 
-          <aside className="rounded-lg border border-bone/15 bg-[#0a0a0b]/74 p-5 shadow-2xl backdrop-blur-2xl md:p-6">
-            {active ? (
+          {active ? (
+            <aside className="rounded-lg border border-bone/15 bg-[#0a0a0b]/62 p-5 shadow-2xl backdrop-blur-2xl md:p-6">
               <>
                 <div className="mb-4 flex items-center justify-between border-b border-bone/10 pb-4">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-bone/42">
@@ -832,13 +1012,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </>
-            ) : (
-              <div className="flex min-h-56 flex-col items-center justify-center text-center text-bone/60">
-                <Building2 className="mb-3 h-8 w-8" />
-                No hay desarrollos cargados para mostrar en el mapa.
-              </div>
-            )}
-          </aside>
+            </aside>
+          ) : null}
         </div>
       </div>
     </section>
