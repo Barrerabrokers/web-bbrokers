@@ -4,7 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowUpRight, Building2, Compass, MapPin, MousePointer2, Route } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  Compass,
+  MapPin,
+  MousePointer2,
+  Pause,
+  Play,
+  Route,
+} from "lucide-react";
 import { DEVELOPMENT_STATUS_LABELS, Development, DevelopmentStatus } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -37,6 +46,8 @@ const NEIGHBORHOODS = [
   { name: "Belgrano", label: "BELGRANO", x: -7.8, z: -3.8, radius: 3.6, color: "#243f36" },
   { name: "Nunez", label: "NUÑEZ", x: -12.6, z: -7.4, radius: 2.9, color: "#1f3934" },
 ];
+
+type Neighborhood = (typeof NEIGHBORHOODS)[number];
 
 const POSITION_HINTS: Record<string, { x: number; z: number; neighborhood: string }> = {
   madero: { x: 10.8, z: 8.4, neighborhood: "Puerto Madero" },
@@ -262,9 +273,13 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const desiredCameraRef = useRef(new THREE.Vector3(-15, 15, 18));
+  const desiredTargetRef = useRef(new THREE.Vector3(-2, 0, 0.5));
   const [activeId, setActiveId] = useState<string | null>(developments[0]?.id || null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [introOpen, setIntroOpen] = useState(true);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourIndex, setTourIndex] = useState(0);
   const [sceneStatus, setSceneStatus] = useState<"idle" | "starting" | "ready" | "error">("idle");
   const [sceneError, setSceneError] = useState<string | null>(null);
   const activeIdRef = useRef<string | null>(developments[0]?.id || null);
@@ -281,15 +296,14 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     const controls = controlsRef.current;
     if (!camera || !controls) return;
 
-    controls.target.set(x, 0.25, z);
-    camera.position.set(x - 6.8, 9.2, z + 9.4);
-    camera.lookAt(x, 0.25, z);
-    controls.update();
+    desiredTargetRef.current.set(x, 0.25, z);
+    desiredCameraRef.current.set(x - 6.8, 9.2, z + 9.4);
   }, []);
 
   const focusDevelopment = useCallback(
     (dev: PositionedDevelopment) => {
       setIntroOpen(false);
+      setTourActive(false);
       setActiveId(dev.id);
       focusOn(dev.x, dev.z);
     },
@@ -297,14 +311,22 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   );
 
   const focusZone = useCallback(
-    (zone: (typeof NEIGHBORHOODS)[number]) => {
+    (zone: Neighborhood, keepTour = false) => {
       setIntroOpen(false);
+      if (!keepTour) setTourActive(false);
       const target = positioned.find((dev) => dev.neighborhood === zone.name);
       if (target) setActiveId(target.id);
       focusOn(zone.x, zone.z);
     },
     [focusOn, positioned]
   );
+
+  const startGuidedTour = useCallback(() => {
+    setIntroOpen(false);
+    setTourActive(true);
+    setTourIndex(0);
+    focusZone(NEIGHBORHOODS[0], true);
+  }, [focusZone]);
 
   useEffect(() => {
     activeIdRef.current = activeId;
@@ -313,6 +335,20 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   useEffect(() => {
     hoveredIdRef.current = hoveredId;
   }, [hoveredId]);
+
+  useEffect(() => {
+    if (!tourActive) return;
+
+    const interval = window.setInterval(() => {
+      setTourIndex((current) => {
+        const next = (current + 1) % NEIGHBORHOODS.length;
+        focusZone(NEIGHBORHOODS[next], true);
+        return next;
+      });
+    }, 3200);
+
+    return () => window.clearInterval(interval);
+  }, [focusZone, tourActive]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -327,6 +363,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 100);
     camera.position.set(-15, 15, 18);
     camera.lookAt(-2, 0, 1);
+    desiredCameraRef.current.copy(camera.position);
     cameraRef.current = camera;
 
     let renderer: THREE.WebGLRenderer;
@@ -356,6 +393,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     controls.maxDistance = 34;
     controls.maxPolarAngle = Math.PI * 0.48;
     controls.target.set(-2, 0, 0.5);
+    desiredTargetRef.current.copy(controls.target);
 
     const ambient = new THREE.HemisphereLight("#d8f0ff", "#24170e", 2.2);
     scene.add(ambient);
@@ -509,6 +547,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
           child.scale.setScalar(isActive ? 1.18 : 1);
         }
       });
+      camera.position.lerp(desiredCameraRef.current, 0.045);
+      controls.target.lerp(desiredTargetRef.current, 0.045);
       controls.update();
       renderer.render(scene, camera);
       raf = requestAnimationFrame(animate);
@@ -570,12 +610,20 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
             <button
               onClick={() => {
                 setIntroOpen(false);
+                setTourActive(false);
                 focusOn(-1.9, 0);
               }}
               className="mt-8 inline-flex items-center gap-2 rounded-full border border-accent/45 bg-accent px-7 py-3 text-[10px] font-medium uppercase tracking-[0.2em] text-ink transition hover:bg-bone"
             >
               Explorar mapa
               <Compass className="h-4 w-4" />
+            </button>
+            <button
+              onClick={startGuidedTour}
+              className="ml-0 mt-3 inline-flex items-center gap-2 rounded-full border border-bone/25 bg-bone/10 px-7 py-3 text-[10px] font-medium uppercase tracking-[0.2em] text-bone transition hover:border-accent/50 hover:text-accent md:ml-3 md:mt-8"
+            >
+              Recorrido guiado
+              <Play className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -604,7 +652,23 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
               Arrastra, acerca y selecciona
             </div>
             <button
-              onClick={() => setIntroOpen(true)}
+              onClick={() => {
+                if (tourActive) {
+                  setTourActive(false);
+                } else {
+                  startGuidedTour();
+                }
+              }}
+              className="flex items-center gap-2 rounded-full border border-bone/15 bg-[#0a0a0b]/55 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-bone/70 backdrop-blur-xl transition hover:border-accent/50 hover:text-bone"
+            >
+              {tourActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              {tourActive ? "Pausar tour" : "Tour guiado"}
+            </button>
+            <button
+              onClick={() => {
+                setTourActive(false);
+                setIntroOpen(true);
+              }}
               className="rounded-full border border-bone/15 bg-[#0a0a0b]/55 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-bone/70 backdrop-blur-xl transition hover:border-accent/50 hover:text-bone"
             >
               Intro
@@ -613,11 +677,27 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
         </div>
 
         <div className="mb-4 flex gap-2 overflow-x-auto pb-2 lg:hidden">
+          <button
+            onClick={() => {
+              if (tourActive) {
+                setTourActive(false);
+              } else {
+                startGuidedTour();
+              }
+            }}
+            className="shrink-0 rounded-full border border-accent/35 bg-accent/15 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-accent backdrop-blur-xl transition hover:bg-accent hover:text-ink"
+          >
+            {tourActive ? "Pausar" : "Tour"}
+          </button>
           {NEIGHBORHOODS.map((zone) => (
             <button
               key={zone.name}
               onClick={() => focusZone(zone)}
-              className="shrink-0 rounded-full border border-bone/15 bg-[#0a0a0b]/60 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-bone/72 backdrop-blur-xl transition hover:border-accent/50 hover:text-bone"
+              className={`shrink-0 rounded-full border px-3 py-2 text-[9px] uppercase tracking-[0.14em] backdrop-blur-xl transition hover:border-accent/50 hover:text-bone ${
+                tourActive && NEIGHBORHOODS[tourIndex]?.name === zone.name
+                  ? "border-accent bg-accent/15 text-accent"
+                  : "border-bone/15 bg-[#0a0a0b]/60 text-bone/72"
+              }`}
             >
               {zone.label}
             </button>
@@ -635,7 +715,11 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
                 <button
                   key={zone.name}
                   onClick={() => focusZone(zone)}
-                  className="group flex w-full items-center justify-between rounded-md border border-bone/10 bg-bone/[0.03] px-3 py-2 text-left text-xs text-bone/70 transition hover:border-accent/50 hover:text-bone"
+                  className={`group flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition hover:border-accent/50 hover:text-bone ${
+                    tourActive && NEIGHBORHOODS[tourIndex]?.name === zone.name
+                      ? "border-accent/50 bg-accent/12 text-accent"
+                      : "border-bone/10 bg-bone/[0.03] text-bone/70"
+                  }`}
                 >
                   <span className="flex items-center gap-2">
                     <span
@@ -657,6 +741,18 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
           <aside className="rounded-lg border border-bone/15 bg-[#0a0a0b]/74 p-5 shadow-2xl backdrop-blur-2xl md:p-6">
             {active ? (
               <>
+                <div className="mb-4 flex items-center justify-between border-b border-bone/10 pb-4">
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-bone/42">
+                    Hotspot seleccionado
+                  </p>
+                  <button
+                    onClick={startGuidedTour}
+                    className="inline-flex items-center gap-1.5 text-[9px] uppercase tracking-[0.16em] text-accent transition hover:text-bone"
+                  >
+                    <Play className="h-3 w-3" />
+                    Recorrer
+                  </button>
+                </div>
                 <div className="mb-5 flex items-start justify-between gap-3">
                   <div>
                     <p className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-accent">
