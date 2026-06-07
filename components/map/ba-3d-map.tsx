@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowUpRight, Building2, MapPin, MousePointer2 } from "lucide-react";
+import { ArrowUpRight, Building2, Compass, MapPin, MousePointer2, Route } from "lucide-react";
 import { DEVELOPMENT_STATUS_LABELS, Development, DevelopmentStatus } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -30,25 +30,25 @@ type PositionedDevelopment = MapDevelopment & {
 };
 
 const NEIGHBORHOODS = [
-  { name: "Nunez", label: "NUNEZ", x: -14, z: -7, radius: 3.4, color: "#1f3934" },
-  { name: "Belgrano", label: "BELGRANO", x: -8, z: -4, radius: 4.6, color: "#243d35" },
-  { name: "Palermo", label: "PALERMO", x: -1.2, z: 0.3, radius: 5.5, color: "#2b3f34" },
-  { name: "Recoleta", label: "RECOLETA", x: 5.2, z: 2.8, radius: 3.5, color: "#253832" },
-  { name: "Centro", label: "MICROCENTRO", x: 9.5, z: 6.8, radius: 3.8, color: "#28342f" },
-  { name: "Puerto Madero", label: "PUERTO MADERO", x: 14.7, z: 7.7, radius: 3.2, color: "#203b3d" },
+  { name: "Puerto Madero", label: "PUERTO MADERO", x: 10.8, z: 8.4, radius: 2.9, color: "#203c3e" },
+  { name: "Retiro", label: "RETIRO", x: 7, z: 5.2, radius: 2.6, color: "#263832" },
+  { name: "Recoleta", label: "RECOLETA", x: 3.5, z: 3, radius: 2.9, color: "#273b31" },
+  { name: "Palermo", label: "PALERMO", x: -1.9, z: 0, radius: 4.4, color: "#2a4437" },
+  { name: "Belgrano", label: "BELGRANO", x: -7.8, z: -3.8, radius: 3.6, color: "#243f36" },
+  { name: "Nunez", label: "NUÑEZ", x: -12.6, z: -7.4, radius: 2.9, color: "#1f3934" },
 ];
 
 const POSITION_HINTS: Record<string, { x: number; z: number; neighborhood: string }> = {
-  nunez: { x: -14, z: -7, neighborhood: "Nunez" },
-  "nuñez": { x: -14, z: -7, neighborhood: "Nunez" },
-  libertador: { x: -12.8, z: -7.3, neighborhood: "Nunez" },
-  belgrano: { x: -8, z: -4, neighborhood: "Belgrano" },
-  aguilar: { x: -7.2, z: -4.7, neighborhood: "Belgrano" },
-  palermo: { x: -1.2, z: 0.3, neighborhood: "Palermo" },
-  recoleta: { x: 5.2, z: 2.8, neighborhood: "Recoleta" },
-  retiro: { x: 8.5, z: 5.4, neighborhood: "Centro" },
-  centro: { x: 9.5, z: 6.8, neighborhood: "Centro" },
-  madero: { x: 14.7, z: 7.7, neighborhood: "Puerto Madero" },
+  madero: { x: 10.8, z: 8.4, neighborhood: "Puerto Madero" },
+  retiro: { x: 7, z: 5.2, neighborhood: "Retiro" },
+  catalinas: { x: 7.4, z: 5.6, neighborhood: "Retiro" },
+  recoleta: { x: 3.5, z: 3, neighborhood: "Recoleta" },
+  palermo: { x: -1.9, z: 0, neighborhood: "Palermo" },
+  belgrano: { x: -7.8, z: -3.8, neighborhood: "Belgrano" },
+  aguilar: { x: -7.2, z: -4.2, neighborhood: "Belgrano" },
+  libertador: { x: -10.9, z: -6.5, neighborhood: "Nunez" },
+  nunez: { x: -12.6, z: -7.4, neighborhood: "Nunez" },
+  "nuñez": { x: -12.6, z: -7.4, neighborhood: "Nunez" },
 };
 
 function getPosition(dev: MapDevelopment, index: number): PositionedDevelopment {
@@ -90,7 +90,7 @@ function createTextSprite(text: string, color = "#f4eadc") {
   return sprite;
 }
 
-function addRoundedDistrict(
+function addNeighborhoodTerrace(
   scene: THREE.Scene,
   x: number,
   z: number,
@@ -98,6 +98,7 @@ function addRoundedDistrict(
   color: string
 ) {
   const geometry = new THREE.CircleGeometry(radius, 48);
+  geometry.scale(1.45, 0.72, 1);
   const material = new THREE.MeshStandardMaterial({
     color,
     roughness: 0.85,
@@ -107,6 +108,7 @@ function addRoundedDistrict(
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = -0.57;
   mesh.position.set(x, 0.025, z);
   scene.add(mesh);
   return mesh;
@@ -128,17 +130,16 @@ function addRoad(scene: THREE.Scene, points: THREE.Vector3[], color = "#d5c7b2")
 
 function addRiver(scene: THREE.Scene) {
   const shape = new THREE.Shape();
-  shape.moveTo(11, -14);
-  shape.bezierCurveTo(16, -8, 17, -1, 15, 6);
-  shape.bezierCurveTo(13.7, 10.5, 17.5, 14, 24, 17);
+  shape.moveTo(0.5, -17);
+  shape.bezierCurveTo(4.5, -11.5, 7.7, -5.5, 9.9, 1.4);
+  shape.bezierCurveTo(11.8, 7.5, 13.8, 12.5, 19.2, 17);
   shape.lineTo(27, 17);
   shape.lineTo(27, -17);
-  shape.lineTo(12, -17);
-  shape.lineTo(11, -14);
+  shape.lineTo(0.5, -17);
 
   const geometry = new THREE.ShapeGeometry(shape);
   const material = new THREE.MeshStandardMaterial({
-    color: "#2f6f79",
+    color: "#2f7580",
     roughness: 0.38,
     metalness: 0.08,
     transparent: true,
@@ -148,6 +149,59 @@ function addRiver(scene: THREE.Scene) {
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = 0.03;
   scene.add(mesh);
+}
+
+function addCoastline(scene: THREE.Scene) {
+  addRoad(
+    scene,
+    [
+      new THREE.Vector3(-15.4, 0.12, -9.6),
+      new THREE.Vector3(-10.5, 0.12, -6.8),
+      new THREE.Vector3(-5.8, 0.12, -3.6),
+      new THREE.Vector3(-1.2, 0.12, -0.9),
+      new THREE.Vector3(4.8, 0.12, 3.2),
+      new THREE.Vector3(9.5, 0.12, 7.6),
+      new THREE.Vector3(13.2, 0.12, 10.8),
+    ],
+    "#efe3cf"
+  );
+
+  addRoad(
+    scene,
+    [
+      new THREE.Vector3(-14, 0.13, -10.8),
+      new THREE.Vector3(-8.5, 0.13, -7.4),
+      new THREE.Vector3(-2.6, 0.13, -3.8),
+      new THREE.Vector3(2.8, 0.13, -0.5),
+      new THREE.Vector3(8.4, 0.13, 4.8),
+      new THREE.Vector3(12.1, 0.13, 8.8),
+    ],
+    "#a8c7c2"
+  );
+}
+
+function addParks(scene: THREE.Scene) {
+  const parkMaterial = new THREE.MeshStandardMaterial({
+    color: "#3f6042",
+    roughness: 0.88,
+    metalness: 0.02,
+    transparent: true,
+    opacity: 0.92,
+  });
+
+  [
+    { x: -2.8, z: -1.4, sx: 5.6, sz: 2.4, rotation: -0.5 },
+    { x: -9.8, z: -6, sx: 3.7, sz: 1.8, rotation: -0.55 },
+    { x: 9.4, z: 8.9, sx: 2.3, sz: 1.4, rotation: -0.62 },
+  ].forEach((park) => {
+    const geometry = new THREE.CircleGeometry(1, 48);
+    geometry.scale(park.sx, park.sz, 1);
+    const mesh = new THREE.Mesh(geometry, parkMaterial);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = park.rotation;
+    mesh.position.set(park.x, 0.055, park.z);
+    scene.add(mesh);
+  });
 }
 
 function addBuildings(scene: THREE.Scene) {
@@ -162,21 +216,32 @@ function addBuildings(scene: THREE.Scene) {
     metalness: 0.06,
   });
 
-  for (let x = -18; x <= 13; x += 1.9) {
-    for (let z = -12; z <= 12; z += 1.9) {
-      const nearRiver = x > 10 && z > -8;
-      const inPark = x > -4 && x < 3 && z > -4 && z < 4;
-      const skip = nearRiver || inPark || Math.sin(x * 2.1 + z * 1.7) > 0.72;
+  for (let x = -16; x <= 12; x += 1.15) {
+    for (let z = -11; z <= 11; z += 1.15) {
+      const riverEdge = z > x * 0.74 + 1.8;
+      const farWest = z < x * 0.62 - 5.1;
+      const inPalermoPark = x > -5.3 && x < 1.2 && z > -3.2 && z < 1.8;
+      const inNunezPark = x > -12.1 && x < -8.2 && z > -7.5 && z < -4.8;
+      const skip =
+        riverEdge ||
+        farWest ||
+        inPalermoPark ||
+        inNunezPark ||
+        Math.sin(x * 2.7 + z * 1.9) > 0.82;
       if (skip) continue;
 
       const height = 0.18 + Math.abs(Math.sin(x * 0.7) + Math.cos(z * 0.9)) * 0.55;
-      const downtownBoost = x > 5 && z > 2 ? 1.45 : 1;
-      const geometry = new THREE.BoxGeometry(0.48, height * downtownBoost, 0.5);
+      const maderoBoost = x > 6 && z > 3.5 ? 2.2 : 1;
+      const belgranoBoost = x < -6.5 && z < -2 ? 1.35 : 1;
+      const palermoBoost = x > -3.5 && x < 1.8 ? 1.18 : 1;
+      const boost = Math.max(maderoBoost, belgranoBoost, palermoBoost);
+      const geometry = new THREE.BoxGeometry(0.36, height * boost, 0.42);
       const mesh = new THREE.Mesh(
         geometry,
-        downtownBoost > 1.2 && Math.sin(x + z) > 0.2 ? accentMaterial : buildingMaterial
+        boost > 1.3 && Math.sin(x + z) > 0.1 ? accentMaterial : buildingMaterial
       );
-      mesh.position.set(x, (height * downtownBoost) / 2, z);
+      mesh.rotation.y = -0.55;
+      mesh.position.set(x, (height * boost) / 2, z);
       scene.add(mesh);
     }
   }
@@ -195,8 +260,11 @@ interface BuenosAires3DMapProps {
 
 export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const [activeId, setActiveId] = useState<string | null>(developments[0]?.id || null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [introOpen, setIntroOpen] = useState(true);
   const [sceneStatus, setSceneStatus] = useState<"idle" | "starting" | "ready" | "error">("idle");
   const [sceneError, setSceneError] = useState<string | null>(null);
   const activeIdRef = useRef<string | null>(developments[0]?.id || null);
@@ -207,6 +275,36 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     [developments]
   );
   const active = positioned.find((dev) => dev.id === activeId) || positioned[0];
+
+  const focusOn = useCallback((x: number, z: number) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+
+    controls.target.set(x, 0.25, z);
+    camera.position.set(x - 6.8, 9.2, z + 9.4);
+    camera.lookAt(x, 0.25, z);
+    controls.update();
+  }, []);
+
+  const focusDevelopment = useCallback(
+    (dev: PositionedDevelopment) => {
+      setIntroOpen(false);
+      setActiveId(dev.id);
+      focusOn(dev.x, dev.z);
+    },
+    [focusOn]
+  );
+
+  const focusZone = useCallback(
+    (zone: (typeof NEIGHBORHOODS)[number]) => {
+      setIntroOpen(false);
+      const target = positioned.find((dev) => dev.neighborhood === zone.name);
+      if (target) setActiveId(target.id);
+      focusOn(zone.x, zone.z);
+    },
+    [focusOn, positioned]
+  );
 
   useEffect(() => {
     activeIdRef.current = activeId;
@@ -224,11 +322,12 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     setSceneError(null);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#081013", 18, 54);
+    scene.fog = new THREE.Fog("#081013", 24, 66);
 
     const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 100);
-    camera.position.set(-11, 16, 20);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(-15, 15, 18);
+    camera.lookAt(-2, 0, 1);
+    cameraRef.current = camera;
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -250,12 +349,13 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     setSceneStatus("ready");
 
     const controls = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.minDistance = 10;
-    controls.maxDistance = 42;
+    controls.minDistance = 6;
+    controls.maxDistance = 34;
     controls.maxPolarAngle = Math.PI * 0.48;
-    controls.target.set(0, 0, 1);
+    controls.target.set(-2, 0, 0.5);
 
     const ambient = new THREE.HemisphereLight("#d8f0ff", "#24170e", 2.2);
     scene.add(ambient);
@@ -273,33 +373,37 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     scene.add(ground);
 
     addRiver(scene);
+    addCoastline(scene);
+    addParks(scene);
     NEIGHBORHOODS.forEach((district) => {
-      addRoundedDistrict(scene, district.x, district.z, district.radius, district.color);
+      addNeighborhoodTerrace(scene, district.x, district.z, district.radius, district.color);
       const label = createTextSprite(district.label, "#eadfce");
-      label.position.set(district.x, 0.32, district.z + district.radius + 0.5);
+      label.position.set(district.x, 0.36, district.z + 1.85);
       scene.add(label);
     });
 
     addRoad(scene, [
-      new THREE.Vector3(-19, 0.09, -9),
-      new THREE.Vector3(-12, 0.09, -6),
-      new THREE.Vector3(-6, 0.09, -2),
-      new THREE.Vector3(2, 0.09, 2),
-      new THREE.Vector3(10, 0.09, 7),
-      new THREE.Vector3(15, 0.09, 10),
+      new THREE.Vector3(-14.8, 0.17, -8.6),
+      new THREE.Vector3(-10.4, 0.17, -6.2),
+      new THREE.Vector3(-6.2, 0.17, -3.7),
+      new THREE.Vector3(-1.5, 0.17, -0.4),
+      new THREE.Vector3(3.6, 0.17, 2.9),
+      new THREE.Vector3(8.2, 0.17, 6.1),
+      new THREE.Vector3(11.6, 0.17, 9.2),
     ]);
     addRoad(scene, [
-      new THREE.Vector3(-17, 0.1, 1),
-      new THREE.Vector3(-8, 0.1, -1),
-      new THREE.Vector3(-1, 0.1, 0.5),
-      new THREE.Vector3(6, 0.1, 4),
-      new THREE.Vector3(13, 0.1, 6),
+      new THREE.Vector3(-13.4, 0.12, -4.8),
+      new THREE.Vector3(-7.3, 0.12, -2.9),
+      new THREE.Vector3(-2.5, 0.12, -0.9),
+      new THREE.Vector3(3.2, 0.12, 2.1),
+      new THREE.Vector3(9.6, 0.12, 6.6),
     ], "#bfa98b");
     addRoad(scene, [
-      new THREE.Vector3(-10, 0.1, -12),
-      new THREE.Vector3(-6, 0.1, -5),
-      new THREE.Vector3(0, 0.1, 0),
-      new THREE.Vector3(4, 0.1, 8),
+      new THREE.Vector3(-11.6, 0.12, -9.2),
+      new THREE.Vector3(-8.4, 0.12, -5.6),
+      new THREE.Vector3(-3.8, 0.12, -2.2),
+      new THREE.Vector3(1.2, 0.12, 1.4),
+      new THREE.Vector3(5.6, 0.12, 6.8),
     ], "#e1d5c1");
     addBuildings(scene);
 
@@ -326,6 +430,21 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       markerGroup.add(pin);
       markerMeshes.push(pin);
 
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.44, 32, 16),
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: color,
+          emissiveIntensity: 0.5,
+          roughness: 0.3,
+          metalness: 0.2,
+        })
+      );
+      head.position.set(dev.x, 2.05, dev.z);
+      head.userData.id = dev.id;
+      markerGroup.add(head);
+      markerMeshes.push(head);
+
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.72, 0.035, 8, 48),
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.72 })
@@ -336,7 +455,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       markerGroup.add(ring);
 
       const label = createTextSprite(dev.name, "#fff7e8");
-      label.position.set(dev.x, 2.45, dev.z);
+      label.position.set(dev.x, 2.9, dev.z);
       markerGroup.add(label);
     });
 
@@ -402,6 +521,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("resize", onResize);
       controls.dispose();
+      controlsRef.current = null;
+      cameraRef.current = null;
       renderer.dispose();
       if (mount.contains(renderer.domElement)) {
         mount.removeChild(renderer.domElement);
@@ -433,7 +554,34 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(184,148,116,0.18),transparent_32%),linear-gradient(90deg,rgba(8,16,19,0.78)_0%,transparent_42%,rgba(8,16,19,0.62)_100%)]" />
+      {introOpen && sceneStatus === "ready" && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#081013]/54 px-5 backdrop-blur-[2px]">
+          <div className="max-w-3xl text-center">
+            <p className="mb-5 text-[10px] uppercase tracking-[0.32em] text-accent">
+              Explore Buenos Aires
+            </p>
+            <h1 className="font-display text-5xl font-light leading-none tracking-tight text-bone md:text-7xl">
+              Puerto Madero hasta Núñez.
+            </h1>
+            <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-bone/68 md:text-base">
+              Recorre el eje premium de la ciudad en una maqueta 3D, entra por zonas
+              y abre cada desarrollo desde su ubicación.
+            </p>
+            <button
+              onClick={() => {
+                setIntroOpen(false);
+                focusOn(-1.9, 0);
+              }}
+              className="mt-8 inline-flex items-center gap-2 rounded-full border border-accent/45 bg-accent px-7 py-3 text-[10px] font-medium uppercase tracking-[0.2em] text-ink transition hover:bg-bone"
+            >
+              Explorar mapa
+              <Compass className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(184,148,116,0.2),transparent_30%),linear-gradient(90deg,rgba(8,16,19,0.78)_0%,rgba(8,16,19,0.24)_44%,rgba(8,16,19,0.5)_100%)]" />
 
       <div className="relative z-10 flex min-h-screen flex-col justify-between p-5 md:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -442,37 +590,63 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
               Mapa interactivo 3D
             </p>
             <h1 className="font-display text-4xl font-light leading-none tracking-tight md:text-6xl">
-              Desarrollos sobre Buenos Aires.
+              Corredor norte de Buenos Aires.
             </h1>
             <p className="mt-5 max-w-md text-sm leading-relaxed text-bone/65">
-              Navega la ciudad, selecciona un pin y explora cada proyecto por zona,
-              avance, precio de entrada y unidades disponibles.
+              Desde Puerto Madero hasta Núñez, navega por zonas, selecciona proyectos
+              y abre la ficha de cada desarrollo.
             </p>
           </div>
 
-          <div className="mt-20 hidden items-center gap-2 rounded-full border border-bone/15 bg-bone/10 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-bone/70 backdrop-blur-xl md:flex">
-            <MousePointer2 className="h-3.5 w-3.5" />
-            Arrastra, acerca y selecciona
+          <div className="mt-20 hidden flex-wrap items-center justify-end gap-2 md:flex">
+            <div className="flex items-center gap-2 rounded-full border border-bone/15 bg-bone/10 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-bone/70 backdrop-blur-xl">
+              <MousePointer2 className="h-3.5 w-3.5" />
+              Arrastra, acerca y selecciona
+            </div>
+            <button
+              onClick={() => setIntroOpen(true)}
+              className="rounded-full border border-bone/15 bg-[#0a0a0b]/55 px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-bone/70 backdrop-blur-xl transition hover:border-accent/50 hover:text-bone"
+            >
+              Intro
+            </button>
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr_360px] lg:items-end">
-          <div className="hidden rounded-lg border border-bone/15 bg-[#0a0a0b]/55 p-4 backdrop-blur-xl lg:block">
-            <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-bone/45">
-              Zonas destacadas
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-2 lg:hidden">
+          {NEIGHBORHOODS.map((zone) => (
+            <button
+              key={zone.name}
+              onClick={() => focusZone(zone)}
+              className="shrink-0 rounded-full border border-bone/15 bg-[#0a0a0b]/60 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-bone/72 backdrop-blur-xl transition hover:border-accent/50 hover:text-bone"
+            >
+              {zone.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[300px_1fr_380px] lg:items-end">
+          <div className="hidden rounded-lg border border-bone/15 bg-[#0a0a0b]/58 p-4 backdrop-blur-xl lg:block">
+            <p className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-bone/45">
+              <Route className="h-3.5 w-3.5" />
+              Puerto Madero → Núñez
             </p>
             <div className="space-y-2">
               {NEIGHBORHOODS.map((zone) => (
                 <button
                   key={zone.name}
-                  onClick={() => {
-                    const target = positioned.find((dev) => dev.neighborhood === zone.name);
-                    if (target) setActiveId(target.id);
-                  }}
-                  className="flex w-full items-center justify-between rounded-md border border-bone/10 px-3 py-2 text-left text-xs text-bone/70 transition hover:border-accent/50 hover:text-bone"
+                  onClick={() => focusZone(zone)}
+                  className="group flex w-full items-center justify-between rounded-md border border-bone/10 bg-bone/[0.03] px-3 py-2 text-left text-xs text-bone/70 transition hover:border-accent/50 hover:text-bone"
                 >
-                  <span>{zone.label}</span>
-                  <span>{positioned.filter((dev) => dev.neighborhood === zone.name).length}</span>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full transition group-hover:scale-125"
+                      style={{ backgroundColor: zone.color }}
+                    />
+                    {zone.label}
+                  </span>
+                  <span className="text-bone/40">
+                    {positioned.filter((dev) => dev.neighborhood === zone.name).length}
+                  </span>
                 </button>
               ))}
             </div>
@@ -480,7 +654,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
 
           <div className="hidden lg:block" />
 
-          <aside className="rounded-lg border border-bone/15 bg-[#0a0a0b]/72 p-5 shadow-2xl backdrop-blur-2xl md:p-6">
+          <aside className="rounded-lg border border-bone/15 bg-[#0a0a0b]/74 p-5 shadow-2xl backdrop-blur-2xl md:p-6">
             {active ? (
               <>
                 <div className="mb-5 flex items-start justify-between gap-3">
@@ -501,6 +675,22 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
                 <p className="mb-5 text-sm leading-relaxed text-bone/60">
                   {active.address || active.location}
                 </p>
+
+                <div className="mb-5 flex flex-wrap gap-2">
+                  {positioned.slice(0, 6).map((dev) => (
+                    <button
+                      key={dev.id}
+                      onClick={() => focusDevelopment(dev)}
+                      className={`rounded-full border px-3 py-1.5 text-[9px] uppercase tracking-[0.14em] transition ${
+                        active.id === dev.id
+                          ? "border-accent bg-accent/18 text-accent"
+                          : "border-bone/10 bg-bone/[0.04] text-bone/52 hover:border-accent/40 hover:text-bone"
+                      }`}
+                    >
+                      {dev.neighborhood}
+                    </button>
+                  ))}
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md border border-bone/10 bg-bone/[0.04] p-3">
