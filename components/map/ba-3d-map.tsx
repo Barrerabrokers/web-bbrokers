@@ -62,6 +62,10 @@ const POSITION_HINTS: Record<string, { x: number; z: number; neighborhood: strin
   "nuñez": { x: -12.6, z: -7.4, neighborhood: "Nunez" },
 };
 
+const AERIAL_HOME_TARGET = new THREE.Vector3(-2.5, 0, 0.5);
+const AERIAL_HOME_CAMERA = new THREE.Vector3(-4.2, 23, 5.4);
+const AERIAL_FOCUS_OFFSET = new THREE.Vector3(-1.8, 19, 4.7);
+
 function getPosition(dev: MapDevelopment, index: number): PositionedDevelopment {
   const source = `${dev.name} ${dev.location} ${dev.address}`.toLowerCase();
   const hint = Object.entries(POSITION_HINTS).find(([key]) => source.includes(key))?.[1];
@@ -273,8 +277,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const desiredCameraRef = useRef(new THREE.Vector3(-15, 15, 18));
-  const desiredTargetRef = useRef(new THREE.Vector3(-2, 0, 0.5));
+  const desiredCameraRef = useRef(AERIAL_HOME_CAMERA.clone());
+  const desiredTargetRef = useRef(AERIAL_HOME_TARGET.clone());
   const [activeId, setActiveId] = useState<string | null>(developments[0]?.id || null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [introOpen, setIntroOpen] = useState(true);
@@ -296,8 +300,12 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     const controls = controlsRef.current;
     if (!camera || !controls) return;
 
-    desiredTargetRef.current.set(x, 0.25, z);
-    desiredCameraRef.current.set(x - 6.8, 9.2, z + 9.4);
+    desiredTargetRef.current.set(x, 0.18, z);
+    desiredCameraRef.current.set(
+      x + AERIAL_FOCUS_OFFSET.x,
+      AERIAL_FOCUS_OFFSET.y,
+      z + AERIAL_FOCUS_OFFSET.z
+    );
   }, []);
 
   const focusDevelopment = useCallback(
@@ -360,9 +368,9 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog("#081013", 24, 66);
 
-    const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 100);
-    camera.position.set(-15, 15, 18);
-    camera.lookAt(-2, 0, 1);
+    const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / mount.clientHeight, 0.1, 100);
+    camera.position.copy(AERIAL_HOME_CAMERA);
+    camera.lookAt(AERIAL_HOME_TARGET);
     desiredCameraRef.current.copy(camera.position);
     cameraRef.current = camera;
 
@@ -389,10 +397,11 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.minDistance = 6;
+    controls.minDistance = 12;
     controls.maxDistance = 34;
-    controls.maxPolarAngle = Math.PI * 0.48;
-    controls.target.set(-2, 0, 0.5);
+    controls.minPolarAngle = Math.PI * 0.06;
+    controls.maxPolarAngle = Math.PI * 0.16;
+    controls.target.copy(AERIAL_HOME_TARGET);
     desiredTargetRef.current.copy(controls.target);
 
     const ambient = new THREE.HemisphereLight("#d8f0ff", "#24170e", 2.2);
