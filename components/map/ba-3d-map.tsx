@@ -39,31 +39,31 @@ type PositionedDevelopment = MapDevelopment & {
 
 const NEIGHBORHOODS = [
   { name: "Puerto Madero", label: "PUERTO MADERO", x: 10.8, z: 8.4, radius: 2.9, color: "#203c3e" },
-  { name: "Retiro", label: "RETIRO", x: 7, z: 5.2, radius: 2.6, color: "#263832" },
-  { name: "Recoleta", label: "RECOLETA", x: 3.5, z: 3, radius: 2.9, color: "#273b31" },
-  { name: "Palermo", label: "PALERMO", x: -1.9, z: 0, radius: 4.4, color: "#2a4437" },
-  { name: "Belgrano", label: "BELGRANO", x: -7.8, z: -3.8, radius: 3.6, color: "#243f36" },
-  { name: "Nunez", label: "NUÑEZ", x: -12.6, z: -7.4, radius: 2.9, color: "#1f3934" },
+  { name: "Retiro", label: "RETIRO", x: 6.3, z: 5.3, radius: 2.6, color: "#263832" },
+  { name: "Recoleta", label: "RECOLETA", x: 1.4, z: 2.2, radius: 2.9, color: "#273b31" },
+  { name: "Palermo", label: "PALERMO", x: -5.6, z: -1.9, radius: 4.6, color: "#2a4437" },
+  { name: "Belgrano", label: "BELGRANO", x: -13.4, z: -6.3, radius: 3.8, color: "#243f36" },
+  { name: "Nunez", label: "NUÑEZ", x: -20, z: -10.2, radius: 3.2, color: "#1f3934" },
 ];
 
 type Neighborhood = (typeof NEIGHBORHOODS)[number];
 
 const POSITION_HINTS: Record<string, { x: number; z: number; neighborhood: string }> = {
   madero: { x: 10.8, z: 8.4, neighborhood: "Puerto Madero" },
-  retiro: { x: 7, z: 5.2, neighborhood: "Retiro" },
-  catalinas: { x: 7.4, z: 5.6, neighborhood: "Retiro" },
-  recoleta: { x: 3.5, z: 3, neighborhood: "Recoleta" },
-  palermo: { x: -1.9, z: 0, neighborhood: "Palermo" },
-  belgrano: { x: -7.8, z: -3.8, neighborhood: "Belgrano" },
-  aguilar: { x: -7.2, z: -4.2, neighborhood: "Belgrano" },
-  libertador: { x: -10.9, z: -6.5, neighborhood: "Nunez" },
-  nunez: { x: -12.6, z: -7.4, neighborhood: "Nunez" },
-  "nuñez": { x: -12.6, z: -7.4, neighborhood: "Nunez" },
+  retiro: { x: 6.3, z: 5.3, neighborhood: "Retiro" },
+  catalinas: { x: 6.8, z: 5.8, neighborhood: "Retiro" },
+  recoleta: { x: 1.4, z: 2.2, neighborhood: "Recoleta" },
+  palermo: { x: -5.6, z: -1.9, neighborhood: "Palermo" },
+  belgrano: { x: -13.4, z: -6.3, neighborhood: "Belgrano" },
+  aguilar: { x: -12.8, z: -6.8, neighborhood: "Belgrano" },
+  libertador: { x: -18.5, z: -9.4, neighborhood: "Nunez" },
+  nunez: { x: -20, z: -10.2, neighborhood: "Nunez" },
+  "nuñez": { x: -20, z: -10.2, neighborhood: "Nunez" },
 };
 
-const AERIAL_HOME_TARGET = new THREE.Vector3(-1.2, 0, 1.2);
-const AERIAL_HOME_CAMERA = new THREE.Vector3(-4.8, 52, 15.5);
-const AERIAL_FOCUS_OFFSET = new THREE.Vector3(-2.4, 30, 8.2);
+const AERIAL_HOME_TARGET = new THREE.Vector3(0.8, 0, 2.8);
+const AERIAL_HOME_CAMERA = new THREE.Vector3(-6.8, 38, 22);
+const AERIAL_FOCUS_OFFSET = new THREE.Vector3(-3.2, 28, 10.5);
 
 function getPosition(dev: MapDevelopment, index: number): PositionedDevelopment {
   const source = `${dev.name} ${dev.location} ${dev.address}`.toLowerCase();
@@ -166,19 +166,40 @@ function addFlatRect(
   return mesh;
 }
 
+function addReferenceMapTexture(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+  const texture = new THREE.TextureLoader().load("/maps/puerto-madero-base.png");
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.86,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(29, 21.4), material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = -0.57;
+  mesh.position.set(2.6, 0.052, 4.2);
+  scene.add(mesh);
+  return mesh;
+}
+
 function addUrbanGrid(scene: THREE.Scene) {
-  for (let x = -15.5; x <= 7.5; x += 1.25) {
-    addFlatRect(scene, x, -0.8, 0.08, 23, "#c8cdd0", 0.075);
+  for (let x = -24; x <= 8.6; x += 1.25) {
+    addFlatRect(scene, x, -2.2, 0.08, 31, "#c8cdd0", 0.075);
   }
 
-  for (let z = -10.8; z <= 8.8; z += 1.25) {
-    addFlatRect(scene, -4.2, z, 25, 0.08, "#c8cdd0", 0.076);
+  for (let z = -15.8; z <= 10.8; z += 1.25) {
+    addFlatRect(scene, -7.7, z, 35, 0.08, "#c8cdd0", 0.076);
   }
 
   [
-    { x: -10.8, z: -5.8, width: 0.28, depth: 18.5 },
-    { x: -3.2, z: -0.8, width: 0.24, depth: 21.5 },
-    { x: 3.2, z: 3.1, width: 0.26, depth: 18.5 },
+    { x: -20.8, z: -10.8, width: 0.32, depth: 16.5 },
+    { x: -15.8, z: -7.8, width: 0.3, depth: 20.5 },
+    { x: -10.8, z: -5.8, width: 0.28, depth: 24.5 },
+    { x: -3.2, z: -0.8, width: 0.24, depth: 24.5 },
+    { x: 3.2, z: 3.1, width: 0.26, depth: 20.5 },
     { x: 7.8, z: 5.9, width: 0.32, depth: 15 },
   ].forEach((road) => {
     addFlatRect(scene, road.x, road.z, road.width, road.depth, "#6f777a", 0.09);
@@ -186,9 +207,11 @@ function addUrbanGrid(scene: THREE.Scene) {
   });
 
   [
-    { x: -5.2, z: -7.6, width: 21, depth: 0.24 },
-    { x: -1.4, z: -2.7, width: 21, depth: 0.22 },
-    { x: 2.2, z: 2.1, width: 19, depth: 0.24 },
+    { x: -16.5, z: -12.8, width: 18, depth: 0.24 },
+    { x: -11.2, z: -9.8, width: 24, depth: 0.24 },
+    { x: -5.2, z: -7.6, width: 30, depth: 0.24 },
+    { x: -1.4, z: -2.7, width: 27, depth: 0.22 },
+    { x: 2.2, z: 2.1, width: 21, depth: 0.24 },
     { x: 6.4, z: 6.8, width: 14, depth: 0.28 },
   ].forEach((road) => {
     addFlatRect(scene, road.x, road.z, road.width, road.depth, "#747b7d", 0.09);
@@ -232,6 +255,41 @@ function addPuertoMaderoDocks(scene: THREE.Scene) {
 
   addFlatRect(scene, 8.8, 7.1, 0.22, 8.8, "#6b7072", 0.1);
   addFlatRect(scene, 7.1, 5.9, 0.24, 8.2, "#6b7072", 0.1);
+}
+
+function addPortAndRail(scene: THREE.Scene) {
+  [
+    { x: 5.9, z: 12.4, width: 7.4, depth: 1.1 },
+    { x: 9.8, z: 13.8, width: 4.6, depth: 0.92 },
+    { x: 12.9, z: 14.7, width: 3.8, depth: 0.75 },
+  ].forEach((dock) => {
+    addFlatRect(scene, dock.x, dock.z, dock.width, dock.depth, "#c7c8bd", 0.09);
+    addFlatRect(scene, dock.x, dock.z + 0.55, dock.width * 0.78, 0.08, "#6a7174", 0.105);
+  });
+
+  for (let i = 0; i < 8; i += 1) {
+    addRoad(
+      scene,
+      [
+        new THREE.Vector3(-3.5 - i * 0.36, 0.14, 11.4 + i * 0.1),
+        new THREE.Vector3(1.2 - i * 0.18, 0.14, 11.8 + i * 0.18),
+        new THREE.Vector3(5.7, 0.14, 12.7 + i * 0.12),
+      ],
+      i % 2 === 0 ? "#d9a735" : "#a87d24"
+    );
+  }
+
+  for (let i = 0; i < 7; i += 1) {
+    addRoad(
+      scene,
+      [
+        new THREE.Vector3(11.5, 0.08, -11 + i * 3.2),
+        new THREE.Vector3(16.5, 0.08, -9.8 + i * 3.05),
+        new THREE.Vector3(23.5, 0.08, -8.8 + i * 2.8),
+      ],
+      "#d7eef3"
+    );
+  }
 }
 
 function addEcologicalReserve(scene: THREE.Scene) {
@@ -294,6 +352,8 @@ function addCoastline(scene: THREE.Scene) {
   addRoad(
     scene,
     [
+      new THREE.Vector3(-22.8, 0.12, -14.0),
+      new THREE.Vector3(-18.2, 0.12, -11.4),
       new THREE.Vector3(-15.4, 0.12, -9.6),
       new THREE.Vector3(-10.5, 0.12, -6.8),
       new THREE.Vector3(-5.8, 0.12, -3.6),
@@ -308,6 +368,8 @@ function addCoastline(scene: THREE.Scene) {
   addRoad(
     scene,
     [
+      new THREE.Vector3(-22.0, 0.13, -15.0),
+      new THREE.Vector3(-17.2, 0.13, -12.0),
       new THREE.Vector3(-14, 0.13, -10.8),
       new THREE.Vector3(-8.5, 0.13, -7.4),
       new THREE.Vector3(-2.6, 0.13, -3.8),
@@ -331,6 +393,8 @@ function addParks(scene: THREE.Scene) {
   [
     { x: -2.8, z: -1.4, sx: 5.7, sz: 1.45, rotation: -0.57 },
     { x: -9.8, z: -6, sx: 3.8, sz: 1.2, rotation: -0.57 },
+    { x: -16.8, z: -9.5, sx: 4.8, sz: 1.35, rotation: -0.57 },
+    { x: -21.2, z: -12.7, sx: 3.4, sz: 1.05, rotation: -0.57 },
     { x: 5.2, z: 3.6, sx: 2.3, sz: 1.0, rotation: -0.57 },
     { x: 9.4, z: 8.9, sx: 2.3, sz: 1.1, rotation: -0.62 },
   ].forEach((park) => {
@@ -345,10 +409,24 @@ function addParks(scene: THREE.Scene) {
 
   const treeMaterial = new THREE.MeshStandardMaterial({ color: "#348344", roughness: 0.75 });
   const trunkMaterial = new THREE.MeshStandardMaterial({ color: "#7a6041", roughness: 0.8 });
-  for (let i = 0; i < 130; i += 1) {
+  for (let i = 0; i < 210; i += 1) {
     const band = i % 4;
-    const x = band === 0 ? -3.8 + Math.sin(i * 1.7) * 2.8 : band === 1 ? -10 + Math.sin(i) * 1.8 : 9.5 + Math.sin(i * 1.2) * 1.7;
-    const z = band === 0 ? -1.5 + Math.cos(i * 1.3) * 0.85 : band === 1 ? -6 + Math.cos(i * 1.4) * 0.7 : 8.6 + Math.cos(i) * 1.2;
+    const x =
+      band === 0
+        ? -3.8 + Math.sin(i * 1.7) * 2.8
+        : band === 1
+          ? -11.5 + Math.sin(i) * 4.8
+          : band === 2
+            ? -20.1 + Math.sin(i * 1.5) * 2.0
+            : 9.5 + Math.sin(i * 1.2) * 1.7;
+    const z =
+      band === 0
+        ? -1.5 + Math.cos(i * 1.3) * 0.85
+        : band === 1
+          ? -7.8 + Math.cos(i * 1.4) * 1.2
+          : band === 2
+            ? -12.2 + Math.cos(i * 1.3) * 0.85
+            : 8.6 + Math.cos(i) * 1.2;
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.22, 6), trunkMaterial);
     trunk.position.set(x, 0.17, z);
     scene.add(trunk);
@@ -375,17 +453,17 @@ function addBuildings(scene: THREE.Scene) {
     metalness: 0.05,
   });
 
-  for (let x = -16; x <= 9.2; x += 0.62) {
-    for (let z = -11.2; z <= 10.6; z += 0.62) {
-      const riverEdge = z > x * 0.74 + 2.9;
-      const farWest = z < x * 0.62 - 5.8;
-      const inPalermoPark = x > -5.3 && x < 1.2 && z > -3.2 && z < 1.8;
-      const inNunezPark = x > -12.1 && x < -8.2 && z > -7.5 && z < -4.8;
+  for (let x = -24; x <= 9.2; x += 0.62) {
+    for (let z = -16.2; z <= 10.6; z += 0.62) {
+      const riverEdge = x > 5.2 && z > x * 0.74 + 2.2;
+      const inPalermoPark = x > -7.2 && x < 0.5 && z > -4.5 && z < 1.2;
+      const inBelgranoPark = x > -18.8 && x < -11.8 && z > -10.8 && z < -5.6;
+      const inNunezPark = x > -22.8 && x < -18.0 && z > -14.3 && z < -10.6;
       const inDocks = x > 6.5 && x < 10.2 && z > 2.1 && z < 11.1;
       const skip =
         riverEdge ||
-        farWest ||
         inPalermoPark ||
+        inBelgranoPark ||
         inNunezPark ||
         inDocks ||
         Math.abs(Math.sin(x * 3.1)) < 0.08 ||
@@ -393,12 +471,13 @@ function addBuildings(scene: THREE.Scene) {
         Math.sin(x * 6.7 + z * 5.1) > 0.93;
       if (skip) continue;
 
-      const height = 0.12 + Math.abs(Math.sin(x * 1.2) + Math.cos(z * 1.4)) * 0.32;
+      const height = 0.1 + Math.abs(Math.sin(x * 1.2) + Math.cos(z * 1.4)) * 0.24;
       const maderoBoost = x > 5.7 && z > 3.2 ? 2.75 : 1;
-      const belgranoBoost = x < -6.5 && z < -2 ? 1.42 : 1;
-      const palermoBoost = x > -3.5 && x < 1.8 ? 1.25 : 1;
-      const boost = Math.max(maderoBoost, belgranoBoost, palermoBoost);
-      const geometry = new THREE.BoxGeometry(0.34, height * boost, 0.34);
+      const belgranoBoost = x < -10.5 && x > -18.8 && z < -4.2 ? 1.62 : 1;
+      const nunezBoost = x < -18 && z < -9.4 ? 1.45 : 1;
+      const palermoBoost = x > -7.2 && x < 0.8 ? 1.25 : 1;
+      const boost = Math.max(maderoBoost, belgranoBoost, nunezBoost, palermoBoost);
+      const geometry = new THREE.BoxGeometry(0.5, height * boost, 0.5);
       const mesh = new THREE.Mesh(
         geometry,
         boost > 1.7 && Math.sin(x + z) > 0.1 ? accentMaterial : buildingMaterial
@@ -416,8 +495,12 @@ function addBuildings(scene: THREE.Scene) {
     { x: 9.8, z: 8.5, h: 3.7 },
     { x: 7.3, z: 5.1, h: 2.4 },
     { x: 6.6, z: 6.4, h: 2.7 },
-    { x: -8.2, z: -3.9, h: 2.0 },
-    { x: -12.2, z: -7.6, h: 1.9 },
+    { x: -10.6, z: -5.2, h: 2.0 },
+    { x: -12.2, z: -7.0, h: 2.2 },
+    { x: -14.4, z: -6.8, h: 2.4 },
+    { x: -17.6, z: -9.5, h: 2.2 },
+    { x: -20.2, z: -10.4, h: 2.1 },
+    { x: -21.6, z: -11.5, h: 1.85 },
   ].forEach((tower) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.48, tower.h, 0.48), towerMaterial);
     mesh.rotation.y = -0.55;
@@ -535,9 +618,9 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     setSceneError(null);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#d8e9ef", 36, 78);
+    scene.fog = new THREE.Fog("#d8e9ef", 56, 112);
 
-    const camera = new THREE.PerspectiveCamera(38, mount.clientWidth / mount.clientHeight, 0.1, 120);
+    const camera = new THREE.PerspectiveCamera(42, mount.clientWidth / mount.clientHeight, 0.1, 140);
     camera.position.copy(AERIAL_HOME_CAMERA);
     camera.lookAt(AERIAL_HOME_TARGET);
     desiredCameraRef.current.copy(camera.position);
@@ -566,10 +649,10 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.minDistance = 18;
-    controls.maxDistance = 62;
-    controls.minPolarAngle = Math.PI * 0.06;
-    controls.maxPolarAngle = Math.PI * 0.16;
+    controls.minDistance = 12;
+    controls.maxDistance = 72;
+    controls.minPolarAngle = Math.PI * 0.1;
+    controls.maxPolarAngle = Math.PI * 0.32;
     controls.target.copy(AERIAL_HOME_TARGET);
     desiredTargetRef.current.copy(controls.target);
 
@@ -582,15 +665,17 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     scene.add(sun);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(46, 34),
+      new THREE.PlaneGeometry(68, 46),
       new THREE.MeshStandardMaterial({ color: "#e2e5de", roughness: 0.88 })
     );
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
 
+    addReferenceMapTexture(scene, renderer);
     addRiver(scene);
     addEcologicalReserve(scene);
     addPuertoMaderoDocks(scene);
+    addPortAndRail(scene);
     addUrbanGrid(scene);
     addCoastline(scene);
     addParks(scene);
@@ -602,6 +687,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
     });
 
     addRoad(scene, [
+      new THREE.Vector3(-23.5, 0.17, -14.8),
+      new THREE.Vector3(-19.5, 0.17, -12.4),
       new THREE.Vector3(-14.8, 0.17, -8.6),
       new THREE.Vector3(-10.4, 0.17, -6.2),
       new THREE.Vector3(-6.2, 0.17, -3.7),
@@ -611,6 +698,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       new THREE.Vector3(11.6, 0.17, 9.2),
     ]);
     addRoad(scene, [
+      new THREE.Vector3(-22.4, 0.12, -11.6),
+      new THREE.Vector3(-17.4, 0.12, -9.2),
       new THREE.Vector3(-13.4, 0.12, -4.8),
       new THREE.Vector3(-7.3, 0.12, -2.9),
       new THREE.Vector3(-2.5, 0.12, -0.9),
@@ -618,6 +707,8 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
       new THREE.Vector3(9.6, 0.12, 6.6),
     ], "#bfa98b");
     addRoad(scene, [
+      new THREE.Vector3(-22.4, 0.12, -16.3),
+      new THREE.Vector3(-16.8, 0.12, -12.4),
       new THREE.Vector3(-11.6, 0.12, -9.2),
       new THREE.Vector3(-8.4, 0.12, -5.6),
       new THREE.Vector3(-3.8, 0.12, -2.2),
@@ -810,7 +901,7 @@ export function BuenosAires3DMap({ developments }: BuenosAires3DMapProps) {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,16,19,0.2)_0%,transparent_28%,rgba(8,16,19,0.28)_100%),linear-gradient(90deg,rgba(8,16,19,0.42)_0%,transparent_38%,rgba(8,16,19,0.18)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,16,19,0.08)_0%,transparent_30%,rgba(8,16,19,0.16)_100%),linear-gradient(90deg,rgba(8,16,19,0.2)_0%,transparent_38%,rgba(8,16,19,0.08)_100%)]" />
 
       <div className="relative z-10 flex min-h-screen flex-col justify-between p-5 md:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
