@@ -31,6 +31,8 @@ const developmentSchema = z.object({
   features: z.array(z.string()).default([]),
   highlight: z.boolean().optional(),
   agentId: z.string().optional(),
+  brochureUrl: z.string().url().optional(),
+  priceListUrl: z.string().url().optional(),
   images: z.array(imageSchema).default([]),
 });
 

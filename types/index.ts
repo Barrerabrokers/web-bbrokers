@@ -141,6 +141,7 @@ export interface Development {
   highlight?: boolean;
   agentId?: string;
   brochureUrl?: string;
+  priceListUrl?: string;
   images: DevelopmentImage[];
   units?: Unit[];
   // Stats from view

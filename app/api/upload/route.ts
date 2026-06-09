@@ -23,7 +23,15 @@ export async function POST(request: NextRequest) {
     const folder = (formData.get("folder") as string) || "properties";
 
     // Validar folder permitido
-    const allowedFolders = ["properties", "developments", "units", "agents", "brochures", "settings"];
+    const allowedFolders = [
+      "properties",
+      "developments",
+      "units",
+      "agents",
+      "brochures",
+      "price-lists",
+      "settings",
+    ];
     const safeFolder = allowedFolders.includes(folder) ? folder : "properties";
 
     if (!files || files.length === 0) {
@@ -36,12 +44,22 @@ export async function POST(request: NextRequest) {
     const supabase = getServerSupabase();
     const uploadedUrls: string[] = [];
 
-    // Tipos de archivo permitidos
-    const allowedTypes = ["image/", "application/pdf"];
+    const allowedTypes = [
+      "image/",
+      "application/pdf",
+      "text/csv",
+      "application/csv",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    const allowedExtensions = ["pdf", "xls", "xlsx", "csv", "jpg", "jpeg", "png", "webp", "gif"];
 
     for (const file of files) {
-      // Validar que sea imagen o PDF
-      const isAllowed = allowedTypes.some((t) => file.type.startsWith(t));
+      // Validar que sea imagen, PDF o planilla
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const isAllowed =
+        allowedTypes.some((t) => file.type.startsWith(t)) ||
+        allowedExtensions.includes(ext);
       if (!isAllowed) {
         return NextResponse.json(
           { error: `Tipo de archivo no permitido: ${file.type}` },
@@ -49,9 +67,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validar tamaño (max 10MB para PDFs, 5MB para imágenes)
-      const maxSize = file.type === "application/pdf" ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
-      const maxLabel = file.type === "application/pdf" ? "10MB" : "5MB";
+      // Validar tamaño (max 10MB para documentos, 5MB para imágenes)
+      const isDocument = !file.type.startsWith("image/");
+      const maxSize = isDocument ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+      const maxLabel = isDocument ? "10MB" : "5MB";
       if (file.size > maxSize) {
         return NextResponse.json(
           { error: `Archivo ${file.name} es muy grande (max ${maxLabel})` },
@@ -60,7 +79,6 @@ export async function POST(request: NextRequest) {
       }
 
       // Generar nombre único
-      const ext = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `${safeFolder}/${fileName}`;
 

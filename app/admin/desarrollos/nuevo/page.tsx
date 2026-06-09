@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, FileText, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { COMMON_AMENITIES, DEVELOPMENT_IMAGE_TYPES } from "@/types";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +23,7 @@ export default function NewDevelopmentPage() {
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [imageMeta, setImageMeta] = useState<ImageMeta[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [priceListFile, setPriceListFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -124,6 +125,33 @@ export default function NewDevelopmentPage() {
     }
   };
 
+  const uploadPriceList = async () => {
+    if (!priceListFile) return undefined;
+
+    const uploadFormData = new FormData();
+    uploadFormData.append("files", priceListFile);
+    uploadFormData.append("folder", "price-lists");
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: uploadFormData,
+    });
+
+    if (!response.ok) {
+      let errorMsg = "Error subiendo lista de precios";
+      try {
+        const err = await response.json();
+        errorMsg = err.error || errorMsg;
+      } catch {
+        errorMsg = `Error del servidor: ${response.status}`;
+      }
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    return data.urls[0] as string;
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +164,7 @@ export default function NewDevelopmentPage() {
 
     try {
       const images = await buildFinalImages();
+      const priceListUrl = await uploadPriceList();
 
       const response = await fetch("/api/developments", {
         method: "POST",
@@ -163,6 +192,7 @@ export default function NewDevelopmentPage() {
           highlight: formData.highlight,
           agentId: session?.user?.id,
           images,
+          priceListUrl,
           videoUrl: videoUrl || undefined,
         }),
       });
@@ -256,6 +286,62 @@ export default function NewDevelopmentPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* PRICE LIST SECTION */}
+        <div className="mb-8 pb-8 border-b border-ink/15">
+          <label className="label-tracking text-ink/85 block mb-3">
+            Lista de precios
+          </label>
+
+          {priceListFile ? (
+            <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <FileText className="h-8 w-8 text-emerald-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-ink truncate">
+                  {priceListFile.name}
+                </p>
+                <p className="text-xs text-ink/60">
+                  {(priceListFile.size / (1024 * 1024)).toFixed(2)} MB · Listo para subir
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPriceListFile(null)}
+                className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
+                title="Cancelar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-3 border-2 border-dashed border-ink/20 hover:border-accent rounded-lg transition-colors">
+              <Upload className="h-5 w-5 text-accent-700" />
+              <span className="text-sm text-ink">
+                Subir lista de precios
+              </span>
+              <input
+                type="file"
+                accept=".pdf,.xls,.xlsx,.csv,image/*,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      setError("La lista de precios es muy grande (máx 10MB)");
+                      return;
+                    }
+                    setPriceListFile(file);
+                  }
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+
+          <p className="text-xs text-ink/50 mt-2">
+            PDF, Excel, CSV o imagen · Máximo 10MB. También podés cargarla después desde la edición.
+          </p>
         </div>
 
 

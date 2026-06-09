@@ -50,6 +50,11 @@ export function DevelopmentEditor({ development }: Props) {
   const [brochureExpanded, setBrochureExpanded] = useState(false);
   const [isUploadingBrochure, setIsUploadingBrochure] = useState(false);
 
+  // === PRICE LIST STATE ===
+  const [priceListUrl, setPriceListUrl] = useState<string>(development.priceListUrl || "");
+  const [priceListFile, setPriceListFile] = useState<File | null>(null);
+  const [priceListExpanded, setPriceListExpanded] = useState(false);
+
   const [imagePrimaryIndex, setImagePrimaryIndex] = useState<number>(() => {
     const idx = (development.images || []).findIndex((img) => img.isPrimary);
     return idx >= 0 ? idx : 0;
@@ -199,6 +204,38 @@ export function DevelopmentEditor({ development }: Props) {
     return data.urls[0];
   };
 
+  const uploadPriceList = async (): Promise<string | undefined> => {
+    if (!priceListFile) return priceListUrl || undefined;
+
+    const uploadFormData = new FormData();
+    uploadFormData.append("files", priceListFile);
+    uploadFormData.append("folder", "price-lists");
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: uploadFormData,
+    });
+
+    if (!response.ok) {
+      let errorMsg = "Error subiendo lista de precios";
+      try {
+        const err = await response.json();
+        errorMsg = err.error || errorMsg;
+      } catch {
+        const text = await response.text();
+        if (text.toLowerCase().includes("entity too large") || text.toLowerCase().includes("request en")) {
+          errorMsg = "El archivo es demasiado grande. Máximo 4.5MB en Vercel.";
+        } else {
+          errorMsg = `Error del servidor: ${response.status}`;
+        }
+      }
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    return data.urls[0];
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -211,6 +248,7 @@ export function DevelopmentEditor({ development }: Props) {
 
       // Upload brochure if new file
       const finalBrochureUrl = await uploadBrochure();
+      const finalPriceListUrl = await uploadPriceList();
 
       const response = await fetch(`/api/developments/${development.id}`, {
         method: "PUT",
@@ -238,6 +276,7 @@ export function DevelopmentEditor({ development }: Props) {
           highlight: formData.highlight,
           images,
           brochureUrl: finalBrochureUrl || null,
+          priceListUrl: finalPriceListUrl || null,
         }),
       });
 
@@ -791,6 +830,136 @@ export function DevelopmentEditor({ development }: Props) {
             )}
 
             {/* Save button */}
+            <div className="flex justify-end pt-3">
+              <button
+                type="button"
+                onClick={handleSave as any}
+                disabled={isLoading}
+                className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isLoading ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ====== PRICE LIST SECTION ====== */}
+      <div className="card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setPriceListExpanded(!priceListExpanded)}
+          className="w-full flex items-center justify-between p-5 hover:bg-cream-100 transition-colors"
+        >
+          <div className="text-left">
+            <h2 className="font-semibold text-ink flex items-center gap-2">
+              <FileText className="h-5 w-5 text-accent-700" />
+              Lista de precios
+            </h2>
+            <p className="text-xs text-ink/60 mt-0.5">
+              {priceListExpanded
+                ? "Ocultar"
+                : priceListUrl
+                ? "Lista cargada · Click para editar"
+                : "Subir PDF, Excel, CSV o imagen con precios"}
+            </p>
+          </div>
+          {priceListExpanded ? (
+            <ChevronUp className="h-5 w-5 text-ink/60" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-ink/60" />
+          )}
+        </button>
+
+        {priceListExpanded && (
+          <div className="border-t border-ink/15 p-6 space-y-4">
+            {priceListUrl && !priceListFile && (
+              <div className="flex items-center gap-3 p-4 bg-cream-50 border border-ink/10 rounded-lg">
+                <FileText className="h-8 w-8 text-accent-700 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">
+                    Lista de precios actual
+                  </p>
+                  <a
+                    href={priceListUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-accent-700 hover:underline truncate block"
+                  >
+                    Ver archivo
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPriceListUrl("");
+                    setPriceListFile(null);
+                  }}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Eliminar lista"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {priceListFile && (
+              <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <FileText className="h-8 w-8 text-emerald-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">
+                    {priceListFile.name}
+                  </p>
+                  <p className="text-xs text-ink/60">
+                    {(priceListFile.size / (1024 * 1024)).toFixed(2)} MB · Listo para subir
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPriceListFile(null)}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Cancelar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {!priceListFile && (
+              <div>
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-3 border-2 border-dashed border-ink/20 hover:border-accent rounded-lg transition-colors">
+                  <Upload className="h-5 w-5 text-accent-700" />
+                  <span className="text-sm text-ink">
+                    {priceListUrl ? "Reemplazar lista" : "Subir lista de precios"}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".pdf,.xls,.xlsx,.csv,image/*,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 10 * 1024 * 1024) {
+                          setError("La lista de precios es muy grande (máx 10MB)");
+                          return;
+                        }
+                        setPriceListFile(file);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <p className="text-xs text-ink/50 mt-2">
+                  PDF, Excel, CSV o imagen · Máximo 10MB
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-end pt-3">
               <button
                 type="button"

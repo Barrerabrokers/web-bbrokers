@@ -148,6 +148,22 @@ export default async function DevelopmentDetailPage({
                   </Link>
                 </div>
               )}
+              {development.priceListUrl && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
+                    Lista de precios
+                  </p>
+                  <a
+                    href={development.priceListUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-display font-light text-xl md:text-2xl text-accent hover:text-accent-300 flex items-center gap-2 transition-colors"
+                  >
+                    <FileText className="h-5 w-5" />
+                    Ver archivo
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </section>

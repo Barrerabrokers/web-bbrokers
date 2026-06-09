@@ -268,6 +268,13 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        await sql.unsafe(`ALTER TABLE developments ADD COLUMN IF NOT EXISTS price_list_url TEXT;`);
+        results.push("Columna price_list_url en developments OK");
+      } catch (e: any) {
+        results.push(`Error columna price_list_url: ${e.message}`);
+      }
+
+      try {
         await sql.unsafe(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS title VARCHAR(255);`);
         results.push("Columna title en agents OK");
       } catch (e: any) {
