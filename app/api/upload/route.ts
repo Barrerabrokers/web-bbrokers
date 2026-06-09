@@ -57,6 +57,16 @@ export async function POST(request: NextRequest) {
     for (const file of files) {
       // Validar que sea imagen, PDF o planilla
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const isPriceListUpload = safeFolder === "price-lists";
+      const isPdf = file.type === "application/pdf" || ext === "pdf";
+
+      if (isPriceListUpload && !isPdf) {
+        return NextResponse.json(
+          { error: "La lista de precios debe ser un archivo PDF" },
+          { status: 400 }
+        );
+      }
+
       const isAllowed =
         allowedTypes.some((t) => file.type.startsWith(t)) ||
         allowedExtensions.includes(ext);

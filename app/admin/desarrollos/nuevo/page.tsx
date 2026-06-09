@@ -318,15 +318,19 @@ export default function NewDevelopmentPage() {
             <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-3 border-2 border-dashed border-ink/20 hover:border-accent rounded-lg transition-colors">
               <Upload className="h-5 w-5 text-accent-700" />
               <span className="text-sm text-ink">
-                Subir lista de precios
+                Subir lista de precios en PDF
               </span>
               <input
                 type="file"
-                accept=".pdf,.xls,.xlsx,.csv,image/*,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept="application/pdf,.pdf"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                      setError("La lista de precios debe ser un PDF");
+                      return;
+                    }
                     if (file.size > 10 * 1024 * 1024) {
                       setError("La lista de precios es muy grande (máx 10MB)");
                       return;
