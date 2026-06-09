@@ -13,7 +13,6 @@ import {
   Mail,
   Phone,
   Receipt,
-  ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -31,11 +30,6 @@ export default async function PropertyDetailPage({
   if (!property) {
     notFound();
   }
-
-  const mapAddress = encodeURIComponent(
-    `${property.address}, ${property.location}`
-  );
-  const mapUrl = `https://www.google.com/maps?q=${mapAddress}&output=embed`;
 
   const statusStyles: Record<string, string> = {
     disponible: "border-emerald-700/30 text-emerald-800 bg-emerald-50",
@@ -178,36 +172,15 @@ export default async function PropertyDetailPage({
                 )}
               </div>
 
-              {/* Mapa */}
+              {/* Ubicacion */}
               <div className="pt-10 border-t border-ink/15">
                 <div className="flex items-center gap-2 text-ink mb-2">
                   <MapPin className="h-4 w-4 text-ink/60" />
                   <p className="eyebrow">Ubicacion</p>
                 </div>
-                <p className="text-ink/70 text-base mb-5">
+                <p className="text-ink/70 text-base">
                   {property.address}, {property.location}
                 </p>
-                <div className="relative w-full h-[420px] overflow-hidden border border-ink/15">
-                  <iframe
-                    src={mapUrl}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Mapa de la propiedad"
-                  />
-                </div>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${mapAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-ink hover:text-accent mt-5 link-underline"
-                >
-                  Abrir en Google Maps
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </a>
               </div>
             </div>
 
