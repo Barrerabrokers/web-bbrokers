@@ -204,6 +204,28 @@ export default function NewDevelopmentPage() {
         return;
       }
 
+      if (priceListUrl) {
+        const importResponse = await fetch(
+          `/api/developments/${data.id}/import-price-list`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ priceListUrl }),
+          }
+        );
+
+        if (!importResponse.ok) {
+          const importData = await importResponse.json().catch(() => ({}));
+          setError(
+            `Desarrollo creado, pero no pude cargar las unidades del PDF: ${
+              importData.error || "error al analizar la lista"
+            }`
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
+
       router.push(`/admin/desarrollos/${data.id}/editar`);
       router.refresh();
     } catch (err: any) {

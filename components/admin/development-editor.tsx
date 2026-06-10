@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2, FileText, Upload, X } from "lucide-react";
+import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2, FileText, Upload, X, ListPlus } from "lucide-react";
 import { COMMON_AMENITIES, Development, DevelopmentImage, DEVELOPMENT_IMAGE_TYPES, DevelopmentImageType } from "@/types";
 import { ImageUploader, ImageItem } from "./image-uploader";
 
@@ -54,6 +54,8 @@ export function DevelopmentEditor({ development }: Props) {
   const [priceListUrl, setPriceListUrl] = useState<string>(development.priceListUrl || "");
   const [priceListFile, setPriceListFile] = useState<File | null>(null);
   const [priceListExpanded, setPriceListExpanded] = useState(false);
+  const [isImportingPriceList, setIsImportingPriceList] = useState(false);
+  const [priceListImportSummary, setPriceListImportSummary] = useState("");
 
   const [imagePrimaryIndex, setImagePrimaryIndex] = useState<number>(() => {
     const idx = (development.images || []).findIndex((img) => img.isPrimary);
@@ -236,6 +238,52 @@ export function DevelopmentEditor({ development }: Props) {
     return data.urls[0];
   };
 
+  const importPriceListUnits = async (url?: string) => {
+    const targetUrl = url || priceListUrl;
+    if (!targetUrl) {
+      throw new Error("Primero subí una lista de precios en PDF");
+    }
+
+    const response = await fetch(
+      `/api/developments/${development.id}/import-price-list`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceListUrl: targetUrl }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo analizar la lista de precios");
+    }
+
+    return data as {
+      detected: number;
+      created: number;
+      skipped: number;
+      failed: number;
+    };
+  };
+
+  const handleManualPriceListImport = async () => {
+    setError("");
+    setPriceListImportSummary("");
+    setIsImportingPriceList(true);
+
+    try {
+      const result = await importPriceListUnits();
+      setPriceListImportSummary(
+        `PDF analizado: ${result.detected} unidades detectadas, ${result.created} creadas, ${result.skipped} ya existentes.`
+      );
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsImportingPriceList(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -285,6 +333,23 @@ export function DevelopmentEditor({ development }: Props) {
         setError(data.error || "Error al actualizar");
         return;
       }
+
+      setPriceListUrl(finalPriceListUrl || "");
+      setPriceListFile(null);
+
+      if (priceListFile && finalPriceListUrl) {
+        try {
+          const result = await importPriceListUnits(finalPriceListUrl);
+          setPriceListImportSummary(
+            `PDF analizado: ${result.detected} unidades detectadas, ${result.created} creadas, ${result.skipped} ya existentes.`
+          );
+        } catch (importError: any) {
+          setError(
+            `Cambios guardados, pero no pude cargar las unidades del PDF: ${importError.message}`
+          );
+        }
+      }
+
       setSuccess(true);
       router.refresh();
       setTimeout(() => setSuccess(false), 3000);
@@ -879,32 +944,56 @@ export function DevelopmentEditor({ development }: Props) {
         {priceListExpanded && (
           <div className="border-t border-ink/15 p-6 space-y-4">
             {priceListUrl && !priceListFile && (
-              <div className="flex items-center gap-3 p-4 bg-cream-50 border border-ink/10 rounded-lg">
-                <FileText className="h-8 w-8 text-accent-700 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ink truncate">
-                    Lista de precios actual
-                  </p>
-                  <a
-                    href={priceListUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-accent-700 hover:underline truncate block"
+              <div className="p-4 bg-cream-50 border border-ink/10 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-8 w-8 text-accent-700 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ink truncate">
+                      Lista de precios actual
+                    </p>
+                    <a
+                      href={priceListUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-accent-700 hover:underline truncate block"
+                    >
+                      Ver archivo
+                    </a>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPriceListUrl("");
+                      setPriceListFile(null);
+                      setPriceListImportSummary("");
+                    }}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
+                    title="Eliminar lista"
                   >
-                    Ver archivo
-                  </a>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setPriceListUrl("");
-                    setPriceListFile(null);
-                  }}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"
-                  title="Eliminar lista"
+                  onClick={handleManualPriceListImport}
+                  disabled={isImportingPriceList || isLoading}
+                  className="mt-4 inline-flex items-center gap-2 px-3 py-2 text-sm bg-ink text-cream-50 rounded hover:bg-ink/90 disabled:opacity-50"
                 >
-                  <X className="h-4 w-4" />
+                  {isImportingPriceList ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ListPlus className="h-4 w-4" />
+                  )}
+                  {isImportingPriceList
+                    ? "Analizando PDF..."
+                    : "Analizar PDF y cargar unidades"}
                 </button>
+              </div>
+            )}
+
+            {priceListImportSummary && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm">
+                {priceListImportSummary}
               </div>
             )}
 
@@ -959,7 +1048,7 @@ export function DevelopmentEditor({ development }: Props) {
                   />
                 </label>
                 <p className="text-xs text-ink/50 mt-2">
-                  PDF, Excel, CSV o imagen · Máximo 10MB
+                  Solo PDF · Máximo 10MB. Al guardar, se analizará y cargará las unidades detectadas.
                 </p>
               </div>
             )}
