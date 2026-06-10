@@ -454,14 +454,14 @@ export function UnitsList({ units, developmentFeatures = [] }: Props) {
 
                     {activeFeatures.length > 0 && (
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-3">
+                        <p className="text-[10px] uppercase tracking-widest text-black mb-3">
                           Características
                         </p>
                         <ul className="grid grid-cols-1 gap-2">
                           {activeFeatures.map((f) => (
                             <li
                               key={f}
-                              className="text-bone/75 text-sm flex items-start gap-2"
+                              className="text-black text-sm flex items-start gap-2"
                             >
                               <span className="text-accent mt-0.5">•</span>
                               <span>{f}</span>
