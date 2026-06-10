@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/utils";
 
 interface Props {
   units: Unit[];
+  developmentFeatures?: string[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,7 +32,7 @@ function hasPaymentPlan(unit: Unit) {
   return !!(unit.downPayment || unit.installmentCount || unit.installmentValue);
 }
 
-export function UnitsList({ units }: Props) {
+export function UnitsList({ units, developmentFeatures = [] }: Props) {
   const [filter, setFilter] = useState<string>("todos");
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -46,6 +47,11 @@ export function UnitsList({ units }: Props) {
     if (filter === "todos") return units;
     return units.filter((u) => u.bedrooms === parseInt(filter));
   }, [units, filter]);
+
+  const activeFeatures =
+    activeUnit && activeUnit.features.length > 0
+      ? activeUnit.features
+      : developmentFeatures;
 
   useEffect(() => {
     if (!activeUnit) return;
@@ -446,13 +452,13 @@ export function UnitsList({ units }: Props) {
                       </p>
                     )}
 
-                    {activeUnit.features.length > 0 && (
+                    {activeFeatures.length > 0 && (
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-3">
                           Características
                         </p>
                         <ul className="grid grid-cols-1 gap-2">
-                          {activeUnit.features.map((f) => (
+                          {activeFeatures.map((f) => (
                             <li
                               key={f}
                               className="text-bone/75 text-sm flex items-start gap-2"

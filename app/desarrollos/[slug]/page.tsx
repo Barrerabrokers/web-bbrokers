@@ -249,7 +249,10 @@ export default async function DevelopmentDetailPage({
               Encontrá tu <span className="italic">unidad ideal</span>
             </h2>
 
-            <UnitsList units={development.units || []} />
+            <UnitsList
+              units={development.units || []}
+              developmentFeatures={development.features}
+            />
           </div>
         </section>
 
