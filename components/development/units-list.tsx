@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { X, Bed, Bath, Maximize2, Compass, ChevronRight } from "lucide-react";
 import { Unit } from "@/types";
@@ -34,6 +34,7 @@ function hasPaymentPlan(unit: Unit) {
 export function UnitsList({ units }: Props) {
   const [filter, setFilter] = useState<string>("todos");
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const bedroomsAvailable = useMemo(() => {
     const set = new Set(units.map((u) => u.bedrooms));
@@ -44,6 +45,25 @@ export function UnitsList({ units }: Props) {
     if (filter === "todos") return units;
     return units.filter((u) => u.bedrooms === parseInt(filter));
   }, [units, filter]);
+
+  useEffect(() => {
+    if (!activeUnit) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activeUnit]);
+
+  const openUnit = (unit: Unit) => {
+    setActiveImageIndex(0);
+    setActiveUnit(unit);
+  };
+
+  const closeUnit = () => {
+    setActiveUnit(null);
+    setActiveImageIndex(0);
+  };
 
   if (units.length === 0) {
     return (
@@ -98,7 +118,7 @@ export function UnitsList({ units }: Props) {
           return (
             <button
               key={unit.id}
-              onClick={() => setActiveUnit(unit)}
+              onClick={() => openUnit(unit)}
               className="group text-left bg-bone/5 border border-bone/15 hover:border-accent/50 rounded-lg overflow-hidden transition-all"
             >
               <div className="relative aspect-[4/3] bg-ink-600">
@@ -193,158 +213,227 @@ export function UnitsList({ units }: Props) {
       {/* Unit Detail Modal */}
       {activeUnit && (
         <div
-          className="fixed inset-0 z-[100] bg-ink/95 overflow-y-auto"
-          onClick={() => setActiveUnit(null)}
+          className="fixed inset-0 z-[100] bg-ink/95 p-3 md:p-8"
+          onClick={closeUnit}
         >
           <div
-            className="min-h-screen flex items-start justify-center p-4 md:p-12"
+            className="h-full flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-ink border border-bone/15 rounded-lg max-w-5xl w-full overflow-hidden">
-              <div className="flex items-center justify-between p-5 border-b border-bone/15">
-                <div>
-                  <h3 className="font-display font-light text-3xl text-bone">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Detalle de unidad ${activeUnit.unitNumber}`}
+              className="bg-ink border border-bone/15 rounded-lg max-w-6xl w-full max-h-full overflow-hidden flex flex-col shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4 p-4 md:p-5 border-b border-bone/15 flex-shrink-0">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-accent mb-1">
+                    Detalle de unidad
+                  </p>
+                  <h3 className="font-display font-light text-2xl md:text-3xl text-bone truncate">
                     Unidad {activeUnit.unitNumber}
                   </h3>
-                  <p className="text-bone/60 text-sm mt-1">
+                  <p className="text-bone/60 text-sm mt-1 flex flex-wrap gap-x-2 gap-y-1">
                     {bedroomsLabel(activeUnit.bedrooms)} ·{" "}
                     {activeUnit.bathrooms} baño
                     {activeUnit.bathrooms > 1 ? "s" : ""} · {activeUnit.area}m²
+                    {activeUnit.floor && <> · Piso {activeUnit.floor}</>}
+                    {activeUnit.orientation && <> · {activeUnit.orientation}</>}
                   </p>
                 </div>
                 <button
-                  onClick={() => setActiveUnit(null)}
-                  className="h-10 w-10 rounded-full bg-bone/10 hover:bg-accent flex items-center justify-center text-bone hover:text-ink transition-colors"
+                  type="button"
+                  onClick={closeUnit}
+                  className="h-10 w-10 rounded-full bg-bone/10 hover:bg-accent flex items-center justify-center text-bone hover:text-ink transition-colors flex-shrink-0"
+                  aria-label="Cerrar detalle de unidad"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Images grid */}
-              {activeUnit.images.length > 0 && (
-                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activeUnit.images.map((img, idx) => (
-                    <div
-                      key={img.id || idx}
-                      className="relative aspect-[4/3] bg-ink-600 rounded overflow-hidden"
-                    >
-                      <Image
-                        src={img.url}
-                        alt={`${activeUnit.unitNumber} - ${img.type}`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
-                      {img.type === "plano" && (
-                        <span className="absolute top-2 left-2 px-2 py-1 bg-accent text-ink text-[9px] uppercase tracking-widest font-medium rounded">
-                          Plano
-                        </span>
+              <div className="overflow-y-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] gap-5 p-4 md:p-5">
+                  <div className="space-y-3">
+                    {activeUnit.images.length > 0 ? (
+                      <>
+                        <div className="relative aspect-[4/3] lg:aspect-[5/4] bg-ink-600 rounded overflow-hidden border border-bone/10">
+                          <Image
+                            src={activeUnit.images[activeImageIndex]?.url || activeUnit.images[0].url}
+                            alt={`${activeUnit.unitNumber} - ${
+                              activeUnit.images[activeImageIndex]?.type || "imagen"
+                            }`}
+                            fill
+                            className="object-contain"
+                            sizes="(max-width: 1024px) 100vw, 55vw"
+                          />
+                          {activeUnit.images[activeImageIndex]?.type === "plano" && (
+                            <span className="absolute top-3 left-3 px-2 py-1 bg-accent text-ink text-[9px] uppercase tracking-widest font-medium rounded">
+                              Plano
+                            </span>
+                          )}
+                        </div>
+
+                        {activeUnit.images.length > 1 && (
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            {activeUnit.images.map((img, idx) => (
+                              <button
+                                key={img.id || idx}
+                                type="button"
+                                onClick={() => setActiveImageIndex(idx)}
+                                className={`relative aspect-square rounded overflow-hidden border transition-colors ${
+                                  idx === activeImageIndex
+                                    ? "border-accent"
+                                    : "border-bone/15 hover:border-bone/40"
+                                }`}
+                                aria-label={`Ver imagen ${idx + 1}`}
+                              >
+                                <Image
+                                  src={img.url}
+                                  alt={`${activeUnit.unitNumber} miniatura ${idx + 1}`}
+                                  fill
+                                  className="object-cover"
+                                  sizes="96px"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="aspect-[4/3] bg-ink-600 rounded border border-bone/10 flex items-center justify-center text-bone/30">
+                        <Maximize2 className="h-12 w-12" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="rounded border border-bone/10 bg-bone/5 p-4">
+                      <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-3">
+                        Forma de pago
+                      </p>
+                      {(activeUnit.downPayment ||
+                        activeUnit.installmentCount ||
+                        activeUnit.installmentValue) ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+                          {activeUnit.downPayment && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                                Anticipo
+                              </p>
+                              <p className="font-display text-2xl text-accent mt-1">
+                                {formatPrice(activeUnit.downPayment)}
+                              </p>
+                            </div>
+                          )}
+                          {activeUnit.installmentCount && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                                Cantidad de cuotas
+                              </p>
+                              <p className="font-display text-2xl text-bone mt-1">
+                                {activeUnit.installmentCount}
+                              </p>
+                            </div>
+                          )}
+                          {activeUnit.installmentValue && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                                Valor de cuota
+                              </p>
+                              <p className="font-display text-2xl text-accent mt-1">
+                                {formatPrice(activeUnit.installmentValue)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-bone/60 text-sm">
+                          Consultá por el plan de financiación disponible.
+                        </p>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
 
-              {/* Info */}
-              <div className="p-5 space-y-5">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-5 border-b border-bone/15">
-                  {(activeUnit.downPayment ||
-                    activeUnit.installmentCount ||
-                    activeUnit.installmentValue) && (
-                    <div className="col-span-2 md:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded bg-bone/5 border border-bone/10">
-                      {activeUnit.downPayment && (
+                    <div className="grid grid-cols-2 gap-4 pb-5 border-b border-bone/15">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                          Precio final
+                        </p>
+                        <p className="font-display text-2xl text-accent mt-1">
+                          {formatPrice(activeUnit.price)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                          Sup. cubierta
+                        </p>
+                        <p className="font-display text-2xl text-bone mt-1">
+                          {activeUnit.area}m²
+                        </p>
+                      </div>
+                      {activeUnit.balconyArea && (
                         <div>
                           <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                            Anticipo
-                          </p>
-                          <p className="font-display text-2xl text-accent mt-1">
-                            {formatPrice(activeUnit.downPayment)}
-                          </p>
-                        </div>
-                      )}
-                      {activeUnit.installmentCount && (
-                        <div>
-                          <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                            Cantidad de cuotas
+                            Balcón
                           </p>
                           <p className="font-display text-2xl text-bone mt-1">
-                            {activeUnit.installmentCount}
+                            {activeUnit.balconyArea}m²
                           </p>
                         </div>
                       )}
-                      {activeUnit.installmentValue && (
+                      {activeUnit.totalArea && (
                         <div>
                           <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                            Valor de cuota
+                            Sup. total
                           </p>
-                          <p className="font-display text-2xl text-accent mt-1">
-                            {formatPrice(activeUnit.installmentValue)}
+                          <p className="font-display text-2xl text-bone mt-1">
+                            {activeUnit.totalArea}m²
+                          </p>
+                        </div>
+                      )}
+                      {activeUnit.expenses && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                            Expensas
+                          </p>
+                          <p className="font-display text-lg text-bone mt-1">
+                            ${activeUnit.expenses.toLocaleString("es-AR")}
                           </p>
                         </div>
                       )}
                     </div>
-                  )}
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                      Precio final
-                    </p>
-                    <p className="font-display text-2xl text-accent mt-1">
-                      {formatPrice(activeUnit.price)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                      Sup. cubierta
-                    </p>
-                    <p className="font-display text-2xl text-bone mt-1">
-                      {activeUnit.area}m²
-                    </p>
-                  </div>
-                  {activeUnit.balconyArea && (
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                        Balcón
+
+                    {activeUnit.description && (
+                      <p className="text-bone/75 leading-relaxed">
+                        {activeUnit.description}
                       </p>
-                      <p className="font-display text-2xl text-bone mt-1">
-                        {activeUnit.balconyArea}m²
-                      </p>
+                    )}
+
+                    {activeUnit.features.length > 0 && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-3">
+                          Características
+                        </p>
+                        <ul className="grid grid-cols-1 gap-2">
+                          {activeUnit.features.map((f) => (
+                            <li
+                              key={f}
+                              className="text-bone/75 text-sm flex items-start gap-2"
+                            >
+                              <span className="text-accent mt-0.5">•</span>
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="pt-5 border-t border-bone/15">
+                      <a href="/#contacto" className="btn-primary inline-flex w-full justify-center sm:w-auto">
+                        Consultar por esta unidad
+                      </a>
                     </div>
-                  )}
-                  {activeUnit.expenses && (
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                        Expensas
-                      </p>
-                      <p className="font-display text-lg text-bone mt-1">
-                        ${activeUnit.expenses.toLocaleString("es-AR")}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {activeUnit.description && (
-                  <p className="text-bone/75 leading-relaxed">
-                    {activeUnit.description}
-                  </p>
-                )}
-
-                {activeUnit.features.length > 0 && (
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {activeUnit.features.map((f) => (
-                      <li
-                        key={f}
-                        className="text-bone/75 text-sm flex items-start gap-2"
-                      >
-                        <span className="text-accent">•</span> {f}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                <div className="pt-5 border-t border-bone/15">
-                  <a href="/#contacto" className="btn-primary inline-flex">
-                    Consultar por esta unidad
-                  </a>
+                  </div>
                 </div>
               </div>
             </div>
