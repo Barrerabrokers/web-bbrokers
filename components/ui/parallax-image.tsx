@@ -76,10 +76,10 @@ export function ParallaxImage({
       >
         {/* Sobredimensiona la imagen para que el parallax no muestre bordes vacíos */}
         <div
-          className={`relative w-full ${className}`}
+          className="relative w-full bg-ink-600"
           style={{ height: "calc(100% + 100px)", marginTop: "-50px" }}
         >
-          <Image alt={alt} {...imageProps} />
+          <Image alt={alt} className={className} {...imageProps} />
         </div>
       </div>
     </div>

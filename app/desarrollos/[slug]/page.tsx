@@ -36,7 +36,7 @@ export default async function DevelopmentDetailPage({
       <main>
         {/* Hero with primary image */}
         <section className="relative bg-ink text-bone pt-24">
-          <div className="relative h-[60vh] md:h-[75vh] overflow-hidden">
+          <div className="relative h-[60vh] md:h-[75vh] overflow-hidden bg-ink-600">
             {primaryImage && (
               <ParallaxImage
                 src={primaryImage}
@@ -45,7 +45,7 @@ export default async function DevelopmentDetailPage({
                 priority
                 speed={-80}
                 wrapperClassName="absolute inset-0"
-                className="object-cover"
+                className="object-contain"
                 sizes="100vw"
               />
             )}
