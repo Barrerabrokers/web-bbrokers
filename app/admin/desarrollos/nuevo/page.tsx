@@ -217,7 +217,7 @@ export default function NewDevelopmentPage() {
         if (!importResponse.ok) {
           const importData = await importResponse.json().catch(() => ({}));
           setError(
-            `Desarrollo creado, pero no pude cargar las unidades del PDF: ${
+            `Desarrollo creado, pero no pude cargar las unidades del archivo: ${
               importData.error || "error al analizar la lista"
             }`
           );
@@ -340,17 +340,26 @@ export default function NewDevelopmentPage() {
             <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-3 border-2 border-dashed border-ink/20 hover:border-accent rounded-lg transition-colors">
               <Upload className="h-5 w-5 text-accent-700" />
               <span className="text-sm text-ink">
-                Subir lista de precios en PDF
+                Subir lista de precios
               </span>
               <input
                 type="file"
-                accept="application/pdf,.pdf"
+                accept="application/pdf,.pdf,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                      setError("La lista de precios debe ser un PDF");
+                    const name = file.name.toLowerCase();
+                    const isAllowedPriceList =
+                      file.type === "application/pdf" ||
+                      file.type === "application/vnd.ms-excel" ||
+                      file.type ===
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                      name.endsWith(".pdf") ||
+                      name.endsWith(".xls") ||
+                      name.endsWith(".xlsx");
+                    if (!isAllowedPriceList) {
+                      setError("La lista de precios debe ser PDF o Excel");
                       return;
                     }
                     if (file.size > 10 * 1024 * 1024) {
@@ -366,7 +375,7 @@ export default function NewDevelopmentPage() {
           )}
 
           <p className="text-xs text-ink/50 mt-2">
-            PDF, Excel, CSV o imagen · Máximo 10MB. También podés cargarla después desde la edición.
+            PDF o Excel · Máximo 10MB. También podés cargarla después desde la edición.
           </p>
         </div>
 

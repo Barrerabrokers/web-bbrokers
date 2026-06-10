@@ -6,7 +6,10 @@ import {
   getDevelopmentById,
   getUnitsByDevelopment,
 } from "@/lib/developments-db";
-import { parsePriceListPdf } from "@/lib/price-list-parser";
+import {
+  parsePriceListExcel,
+  parsePriceListPdf,
+} from "@/lib/price-list-parser";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -33,32 +36,40 @@ export async function POST(
     const priceListUrl = body.priceListUrl || development.priceListUrl;
     if (!priceListUrl) {
       return NextResponse.json(
-        { error: "El desarrollo no tiene lista de precios PDF" },
+        { error: "El desarrollo no tiene lista de precios PDF o Excel" },
         { status: 400 }
       );
     }
 
-    const pdfResponse = await fetch(priceListUrl);
-    if (!pdfResponse.ok) {
+    const fileResponse = await fetch(priceListUrl);
+    if (!fileResponse.ok) {
       return NextResponse.json(
         { error: "No se pudo descargar la lista de precios" },
         { status: 400 }
       );
     }
 
-    const contentType = pdfResponse.headers.get("content-type") || "";
+    const contentType = fileResponse.headers.get("content-type") || "";
+    const pathname = new URL(priceListUrl).pathname.toLowerCase();
     const looksLikePdf =
       contentType.includes("application/pdf") ||
-      new URL(priceListUrl).pathname.toLowerCase().endsWith(".pdf");
+      pathname.endsWith(".pdf");
+    const looksLikeExcel =
+      contentType.includes("application/vnd.ms-excel") ||
+      contentType.includes(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ) ||
+      pathname.endsWith(".xls") ||
+      pathname.endsWith(".xlsx");
 
-    if (!looksLikePdf) {
+    if (!looksLikePdf && !looksLikeExcel) {
       return NextResponse.json(
-        { error: "La lista de precios debe ser un PDF" },
+        { error: "La lista de precios debe ser PDF o Excel" },
         { status: 400 }
       );
     }
 
-    const arrayBuffer = await pdfResponse.arrayBuffer();
+    const arrayBuffer = await fileResponse.arrayBuffer();
     if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
       return NextResponse.json(
         { error: "La lista de precios es muy grande (máx 10MB)" },
@@ -66,12 +77,15 @@ export async function POST(
       );
     }
 
-    const parsed = await parsePriceListPdf(Buffer.from(arrayBuffer));
+    const buffer = Buffer.from(arrayBuffer);
+    const parsed = looksLikePdf
+      ? await parsePriceListPdf(buffer)
+      : parsePriceListExcel(buffer);
     if (parsed.units.length === 0) {
       return NextResponse.json(
         {
           error:
-            "No pude detectar unidades en el PDF. Revisá que tenga unidad, m² y precio por fila.",
+            "No pude detectar unidades en el archivo. Revisá que tenga unidad, m² y precio por fila.",
           ignoredLines: parsed.ignoredLines,
         },
         { status: 422 }

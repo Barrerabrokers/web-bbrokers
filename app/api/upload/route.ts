@@ -59,10 +59,16 @@ export async function POST(request: NextRequest) {
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
       const isPriceListUpload = safeFolder === "price-lists";
       const isPdf = file.type === "application/pdf" || ext === "pdf";
+      const isExcel =
+        file.type === "application/vnd.ms-excel" ||
+        file.type ===
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        ext === "xls" ||
+        ext === "xlsx";
 
-      if (isPriceListUpload && !isPdf) {
+      if (isPriceListUpload && !isPdf && !isExcel) {
         return NextResponse.json(
-          { error: "La lista de precios debe ser un archivo PDF" },
+          { error: "La lista de precios debe ser un archivo PDF o Excel" },
           { status: 400 }
         );
       }

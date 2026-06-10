@@ -1,4 +1,5 @@
 import { PDFParse } from "pdf-parse";
+import * as XLSX from "xlsx";
 
 export type ParsedPriceListUnit = {
   unitNumber: string;
@@ -33,6 +34,20 @@ export async function parsePriceListPdf(buffer: Buffer): Promise<ParseResult> {
   } finally {
     await parser.destroy();
   }
+}
+
+export function parsePriceListExcel(buffer: Buffer): ParseResult {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  const text = workbook.SheetNames.map((sheetName) => {
+    const sheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_csv(sheet, {
+      FS: "\t",
+      RS: "\n",
+      blankrows: false,
+    });
+  }).join("\n");
+
+  return parsePriceListText(text);
 }
 
 export function parsePriceListText(text: string): ParseResult {
@@ -92,7 +107,7 @@ function parseUnitLine(line: string): ParsedPriceListUnit | null {
     price: price.value,
     orientation,
     status,
-    description: "Importada desde lista de precios PDF",
+    description: "Importada desde lista de precios",
     features: [],
   };
 }

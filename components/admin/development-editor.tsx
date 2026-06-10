@@ -241,7 +241,7 @@ export function DevelopmentEditor({ development }: Props) {
   const importPriceListUnits = async (url?: string) => {
     const targetUrl = url || priceListUrl;
     if (!targetUrl) {
-      throw new Error("Primero subí una lista de precios en PDF");
+      throw new Error("Primero subí una lista de precios en PDF o Excel");
     }
 
     const response = await fetch(
@@ -274,7 +274,7 @@ export function DevelopmentEditor({ development }: Props) {
     try {
       const result = await importPriceListUnits();
       setPriceListImportSummary(
-        `PDF analizado: ${result.detected} unidades detectadas, ${result.created} creadas, ${result.skipped} ya existentes.`
+        `Archivo analizado: ${result.detected} unidades detectadas, ${result.created} creadas, ${result.skipped} ya existentes.`
       );
       router.refresh();
     } catch (err: any) {
@@ -341,11 +341,11 @@ export function DevelopmentEditor({ development }: Props) {
         try {
           const result = await importPriceListUnits(finalPriceListUrl);
           setPriceListImportSummary(
-            `PDF analizado: ${result.detected} unidades detectadas, ${result.created} creadas, ${result.skipped} ya existentes.`
+            `Archivo analizado: ${result.detected} unidades detectadas, ${result.created} creadas, ${result.skipped} ya existentes.`
           );
         } catch (importError: any) {
           setError(
-            `Cambios guardados, pero no pude cargar las unidades del PDF: ${importError.message}`
+            `Cambios guardados, pero no pude cargar las unidades del archivo: ${importError.message}`
           );
         }
       }
@@ -931,7 +931,7 @@ export function DevelopmentEditor({ development }: Props) {
                 ? "Ocultar"
                 : priceListUrl
                 ? "Lista cargada · Click para editar"
-                : "Subir PDF, Excel, CSV o imagen con precios"}
+                : "Subir PDF o Excel con precios"}
             </p>
           </div>
           {priceListExpanded ? (
@@ -985,8 +985,8 @@ export function DevelopmentEditor({ development }: Props) {
                     <ListPlus className="h-4 w-4" />
                   )}
                   {isImportingPriceList
-                    ? "Analizando PDF..."
-                    : "Analizar PDF y cargar unidades"}
+                    ? "Analizando archivo..."
+                    : "Analizar archivo y cargar unidades"}
                 </button>
               </div>
             )}
@@ -1024,17 +1024,26 @@ export function DevelopmentEditor({ development }: Props) {
                 <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-3 border-2 border-dashed border-ink/20 hover:border-accent rounded-lg transition-colors">
                   <Upload className="h-5 w-5 text-accent-700" />
                   <span className="text-sm text-ink">
-                    {priceListUrl ? "Reemplazar PDF" : "Subir lista de precios en PDF"}
+                    {priceListUrl ? "Reemplazar archivo" : "Subir lista de precios"}
                   </span>
                   <input
                     type="file"
-                    accept="application/pdf,.pdf"
+                    accept="application/pdf,.pdf,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                          setError("La lista de precios debe ser un PDF");
+                        const name = file.name.toLowerCase();
+                        const isAllowedPriceList =
+                          file.type === "application/pdf" ||
+                          file.type === "application/vnd.ms-excel" ||
+                          file.type ===
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                          name.endsWith(".pdf") ||
+                          name.endsWith(".xls") ||
+                          name.endsWith(".xlsx");
+                        if (!isAllowedPriceList) {
+                          setError("La lista de precios debe ser PDF o Excel");
                           return;
                         }
                         if (file.size > 10 * 1024 * 1024) {
@@ -1048,7 +1057,7 @@ export function DevelopmentEditor({ development }: Props) {
                   />
                 </label>
                 <p className="text-xs text-ink/50 mt-2">
-                  Solo PDF · Máximo 10MB. Al guardar, se analizará y cargará las unidades detectadas.
+                  PDF o Excel · Máximo 10MB. Al guardar, se analizará y cargará las unidades detectadas.
                 </p>
               </div>
             )}
