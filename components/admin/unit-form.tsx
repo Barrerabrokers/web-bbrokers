@@ -61,6 +61,9 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
     area: unit?.area?.toString() || "",
     balconyArea: unit?.balconyArea?.toString() || "",
     totalArea: unit?.totalArea?.toString() || "",
+    downPayment: unit?.downPayment?.toString() || "",
+    installmentCount: unit?.installmentCount?.toString() || "",
+    installmentValue: unit?.installmentValue?.toString() || "",
     price: unit?.price?.toString() || "",
     expenses: unit?.expenses?.toString() || "",
     orientation: unit?.orientation || "",
@@ -155,6 +158,15 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
           : undefined,
         totalArea: formData.totalArea
           ? parseFloat(formData.totalArea)
+          : undefined,
+        downPayment: formData.downPayment
+          ? parseFloat(formData.downPayment)
+          : undefined,
+        installmentCount: formData.installmentCount
+          ? parseInt(formData.installmentCount)
+          : undefined,
+        installmentValue: formData.installmentValue
+          ? parseFloat(formData.installmentValue)
           : undefined,
         price: parseFloat(formData.price),
         expenses: formData.expenses
@@ -448,7 +460,58 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
 
           <div>
             <label className="label-tracking text-ink/85 block mb-2">
-              Precio (USD) *
+              Anticipo (USD)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.downPayment}
+              onChange={(e) =>
+                setFormData({ ...formData, downPayment: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+              placeholder="35000"
+            />
+          </div>
+
+          <div>
+            <label className="label-tracking text-ink/85 block mb-2">
+              Cantidad de cuotas
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={formData.installmentCount}
+              onChange={(e) =>
+                setFormData({ ...formData, installmentCount: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+              placeholder="24"
+            />
+          </div>
+
+          <div>
+            <label className="label-tracking text-ink/85 block mb-2">
+              Valor de cuota (USD)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.installmentValue}
+              onChange={(e) =>
+                setFormData({ ...formData, installmentValue: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+              placeholder="2500"
+            />
+          </div>
+
+          <div>
+            <label className="label-tracking text-ink/85 block mb-2">
+              Precio final (USD) *
             </label>
             <input
               type="number"

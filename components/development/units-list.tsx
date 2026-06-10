@@ -27,6 +27,10 @@ function bedroomsLabel(n: number) {
   return `${n} ambiente${n > 1 ? "s" : ""}`;
 }
 
+function hasPaymentPlan(unit: Unit) {
+  return !!(unit.downPayment || unit.installmentCount || unit.installmentValue);
+}
+
 export function UnitsList({ units }: Props) {
   const [filter, setFilter] = useState<string>("todos");
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
@@ -153,9 +157,30 @@ export function UnitsList({ units }: Props) {
                   )}
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t border-bone/15">
-                  <span className="font-display text-xl text-accent">
-                    {isAvailable ? formatPrice(unit.price) : "—"}
-                  </span>
+                  <div>
+                    {isAvailable && hasPaymentPlan(unit) ? (
+                      <div className="space-y-1">
+                        {unit.downPayment && (
+                          <p className="text-[10px] uppercase tracking-widest text-bone/45">
+                            Anticipo {formatPrice(unit.downPayment)}
+                          </p>
+                        )}
+                        {unit.installmentCount && unit.installmentValue && (
+                          <p className="font-display text-lg text-accent">
+                            {unit.installmentCount} cuotas de{" "}
+                            {formatPrice(unit.installmentValue)}
+                          </p>
+                        )}
+                        <p className="text-xs text-bone/55">
+                          Precio final {formatPrice(unit.price)}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="font-display text-xl text-accent">
+                        {isAvailable ? formatPrice(unit.price) : "—"}
+                      </span>
+                    )}
+                  </div>
                   <ChevronRight className="h-4 w-4 text-bone/40 group-hover:text-accent transition-colors" />
                 </div>
               </div>
@@ -223,9 +248,45 @@ export function UnitsList({ units }: Props) {
               {/* Info */}
               <div className="p-5 space-y-5">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-5 border-b border-bone/15">
+                  {(activeUnit.downPayment ||
+                    activeUnit.installmentCount ||
+                    activeUnit.installmentValue) && (
+                    <div className="col-span-2 md:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded bg-bone/5 border border-bone/10">
+                      {activeUnit.downPayment && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                            Anticipo
+                          </p>
+                          <p className="font-display text-2xl text-accent mt-1">
+                            {formatPrice(activeUnit.downPayment)}
+                          </p>
+                        </div>
+                      )}
+                      {activeUnit.installmentCount && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                            Cantidad de cuotas
+                          </p>
+                          <p className="font-display text-2xl text-bone mt-1">
+                            {activeUnit.installmentCount}
+                          </p>
+                        </div>
+                      )}
+                      {activeUnit.installmentValue && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-bone/50">
+                            Valor de cuota
+                          </p>
+                          <p className="font-display text-2xl text-accent mt-1">
+                            {formatPrice(activeUnit.installmentValue)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-bone/50">
-                      Precio
+                      Precio final
                     </p>
                     <p className="font-display text-2xl text-accent mt-1">
                       {formatPrice(activeUnit.price)}

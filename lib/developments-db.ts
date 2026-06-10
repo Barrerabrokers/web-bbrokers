@@ -344,6 +344,9 @@ export async function createUnit(data: {
   area: number;
   balconyArea?: number;
   totalArea?: number;
+  downPayment?: number;
+  installmentCount?: number;
+  installmentValue?: number;
   price: number;
   expenses?: number;
   orientation?: string;
@@ -360,12 +363,15 @@ export async function createUnit(data: {
     const result = await sql`
       INSERT INTO units (
         development_id, unit_number, floor, bedrooms, bathrooms, area,
-        balcony_area, total_area, price, expenses, orientation, status,
+        balcony_area, total_area, down_payment, installment_count,
+        installment_value, price, expenses, orientation, status,
         description, features
       ) VALUES (
         ${data.developmentId}, ${data.unitNumber}, ${data.floor || null},
         ${data.bedrooms}, ${data.bathrooms}, ${data.area},
         ${data.balconyArea || null}, ${data.totalArea || null},
+        ${data.downPayment || null}, ${data.installmentCount || null},
+        ${data.installmentValue || null},
         ${data.price}, ${data.expenses || null}, ${data.orientation || null},
         ${data.status || "disponible"}, ${data.description || null},
         ${data.features || []}
@@ -420,6 +426,9 @@ export async function updateUnit(
       area: "area",
       balconyArea: "balcony_area",
       totalArea: "total_area",
+      downPayment: "down_payment",
+      installmentCount: "installment_count",
+      installmentValue: "installment_value",
       price: "price",
       expenses: "expenses",
       orientation: "orientation",
@@ -574,6 +583,11 @@ function mapUnitFromDb(data: any): Unit {
       ? parseFloat(data.balcony_area)
       : undefined,
     totalArea: data.total_area ? parseFloat(data.total_area) : undefined,
+    downPayment: data.down_payment ? parseFloat(data.down_payment) : undefined,
+    installmentCount: data.installment_count || undefined,
+    installmentValue: data.installment_value
+      ? parseFloat(data.installment_value)
+      : undefined,
     price: parseFloat(data.price),
     currency: data.currency,
     expenses: data.expenses ? parseFloat(data.expenses) : undefined,

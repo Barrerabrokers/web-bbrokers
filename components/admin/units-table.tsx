@@ -48,6 +48,9 @@ export function UnitsTable({ units, developmentId }: UnitsTableProps) {
           area: unit.area,
           balconyArea: unit.balconyArea || undefined,
           totalArea: unit.totalArea || undefined,
+          downPayment: unit.downPayment || undefined,
+          installmentCount: unit.installmentCount || undefined,
+          installmentValue: unit.installmentValue || undefined,
           price: unit.price,
           expenses: unit.expenses || undefined,
           orientation: unit.orientation || undefined,
@@ -126,7 +129,8 @@ export function UnitsTable({ units, developmentId }: UnitsTableProps) {
               <th className="text-left py-3 px-4 font-medium">Piso</th>
               <th className="text-left py-3 px-4 font-medium">Amb.</th>
               <th className="text-left py-3 px-4 font-medium">m²</th>
-              <th className="text-left py-3 px-4 font-medium">Precio</th>
+              <th className="text-left py-3 px-4 font-medium">Forma de pago</th>
+              <th className="text-left py-3 px-4 font-medium">Precio final</th>
               <th className="text-left py-3 px-4 font-medium">Estado</th>
               <th className="text-left py-3 px-4 font-medium"></th>
             </tr>
@@ -151,6 +155,23 @@ export function UnitsTable({ units, developmentId }: UnitsTableProps) {
                   {unit.balconyArea
                     ? ` + ${unit.balconyArea} balcón`
                     : ""}
+                </td>
+                <td className="py-3 px-4 text-ink/75">
+                  {unit.downPayment || unit.installmentCount || unit.installmentValue ? (
+                    <div className="space-y-0.5">
+                      {unit.downPayment && (
+                        <div>Anticipo {formatPrice(unit.downPayment)}</div>
+                      )}
+                      {unit.installmentCount && unit.installmentValue && (
+                        <div>
+                          {unit.installmentCount} cuotas de{" "}
+                          {formatPrice(unit.installmentValue)}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td className="py-3 px-4 font-semibold text-accent">
                   {formatPrice(unit.price)}

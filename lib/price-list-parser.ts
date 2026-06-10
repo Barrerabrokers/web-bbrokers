@@ -9,6 +9,9 @@ export type ParsedPriceListUnit = {
   area: number;
   balconyArea?: number;
   totalArea?: number;
+  downPayment?: number;
+  installmentCount?: number;
+  installmentValue?: number;
   price: number;
   orientation?: string;
   status: "disponible" | "reservada" | "vendida";
@@ -95,6 +98,13 @@ function parseUnitLine(line: string): ParsedPriceListUnit | null {
   const bathrooms = extractBathrooms(line);
   const floor = extractFloor(line, unitNumber);
   const orientation = extractOrientation(line);
+  const downPayment = extractLabeledMoney(line, [
+    "anticipo",
+    "boleto",
+    "reserva",
+  ]);
+  const installmentCount = extractInstallmentCount(line);
+  const installmentValue = extractInstallmentValue(line);
 
   return {
     unitNumber,
@@ -104,12 +114,47 @@ function parseUnitLine(line: string): ParsedPriceListUnit | null {
     area: areaInfo.area,
     balconyArea: areaInfo.balconyArea,
     totalArea: areaInfo.totalArea,
+    downPayment,
+    installmentCount,
+    installmentValue,
     price: price.value,
     orientation,
     status,
     description: "Importada desde lista de precios",
     features: [],
   };
+}
+
+function extractLabeledMoney(line: string, labels: string[]): number | undefined {
+  const labelPattern = labels.join("|");
+  const match = line.match(
+    new RegExp(`(?:${labelPattern})\\D{0,18}(?:u\\$s|usd|us\\$|\\$)?\\s*([0-9][0-9.,\\s]{2,})`, "i")
+  );
+  if (!match) return undefined;
+  return parseMoney(match[1]) || undefined;
+}
+
+function extractInstallmentCount(line: string): number | undefined {
+  const match = line.match(/\b(\d{1,3})\s*(?:cuotas?|cts?)\b/i);
+  if (!match) return undefined;
+  const count = Number(match[1]);
+  return Number.isFinite(count) ? count : undefined;
+}
+
+function extractInstallmentValue(line: string): number | undefined {
+  const patterns = [
+    /(?:cuota|cuotas|valor\s*cuota)\D{0,18}(?:u\$s|usd|us\$|\$)?\s*([0-9][0-9.,\s]{2,})/i,
+    /(?:\d{1,3}\s*(?:cuotas?|cts?)\s*(?:de)?\s*)(?:u\$s|usd|us\$|\$)?\s*([0-9][0-9.,\s]{2,})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = line.match(pattern);
+    if (!match) continue;
+    const value = parseMoney(match[1]);
+    if (value) return value;
+  }
+
+  return undefined;
 }
 
 function extractPrice(line: string): { value: number; raw: string } | null {

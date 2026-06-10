@@ -110,6 +110,9 @@ export interface Unit {
   area: number;
   balconyArea?: number;
   totalArea?: number;
+  downPayment?: number;
+  installmentCount?: number;
+  installmentValue?: number;
   price: number;
   currency?: string;
   expenses?: number;

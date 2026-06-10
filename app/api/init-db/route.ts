@@ -275,6 +275,27 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS down_payment DECIMAL(12,2);`);
+        results.push("Columna down_payment en units OK");
+      } catch (e: any) {
+        results.push(`Error columna down_payment en units: ${e.message}`);
+      }
+
+      try {
+        await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS installment_count INTEGER;`);
+        results.push("Columna installment_count en units OK");
+      } catch (e: any) {
+        results.push(`Error columna installment_count en units: ${e.message}`);
+      }
+
+      try {
+        await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS installment_value DECIMAL(12,2);`);
+        results.push("Columna installment_value en units OK");
+      } catch (e: any) {
+        results.push(`Error columna installment_value en units: ${e.message}`);
+      }
+
+      try {
         await sql.unsafe(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS title VARCHAR(255);`);
         results.push("Columna title en agents OK");
       } catch (e: any) {
@@ -324,7 +345,15 @@ export async function POST(request: NextRequest) {
       if (exists) {
         const { error: updateError } = await supabase.storage.updateBucket("properties", {
           public: true,
-          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"],
+          allowedMimeTypes: [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/jpg",
+            "application/pdf",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          ],
           fileSizeLimit: 10485760,
         });
         if (updateError) {
@@ -335,7 +364,15 @@ export async function POST(request: NextRequest) {
       } else {
         const { error: bucketError } = await supabase.storage.createBucket("properties", {
           public: true,
-          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"],
+          allowedMimeTypes: [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/jpg",
+            "application/pdf",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          ],
           fileSizeLimit: 10485760,
         });
 
