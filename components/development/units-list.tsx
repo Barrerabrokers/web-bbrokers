@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { X, Bed, Bath, Maximize2, Compass, ChevronRight } from "lucide-react";
 import { Unit } from "@/types";
@@ -35,6 +35,7 @@ export function UnitsList({ units }: Props) {
   const [filter, setFilter] = useState<string>("todos");
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
 
   const bedroomsAvailable = useMemo(() => {
     const set = new Set(units.map((u) => u.bedrooms));
@@ -48,12 +49,33 @@ export function UnitsList({ units }: Props) {
 
   useEffect(() => {
     if (!activeUnit) return;
-    const previousOverflow = document.body.style.overflow;
+    const scrollY = window.scrollY;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyWidth = document.body.style.width;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.documentElement.style.overflow = "hidden";
+
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.width = previousBodyWidth;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, [activeUnit]);
+
+  const scrollModal = (deltaY: number) => {
+    if (!modalScrollRef.current) return;
+    modalScrollRef.current.scrollTop += deltaY;
+  };
 
   const openUnit = (unit: Unit) => {
     setActiveImageIndex(0);
@@ -219,6 +241,11 @@ export function UnitsList({ units }: Props) {
           <div
             className="h-full flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              if (modalScrollRef.current?.contains(e.target as Node)) return;
+              e.stopPropagation();
+              scrollModal(e.deltaY);
+            }}
           >
             <div
               role="dialog"
@@ -226,7 +253,13 @@ export function UnitsList({ units }: Props) {
               aria-label={`Detalle de unidad ${activeUnit.unitNumber}`}
               className="bg-ink border border-bone/15 rounded-lg max-w-6xl w-full max-h-full overflow-hidden flex flex-col shadow-2xl"
             >
-              <div className="flex items-start justify-between gap-4 p-4 md:p-5 border-b border-bone/15 flex-shrink-0">
+              <div
+                className="flex items-start justify-between gap-4 p-4 md:p-5 border-b border-bone/15 flex-shrink-0"
+                onWheel={(e) => {
+                  e.stopPropagation();
+                  scrollModal(e.deltaY);
+                }}
+              >
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-widest text-accent mb-1">
                     Detalle de unidad
@@ -252,7 +285,11 @@ export function UnitsList({ units }: Props) {
                 </button>
               </div>
 
-              <div className="overflow-y-auto">
+              <div
+                ref={modalScrollRef}
+                className="overflow-y-auto overscroll-contain"
+                onWheel={(e) => e.stopPropagation()}
+              >
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] gap-5 p-4 md:p-5">
                   <div className="space-y-3">
                     {activeUnit.images.length > 0 ? (
