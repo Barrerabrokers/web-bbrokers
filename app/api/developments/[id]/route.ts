@@ -6,11 +6,18 @@ import {
   updateDevelopment,
   deleteDevelopment,
 } from "@/lib/developments-db";
+import { Development } from "@/types";
+
+function hidePrivateDevelopmentFields(development: Development): Development {
+  const { priceListUrl, ...publicDevelopment } = development;
+  return publicDevelopment as Development;
+}
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const session = await getServerSession(authOptions);
   const development = await getDevelopmentById(params.id);
   if (!development) {
     return NextResponse.json(
@@ -18,7 +25,9 @@ export async function GET(
       { status: 404 }
     );
   }
-  return NextResponse.json(development);
+  return NextResponse.json(
+    session ? development : hidePrivateDevelopmentFields(development)
+  );
 }
 
 export async function PUT(

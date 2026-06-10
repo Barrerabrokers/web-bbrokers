@@ -952,7 +952,7 @@ export function DevelopmentEditor({ development }: Props) {
                       Lista de precios actual
                     </p>
                     <a
-                      href={priceListUrl}
+                      href={`/api/developments/${development.id}/price-list`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-accent-700 hover:underline truncate block"

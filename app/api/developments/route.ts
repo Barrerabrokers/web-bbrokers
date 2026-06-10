@@ -5,6 +5,7 @@ import {
   getDevelopments,
   createDevelopment,
 } from "@/lib/developments-db";
+import { Development } from "@/types";
 import { z } from "zod";
 
 const imageSchema = z.object({
@@ -36,9 +37,14 @@ const developmentSchema = z.object({
   images: z.array(imageSchema).default([]),
 });
 
+function hidePrivateDevelopmentFields(development: Development): Development {
+  const { priceListUrl, ...publicDevelopment } = development;
+  return publicDevelopment as Development;
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status") || undefined;
     const highlightParam = searchParams.get("highlight");
@@ -51,7 +57,9 @@ export async function GET(request: NextRequest) {
 
     const developments = await getDevelopments({ status, highlight });
 
-    return NextResponse.json(developments);
+    return NextResponse.json(
+      session ? developments : developments.map(hidePrivateDevelopmentFields)
+    );
   } catch (error: any) {
     return NextResponse.json(
       { error: "Error al obtener desarrollos: " + error.message },
