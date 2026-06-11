@@ -117,7 +117,24 @@ export function UnitsList({
     return `${baseUrl}${path}#unidad-${unit.id}`;
   };
 
+  const getAbsoluteUrl = (url: string) => {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+  };
+
   const getUnitShareText = (unit: Unit) => {
+    const imageLines =
+      unit.images.length > 0
+        ? [
+            "",
+            "Imágenes de la unidad:",
+            ...unit.images.map((image, index) => {
+              const label = image.type ? `${image.type} ${index + 1}` : `Imagen ${index + 1}`;
+              return `${label}: ${getAbsoluteUrl(image.url)}`;
+            }),
+          ]
+        : [];
+
     const lines = [
       `Ficha de unidad - ${developmentName}`,
       `Unidad: ${unit.unitNumber}`,
@@ -133,6 +150,7 @@ export function UnitsList({
         ? `${unit.installmentCount} cuotas de ${formatPrice(unit.installmentValue)}`
         : null,
       `Precio final: ${formatPrice(unit.price)}`,
+      ...imageLines,
       "",
       `Ver desarrollo: ${getUnitShareUrl(unit)}`,
     ];
@@ -537,14 +555,14 @@ export function UnitsList({
                           className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-500 hover:text-ink"
                         >
                           <MessageCircle className="h-4 w-4" />
-                          Enviar por WhatsApp
+                          Enviar ficha por WhatsApp
                         </a>
                         <a
                           href={getMailShareHref(activeUnit)}
                           className="inline-flex items-center justify-center gap-2 rounded-full border border-bone/20 bg-bone/10 px-5 py-3 text-sm font-medium text-bone transition-colors hover:bg-bone hover:text-ink"
                         >
                           <Mail className="h-4 w-4" />
-                          Enviar por mail
+                          Enviar ficha por mail
                         </a>
                       </div>
                       <a
