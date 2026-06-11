@@ -252,6 +252,9 @@ export default async function DevelopmentDetailPage({
             <UnitsList
               units={development.units || []}
               developmentFeatures={development.features}
+              developmentName={development.name}
+              developmentLocation={`${development.address} · ${development.location}`}
+              developmentUrl={`/desarrollos/${development.slug}`}
             />
           </div>
         </section>

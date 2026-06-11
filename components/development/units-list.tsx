@@ -2,13 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { X, Bed, Bath, Maximize2, Compass, ChevronRight } from "lucide-react";
+import {
+  X,
+  Bed,
+  Bath,
+  Maximize2,
+  Compass,
+  ChevronRight,
+  Mail,
+  MessageCircle,
+} from "lucide-react";
 import { Unit } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
 interface Props {
   units: Unit[];
   developmentFeatures?: string[];
+  developmentName?: string;
+  developmentLocation?: string;
+  developmentUrl?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -32,7 +44,13 @@ function hasPaymentPlan(unit: Unit) {
   return !!(unit.downPayment || unit.installmentCount || unit.installmentValue);
 }
 
-export function UnitsList({ units, developmentFeatures = [] }: Props) {
+export function UnitsList({
+  units,
+  developmentFeatures = [],
+  developmentName = "el desarrollo",
+  developmentLocation,
+  developmentUrl,
+}: Props) {
   const [filter, setFilter] = useState<string>("todos");
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -91,6 +109,45 @@ export function UnitsList({ units, developmentFeatures = [] }: Props) {
   const closeUnit = () => {
     setActiveUnit(null);
     setActiveImageIndex(0);
+  };
+
+  const getUnitShareUrl = (unit: Unit) => {
+    const path = developmentUrl || window.location.pathname;
+    const baseUrl = window.location.origin;
+    return `${baseUrl}${path}#unidad-${unit.id}`;
+  };
+
+  const getUnitShareText = (unit: Unit) => {
+    const lines = [
+      `Ficha de unidad - ${developmentName}`,
+      `Unidad: ${unit.unitNumber}`,
+      `Tipología: ${bedroomsLabel(unit.bedrooms)}`,
+      `Baños: ${unit.bathrooms}`,
+      `Superficie cubierta: ${unit.area}m²`,
+      unit.totalArea ? `Superficie total: ${unit.totalArea}m²` : null,
+      unit.floor ? `Piso: ${unit.floor}` : null,
+      unit.orientation ? `Orientación: ${unit.orientation}` : null,
+      developmentLocation ? `Ubicación: ${developmentLocation}` : null,
+      unit.downPayment ? `Anticipo: ${formatPrice(unit.downPayment)}` : null,
+      unit.installmentCount && unit.installmentValue
+        ? `${unit.installmentCount} cuotas de ${formatPrice(unit.installmentValue)}`
+        : null,
+      `Precio final: ${formatPrice(unit.price)}`,
+      "",
+      `Ver desarrollo: ${getUnitShareUrl(unit)}`,
+    ];
+
+    return lines.filter(Boolean).join("\n");
+  };
+
+  const getWhatsAppShareHref = (unit: Unit) =>
+    `https://wa.me/?text=${encodeURIComponent(getUnitShareText(unit))}`;
+
+  const getMailShareHref = (unit: Unit) => {
+    const subject = `Ficha unidad ${unit.unitNumber} - ${developmentName}`;
+    return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
+      getUnitShareText(unit)
+    )}`;
   };
 
   if (units.length === 0) {
@@ -471,8 +528,29 @@ export function UnitsList({ units, developmentFeatures = [] }: Props) {
                       </div>
                     )}
 
-                    <div className="pt-5 border-t border-bone/15">
-                      <a href="/#contacto" className="btn-primary inline-flex w-full justify-center sm:w-auto">
+                    <div className="pt-5 border-t border-bone/15 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <a
+                          href={getWhatsAppShareHref(activeUnit)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-500 hover:text-ink"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          Enviar por WhatsApp
+                        </a>
+                        <a
+                          href={getMailShareHref(activeUnit)}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-bone/20 bg-bone/10 px-5 py-3 text-sm font-medium text-bone transition-colors hover:bg-bone hover:text-ink"
+                        >
+                          <Mail className="h-4 w-4" />
+                          Enviar por mail
+                        </a>
+                      </div>
+                      <a
+                        href="/#contacto"
+                        className="btn-primary inline-flex w-full justify-center sm:w-auto"
+                      >
                         Consultar por esta unidad
                       </a>
                     </div>
