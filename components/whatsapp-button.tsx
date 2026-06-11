@@ -21,10 +21,8 @@ export function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Contactar por WhatsApp"
-      className="group fixed bottom-6 right-6 z-[60] flex items-center justify-center rounded-full transition-all duration-500"
+      className="group fixed bottom-4 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-500 md:bottom-6 md:right-6 md:h-[58px] md:w-[58px]"
       style={{
-        width: "58px",
-        height: "58px",
         background: "#25D366",
         boxShadow: "0 8px 28px rgba(37,211,102,0.45), 0 4px 12px rgba(0,0,0,0.18)",
         transitionTimingFunction: "var(--ease-out-expo, cubic-bezier(0.19,1,0.22,1))",
@@ -54,8 +52,8 @@ export function WhatsAppButton() {
       {/* Icono WhatsApp */}
       <svg
         viewBox="0 0 32 32"
-        width="28"
-        height="28"
+        width="26"
+        height="26"
         fill="white"
         className="relative z-10"
         aria-hidden="true"

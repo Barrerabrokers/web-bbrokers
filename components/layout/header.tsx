@@ -33,9 +33,10 @@ export function Header() {
   return (
     <>
       <header
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-700"
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
+          scrolled ? "py-2.5 md:py-3" : "py-3.5 md:py-5"
+        }`}
         style={{
-          padding: scrolled ? "12px 0" : "20px 0",
           background: scrolled
             ? "rgba(10,10,11,0.82)"
             : "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%)",
@@ -53,10 +54,10 @@ export function Header() {
               width={40}
               height={40}
               priority
-              className="h-10 w-10 object-contain"
+              className="h-9 w-9 object-contain md:h-10 md:w-10"
             />
             <span className="flex flex-col">
-              <span className="font-display text-xl tracking-tight leading-none" style={{ color: "#f8f5ef" }}>
+              <span className="font-display text-lg tracking-tight leading-none md:text-xl" style={{ color: "#f8f5ef" }}>
                 {firstWord}
                 {restWords && (
                   <>
@@ -65,7 +66,7 @@ export function Header() {
                   </>
                 )}
               </span>
-              <span className="text-[9px] uppercase tracking-[0.2em] mt-1" style={{ color: "rgba(248,245,239,0.45)" }}>
+              <span className="text-[8px] uppercase tracking-[0.16em] mt-1 md:text-[9px] md:tracking-[0.2em]" style={{ color: "rgba(248,245,239,0.45)" }}>
                 {city} · Est. 2000
               </span>
             </span>
@@ -129,7 +130,7 @@ export function Header() {
             {/* Hamburger capsule */}
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-md transition-all"
+              className="lg:hidden flex h-10 w-12 items-center justify-center rounded-full backdrop-blur-md transition-all sm:w-auto sm:px-4 sm:py-2.5"
               style={{
                 border: "1px solid rgba(255,255,255,0.2)",
                 background: "rgba(255,255,255,0.08)",
@@ -156,7 +157,7 @@ export function Header() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
-            className="fixed inset-0 z-[100] bg-obsidian/98 backdrop-blur-2xl flex flex-col"
+            className="fixed inset-0 z-[100] bg-obsidian/98 backdrop-blur-2xl flex flex-col overflow-y-auto"
           >
             {/* Close button */}
             <div className="container-custom flex justify-end pt-6">
@@ -172,7 +173,7 @@ export function Header() {
             </div>
 
             {/* Nav links */}
-            <nav className="flex-1 flex flex-col items-center justify-center gap-2">
+            <nav className="flex-1 flex flex-col items-center justify-center gap-1 px-5 py-10">
               {[
                 ...navItems,
                 { href: "/#nosotros", label: "Nosotros" },
@@ -185,7 +186,7 @@ export function Header() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 + idx * 0.06, duration: 0.6, ease: [0.19, 1, 0.22, 1] }}
-                  className="font-display text-4xl md:text-6xl text-ivory/80 hover:text-ivory transition-colors duration-300 py-2"
+                  className="font-display text-4xl md:text-6xl text-ivory/80 hover:text-ivory transition-colors duration-300 py-1.5"
                 >
                   {item.label}
                 </motion.a>
@@ -193,7 +194,7 @@ export function Header() {
             </nav>
 
             {/* Bottom info */}
-            <div className="container-custom pb-8 flex items-end justify-between">
+            <div className="container-custom pb-8 flex flex-col items-start gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="text-[11px] text-ivory/30 uppercase tracking-[0.15em]">
                 <p>{settings.email}</p>
                 <p className="mt-1">{settings.phone}</p>

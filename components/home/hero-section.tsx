@@ -80,7 +80,7 @@ export function HeroSection() {
   return (
     <section
       id="inicio"
-      className="relative min-h-screen flex flex-col overflow-hidden"
+      className="relative min-h-[100svh] flex flex-col overflow-hidden"
       style={{ backgroundColor: "#0a0a0b" }}
     >
       {/* Video Background — doble buffer con crossfade */}
@@ -99,7 +99,6 @@ export function HeroSection() {
             transition: FADE,
             zIndex: active === "a" ? 2 : 1,
           }}
-          poster="/buenos-aires-poster.jpg"
         >
           <source src={srcA} type="video/mp4" />
         </video>
@@ -148,9 +147,9 @@ export function HeroSection() {
       />
 
       {/* Top label line */}
-      <div className="relative z-20 container-custom pt-28 md:pt-36">
+      <div className="relative z-20 container-custom pt-24 md:pt-36">
         <div
-          className={`flex items-center justify-between text-[11px] uppercase tracking-widest transition-all duration-1500 ${
+          className={`flex items-start justify-between gap-6 text-[10px] uppercase tracking-widest transition-all duration-1500 md:text-[11px] ${
             isLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
           }`}
           style={{ transitionTimingFunction: "var(--f-cubic)", color: "rgba(255,255,255,0.6)" }}
@@ -159,12 +158,12 @@ export function HeroSection() {
             <span className="h-px w-8" style={{ background: "rgba(255,255,255,0.5)" }} />
             Desarrollos Inmobiliarios
           </span>
-          <span>Buenos Aires · Est. 2000</span>
+          <span className="text-right">Buenos Aires · Est. 2000</span>
         </div>
       </div>
 
       {/* Manifest content */}
-      <div className="relative z-20 container-custom flex-1 flex items-center py-16 md:py-24">
+      <div className="relative z-20 container-custom flex-1 flex items-center py-10 md:py-24">
         <div className="grid grid-cols-12 gap-6 w-full">
           <div className="col-span-12 lg:col-span-10 xl:col-span-9">
             <h1
@@ -182,7 +181,7 @@ export function HeroSection() {
             </h1>
 
             <p
-              className={`mt-10 md:mt-14 max-w-2xl text-lg md:text-xl leading-relaxed transition-all duration-[2000ms] ${
+              className={`mt-7 md:mt-14 max-w-2xl text-base md:text-xl leading-relaxed transition-all duration-[2000ms] ${
                 isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
               }`}
               style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "400ms", color: "rgba(248,245,239,0.72)" }}
@@ -193,15 +192,15 @@ export function HeroSection() {
             </p>
 
             <div
-              className={`mt-10 flex flex-wrap gap-4 transition-all duration-[2000ms] ${
+              className={`mt-8 flex flex-col gap-3 transition-all duration-[2000ms] sm:flex-row sm:flex-wrap sm:gap-4 md:mt-10 ${
                 isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
               }`}
               style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "600ms" }}
             >
-              <Link href="#desarrollos" className="btn-primary">
+              <Link href="#desarrollos" className="btn-primary w-full sm:w-auto">
                 Ver desarrollos
               </Link>
-              <Link href="#modelo" className="btn-outline-light">
+              <Link href="#modelo" className="btn-outline-light w-full sm:w-auto">
                 Cómo funciona
               </Link>
             </div>
@@ -210,42 +209,42 @@ export function HeroSection() {
       </div>
 
       {/* Stats strip */}
-      <div className="relative z-20 container-custom pb-8">
+      <div className="relative z-20 container-custom pb-5 md:pb-8">
         <div
-          className={`grid grid-cols-2 md:grid-cols-4 gap-6 py-8 transition-all duration-[2000ms] ${
+          className={`grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-6 py-5 md:gap-6 md:py-8 transition-all duration-[2000ms] ${
             isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
           style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "800ms", borderTop: "1px solid rgba(255,255,255,0.15)" }}
         >
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#d8c4af" }}>
+            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#d8c4af" }}>
               30-40%
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
               Retorno al finalizar
             </p>
           </div>
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
+            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
               35%
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
               Anticipo inicial
             </p>
           </div>
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
+            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
               24/7
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
               Gestión de renta
             </p>
           </div>
           <div>
-            <div className="font-display font-light text-4xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
+            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
               +25
             </div>
-            <p className="mt-2 text-[11px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
               Años de experiencia
             </p>
           </div>
@@ -253,7 +252,7 @@ export function HeroSection() {
       </div>
 
       {/* Scroll indicator */}
-      <div className="relative z-20 flex justify-center pb-8">
+      <div className="relative z-20 hidden justify-center pb-8 md:flex">
         <a
           href="#desarrollos"
           className={`flex flex-col items-center gap-2 transition-all duration-700 ${

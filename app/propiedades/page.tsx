@@ -50,7 +50,7 @@ export default async function PropertiesPage({
             </div>
             <div className="col-span-12 md:col-span-8">
               <p className="eyebrow mb-6">Catalogo</p>
-              <h1 className="font-display font-light text-[64px] md:text-[96px] lg:text-[120px] leading-[0.95] tracking-[-0.025em] text-ink">
+              <h1 className="font-display font-light text-[48px] md:text-[96px] lg:text-[120px] leading-[0.95] tracking-[-0.025em] text-ink">
                 {activeCategory ? (
                   <>
                     Propiedades

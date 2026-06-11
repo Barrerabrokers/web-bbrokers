@@ -132,7 +132,7 @@ export default async function DevelopmentDetailPage({
       <main>
         {/* Hero with primary image */}
         <section className="relative bg-ink text-bone pt-20 md:pt-24">
-          <div className="relative min-h-[500px] h-[68vh] max-h-[720px] overflow-hidden bg-ink-600">
+          <div className="relative min-h-[520px] h-[66svh] max-h-[720px] overflow-hidden bg-ink-600">
             {primaryImage && (
               <Image
                 src={primaryImage}
@@ -146,13 +146,13 @@ export default async function DevelopmentDetailPage({
             <div className="absolute inset-0 bg-gradient-to-b from-ink/30 via-ink/55 to-ink/90" />
             <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/55 to-ink/20" />
 
-            <div className="absolute inset-0 z-10 flex flex-col justify-end pb-8 md:pb-12">
+            <div className="absolute inset-0 z-10 flex flex-col justify-end pb-5 md:pb-12">
               <div className="container-custom">
-                <div className="max-w-4xl rounded-lg border border-[#F1EADE]/20 bg-[#151415]/70 p-5 shadow-2xl backdrop-blur-md md:p-8">
+                <div className="max-w-4xl rounded-lg border border-[#F1EADE]/20 bg-[#151415]/72 p-4 shadow-2xl backdrop-blur-md md:p-8">
                   <Reveal variant="fade-up" duration={1000}>
                     <Link
                       href="/desarrollos"
-                      className="inline-flex items-center gap-2 text-[#F1EADE]/75 hover:text-[#F1EADE] text-[11px] uppercase tracking-widest mb-5"
+                      className="inline-flex items-center gap-2 text-[#F1EADE]/75 hover:text-[#F1EADE] text-[10px] uppercase tracking-widest mb-4 md:text-[11px] md:mb-5"
                     >
                       <ArrowLeft className="h-4 w-4" />
                       Todos los desarrollos
@@ -160,7 +160,7 @@ export default async function DevelopmentDetailPage({
                   </Reveal>
 
                   <Reveal variant="fade-up" delay={150} duration={1200}>
-                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <div className="flex flex-wrap items-center gap-2 mb-3 md:gap-3 md:mb-4">
                       <span className="px-3 py-1.5 bg-accent text-ink text-[10px] uppercase tracking-widest font-medium rounded-full">
                         {DEVELOPMENT_STATUS_LABELS[development.status]}
                       </span>
@@ -173,15 +173,15 @@ export default async function DevelopmentDetailPage({
                   </Reveal>
 
                   <Reveal variant="clip-up" delay={300} duration={1600}>
-                    <h1 className="font-display font-light text-[38px] md:text-[68px] lg:text-[88px] tracking-[-0.03em] leading-[0.92] text-[#F1EADE] drop-shadow-sm">
+                    <h1 className="font-display font-light text-[34px] md:text-[68px] lg:text-[88px] tracking-[-0.03em] leading-[0.92] text-[#F1EADE] drop-shadow-sm">
                       {development.name}
                     </h1>
                   </Reveal>
 
                   <Reveal variant="fade-up" delay={500} duration={1200}>
-                    <div className="flex items-center gap-2 mt-5 text-[#F1EADE]/80">
+                    <div className="flex items-start gap-2 mt-4 text-[#F1EADE]/80 md:mt-5">
                       <MapPin className="h-4 w-4 flex-shrink-0 text-accent" />
-                      <span className="text-sm md:text-base">
+                      <span className="text-sm leading-relaxed md:text-base">
                         {development.address} · {development.location}
                       </span>
                     </div>
@@ -196,7 +196,7 @@ export default async function DevelopmentDetailPage({
         {/* Stats strip */}
         <section className="bg-ink text-bone border-y border-bone/15">
           <div className="container-custom py-6 md:py-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <div className="rounded-lg border border-bone/10 bg-bone/5 p-5">
                 <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
                   Desde
@@ -217,7 +217,7 @@ export default async function DevelopmentDetailPage({
                 <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
                   Entrega
                 </p>
-                <div className="font-display font-light text-2xl md:text-3xl text-bone flex items-center gap-2">
+                <div className="font-display font-light text-xl md:text-3xl text-bone flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-accent" />
                   {development.completionDate || "—"}
                 </div>
@@ -232,7 +232,7 @@ export default async function DevelopmentDetailPage({
                 </div>
               </div>
               {development.brochureUrl && (
-                <div className="rounded-lg border border-bone/10 bg-bone/5 p-5 sm:col-span-2 lg:col-span-1">
+                <div className="rounded-lg border border-bone/10 bg-bone/5 p-5 col-span-2 lg:col-span-1">
                   <p className="text-[10px] uppercase tracking-widest text-bone/50 mb-1">
                     Brochure
                   </p>
