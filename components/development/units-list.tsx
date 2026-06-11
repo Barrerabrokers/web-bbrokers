@@ -20,7 +20,6 @@ interface Props {
   developmentFeatures?: string[];
   developmentName?: string;
   developmentLocation?: string;
-  developmentUrl?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,7 +48,6 @@ export function UnitsList({
   developmentFeatures = [],
   developmentName = "el desarrollo",
   developmentLocation,
-  developmentUrl,
 }: Props) {
   const [filter, setFilter] = useState<string>("todos");
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
@@ -111,38 +109,7 @@ export function UnitsList({
     setActiveImageIndex(0);
   };
 
-  const getUnitShareUrl = (unit: Unit) => {
-    const path = developmentUrl || window.location.pathname;
-    const baseUrl = window.location.origin;
-    return `${baseUrl}${path}#unidad-${unit.id}`;
-  };
-
-  const getAbsoluteUrl = (url: string) => {
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    return `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
-  };
-
-  const getUnitShareText = (
-    unit: Unit,
-    {
-      includeImageLinks = true,
-      includeDevelopmentLink = true,
-    }: { includeImageLinks?: boolean; includeDevelopmentLink?: boolean } = {}
-  ) => {
-    const imageLines =
-      includeImageLinks && unit.images.length > 0
-        ? [
-            "",
-            "Imágenes de la unidad:",
-            ...unit.images.map((image, index) => {
-              const label = image.type
-                ? `${image.type} ${index + 1}`
-                : `Imagen ${index + 1}`;
-              return `${label}: ${getAbsoluteUrl(image.url)}`;
-            }),
-          ]
-        : [];
-
+  const getUnitShareText = (unit: Unit) => {
     const lines = [
       `Ficha de unidad - ${developmentName}`,
       `Unidad: ${unit.unitNumber}`,
@@ -158,72 +125,16 @@ export function UnitsList({
         ? `${unit.installmentCount} cuotas de ${formatPrice(unit.installmentValue)}`
         : null,
       `Precio final: ${formatPrice(unit.price)}`,
-      ...imageLines,
-      includeDevelopmentLink ? "" : null,
-      includeDevelopmentLink ? `Ver desarrollo: ${getUnitShareUrl(unit)}` : null,
     ];
 
     return lines.filter(Boolean).join("\n");
   };
 
   const getWhatsAppShareHref = (unit: Unit) =>
-    `https://wa.me/?text=${encodeURIComponent(
-      getUnitShareText(unit, {
-        includeImageLinks: false,
-        includeDevelopmentLink: false,
-      })
-    )}`;
+    `https://wa.me/?text=${encodeURIComponent(getUnitShareText(unit))}`;
 
-  const getImageExtension = (mimeType: string) => {
-    if (mimeType.includes("png")) return "png";
-    if (mimeType.includes("webp")) return "webp";
-    return "jpg";
-  };
-
-  const shareUnitByWhatsApp = async (unit: Unit) => {
-    const shareImage =
-      unit.images.find((image) => image.isPrimary) ||
-      unit.images[activeImageIndex] ||
-      unit.images[0];
-
-    const openWhatsAppFallback = () => {
-      window.open(getWhatsAppShareHref(unit), "_blank", "noopener,noreferrer");
-    };
-
-    if (!shareImage || !navigator.share) {
-      openWhatsAppFallback();
-      return;
-    }
-
-    try {
-      const response = await fetch(getAbsoluteUrl(shareImage.url));
-      if (!response.ok) throw new Error("No se pudo cargar la imagen");
-
-      const blob = await response.blob();
-      const mimeType = blob.type || "image/jpeg";
-      const file = new File(
-        [blob],
-        `unidad-${unit.unitNumber}.${getImageExtension(mimeType)}`,
-        { type: mimeType }
-      );
-      const shareData: ShareData = {
-        title: `Ficha unidad ${unit.unitNumber} - ${developmentName}`,
-        text: getUnitShareText(unit, {
-          includeImageLinks: false,
-          includeDevelopmentLink: false,
-        }),
-        files: [file],
-      };
-
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share(shareData);
-        return;
-      }
-
-      openWhatsAppFallback();
-    } catch {
-      openWhatsAppFallback();
-    }
+  const shareUnitByWhatsApp = (unit: Unit) => {
+    window.open(getWhatsAppShareHref(unit), "_blank", "noopener,noreferrer");
   };
 
   const getMailShareHref = (unit: Unit) => {
@@ -231,6 +142,10 @@ export function UnitsList({
     return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
       getUnitShareText(unit)
     )}`;
+  };
+
+  const shareUnitByMail = (unit: Unit) => {
+    window.location.href = getMailShareHref(unit);
   };
 
   if (units.length === 0) {
@@ -616,18 +531,19 @@ export function UnitsList({
                         <button
                           type="button"
                           onClick={() => shareUnitByWhatsApp(activeUnit)}
-                          className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-500 hover:text-ink"
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500 bg-emerald-500 px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-emerald-400 hover:border-emerald-400"
                         >
                           <MessageCircle className="h-4 w-4" />
                           Enviar ficha por WhatsApp
                         </button>
-                        <a
-                          href={getMailShareHref(activeUnit)}
+                        <button
+                          type="button"
+                          onClick={() => shareUnitByMail(activeUnit)}
                           className="inline-flex items-center justify-center gap-2 rounded-full border border-bone/20 bg-bone/10 px-5 py-3 text-sm font-medium text-bone transition-colors hover:bg-bone hover:text-ink"
                         >
                           <Mail className="h-4 w-4" />
                           Enviar ficha por mail
-                        </a>
+                        </button>
                       </div>
                       <a
                         href="/#contacto"

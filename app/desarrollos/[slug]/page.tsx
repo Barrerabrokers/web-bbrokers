@@ -254,7 +254,6 @@ export default async function DevelopmentDetailPage({
               developmentFeatures={development.features}
               developmentName={development.name}
               developmentLocation={`${development.address} · ${development.location}`}
-              developmentUrl={`/desarrollos/${development.slug}`}
             />
           </div>
         </section>
