@@ -10,9 +10,65 @@ import { formatPrice } from "@/lib/utils";
 import { UnitsList } from "@/components/development/units-list";
 import { DevelopmentGallery } from "@/components/development/development-gallery";
 import { Reveal } from "@/components/ui/reveal";
+import type { Metadata } from "next";
+import { absoluteUrl, SITE_NAME, truncateDescription } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const development = await getDevelopmentBySlug(params.slug);
+  if (!development) {
+    return {
+      title: "Desarrollo no encontrado",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const primaryImage =
+    development.images.find((i) => i.isPrimary)?.url ||
+    development.images[0]?.url;
+  const description = truncateDescription(
+    development.shortDescription || development.description
+  );
+  const url = absoluteUrl(`/desarrollos/${development.slug}`);
+
+  return {
+    title: `${development.name} en ${development.location} | Departamentos en pozo`,
+    description,
+    keywords: [
+      development.name,
+      development.location,
+      development.address,
+      `departamentos en ${development.location}`,
+      `comprar departamento en ${development.location}`,
+      `inversion inmobiliaria en ${development.location}`,
+      "desarrollo en pozo",
+    ],
+    alternates: {
+      canonical: url,
+    },
+    openGraph: {
+      title: `${development.name} en ${development.location}`,
+      description,
+      url,
+      siteName: SITE_NAME,
+      locale: "es_AR",
+      type: "article",
+      images: primaryImage ? [{ url: primaryImage, alt: development.name }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${development.name} en ${development.location}`,
+      description,
+      images: primaryImage ? [primaryImage] : undefined,
+    },
+  };
+}
 
 export default async function DevelopmentDetailPage({
   params,
@@ -27,9 +83,50 @@ export default async function DevelopmentDetailPage({
     development.images[0]?.url;
 
   const priceFrom = development.minPriceAvailable ?? development.priceFrom;
+  const pageUrl = absoluteUrl(`/desarrollos/${development.slug}`);
+  const primaryImageUrl = primaryImage || undefined;
+  const developmentSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: development.name,
+    description: truncateDescription(
+      development.shortDescription || development.description,
+      240
+    ),
+    image: primaryImageUrl,
+    url: pageUrl,
+    brand: {
+      "@type": "Organization",
+      name: SITE_NAME,
+    },
+    category: "Desarrollo inmobiliario",
+    areaServed: development.location,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: development.address,
+      addressLocality: development.location,
+      addressRegion: "Buenos Aires",
+      addressCountry: "AR",
+    },
+    offers: priceFrom
+      ? {
+          "@type": "AggregateOffer",
+          priceCurrency: development.currency || "USD",
+          lowPrice: priceFrom,
+          availability: "https://schema.org/InStock",
+          url: pageUrl,
+        }
+      : undefined,
+  };
 
   return (
     <div className="min-h-screen bg-ink">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(developmentSchema),
+        }}
+      />
       <Header />
 
       <main>

@@ -5,6 +5,13 @@ import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import {
+  DEFAULT_SEO_DESCRIPTION,
+  DEFAULT_SEO_TITLE,
+  SEO_KEYWORDS,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/seo";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -22,22 +29,43 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Barrera Brokers — Desarrollos Inmobiliarios en Buenos Aires",
-  description:
-    "Desarrollos en pozo, renta temporaria e inversiones inmobiliarias premium en Buenos Aires. Más de 25 años de experiencia.",
-  keywords: [
-    "desarrollos inmobiliarios",
-    "inversión en pozo",
-    "Buenos Aires",
-    "renta temporaria",
-    "Barrera Brokers",
-  ],
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: DEFAULT_SEO_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_SEO_DESCRIPTION,
+  keywords: SEO_KEYWORDS,
+  applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  alternates: {
+    canonical: SITE_URL,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
-    title: "Barrera Brokers — Desarrollos Inmobiliarios",
-    description: "Inversiones inmobiliarias premium en Buenos Aires.",
-    siteName: "Barrera Brokers",
+    title: DEFAULT_SEO_TITLE,
+    description: DEFAULT_SEO_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_NAME,
     locale: "es_AR",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_SEO_TITLE,
+    description: DEFAULT_SEO_DESCRIPTION,
   },
 };
 

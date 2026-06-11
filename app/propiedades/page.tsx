@@ -3,9 +3,27 @@ import { Footer } from "@/components/layout/footer";
 import { getProperties } from "@/lib/db";
 import { PropertyCard } from "@/components/property-card";
 import { PROPERTY_CATEGORIES } from "@/types";
+import type { Metadata } from "next";
+import { absoluteUrl, SEO_KEYWORDS } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: "Propiedades y departamentos en venta en Buenos Aires",
+  description:
+    "Busca departamentos y propiedades para comprar o invertir en Recoleta, Palermo, Belgrano, Nunez y las zonas mas buscadas de Buenos Aires.",
+  keywords: [
+    ...SEO_KEYWORDS,
+    "propiedades en venta",
+    "departamentos en venta",
+    "comprar departamento en Recoleta",
+    "comprar departamento en Palermo",
+  ],
+  alternates: {
+    canonical: absoluteUrl("/propiedades"),
+  },
+};
 
 export default async function PropertiesPage({
   searchParams,

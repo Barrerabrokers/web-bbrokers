@@ -16,9 +16,62 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { absoluteUrl, SITE_NAME, truncateDescription } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const property = await getPropertyById(params.id);
+  if (!property) {
+    return {
+      title: "Propiedad no encontrada",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const description = truncateDescription(
+    `${property.description} ${property.location ? `Ubicada en ${property.location}.` : ""}`
+  );
+  const url = absoluteUrl(`/propiedades/${property.id}`);
+  const primaryImage = property.images[0];
+
+  return {
+    title: `${property.title} en ${property.location} | Comprar departamento`,
+    description,
+    keywords: [
+      property.title,
+      property.location,
+      property.address,
+      `comprar departamento en ${property.location}`,
+      `propiedad en venta en ${property.location}`,
+      "inversion inmobiliaria",
+    ],
+    alternates: {
+      canonical: url,
+    },
+    openGraph: {
+      title: property.title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      locale: "es_AR",
+      type: "article",
+      images: primaryImage ? [{ url: primaryImage, alt: property.title }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: property.title,
+      description,
+      images: primaryImage ? [primaryImage] : undefined,
+    },
+  };
+}
 
 export default async function PropertyDetailPage({
   params,
@@ -37,9 +90,53 @@ export default async function PropertyDetailPage({
     vendida: "border-ink/20 text-ink/60 bg-cream-300",
   };
   const statusClass = statusStyles[property.status] ?? statusStyles.vendida;
+  const pageUrl = absoluteUrl(`/propiedades/${property.id}`);
+  const propertySchema = {
+    "@context": "https://schema.org",
+    "@type": "Offer",
+    name: property.title,
+    description: truncateDescription(property.description, 240),
+    url: pageUrl,
+    price: property.price,
+    priceCurrency: property.currency || "USD",
+    availability:
+      property.status === "disponible"
+        ? "https://schema.org/InStock"
+        : "https://schema.org/SoldOut",
+    itemOffered: {
+      "@type": "Apartment",
+      name: property.title,
+      image: property.images,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: property.address,
+        addressLocality: property.location,
+        addressRegion: "Buenos Aires",
+        addressCountry: "AR",
+      },
+      floorSize: {
+        "@type": "QuantitativeValue",
+        value: property.area,
+        unitCode: "MTK",
+      },
+      numberOfBedrooms: property.bedrooms,
+      numberOfBathroomsTotal: property.bathrooms,
+    },
+    seller: {
+      "@type": "RealEstateAgent",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+    },
+  };
 
   return (
     <div className="min-h-screen bg-cream-200">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(propertySchema),
+        }}
+      />
       <Header />
 
       <main className="pt-28 pb-32">

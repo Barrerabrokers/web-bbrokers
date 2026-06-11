@@ -6,9 +6,26 @@ import { Footer } from "@/components/layout/footer";
 import { getDevelopments } from "@/lib/developments-db";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import type { Metadata } from "next";
+import { absoluteUrl, SEO_KEYWORDS } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: "Desarrollos inmobiliarios en pozo en Buenos Aires",
+  description:
+    "Conoce desarrollos inmobiliarios y departamentos en pozo para comprar o invertir en Recoleta, Palermo, Belgrano, Nunez y Buenos Aires.",
+  keywords: [
+    ...SEO_KEYWORDS,
+    "desarrollos en pozo",
+    "departamentos en pozo",
+    "comprar departamento en pozo",
+  ],
+  alternates: {
+    canonical: absoluteUrl("/desarrollos"),
+  },
+};
 
 export default async function DesarrollosPage() {
   const developments = await getDevelopments();
