@@ -122,14 +122,19 @@ export function UnitsList({
     return `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
   };
 
-  const getUnitShareText = (unit: Unit) => {
+  const getUnitShareText = (
+    unit: Unit,
+    { includeImageLinks = true }: { includeImageLinks?: boolean } = {}
+  ) => {
     const imageLines =
-      unit.images.length > 0
+      includeImageLinks && unit.images.length > 0
         ? [
             "",
             "Imágenes de la unidad:",
             ...unit.images.map((image, index) => {
-              const label = image.type ? `${image.type} ${index + 1}` : `Imagen ${index + 1}`;
+              const label = image.type
+                ? `${image.type} ${index + 1}`
+                : `Imagen ${index + 1}`;
               return `${label}: ${getAbsoluteUrl(image.url)}`;
             }),
           ]
@@ -160,6 +165,55 @@ export function UnitsList({
 
   const getWhatsAppShareHref = (unit: Unit) =>
     `https://wa.me/?text=${encodeURIComponent(getUnitShareText(unit))}`;
+
+  const getImageExtension = (mimeType: string) => {
+    if (mimeType.includes("png")) return "png";
+    if (mimeType.includes("webp")) return "webp";
+    return "jpg";
+  };
+
+  const shareUnitByWhatsApp = async (unit: Unit) => {
+    const shareImage =
+      unit.images.find((image) => image.isPrimary) ||
+      unit.images[activeImageIndex] ||
+      unit.images[0];
+
+    const openWhatsAppFallback = () => {
+      window.open(getWhatsAppShareHref(unit), "_blank", "noopener,noreferrer");
+    };
+
+    if (!shareImage || !navigator.share) {
+      openWhatsAppFallback();
+      return;
+    }
+
+    try {
+      const response = await fetch(getAbsoluteUrl(shareImage.url));
+      if (!response.ok) throw new Error("No se pudo cargar la imagen");
+
+      const blob = await response.blob();
+      const mimeType = blob.type || "image/jpeg";
+      const file = new File(
+        [blob],
+        `unidad-${unit.unitNumber}.${getImageExtension(mimeType)}`,
+        { type: mimeType }
+      );
+      const shareData: ShareData = {
+        title: `Ficha unidad ${unit.unitNumber} - ${developmentName}`,
+        text: getUnitShareText(unit, { includeImageLinks: false }),
+        files: [file],
+      };
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      openWhatsAppFallback();
+    } catch {
+      openWhatsAppFallback();
+    }
+  };
 
   const getMailShareHref = (unit: Unit) => {
     const subject = `Ficha unidad ${unit.unitNumber} - ${developmentName}`;
@@ -548,15 +602,14 @@ export function UnitsList({
 
                     <div className="pt-5 border-t border-bone/15 space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <a
-                          href={getWhatsAppShareHref(activeUnit)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => shareUnitByWhatsApp(activeUnit)}
                           className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-500 hover:text-ink"
                         >
                           <MessageCircle className="h-4 w-4" />
                           Enviar ficha por WhatsApp
-                        </a>
+                        </button>
                         <a
                           href={getMailShareHref(activeUnit)}
                           className="inline-flex items-center justify-center gap-2 rounded-full border border-bone/20 bg-bone/10 px-5 py-3 text-sm font-medium text-bone transition-colors hover:bg-bone hover:text-ink"
