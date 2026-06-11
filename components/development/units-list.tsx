@@ -124,7 +124,10 @@ export function UnitsList({
 
   const getUnitShareText = (
     unit: Unit,
-    { includeImageLinks = true }: { includeImageLinks?: boolean } = {}
+    {
+      includeImageLinks = true,
+      includeDevelopmentLink = true,
+    }: { includeImageLinks?: boolean; includeDevelopmentLink?: boolean } = {}
   ) => {
     const imageLines =
       includeImageLinks && unit.images.length > 0
@@ -156,15 +159,20 @@ export function UnitsList({
         : null,
       `Precio final: ${formatPrice(unit.price)}`,
       ...imageLines,
-      "",
-      `Ver desarrollo: ${getUnitShareUrl(unit)}`,
+      includeDevelopmentLink ? "" : null,
+      includeDevelopmentLink ? `Ver desarrollo: ${getUnitShareUrl(unit)}` : null,
     ];
 
     return lines.filter(Boolean).join("\n");
   };
 
   const getWhatsAppShareHref = (unit: Unit) =>
-    `https://wa.me/?text=${encodeURIComponent(getUnitShareText(unit))}`;
+    `https://wa.me/?text=${encodeURIComponent(
+      getUnitShareText(unit, {
+        includeImageLinks: false,
+        includeDevelopmentLink: false,
+      })
+    )}`;
 
   const getImageExtension = (mimeType: string) => {
     if (mimeType.includes("png")) return "png";
@@ -200,7 +208,10 @@ export function UnitsList({
       );
       const shareData: ShareData = {
         title: `Ficha unidad ${unit.unitNumber} - ${developmentName}`,
-        text: getUnitShareText(unit, { includeImageLinks: false }),
+        text: getUnitShareText(unit, {
+          includeImageLinks: false,
+          includeDevelopmentLink: false,
+        }),
         files: [file],
       };
 
