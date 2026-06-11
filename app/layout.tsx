@@ -43,6 +43,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_URL,
   },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/BarreraBrokers.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/icon.svg",
+    apple: [{ url: "/BarreraBrokers.png", sizes: "180x180", type: "image/png" }],
+  },
   robots: {
     index: true,
     follow: true,
