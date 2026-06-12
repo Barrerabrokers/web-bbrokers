@@ -109,10 +109,11 @@ export async function Footer() {
 
         <div className="line-h mt-12 mb-6" />
 
-        <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
             &copy; {new Date().getFullYear()} {s.companyName}
           </p>
+          <SocialLinks compact />
           <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
             {s.addressCity}
           </p>
