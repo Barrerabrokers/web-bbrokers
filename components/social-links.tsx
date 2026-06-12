@@ -76,6 +76,14 @@ function SocialIcon({
     );
   }
 
+  if (icon === "facebook") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+        <path d="M14 8.1V6.7c0-.7.5-.9 1-.9h2V2.4L14.2 2C11.1 2 9.4 3.8 9.4 6.3v1.8H6.8v3.8h2.6V22H14V11.9h3.1l.5-3.8H14Z" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
       <path d="M6.9 8.9H3.6V20h3.3V8.9ZM5.2 4C4.1 4 3.4 4.7 3.4 5.7s.7 1.8 1.8 1.8S7 6.7 7 5.7 6.3 4 5.2 4ZM20.6 13.6c0-3.1-1.7-5-4.3-5-1.6 0-2.7.9-3.1 1.7h-.1V8.9H9.9V20h3.3v-5.5c0-1.5.7-2.5 2.1-2.5 1.2 0 1.9.8 1.9 2.5V20h3.3v-6.4Z" />

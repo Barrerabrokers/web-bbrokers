@@ -12,6 +12,12 @@ export const SOCIAL_LINKS = [
     icon: "tiktok",
   },
   {
+    label: "Facebook",
+    handle: "Barrera Brokers Real Estate",
+    href: "https://www.facebook.com/BarreraBrokersRealEstate",
+    icon: "facebook",
+  },
+  {
     label: "LinkedIn",
     handle: "Barrera Brokers",
     href: "https://www.linkedin.com/company/barrera-brokers",
