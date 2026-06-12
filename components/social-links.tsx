@@ -15,8 +15,14 @@ export function SocialLinks({
 }: SocialLinksProps) {
   const isDark = variant === "dark";
   const linkClass = isDark
-    ? "border-ink/15 text-ink/75 hover:border-ink/35 hover:bg-ink hover:text-bone"
+    ? "hover:bg-black hover:text-white"
     : "border-ivory/15 text-ivory/55 hover:border-ivory/35 hover:bg-ivory/10 hover:text-ivory";
+  const darkStyle = isDark
+    ? {
+        color: "#070707",
+        borderColor: "rgba(7, 7, 7, 0.28)",
+      }
+    : undefined;
 
   return (
     <div className={`flex flex-wrap gap-2 ${className}`}>
@@ -34,6 +40,7 @@ export function SocialLinks({
                 ? "gap-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em]"
                 : "gap-2 px-4 py-2 text-[11px] uppercase tracking-[0.18em]"
           }`}
+          style={darkStyle}
           title={link.label}
         >
           <SocialIcon icon={link.icon} className={iconOnly ? "h-4 w-4" : "h-3.5 w-3.5"} />
