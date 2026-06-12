@@ -36,7 +36,7 @@ export async function Footer() {
 
         <div className="line-h mb-12" />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Nav */}
           <div>
             <h3 className="label-tracking text-ivory/40 mb-4">Navegación</h3>
@@ -79,7 +79,7 @@ export async function Footer() {
           </div>
 
           {/* Contact */}
-          <div className="lg:col-span-2">
+          <div>
             <h3 className="label-tracking text-ivory/40 mb-4">Contacto</h3>
             <div className="space-y-3">
               <a
@@ -99,11 +99,13 @@ export async function Footer() {
                 <br />
                 {s.addressCity}
               </p>
-              <div className="pt-3">
-                <p className="label-tracking text-ivory/35 mb-3">Redes</p>
-                <SocialLinks compact />
-              </div>
             </div>
+          </div>
+
+          {/* Social */}
+          <div>
+            <h3 className="label-tracking text-ivory/40 mb-4">Redes</h3>
+            <SocialLinks variant="dark" compact className="max-w-[240px]" />
           </div>
         </div>
 
@@ -113,7 +115,7 @@ export async function Footer() {
           <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
             &copy; {new Date().getFullYear()} {s.companyName}
           </p>
-          <SocialLinks compact />
+          <SocialLinks variant="dark" compact />
           <p className="text-[11px] text-ivory/25 uppercase tracking-[0.1em]">
             {s.addressCity}
           </p>
