@@ -182,7 +182,7 @@ export function InteractiveShowcaseSection({
         </div>
 
         {/* Main grid */}
-        <div className="relative grid grid-cols-12 gap-4 md:gap-6 min-h-[60vh] items-center">
+        <div className="relative grid grid-cols-12 gap-4 md:gap-6 min-h-[44vh] items-center">
           {/* Left secondary */}
           {secondaryItems[0] && (
             <motion.div style={{ y: parallaxY1 }} className="hidden lg:block col-span-3 col-start-1">
@@ -193,7 +193,7 @@ export function InteractiveShowcaseSection({
           {/* Center main card */}
           <div className="col-span-12 lg:col-span-6 lg:col-start-4 relative z-20">
             <motion.div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ rotateX, rotateY, transformPerspective: 1200 }} className="relative">
-              <div className="relative aspect-[4/5] md:aspect-[3/4] overflow-hidden cursor-pointer" style={{ borderRadius: "18px" }}>
+              <div className="relative aspect-[4/3] md:aspect-[5/4] overflow-hidden cursor-pointer" style={{ borderRadius: "18px" }}>
                 <AnimatePresence initial={false} custom={direction} mode="wait">
                   <motion.div key={activeIndex} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.8, ease: [0.19, 1, 0.22, 1] }} className="absolute inset-0">
                     <Link href={active.href} className="block h-full group">
@@ -325,7 +325,7 @@ export function InteractiveShowcaseSection({
 function SideCard({ item, delay, hasEntered, borderColor, borderHover, overlayColor, textColor, textMuted }: { item: ShowcaseItem; delay: number; hasEntered: boolean; borderColor: string; borderHover: string; overlayColor: string; textColor: string; textMuted: string }) {
   return (
     <motion.div initial={{ opacity: 0, y: 40, clipPath: "inset(20% 0% 20% 0%)" }} animate={hasEntered ? { opacity: 1, y: 0, clipPath: "inset(0% 0% 0% 0%)" } : {}} transition={{ delay, duration: 1.2, ease: [0.19, 1, 0.22, 1] }}>
-      <Link href={item.href} className="group block relative aspect-[3/4] overflow-hidden" style={{ borderRadius: "14px", border: `1px solid ${borderColor}` }}>
+      <Link href={item.href} className="group block relative aspect-[4/3] overflow-hidden" style={{ borderRadius: "14px", border: `1px solid ${borderColor}` }}>
         {item.image && <Image src={item.image} alt={item.title} fill className="object-cover transition-transform duration-[2500ms] ease-out group-hover:scale-[1.06]" sizes="25vw" />}
         <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${overlayColor}cc 0%, ${overlayColor}33 50%, transparent 100%)` }} />
         <div className="absolute inset-0 rounded-[14px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: `inset 0 0 0 1px ${borderHover}` }} />

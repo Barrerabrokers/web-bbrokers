@@ -228,7 +228,7 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
         </div>
 
         {/* Main layout: collage grid */}
-        <div className="relative grid grid-cols-12 gap-4 md:gap-6 min-h-[70vh] items-center">
+        <div className="relative grid grid-cols-12 gap-4 md:gap-6 min-h-[48vh] items-center">
           {/* Secondary card LEFT — parallax */}
           {secondaryDevs[0] && (
             <motion.div
@@ -253,7 +253,7 @@ export function InteractiveDevelopmentsSection({ developments }: Props) {
             >
               {/* Main image with AnimatePresence */}
               <div
-                className="relative aspect-[4/5] md:aspect-[3/4] overflow-hidden cursor-pointer"
+                className="relative aspect-[4/3] md:aspect-[5/4] overflow-hidden cursor-pointer"
                 style={{ borderRadius: "18px" }}
               >
                 <AnimatePresence initial={false} custom={direction} mode="wait">
@@ -566,7 +566,7 @@ function SecondaryCard({
     >
       <Link
         href={`/desarrollos/${dev.slug}`}
-        className="group block relative aspect-[3/4] overflow-hidden"
+        className="group block relative aspect-[4/3] overflow-hidden"
         style={{
           borderRadius: "14px",
           border: "1px solid rgba(241,234,222,0.12)",
