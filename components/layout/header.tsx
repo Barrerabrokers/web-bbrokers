@@ -20,7 +20,7 @@ export function Header() {
   const navItems = [
     { href: "/#desarrollos", label: "Desarrollos" },
     { href: "/#modelo", label: "Inversión" },
-    { href: "/#renta", label: "Renta" },
+    { href: "/#rentals", label: "Rentals" },
     { href: "/#propiedades", label: "Propiedades" },
   ];
 

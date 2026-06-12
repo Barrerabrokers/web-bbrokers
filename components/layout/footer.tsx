@@ -43,7 +43,7 @@ export async function Footer() {
               {[
                 { href: "/#desarrollos", label: "Desarrollos" },
                 { href: "/#modelo", label: "Inversión" },
-                { href: "/#renta", label: "Renta temporaria" },
+                { href: "/#rentals", label: "Rentals" },
                 { href: "/#propiedades", label: "Propiedades" },
                 { href: "/#contacto", label: "Contacto" },
               ].map((item) => (
@@ -66,7 +66,7 @@ export async function Footer() {
               {[
                 "Inversión en pozo",
                 "Desarrollos premium",
-                "Renta temporaria",
+                "Rentals",
                 "Administración Airbnb",
                 "Tasaciones",
               ].map((item) => (
