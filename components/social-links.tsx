@@ -3,12 +3,14 @@ import { SOCIAL_LINKS } from "@/lib/social-links";
 type SocialLinksProps = {
   variant?: "light" | "dark";
   compact?: boolean;
+  iconOnly?: boolean;
   className?: string;
 };
 
 export function SocialLinks({
   variant = "light",
   compact = false,
+  iconOnly = false,
   className = "",
 }: SocialLinksProps) {
   const isDark = variant === "dark";
@@ -26,14 +28,50 @@ export function SocialLinks({
           rel="noopener noreferrer"
           aria-label={`${link.label} de Barrera Brokers`}
           className={`inline-flex items-center rounded-full border transition-all duration-300 ${linkClass} ${
-            compact
-              ? "px-3 py-1.5 text-[10px] uppercase tracking-[0.16em]"
-              : "px-4 py-2 text-[11px] uppercase tracking-[0.18em]"
+            iconOnly
+              ? "h-9 w-9 justify-center"
+              : compact
+                ? "gap-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em]"
+                : "gap-2 px-4 py-2 text-[11px] uppercase tracking-[0.18em]"
           }`}
+          title={link.label}
         >
-          {link.label}
+          <SocialIcon icon={link.icon} className={iconOnly ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          {!iconOnly && <span>{link.label}</span>}
         </a>
       ))}
     </div>
+  );
+}
+
+function SocialIcon({
+  icon,
+  className,
+}: {
+  icon: string;
+  className?: string;
+}) {
+  if (icon === "instagram") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none">
+        <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  if (icon === "tiktok") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+        <path d="M15.7 3c.3 2.4 1.8 4 4.3 4.2v3.3c-1.5.1-2.9-.3-4.2-1.1v6.1c0 3.1-2.1 5.5-5.4 5.5-3 0-5.4-2-5.4-5.1 0-3.4 2.7-5.4 6-5.1v3.4c-1.5-.4-2.7.3-2.7 1.7 0 1.1.9 1.9 2 1.9 1.3 0 2.1-.8 2.1-2.5V3h3.3Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M6.9 8.9H3.6V20h3.3V8.9ZM5.2 4C4.1 4 3.4 4.7 3.4 5.7s.7 1.8 1.8 1.8S7 6.7 7 5.7 6.3 4 5.2 4ZM20.6 13.6c0-3.1-1.7-5-4.3-5-1.6 0-2.7.9-3.1 1.7h-.1V8.9H9.9V20h3.3v-5.5c0-1.5.7-2.5 2.1-2.5 1.2 0 1.9.8 1.9 2.5V20h3.3v-6.4Z" />
+    </svg>
   );
 }

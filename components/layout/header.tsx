@@ -103,6 +103,7 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <SocialLinks iconOnly className="hidden lg:flex" />
             <Link
               href="/login"
               className="hidden md:inline-flex text-[10px] uppercase tracking-[0.15em] transition-colors duration-300 px-3 py-2"
