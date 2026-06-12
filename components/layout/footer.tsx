@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/db";
+import { SocialLinks } from "@/components/social-links";
 
 export async function Footer() {
   const s = await getSiteSettings();
@@ -98,6 +99,10 @@ export async function Footer() {
                 <br />
                 {s.addressCity}
               </p>
+              <div className="pt-3">
+                <p className="label-tracking text-ivory/35 mb-3">Redes</p>
+                <SocialLinks compact />
+              </div>
             </div>
           </div>
         </div>

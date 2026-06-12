@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSiteSettings } from "@/lib/use-site-settings";
+import { SocialLinks } from "@/components/social-links";
 
 /**
  * Contacto section — accent background con form.
@@ -189,7 +190,7 @@ export function ContactSection() {
       {/* Direct contact info */}
       <div className="relative z-10 border-t border-ink/15 py-12">
         <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
                 Email
@@ -231,6 +232,12 @@ export function ContactSection() {
                 <br />
                 Sab 10-14hs
               </p>
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <p className="text-[10px] uppercase tracking-widest text-ink/55 mb-2">
+                Redes
+              </p>
+              <SocialLinks variant="dark" compact />
             </div>
           </div>
         </div>

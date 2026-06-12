@@ -16,6 +16,7 @@ import {
   SITE_URL,
   TARGET_NEIGHBORHOODS,
 } from "@/lib/seo";
+import { SOCIAL_SAME_AS } from "@/lib/social-links";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -49,6 +50,7 @@ export default function HomePage() {
       "desarrollos en pozo",
       "departamentos en Buenos Aires",
     ],
+    sameAs: SOCIAL_SAME_AS,
   };
 
   return (

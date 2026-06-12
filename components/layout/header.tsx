@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSiteSettings } from "@/lib/use-site-settings";
+import { SocialLinks } from "@/components/social-links";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -195,9 +196,12 @@ export function Header() {
 
             {/* Bottom info */}
             <div className="container-custom pb-8 flex flex-col items-start gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="text-[11px] text-ivory/30 uppercase tracking-[0.15em]">
-                <p>{settings.email}</p>
-                <p className="mt-1">{settings.phone}</p>
+              <div>
+                <div className="text-[11px] text-ivory/30 uppercase tracking-[0.15em]">
+                  <p>{settings.email}</p>
+                  <p className="mt-1">{settings.phone}</p>
+                </div>
+                <SocialLinks compact className="mt-4" />
               </div>
               <Link
                 href="/#contacto"
