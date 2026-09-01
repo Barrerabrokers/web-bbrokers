@@ -1628,7 +1628,6 @@ export async function getCrmDataProperties(
 ): Promise<CrmDataProperty[]> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmDataPropertiesSchema();
     sql = getPgConnection();
     const rows = type
       ? await sql`
@@ -1769,7 +1768,6 @@ export async function getCrmLeads(options?: {
 }): Promise<CrmLead[]> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmLeadsSchema();
     sql = getPgConnection();
     const rows = options?.includeAll
       ? await sql`
@@ -1816,7 +1814,6 @@ export async function getCrmLeadById(
 ): Promise<CrmLead | null> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmLeadsSchema();
     sql = getPgConnection();
     const rows = options?.includeAll
       ? await sql`

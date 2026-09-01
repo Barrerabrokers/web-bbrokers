@@ -48,6 +48,25 @@ export async function getDevelopments(filter?: {
   return getDevelopmentsViaPostgres(filter);
 }
 
+/** Lightweight list for selectors and CRM filters. Avoids loading galleries and units. */
+export async function getDevelopmentOptions(): Promise<Array<{ id: string; name: string }>> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    const rows = await sql`
+      SELECT id, name
+      FROM developments
+      ORDER BY name ASC
+    `;
+    return rows.map((row) => ({ id: String(row.id), name: String(row.name) }));
+  } catch (error) {
+    console.error("Error fetching development options:", error);
+    return [];
+  } finally {
+    try { await sql?.end(); } catch {}
+  }
+}
+
 async function getDevelopmentsViaPostgres(filter?: {
   status?: string;
   highlight?: boolean;

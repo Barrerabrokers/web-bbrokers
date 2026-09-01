@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAllAgents, getCrmDataProperties, getCrmLeads } from "@/lib/db";
 import { HUBSPOT_LEAD_STATUS_OPTIONS } from "@/lib/crm-statuses";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentOptions } from "@/lib/developments-db";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 import { CrmBoard } from "@/components/admin/crm-board";
 import { CrmMobileAccess } from "@/components/admin/crm-mobile-access";
@@ -19,16 +19,18 @@ export default async function AdminCrmPage() {
   }
 
   const canAssignTeam = canViewAllCrmContacts(session.user.role);
-  const [leads, developments, agents, customLeadStatuses, customDevelopments] = await Promise.all([
+  const [leads, developments, agents, customProperties] = await Promise.all([
     getCrmLeads({
       agentId: session.user.id,
       includeAll: canAssignTeam,
     }),
-    getDevelopments(),
+    getDevelopmentOptions(),
     canAssignTeam ? getAllAgents() : Promise.resolve([]),
-    getCrmDataProperties("lead_status"),
-    getCrmDataProperties("development"),
+    getCrmDataProperties(),
   ]);
+
+  const customLeadStatuses = customProperties.filter((property) => property.type === "lead_status");
+  const customDevelopments = customProperties.filter((property) => property.type === "development");
 
   const crmDevelopmentOptions = [
     ...developments.map((development) => ({
