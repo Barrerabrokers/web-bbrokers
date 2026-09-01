@@ -87,12 +87,12 @@ function blocksToHtml(blocks: EmailContentBlock[], attachmentTrackingUrls = new 
           if (column.type === "image") {
             const url = column.url.replaceAll('"', "%22");
             const radius = Math.min(40, Math.max(0, Math.round(column.borderRadius ?? 8)));
-            return `<td width="${Math.round(width)}%" valign="top" style="width:${width}%;padding:${gap / 2}px;max-width:${width}%;"><img src="${url}" alt="${escapeHtml(column.alt || "")}" style="display:block;width:100%;max-width:100%;height:auto;border-radius:${radius}px;" /></td>`;
+            return `<td class="bb-email-column" width="${Math.round(width)}%" valign="top" style="width:${width}%;padding:${gap / 2}px;max-width:${width}%;"><img src="${url}" alt="${escapeHtml(column.alt || "")}" style="display:block;width:100%;max-width:100%;height:auto;border-radius:${radius}px;" /></td>`;
           }
           const content = `<div style="color:${safeColor(column.color, "#1c1a17")};font-family:${safeFont(column.fontFamily)};font-size:${Math.min(64, Math.max(10, Math.round(column.fontSize || 16)))}px;font-weight:${column.bold ? 700 : 400};text-align:${safeAlign(column.align)};line-height:1.55;">${column.html?.trim() ? sanitizeHtml(column.html) : textParagraphsToHtml(column.text)}</div>`;
-          return `<td width="${Math.round(width)}%" valign="top" style="width:${width}%;padding:${gap / 2}px;max-width:${width}%;overflow-wrap:anywhere;word-break:break-word;">${content}</td>`;
+          return `<td class="bb-email-column" width="${Math.round(width)}%" valign="top" style="width:${width}%;padding:${gap / 2}px;max-width:${width}%;overflow-wrap:anywhere;word-break:break-word;">${content}</td>`;
         }).join("");
-        return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;margin:8px 0 16px;"><tr>${cells}</tr></table>`;
+        return `<table class="bb-email-columns" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;margin:8px 0 16px;"><tr>${cells}</tr></table>`;
       }
 
       if (block.type === "button") {
@@ -145,8 +145,25 @@ function blocksToHtml(blocks: EmailContentBlock[], attachmentTrackingUrls = new 
     .join("");
 
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#f3f4f4;margin:0;padding:0;"><tr><td align="center" style="padding:16px 10px;">
-      <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;background:#ffffff;margin:0 auto;"><tr><td style="padding:20px 24px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1c1a17;">
+    <style>
+      .bb-email-content p { margin-top: 0; margin-bottom: 14px; }
+      .bb-email-content h1, .bb-email-content h2, .bb-email-content h3 { margin-top: 0; margin-bottom: 12px; line-height: 1.2; }
+      @media only screen and (max-width: 600px) {
+        .bb-email-shell { padding: 0 !important; }
+        .bb-email-card { width: 100% !important; max-width: 100% !important; }
+        .bb-email-content { padding: 14px 16px !important; font-size: 15px !important; line-height: 1.45 !important; }
+        .bb-email-columns, .bb-email-columns tbody, .bb-email-columns tr { display: block !important; width: 100% !important; height: auto !important; }
+        .bb-email-column { display: block !important; box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; padding: 5px 0 !important; }
+        .bb-email-column img { display: block !important; width: 100% !important; max-width: 100% !important; height: auto !important; margin: 0 auto !important; }
+        .bb-email-column > div { font-size: 16px !important; line-height: 1.45 !important; }
+        .bb-email-content p { margin-bottom: 12px !important; }
+        .bb-email-content h1 { font-size: 28px !important; }
+        .bb-email-content h2 { font-size: 24px !important; }
+        .bb-email-content h3 { font-size: 20px !important; }
+      }
+    </style>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#f3f4f4;margin:0;padding:0;"><tr><td class="bb-email-shell" align="center" style="padding:12px 8px;">
+      <table class="bb-email-card" role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;background:#ffffff;margin:0 auto;"><tr><td class="bb-email-content" style="padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1c1a17;">
         ${blocksHtml}
       </td></tr></table>
     </td></tr></table>

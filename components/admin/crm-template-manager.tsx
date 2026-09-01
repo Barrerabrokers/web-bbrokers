@@ -1786,7 +1786,7 @@ function TemplateBlockEditor({
 
       {block.type === "columns" && (
         <div
-          className="grid items-stretch py-3"
+          className="grid items-start py-3 max-sm:!grid-cols-1"
           style={{
             gap: `${block.gap ?? 20}px`,
             gridTemplateColumns: (block.widths?.length === block.columns.length
@@ -2669,7 +2669,7 @@ function TemplatePreview({
               }
               if (block.type === "columns") {
                 return (
-                  <div key={block.id} className="grid items-stretch" style={{ gap: `${block.gap ?? 12}px`, gridTemplateColumns: (block.widths || block.columns.map(() => 1)).map((width) => `${width}fr`).join(" ") }}>
+                  <div key={block.id} className="grid items-start max-sm:!grid-cols-1" style={{ gap: `${block.gap ?? 12}px`, gridTemplateColumns: (block.widths || block.columns.map(() => 1)).map((width) => `${width}fr`).join(" ") }}>
                     {block.columns.map((column, index) => column.type === "text" ? (
                       <div key={index} className="max-w-full overflow-hidden break-words" style={{ color: column.color || "#1c1a17", fontSize: `${column.fontSize || 14}px`, fontFamily: column.fontFamily, textAlign: column.align || "left", fontWeight: column.bold ? 700 : 400, overflowWrap: "anywhere" }} dangerouslySetInnerHTML={{ __html: variablePreview(column.html || textToHtml(column.text)) }} />
                     ) : (
