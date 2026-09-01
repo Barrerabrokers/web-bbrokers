@@ -1216,7 +1216,7 @@ export function CrmTemplateManager({
                   }}
                 />
               ) : (
-              <div className="grid min-h-[calc(100vh-7.5rem)] lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(760px,1fr)_300px]">
+              <div className="grid min-h-[calc(100vh-7.5rem)] lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(620px,1fr)_260px]">
                 <aside className="border-b border-ink/12 bg-white lg:border-b-0 lg:border-r">
                   <div className="flex items-center justify-between border-b border-ink/12 px-4 py-4">
                     <h3 className="text-lg font-semibold text-ink">Agregar</h3>
@@ -1252,6 +1252,7 @@ export function CrmTemplateManager({
                       </label>
                     </ModuleGroup>
 
+                    <div className="xl:hidden">
                     <ModuleGroup title="Todos los módulos predeterminados (11)">
                       <ModuleTile
                         icon={<Type className="h-5 w-5" />}
@@ -1340,6 +1341,7 @@ export function CrmTemplateManager({
                         onClick={addSpacerBlock}
                       />
                     </ModuleGroup>
+                    </div>
 
                     <ModuleGroup title="Variables">
                       <VariableButtons prefix="toolbox" onPick={(token) => insertVariable("body", token)} />
@@ -1361,7 +1363,7 @@ export function CrmTemplateManager({
                   </div>
                 </aside>
 
-                <section className="overflow-auto bg-[#f3f3f2] px-3 py-5 lg:px-6">
+                <section className="overflow-auto bg-[#f3f3f2] px-3 pb-5 pt-2 lg:px-5">
                   <div className="mx-auto max-w-[960px]">
                     <EditorToolbar
                       disabled={selectedBlock?.type !== "text"}
@@ -1482,7 +1484,31 @@ export function CrmTemplateManager({
                   </div>
                 </section>
 
-                <TemplatePreview
+                <div className="border-t border-ink/12 bg-white xl:border-l xl:border-t-0">
+                  <div className="border-b border-ink/10 p-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-ink">Más módulos</h3>
+                      <span className="text-[10px] font-medium text-ink/45">Agregar</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="module-tile cursor-pointer" title="Subir imagen">
+                        <ImageIcon className="h-5 w-5 text-[#005c5c]" /><span className="text-[11px] font-semibold">Imagen</span>
+                        <input type="file" accept="image/*" multiple onChange={uploadImages} className="sr-only" />
+                      </label>
+                      <label className="module-tile cursor-pointer" title="Subir planos">
+                        <FileImage className="h-5 w-5 text-[#005c5c]" /><span className="text-[11px] font-semibold">Planos</span>
+                        <input type="file" accept="image/*,.pdf" multiple onChange={uploadPlans} className="sr-only" />
+                      </label>
+                      <ModuleTile icon={<BadgePercent className="h-5 w-5" />} title="Financiación" description="Anticipo y cuotas" onClick={addFinancingSection} />
+                      <label className="module-tile cursor-pointer" title="Adjuntar archivo">
+                        <FileText className="h-5 w-5 text-[#005c5c]" /><span className="text-[11px] font-semibold">Adjunto</span>
+                        <input type="file" accept=".pdf,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp" multiple onChange={uploadAttachments} className="sr-only" />
+                      </label>
+                      <ModuleTile icon={<Minus className="h-5 w-5" />} title="Separador" description="Línea divisoria" onClick={addDividerBlock} />
+                      <ModuleTile icon={<GripVertical className="h-5 w-5" />} title="Espacio" description="Separación" onClick={addSpacerBlock} />
+                    </div>
+                  </div>
+                  <TemplatePreview
                   form={form}
                   selectedBlock={selectedBlock}
                   onTextChange={(patch) => {
@@ -1506,7 +1532,8 @@ export function CrmTemplateManager({
                   onSpacerChange={(patch) => {
                     if (selectedBlock?.type === "spacer") updateSpacerBlock(selectedBlock.id, patch);
                   }}
-                />
+                  />
+                </div>
               </div>
               )}
             </form>
@@ -2117,9 +2144,9 @@ function EditorToolbar({
   onPickVariable: (token: string) => void;
 }) {
   return (
-    <div className="sticky top-[72px] z-10 mb-4 rounded-xl border border-ink/12 bg-white/95 p-3 shadow-sm backdrop-blur">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div>
+    <div className="sticky top-[72px] z-10 mb-2 rounded-xl border border-ink/12 bg-white/95 p-2 shadow-sm backdrop-blur">
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+        <div className="hidden 2xl:block">
           <p className="text-xs font-semibold text-ink">Herramientas de edición</p>
           <p className="mt-0.5 text-xs text-ink/50">
             {disabled ? "Seleccioná un bloque de texto para activar formato." : "Formato activo sobre el bloque seleccionado."}
@@ -2196,7 +2223,7 @@ function EditorToolbar({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink/10 pt-3">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-ink/10 pt-2">
         <span className="text-xs font-semibold text-ink/55">Variables rápidas</span>
         {VARIABLES.map((variable) => (
           <button
