@@ -374,6 +374,7 @@ export function CrmTemplateManager({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [toolboxTab, setToolboxTab] = useState<"modules" | "sections">("modules");
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const selectedTextRange = useRef<Range | null>(null);
   const [selectionToolbar, setSelectionToolbar] = useState<{ blockId: string; left: number; top: number } | null>(null);
 
@@ -1185,9 +1186,9 @@ export function CrmTemplateManager({
                     />
                   </div>
 
-                  <div className="hidden items-center rounded-lg border border-ink/15 bg-[#f7f8f8] p-0.5 2xl:flex">
-                    <button type="button" className="rounded-md bg-white p-2 text-[#005c5c] shadow-sm" aria-label="Vista de escritorio"><Monitor className="h-4 w-4" /></button>
-                    <button type="button" className="rounded-md p-2 text-ink/45" aria-label="Vista móvil"><Smartphone className="h-4 w-4" /></button>
+                  <div className="hidden items-center rounded-lg border border-ink/15 bg-[#f7f8f8] p-0.5 xl:flex">
+                    <button type="button" onClick={() => setPreviewDevice("desktop")} className={`rounded-md p-2 ${previewDevice === "desktop" ? "bg-white text-[#005c5c] shadow-sm" : "text-ink/45"}`} aria-label="Vista de escritorio" aria-pressed={previewDevice === "desktop"}><Monitor className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setPreviewDevice("mobile")} className={`rounded-md p-2 ${previewDevice === "mobile" ? "bg-white text-[#005c5c] shadow-sm" : "text-ink/45"}`} aria-label="Vista móvil" aria-pressed={previewDevice === "mobile"}><Smartphone className="h-4 w-4" /></button>
                   </div>
 
                   <div className="hidden items-center gap-1 text-ink/35 2xl:flex">
@@ -1360,8 +1361,8 @@ export function CrmTemplateManager({
                   </div>
                 </aside>
 
-                <section className="overflow-auto bg-[#f3f3f2] px-3 py-5 lg:px-6 xl:px-10">
-                  <div className="mx-auto max-w-[1320px]">
+                <section className="overflow-auto bg-[#f3f3f2] px-3 py-5 lg:px-6">
+                  <div className="mx-auto max-w-[960px]">
                     <EditorToolbar
                       disabled={selectedBlock?.type !== "text"}
                       selectedBlock={selectedBlock}
@@ -1387,27 +1388,21 @@ export function CrmTemplateManager({
                       />
                     )}
 
-                    <div className="overflow-visible bg-white shadow-[0_4px_8px_rgba(21,20,21,0.08)]">
-                      <div className="flex min-h-32 items-center justify-center border-b border-ink/8 bg-white px-8 text-center">
-                        <div>
-                          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-[#151415] font-serif text-2xl text-white">BB</div>
-                          <p className="mt-3 text-xl font-semibold tracking-tight text-ink">Barrera Brokers</p>
-                        </div>
-                      </div>
-                      <div className="border-b border-ink/10 px-5 py-4 sm:px-8">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-xs font-semibold text-ink/55">Cuerpo del mail</p>
-                            <p className="mt-1 text-xs text-ink/45">
-                              Editá directo sobre la hoja. Seleccioná texto para darle formato o agregá módulos desde la izquierda.
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-[#f2fbfb] px-3 py-1 text-[11px] font-semibold text-[#005c5c]">
-                            {form.contentBlocks.length} bloque{form.contentBlocks.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="min-h-[620px] px-5 py-6 sm:px-10 xl:px-16">
+                    <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-ink/50">
+                      <span>{previewDevice === "desktop" ? "Correo real · 640 px" : "Celular · 375 px"}</span>
+                      <span>{previewDevice === "desktop" ? "Margen interno 20 px" : "Margen interno 16 px"}</span>
+                    </div>
+                    <div
+                      data-email-preview={previewDevice}
+                      className="mx-auto min-h-[620px] overflow-visible bg-white shadow-[0_4px_8px_rgba(21,20,21,0.08)] transition-[width] duration-200"
+                      style={{ width: "100%", maxWidth: previewDevice === "desktop" ? "640px" : "375px", padding: previewDevice === "desktop" ? "16px 20px" : "14px 16px" }}
+                    >
+                      <style jsx global>{`
+                        [data-email-preview="mobile"] [data-email-columns] { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+                        [data-email-preview="mobile"] [data-email-column] { min-height: 0 !important; margin: 5px 0 !important; }
+                        [data-email-preview] p { margin-top: 0; margin-bottom: 14px; }
+                        [data-email-preview="mobile"] p { margin-bottom: 12px; }
+                      `}</style>
                         {form.contentBlocks.map((block, index) => (
                           <TemplateBlockEditor
                             key={block.id}
@@ -1440,7 +1435,7 @@ export function CrmTemplateManager({
                             }}
                           />
                         ))}
-                        <div className="mt-3 grid gap-2 border-t border-ink/10 bg-white pt-3 sm:grid-cols-2 xl:grid-cols-8">
+                        <div className="mt-3 grid gap-2 border-t border-ink/10 bg-white pt-3 sm:grid-cols-2">
                           <button type="button" onClick={addTitleBlock} className="template-tool-button justify-center">
                             <Type className="h-4 w-4" />
                             Título
@@ -1483,7 +1478,6 @@ export function CrmTemplateManager({
                             />
                           </label>
                         </div>
-                      </div>
                     </div>
                   </div>
                 </section>
@@ -1786,6 +1780,7 @@ function TemplateBlockEditor({
 
       {block.type === "columns" && (
         <div
+          data-email-columns
           className="grid items-start py-3 max-sm:!grid-cols-1"
           style={{
             gap: `${block.gap ?? 20}px`,
@@ -1803,7 +1798,7 @@ function TemplateBlockEditor({
               onColumnsChange({ columns });
             };
             return (
-              <div key={columnIndex} className="relative flex h-full min-h-32 flex-col border border-dashed border-ink/20 bg-white p-2">
+              <div data-email-column key={columnIndex} className="relative flex h-full min-h-32 flex-col border border-dashed border-ink/20 bg-white p-2">
                 <div className="mb-2 flex items-center gap-1 border-b border-ink/10 pb-2">
                   <button
                     type="button"
