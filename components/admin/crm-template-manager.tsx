@@ -970,7 +970,7 @@ export function CrmTemplateManager({
       const isWhatsApp = form.channel === "whatsapp";
       const payload = {
         ...form,
-        subject: isWhatsApp ? form.subject || "Mensaje de WhatsApp" : form.subject,
+        subject: isWhatsApp ? form.subject || "Mensaje de WhatsApp" : form.subject.trim() || form.name.trim(),
         body: isWhatsApp ? form.body.trim() : textFromBlocks(form.contentBlocks),
         imageUrls: isWhatsApp ? [] : imageUrlsFromBlocks(form.contentBlocks),
         contentBlocks: isWhatsApp ? [] : form.contentBlocks,

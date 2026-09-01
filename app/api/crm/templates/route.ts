@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 const columnItemSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string(), html: z.string().optional(), color: z.string().optional(), fontSize: z.number().min(10).max(64).optional(), fontFamily: z.string().optional(), align: z.enum(["left", "center", "right"]).optional(), bold: z.boolean().optional() }),
-  z.object({ type: z.literal("image"), url: z.string().url(), alt: z.string().optional(), borderRadius: z.number().min(0).max(40).optional() }),
+  z.object({ type: z.literal("image"), url: z.string().trim().min(1), alt: z.string().optional(), borderRadius: z.number().min(0).max(40).optional() }),
 ]);
 
 const templateSchema = z.object({
@@ -24,7 +24,7 @@ const templateSchema = z.object({
   category: z.string().trim().optional().default("General"),
   subject: z.string().trim().optional().default(""),
   body: z.string().trim().optional().default(""),
-  imageUrls: z.array(z.string().url()).optional().default([]),
+  imageUrls: z.array(z.string().trim().min(1)).optional().default([]),
   contentBlocks: z
     .array(
       z.discriminatedUnion("type", [
@@ -43,7 +43,7 @@ const templateSchema = z.object({
         z.object({
           id: z.string().trim().min(1),
           type: z.literal("image"),
-          url: z.string().url(),
+          url: z.string().trim().min(1),
           width: z.number().min(20).max(100).default(100),
           align: z.enum(["left", "center", "right"]).optional(),
     alt: z.string().optional(),
@@ -76,7 +76,7 @@ const templateSchema = z.object({
         z.object({
           id: z.string().trim().min(1),
           type: z.literal("attachment"),
-          url: z.string().url(),
+          url: z.string().trim().min(1),
           name: z.string().trim().min(1),
         }),
         z.object({
@@ -116,16 +116,22 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const parsed = templateSchema.safeParse(body);
-  if (
-    !parsed.success
-    || (parsed.data?.channel !== "whatsapp" && !parsed.data.subject.trim())
-    || (parsed.data?.channel === "whatsapp" && !parsed.data.body.trim())
-  ) {
+  if (!parsed.success) {
+    const field = parsed.error.issues[0]?.path.join(".");
     return NextResponse.json(
-      { error: "Completá nombre y contenido de la plantilla." },
+      { error: field ? `Revisá el campo ${field} de la plantilla.` : "Revisá los datos de la plantilla." },
       { status: 400 }
     );
   }
+
+  if (parsed.data.channel === "whatsapp" && !parsed.data.body.trim()) {
+    return NextResponse.json(
+      { error: "Escribí el contenido del mensaje de WhatsApp." },
+      { status: 400 }
+    );
+  }
+
+  const emailSubject = parsed.data.subject.trim() || parsed.data.name.trim();
 
   const { template, error } = await upsertCrmEmailTemplate({
     ...parsed.data,
@@ -133,7 +139,7 @@ export async function POST(request: NextRequest) {
     subject:
       parsed.data.channel === "whatsapp"
         ? parsed.data.subject || "Mensaje de WhatsApp"
-        : parsed.data.subject,
+        : emailSubject,
     imageUrls: parsed.data.imageUrls,
     contentBlocks: parsed.data.channel === "whatsapp" ? [] : parsed.data.contentBlocks,
     createdBy: session.user.id,
