@@ -14,6 +14,7 @@ import { CrmRepliesSync } from "@/components/admin/crm-replies-sync";
 import { CrmMeetingScheduler } from "@/components/admin/crm-meeting-scheduler";
 import { getMeetingLinkByAgent } from "@/lib/meeting-scheduler";
 import { CrmContactHeader } from "@/components/admin/crm-contact-header";
+import { CrmCallActivityAction } from "@/components/admin/crm-call-activity-action";
 import { listWhatsAppMessagesForLead, type WhatsAppMessage } from "@/lib/whatsapp-inbox";
 
 export const dynamic = "force-dynamic";
@@ -110,6 +111,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
                 <form className="relative w-full max-w-sm" action={`/admin/crm/${lead.id}`}><input type="hidden" name="activity" value={activityFilter} /><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/42" /><input name="q" defaultValue={searchParams?.q || ""} placeholder="Buscar actividades" className="h-11 w-full rounded-lg border border-ink/15 bg-white pl-10 pr-3 text-sm text-ink outline-none placeholder:text-ink/48 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></form>
                 <div className="flex flex-col items-end gap-2"><span className="text-sm text-ink/52">{visibleActivities.length} de {activities.length} actividades</span><CrmRepliesSync leadId={lead.id} /></div>
               </div>
+              {activityFilter === "llamada" && <CrmCallActivityAction />}
               <div className="relative mt-6 space-y-3 before:absolute before:bottom-4 before:left-[17px] before:top-4 before:w-px before:bg-ink/12">
                 {visibleActivities.map((activity) => <div key={activity.id} className="relative pl-12"><span className="absolute left-0 top-4 z-[1] flex h-9 w-9 items-center justify-center rounded-full bg-[#006b6b] text-white ring-4 ring-white"><ActivityIcon type={activity.type} /></span><ActivityCard activity={activity} /></div>)}
                 {visibleActivities.length === 0 && <div className="relative rounded-lg border border-dashed border-ink/15 px-5 py-10 text-center"><NotebookPen className="mx-auto h-8 w-8 text-ink/28" /><p className="mt-3 text-sm font-medium text-ink">No encontramos actividades</p><p className="mt-1 text-sm text-ink/55">Probá otro filtro o una búsqueda diferente.</p></div>}
