@@ -210,7 +210,7 @@ export function CrmLeadFieldsEditor({
             >
               {PHONE_COUNTRIES.map((country) => (
                 <option key={`${country.iso2}-${country.dialCode}`} value={country.dialCode}>
-                  {country.name} ({country.dialCode})
+                  {country.dialCode}
                 </option>
               ))}
             </select>
