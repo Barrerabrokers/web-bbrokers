@@ -375,6 +375,7 @@ export function CrmTemplateManager({
   const [notice, setNotice] = useState("");
   const [toolboxTab, setToolboxTab] = useState<"modules" | "sections">("modules");
   const selectedTextRange = useRef<Range | null>(null);
+  const [selectionToolbar, setSelectionToolbar] = useState<{ blockId: string; left: number; top: number } | null>(null);
 
   useEffect(() => {
     const rememberSelection = () => {
@@ -386,10 +387,29 @@ export function CrmTemplateManager({
         : range.commonAncestorContainer.parentElement;
       if (element?.closest("[data-template-block-id] [contenteditable='true']")) {
         selectedTextRange.current = range.cloneRange();
+        const block = element.closest<HTMLElement>("[data-template-block-id]");
+        const rect = range.getBoundingClientRect();
+        if (block?.dataset.templateBlockId && rect.width > 0) {
+          const toolbarWidth = Math.min(390, window.innerWidth - 24);
+          setSelectedBlockId(block.dataset.templateBlockId);
+          setSelectionToolbar({
+            blockId: block.dataset.templateBlockId,
+            left: Math.max(12, Math.min(window.innerWidth - toolbarWidth - 12, rect.left + rect.width / 2 - toolbarWidth / 2)),
+            top: rect.top > 86 ? rect.top - 54 : rect.bottom + 10,
+          });
+        }
       }
     };
+    const dismissSelectionToolbar = (event: globalThis.PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.closest("[contenteditable='true'], [data-selection-toolbar]")) setSelectionToolbar(null);
+    };
     document.addEventListener("selectionchange", rememberSelection);
-    return () => document.removeEventListener("selectionchange", rememberSelection);
+    document.addEventListener("pointerdown", dismissSelectionToolbar);
+    return () => {
+      document.removeEventListener("selectionchange", rememberSelection);
+      document.removeEventListener("pointerdown", dismissSelectionToolbar);
+    };
   }, []);
 
   useEffect(() => {
@@ -1356,6 +1376,16 @@ export function CrmTemplateManager({
                       }}
                       onPickVariable={(token) => insertVariable("body", token)}
                     />
+                    {selectionToolbar && selectedBlock?.type === "text" && selectionToolbar.blockId === selectedBlock.id && (
+                      <FloatingSelectionToolbar
+                        left={selectionToolbar.left}
+                        top={selectionToolbar.top}
+                        onCommand={applyTextCommand}
+                        onFontFamily={applyFontFamily}
+                        onFontSize={applyTextSize}
+                        onTextColor={(color) => applyTextCommand("foreColor", color)}
+                      />
+                    )}
 
                     <div className="overflow-visible bg-white shadow-[0_4px_8px_rgba(21,20,21,0.08)]">
                       <div className="flex min-h-32 items-center justify-center border-b border-ink/8 bg-white px-8 text-center">
@@ -2045,6 +2075,30 @@ function ModuleTile({
       </span>
       <span className="text-xs font-semibold text-ink">{title}</span>
     </button>
+  );
+}
+
+function FloatingSelectionToolbar({ left, top, onCommand, onFontFamily, onFontSize, onTextColor }: {
+  left: number;
+  top: number;
+  onCommand: (command: string, value?: string) => void;
+  onFontFamily: (fontFamily: string) => void;
+  onFontSize: (fontSize: number) => void;
+  onTextColor: (color: string) => void;
+}) {
+  return (
+    <div data-selection-toolbar className="fixed z-50 flex max-w-[calc(100vw-24px)] items-center gap-1.5 rounded-xl border border-ink/12 bg-white p-1.5 shadow-[0_6px_16px_rgba(21,20,21,0.18)]" style={{ left, top }} role="toolbar" aria-label="Formato del texto seleccionado">
+      <select defaultValue="" onChange={(event) => { onFontFamily(event.target.value); event.currentTarget.value = ""; }} className="h-8 min-w-0 max-w-28 rounded-lg border border-ink/12 bg-white px-2 text-[11px] font-medium text-ink outline-none focus:border-[#005c5c]" aria-label="Tipografía del texto seleccionado">
+        <option value="" disabled>Tipografía</option>
+        {EMAIL_FONTS.slice(0, 5).map((font) => <option key={font.label} value={font.value}>{font.label}</option>)}
+      </select>
+      <select defaultValue="" onChange={(event) => { onFontSize(Number(event.target.value)); event.currentTarget.value = ""; }} className="h-8 w-[72px] rounded-lg border border-ink/12 bg-white px-2 text-[11px] font-medium text-ink outline-none focus:border-[#005c5c]" aria-label="Tamaño del texto seleccionado">
+        <option value="" disabled>Tamaño</option>
+        {[12, 14, 16, 18, 20, 24, 28, 32, 36, 42].map((size) => <option key={size} value={size}>{size}px</option>)}
+      </select>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onCommand("bold")} className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink/12 text-ink/70 hover:bg-cream-100" aria-label="Negrita"><Bold className="h-3.5 w-3.5" /></button>
+      <TextColorPalette compact onPick={onTextColor} />
+    </div>
   );
 }
 
