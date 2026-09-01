@@ -87,12 +87,12 @@ function blocksToHtml(blocks: EmailContentBlock[], attachmentTrackingUrls = new 
           if (column.type === "image") {
             const url = column.url.replaceAll('"', "%22");
             const radius = Math.min(40, Math.max(0, Math.round(column.borderRadius ?? 8)));
-            return `<td width="${Math.round(width)}%" height="100%" valign="top" background="${url}" style="width:${width}%;height:100%;padding:${gap / 2}px;max-width:${width}%;background-image:url('${url}');background-position:center;background-repeat:no-repeat;background-size:cover;border-radius:${radius}px;overflow:hidden;"><img src="${url}" alt="${escapeHtml(column.alt || "")}" width="100%" height="100%" style="display:block;width:100%;height:100%;min-height:100%;object-fit:cover;border-radius:${radius}px;" /></td>`;
+            return `<td width="${Math.round(width)}%" valign="top" style="width:${width}%;padding:${gap / 2}px;max-width:${width}%;"><img src="${url}" alt="${escapeHtml(column.alt || "")}" style="display:block;width:100%;max-width:100%;height:auto;border-radius:${radius}px;" /></td>`;
           }
           const content = `<div style="color:${safeColor(column.color, "#1c1a17")};font-family:${safeFont(column.fontFamily)};font-size:${Math.min(64, Math.max(10, Math.round(column.fontSize || 16)))}px;font-weight:${column.bold ? 700 : 400};text-align:${safeAlign(column.align)};line-height:1.55;">${column.html?.trim() ? sanitizeHtml(column.html) : textParagraphsToHtml(column.text)}</div>`;
-          return `<td width="${Math.round(width)}%" height="100%" valign="top" style="width:${width}%;height:100%;padding:${gap / 2}px;max-width:${width}%;overflow-wrap:anywhere;word-break:break-word;">${content}</td>`;
+          return `<td width="${Math.round(width)}%" valign="top" style="width:${width}%;padding:${gap / 2}px;max-width:${width}%;overflow-wrap:anywhere;word-break:break-word;">${content}</td>`;
         }).join("");
-        return `<table role="presentation" width="100%" height="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:100%;table-layout:fixed;margin:8px 0 16px;"><tr style="height:100%;">${cells}</tr></table>`;
+        return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;margin:8px 0 16px;"><tr>${cells}</tr></table>`;
       }
 
       if (block.type === "button") {

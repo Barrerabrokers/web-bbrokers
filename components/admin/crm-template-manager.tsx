@@ -1843,8 +1843,8 @@ function TemplateBlockEditor({
                     />
                   </>
                 ) : (
-                  <div className="relative min-h-20 flex-1 overflow-hidden" style={{ borderRadius: `${column.borderRadius ?? 8}px` }}>
-                    <img src={column.url} alt={column.alt || ""} className="absolute inset-0 h-full w-full object-cover" />
+                  <div className="relative flex-1 overflow-hidden" style={{ borderRadius: `${column.borderRadius ?? 8}px` }}>
+                    <img src={column.url} alt={column.alt || ""} className="block h-auto w-full object-contain" />
                     <button type="button" onClick={() => replaceColumn({ type: "text", text: "", html: "<p><br></p>", color: "#1c1a17", fontSize: 16, fontFamily: EMAIL_FONTS[0].value, align: "left", bold: false })} className="absolute right-1 top-1 rounded bg-white p-1.5 text-red-700 shadow-sm" aria-label="Eliminar imagen"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 )}
@@ -2673,7 +2673,7 @@ function TemplatePreview({
                     {block.columns.map((column, index) => column.type === "text" ? (
                       <div key={index} className="max-w-full overflow-hidden break-words" style={{ color: column.color || "#1c1a17", fontSize: `${column.fontSize || 14}px`, fontFamily: column.fontFamily, textAlign: column.align || "left", fontWeight: column.bold ? 700 : 400, overflowWrap: "anywhere" }} dangerouslySetInnerHTML={{ __html: variablePreview(column.html || textToHtml(column.text)) }} />
                     ) : (
-                      <div key={index} className="relative h-full min-h-24 overflow-hidden" style={{ borderRadius: `${column.borderRadius ?? 8}px` }}><img src={column.url} alt={column.alt || ""} className="absolute inset-0 h-full w-full object-cover" /></div>
+                      <div key={index} className="overflow-hidden" style={{ borderRadius: `${column.borderRadius ?? 8}px` }}><img src={column.url} alt={column.alt || ""} className="block h-auto w-full object-contain" /></div>
                     ))}
                   </div>
                 );
