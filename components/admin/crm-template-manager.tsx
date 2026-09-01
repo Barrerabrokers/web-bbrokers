@@ -94,8 +94,13 @@ const TEXT_COLORS = [
 ] as const;
 
 function TextColorPalette({ disabled = false, compact = false, onPick }: { disabled?: boolean; compact?: boolean; onPick: (color: string) => void }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const pickAndClose = (color: string) => {
+    onPick(color);
+    detailsRef.current?.removeAttribute("open");
+  };
   return (
-    <details className="group relative">
+    <details ref={detailsRef} className="group relative">
       <summary className={`flex cursor-pointer list-none items-center justify-center rounded-lg border border-ink/12 bg-white text-ink/70 transition-colors hover:bg-cream-100 group-open:border-[#005c5c] group-open:text-[#005c5c] ${compact ? "h-8 w-8" : "min-h-9 gap-2 px-3 text-xs font-semibold"} ${disabled ? "pointer-events-none opacity-40" : ""}`} aria-label="Abrir paleta de colores de texto">
         <Palette className="h-4 w-4" />
         {!compact && <span>Color</span>}
@@ -103,11 +108,11 @@ function TextColorPalette({ disabled = false, compact = false, onPick }: { disab
       <div className={`absolute z-50 mt-2 rounded-xl border border-ink/12 bg-white p-3 shadow-[0_18px_45px_rgba(21,20,21,0.18)] ${compact ? "left-0" : "right-0"}`}>
         <p className="mb-2 text-xs font-semibold text-ink">Color del texto</p>
         <div className="grid grid-cols-9 gap-1.5" aria-label="Paleta de colores de texto">
-          {TEXT_COLORS.map((color) => <button key={color} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onPick(color)} className="h-6 w-6 rounded border border-black/15 transition-transform hover:z-10 hover:scale-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#005c5c] focus-visible:ring-offset-1" style={{ backgroundColor: color }} aria-label={`Aplicar color ${color}`} title={color} />)}
+          {TEXT_COLORS.map((color) => <button key={color} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pickAndClose(color)} className="h-6 w-6 rounded border border-black/15 transition-transform hover:z-10 hover:scale-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#005c5c] focus-visible:ring-offset-1" style={{ backgroundColor: color }} aria-label={`Aplicar color ${color}`} title={color} />)}
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-ink/10 pt-3">
-          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink/70"><span>Personalizado</span><input type="color" defaultValue="#005c5c" onChange={(event) => onPick(event.target.value)} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0" aria-label="Elegir color personalizado" /></label>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => onPick("#1c1a17")} className="text-xs font-semibold text-[#005c5c] hover:underline">Restablecer</button>
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink/70"><span>Personalizado</span><input type="color" defaultValue="#005c5c" onChange={(event) => pickAndClose(event.target.value)} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0" aria-label="Elegir color personalizado" /></label>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pickAndClose("#1c1a17")} className="text-xs font-semibold text-[#005c5c] hover:underline">Restablecer</button>
         </div>
       </div>
     </details>
@@ -678,18 +683,22 @@ export function CrmTemplateManager({
       selection.removeAllRanges();
       selection.addRange(savedRange);
     }
-    if (command === "foreColor" && value && selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed) {
-      const range = selection.getRangeAt(0);
+    if (command === "foreColor" && value && savedRange && !savedRange.collapsed && editor.contains(savedRange.commonAncestorContainer)) {
+      const range = savedRange.cloneRange();
       const span = document.createElement("span");
       span.style.color = value;
       span.appendChild(range.extractContents());
       range.insertNode(span);
-      selection.removeAllRanges();
+      selection?.removeAllRanges();
       const selectedSpanRange = document.createRange();
       selectedSpanRange.selectNodeContents(span);
-      selection.addRange(selectedSpanRange);
+      selection?.addRange(selectedSpanRange);
       updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
-      selectedTextRange.current = selection.getRangeAt(0).cloneRange();
+      selectedTextRange.current = selectedSpanRange.cloneRange();
+      return;
+    }
+    if (command === "foreColor" && value) {
+      updateTextBlock(selectedBlock.id, { color: value });
       return;
     }
     window.document.execCommand(command, false, value);
@@ -703,14 +712,19 @@ export function CrmTemplateManager({
     const selection = window.getSelection();
     const savedRange = selectedTextRange.current;
     editor.focus();
-    if (selection && savedRange && editor.contains(savedRange.commonAncestorContainer)) {
+    if (selection && savedRange && !savedRange.collapsed && editor.contains(savedRange.commonAncestorContainer)) {
       selection.removeAllRanges();
       selection.addRange(savedRange);
-      window.document.execCommand("fontSize", false, "7");
-      editor.querySelectorAll<HTMLFontElement>('font[size="7"]').forEach((font) => {
-        font.removeAttribute("size");
-        font.style.fontSize = `${fontSize}px`;
-      });
+      const range = savedRange.cloneRange();
+      const span = document.createElement("span");
+      span.style.fontSize = `${fontSize}px`;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      const formattedRange = document.createRange();
+      formattedRange.selectNodeContents(span);
+      selection.removeAllRanges();
+      selection.addRange(formattedRange);
+      selectedTextRange.current = formattedRange.cloneRange();
       updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
       return;
     }
@@ -734,14 +748,21 @@ export function CrmTemplateManager({
     }
     const hasSelection = Boolean(selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed && editor.contains(selection.anchorNode));
 
-    if (hasSelection) {
-      window.document.execCommand("fontName", false, fontFamily);
+    if (hasSelection && savedRange) {
+      const range = savedRange.cloneRange();
+      const span = document.createElement("span");
+      span.style.fontFamily = fontFamily;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      const formattedRange = document.createRange();
+      formattedRange.selectNodeContents(span);
+      selection?.removeAllRanges();
+      selection?.addRange(formattedRange);
+      selectedTextRange.current = formattedRange.cloneRange();
+      updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
     } else {
-      const nextHtml = `<div style="font-family: ${escapeHtml(fontFamily)};">${editor.innerHTML}</div>`;
-      editor.innerHTML = nextHtml;
+      updateTextBlock(selectedBlock.id, { fontFamily });
     }
-
-    updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
   };
 
   const insertVariable = (field: "subject" | "body", token: string) => {
@@ -1617,9 +1638,11 @@ function TemplateBlockEditor({
     if (!selection) return false;
     selection.removeAllRanges();
     selection.addRange(range);
-    if (command === "foreColor" && value && !range.collapsed) {
+    if ((command === "foreColor" || command === "fontName" || command === "fontSize") && value && !range.collapsed) {
       const span = document.createElement("span");
-      span.style.color = value;
+      if (command === "foreColor") span.style.color = value;
+      if (command === "fontName") span.style.fontFamily = value;
+      if (command === "fontSize") span.style.fontSize = `${fontSize || Number(value)}px`;
       span.appendChild(range.extractContents());
       range.insertNode(span);
       selection.removeAllRanges();
@@ -1634,12 +1657,6 @@ function TemplateBlockEditor({
       return true;
     }
     document.execCommand(command, false, value);
-    if (fontSize) {
-      editor.querySelectorAll<HTMLFontElement>('font[size="7"]').forEach((font) => {
-        font.removeAttribute("size");
-        font.style.fontSize = `${fontSize}px`;
-      });
-    }
     const columns = [...block.columns];
     const column = columns[columnIndex];
     if (column.type === "text") columns[columnIndex] = { ...column, html: editor.innerHTML, text: stripHtml(editor.innerHTML) };
@@ -2081,11 +2098,15 @@ function EditorToolbar({
           </select>
           <select
             disabled={disabled}
-            value={selectedBlock?.type === "text" ? selectedBlock.fontSize || 16 : 16}
-            onChange={(event) => onFontSize(Number(event.target.value))}
+            defaultValue=""
+            onChange={(event) => {
+              onFontSize(Number(event.target.value));
+              event.currentTarget.value = "";
+            }}
             className="h-9 w-20 rounded-lg border border-ink/12 bg-white px-2 text-xs font-semibold text-ink/72 outline-none focus:border-[#005c5c] disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Tamaño de letra"
           >
+            <option value="" disabled>Tamaño</option>
             {[12, 14, 16, 18, 20, 24, 28, 32, 36, 42].map((size) => <option key={size} value={size}>{size}px</option>)}
           </select>
           <ToolbarButton label="Negrita" disabled={disabled} onClick={() => onCommand("bold")}>
