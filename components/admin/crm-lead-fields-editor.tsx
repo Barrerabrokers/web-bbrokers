@@ -144,7 +144,7 @@ export function CrmLeadFieldsEditor({
           assignedAgentId,
         });
       }}
-      className="min-w-0 rounded-xl border border-ink/12 bg-white p-5"
+      className="min-w-0 rounded-xl border border-ink/12 bg-white p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -158,54 +158,54 @@ export function CrmLeadFieldsEditor({
         )}
       </div>
 
-      <div className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-        <div className="grid gap-3 sm:contents">
+      <div className="mt-3 grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+        <div className="grid gap-2.5 sm:contents">
           <label className="block">
-            <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+            <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               Nombre
             </span>
             <input
               value={firstName}
               onChange={(event) => setFirstName(event.target.value)}
-              className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+              className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
               required
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+            <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               Apellido
             </span>
             <input
               value={lastName}
               onChange={(event) => setLastName(event.target.value)}
-              className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+              className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
               required
             />
           </label>
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Correo
           </span>
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
             type="email"
             required
           />
         </label>
 
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:col-span-1 xl:grid-cols-1 2xl:col-span-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="grid min-w-0 grid-cols-1 gap-2.5 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:col-span-1 xl:grid-cols-1 2xl:col-span-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
           <label className="block">
-            <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+            <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               País
             </span>
             <select
               value={countryCode}
               onChange={(event) => setCountryCode(event.target.value)}
-              className="h-11 w-full min-w-0 truncate rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+              className="h-9 w-full min-w-0 truncate rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
               required
             >
               {PHONE_COUNTRIES.map((country) => (
@@ -216,20 +216,20 @@ export function CrmLeadFieldsEditor({
             </select>
           </label>
           <label className="block">
-            <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+            <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               Teléfono
             </span>
             <input
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+              className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
               required
             />
           </label>
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Estado del lead
           </span>
           <select
@@ -238,7 +238,7 @@ export function CrmLeadFieldsEditor({
               const nextStatus = event.target.value as CrmLeadStatus;
               setStatus(nextStatus);
             }}
-            className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
           >
             {leadStatusOptionsForValue(status).map((item) => (
               <option key={item.value} value={item.value}>
@@ -249,7 +249,7 @@ export function CrmLeadFieldsEditor({
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Desarrollo
           </span>
           <select
@@ -264,7 +264,7 @@ export function CrmLeadFieldsEditor({
                 );
               }
             }}
-            className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
           >
             <option value="">{developmentNameText || "Sin definir"}</option>
             {developments.map((development) => (
@@ -276,7 +276,7 @@ export function CrmLeadFieldsEditor({
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.16em] text-ink/45">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Propietario del contacto
           </span>
           <select
@@ -286,7 +286,7 @@ export function CrmLeadFieldsEditor({
               const nextAgentId = event.target.value;
               setAssignedAgentId(nextAgentId);
             }}
-            className="h-11 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15 disabled:cursor-not-allowed disabled:bg-cream-100 disabled:text-ink/50"
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15 disabled:cursor-not-allowed disabled:bg-cream-100 disabled:text-ink/50"
           >
             <option value="">Sin asignar</option>
             {agents.map((agent) => (
@@ -307,14 +307,14 @@ export function CrmLeadFieldsEditor({
       <button
         type="submit"
         disabled={isPending}
-        className="mt-5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-bone transition-colors hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-bone transition-colors hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
         Guardar información
       </button>
 
       {canDelete && (
-        <div className="mt-5 border-t border-ink/10 pt-4">
+        <div className="mt-3 border-t border-ink/10 pt-3">
           <button
             type="button"
             onClick={deleteLead}

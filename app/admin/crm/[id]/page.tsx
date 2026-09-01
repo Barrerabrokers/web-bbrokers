@@ -82,12 +82,12 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-[#f3f4f4] text-ink">
       <div className="grid min-h-[calc(100vh-5rem)] gap-px bg-ink/10 xl:grid-cols-[320px_minmax(520px,1fr)_320px]">
-        <aside className="min-w-0 bg-[#f3f4f4] p-4 lg:p-5">
-          <section className="rounded-xl bg-white p-5 ring-1 ring-ink/10">
-            <Link href="/admin/crm" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-ink transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]"><ArrowLeft className="h-4 w-4" /> Contactos</Link>
+        <aside className="min-w-0 bg-[#f3f4f4] p-3 lg:p-4">
+          <section className="rounded-xl bg-white p-4 ring-1 ring-ink/10">
+            <Link href="/admin/crm" className="inline-flex min-h-9 items-center gap-2 rounded-lg px-1 text-sm font-semibold text-ink transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]"><ArrowLeft className="h-4 w-4" /> Contactos</Link>
             <CrmContactHeader lead={lead} whatsappUrl={waUrl} />
           </section>
-          <div id="contact-information" className="mt-4">
+          <div id="contact-information" className="mt-3">
             <CrmLeadFieldsEditor lead={lead} canDelete={includeAll} developments={developmentOptions}
               agents={agents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name, email: agent.email }))} canAssignOwner={includeAll} />
           </div>
