@@ -1379,7 +1379,6 @@ export async function upsertCrmLeadFromHubSpot(data: {
 }): Promise<{ lead: CrmLead | null; created: boolean; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmLeadsSchema();
     sql = getPgConnection();
     const props = data.properties;
     const stringProperty = (value: unknown) => typeof value === "string" ? value : null;
@@ -1805,6 +1804,92 @@ export async function getCrmLeads(options?: {
   }
 }
 
+export type CrmLeadPageOptions = {
+  agentId?: string;
+  includeAll?: boolean;
+  ownerId?: string;
+  status?: string;
+  query?: string;
+  page?: number;
+  pageSize?: number;
+  sortColumn?: "name" | "email" | "phone" | "whatsapp" | "status" | "temperature" | "development" | "createdAt" | "owner";
+  sortDirection?: "asc" | "desc";
+};
+
+export async function getCrmLeadsPage(
+  options: CrmLeadPageOptions
+): Promise<{ leads: CrmLead[]; total: number }> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    const page = Math.max(1, Math.floor(options.page || 1));
+    const pageSize = Math.min(500, Math.max(1, Math.floor(options.pageSize || 50)));
+    const values: (string | number)[] = [];
+    const conditions: string[] = [];
+    const addValue = (value: string | number) => {
+      values.push(value);
+      return `$${values.length}`;
+    };
+
+    if (!options.includeAll) {
+      conditions.push(`l.assigned_agent_id = ${addValue(options.agentId || "")}::uuid`);
+    } else if (options.ownerId && options.ownerId !== "all") {
+      conditions.push(`l.assigned_agent_id = ${addValue(options.ownerId)}::uuid`);
+    }
+    if (options.status && options.status !== "all") {
+      conditions.push(`l.status = ${addValue(options.status)}`);
+    }
+    const needle = options.query?.trim();
+    if (needle) {
+      const search = addValue(`%${needle}%`);
+      conditions.push(`concat_ws(' ', l.first_name, l.last_name, l.email, l.country_code, l.phone, l.status, l.source, l.development_name_text, d.name, a.name) ILIKE ${search}`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const sortColumns: Record<NonNullable<CrmLeadPageOptions["sortColumn"]>, string> = {
+      name: "lower(concat_ws(' ', l.first_name, l.last_name))",
+      email: "lower(COALESCE(l.email, ''))",
+      phone: "lower(concat_ws(' ', l.country_code, l.phone))",
+      whatsapp: "lower(concat_ws(' ', l.country_code, l.phone))",
+      status: "lower(COALESCE(l.status, ''))",
+      temperature: "lower(COALESCE(l.temperature, ''))",
+      development: "lower(COALESCE(NULLIF(l.development_name_text, ''), d.name, ''))",
+      createdAt: "l.created_at",
+      owner: "lower(COALESCE(a.name, ''))",
+    };
+    const orderBy = sortColumns[options.sortColumn || "createdAt"];
+    const direction = options.sortDirection === "asc" ? "ASC" : "DESC";
+
+    const countRows = await sql.unsafe(
+      `SELECT COUNT(*)::int AS total
+       FROM crm_leads l
+       LEFT JOIN developments d ON d.id = l.development_id
+       LEFT JOIN agents a ON a.id = l.assigned_agent_id
+       ${where}`,
+      values
+    );
+    const total = Number(countRows[0]?.total || 0);
+    const dataValues = [...values, pageSize, (page - 1) * pageSize];
+    const rows = await sql.unsafe(
+      `SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name
+       FROM crm_leads l
+       LEFT JOIN developments d ON d.id = l.development_id
+       LEFT JOIN agents a ON a.id = l.assigned_agent_id
+       ${where}
+       ORDER BY ${orderBy} ${direction}, l.id ASC
+       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      dataValues
+    );
+
+    return { leads: (rows as unknown as CrmLeadRow[]).map(mapCrmLead), total };
+  } catch (error) {
+    console.error("Error fetching paginated CRM leads:", error);
+    return { leads: [], total: 0 };
+  } finally {
+    try { await sql?.end(); } catch {}
+  }
+}
+
 export async function getCrmLeadById(
   id: string,
   options?: {
@@ -1856,7 +1941,6 @@ export async function upsertCrmLead(
 ): Promise<{ lead: CrmLead | null; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmLeadsSchema();
     sql = getPgConnection();
 
     const id = data.id || crypto.randomUUID();
@@ -1976,7 +2060,6 @@ export async function upsertCrmLeadByEmail(
 ): Promise<{ lead: CrmLead | null; created: boolean; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmLeadsSchema();
     sql = getPgConnection();
 
     const email = data.email.trim().toLowerCase();
@@ -2040,7 +2123,6 @@ export async function upsertCrmLeadByEmail(
 export async function deleteCrmLead(id: string): Promise<{ success: boolean; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmLeadsSchema();
     sql = getPgConnection();
     await sql`DELETE FROM crm_leads WHERE id = ${id}`;
     return { success: true, error: null };
@@ -2133,7 +2215,6 @@ export async function getCrmActivities(leadIds: string[]): Promise<CrmActivity[]
 
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmActivitiesSchema();
     sql = getPgConnection();
     const rows = await sql`
       SELECT
@@ -2168,7 +2249,6 @@ export async function createCrmActivity(data: {
 }): Promise<{ activity: CrmActivity | null; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmActivitiesSchema();
     sql = getPgConnection();
     const rows = await sql`
       INSERT INTO crm_activities (
@@ -2232,22 +2312,25 @@ export async function createCrmActivity(data: {
 
 export async function deleteCrmActivity(
   id: string,
-  visibleLeadIds: string[]
+  options: { agentId?: string; includeAll?: boolean }
 ): Promise<{ success: boolean; error: string | null }> {
-  if (!id || visibleLeadIds.length === 0) {
+  if (!id) {
     return { success: false, error: "No se pudo eliminar la actividad" };
   }
 
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmActivitiesSchema();
     sql = getPgConnection();
-    const rows = await sql`
-      DELETE FROM crm_activities
-      WHERE id = ${id}
-        AND lead_id = ANY(${visibleLeadIds})
-      RETURNING id
-    `;
+    const rows = options.includeAll
+      ? await sql`DELETE FROM crm_activities WHERE id = ${id} RETURNING id`
+      : await sql`
+          DELETE FROM crm_activities act
+          USING crm_leads lead
+          WHERE act.id = ${id}
+            AND lead.id = act.lead_id
+            AND lead.assigned_agent_id = ${options.agentId || ""}
+          RETURNING act.id
+        `;
 
     return {
       success: rows.length > 0,

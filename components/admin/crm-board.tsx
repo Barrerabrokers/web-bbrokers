@@ -141,6 +141,7 @@ type CrmEmailTemplateContentBlock =
 
 type CrmBoardProps = {
   initialLeads: CrmLead[];
+  initialTotal: number;
   initialActivities: CrmActivity[];
   agents: CrmAgent[];
   developments: CrmDevelopment[];
@@ -523,6 +524,7 @@ function compareCrmLeads(a: CrmLead, b: CrmLead, sort: CrmSortState) {
 
 export function CrmBoard({
   initialLeads,
+  initialTotal,
   initialActivities,
   agents,
   developments: initialDevelopments,
@@ -531,6 +533,8 @@ export function CrmBoard({
   canAssignTeam,
 }: CrmBoardProps) {
   const [leads, setLeads] = useState(initialLeads);
+  const [totalLeads, setTotalLeads] = useState(initialTotal);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [activities, setActivities] = useState(initialActivities);
   const loadedActivityLeadIds = useRef(new Set(initialActivities.map((activity) => activity.leadId)));
   const [crmDevelopments, setCrmDevelopments] = useState(() =>
@@ -615,36 +619,11 @@ export function CrmBoard({
     return () => { cancelled = true; };
   }, [selectedLeadId]);
 
-  const filteredLeads = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return leads.filter((lead) => {
-      if (ownerFilter !== "all" && lead.assignedAgentId !== ownerFilter) return false;
-      if (statusFilter !== "all" && lead.status !== statusFilter) return false;
-      if (!needle) return true;
-
-      const haystack = [
-        leadFullName(lead),
-        lead.email,
-        lead.phone,
-        lead.developmentName || "",
-        lead.status,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(needle);
-    });
-  }, [leads, ownerFilter, query, statusFilter]);
-  const sortedLeads = useMemo(() => {
-    return [...filteredLeads].sort((a, b) => compareCrmLeads(a, b, sortState));
-  }, [filteredLeads, sortState]);
-  const pageCount = Math.max(1, Math.ceil(sortedLeads.length / pageSize));
+  const pageCount = Math.max(1, Math.ceil(totalLeads / pageSize));
   const safeCurrentPage = Math.min(currentPage, pageCount);
-  const paginatedLeads = useMemo(() => {
-    const start = (safeCurrentPage - 1) * pageSize;
-    return sortedLeads.slice(start, start + pageSize);
-  }, [pageSize, safeCurrentPage, sortedLeads]);
-  const pageStart = sortedLeads.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const pageEnd = Math.min(sortedLeads.length, safeCurrentPage * pageSize);
+  const paginatedLeads = leads;
+  const pageStart = totalLeads === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const pageEnd = totalLeads === 0 ? 0 : Math.min(totalLeads, pageStart + leads.length - 1);
   const tableWidth = useMemo(
     () => columnOrder.reduce((total, column) => total + columnWidths[column], 0),
     [columnOrder, columnWidths]
@@ -657,6 +636,46 @@ export function CrmBoard({
   useEffect(() => {
     setCurrentPage(1);
   }, [ownerFilter, pageSize, query, statusFilter]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      const params = new URLSearchParams({
+        page: String(safeCurrentPage),
+        pageSize: String(pageSize),
+        owner: ownerFilter,
+        status: statusFilter,
+        query: query.trim(),
+        sort: sortState.column,
+        direction: sortState.direction,
+      });
+      setIsLoadingLeads(true);
+      try {
+        const response = await fetch(`/api/crm/leads?${params}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = (await response.json().catch(() => null)) as
+          | { leads?: CrmLead[]; total?: number; error?: string }
+          | null;
+        if (!response.ok || !data?.leads || typeof data.total !== "number") {
+          throw new Error(data?.error || "No se pudo cargar la lista de contactos");
+        }
+        setLeads(data.leads);
+        setTotalLeads(data.total);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "No se pudo cargar la lista de contactos");
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingLeads(false);
+      }
+    }, query.trim() ? 300 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [ownerFilter, pageSize, query, safeCurrentPage, sortState, statusFilter]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(pointer: coarse), (max-width: 1023px)");
@@ -840,9 +859,18 @@ export function CrmBoard({
   };
 
   const refreshLeads = async () => {
-    const response = await fetch("/api/crm/leads");
+    const params = new URLSearchParams({
+      page: String(safeCurrentPage),
+      pageSize: String(pageSize),
+      owner: ownerFilter,
+      status: statusFilter,
+      query: query.trim(),
+      sort: sortState.column,
+      direction: sortState.direction,
+    });
+    const response = await fetch(`/api/crm/leads?${params}`, { cache: "no-store" });
     const data = (await response.json().catch(() => null)) as
-      | { leads?: CrmLead[]; error?: string }
+      | { leads?: CrmLead[]; total?: number; error?: string }
       | null;
 
     if (!response.ok || !data?.leads) {
@@ -850,6 +878,7 @@ export function CrmBoard({
     }
 
     setLeads(data.leads);
+    if (typeof data.total === "number") setTotalLeads(data.total);
   };
 
   const saveInlineLeadField = async (leadId: string, field: string, payload: LeadFieldPatch) => {
@@ -939,11 +968,7 @@ export function CrmBoard({
         throw new Error(data?.error || "No se pudo guardar el contacto");
       }
 
-      const nextLead = data.lead;
-      setLeads((current) => {
-        const withoutLead = current.filter((lead) => lead.id !== nextLead.id);
-        return [nextLead, ...withoutLead];
-      });
+      await refreshLeads();
       setSelectedLeadId("");
       setIsCreating(false);
       setNotice(form.id ? "Contacto actualizado." : "Contacto creado y asignado.");
@@ -1116,8 +1141,8 @@ export function CrmBoard({
       data = { ...totals, leads: data?.leads };
       if (!data.leads) throw new Error("No se pudo actualizar la lista de contactos");
 
-      setLeads(data.leads);
-      setSelectedLeadIds((current) => current.filter((leadId) => data.leads!.some((lead) => lead.id === leadId)));
+      setSelectedLeadIds([]);
+      setCurrentPage(1);
       setOwnerFilter("all");
       setSortState(CRM_DEFAULT_SORT);
       setNotice(
@@ -1166,8 +1191,8 @@ export function CrmBoard({
         throw new Error(data?.error || "No se pudo importar el archivo Excel");
       }
 
-      setLeads(data.leads);
       setSelectedLeadIds([]);
+      setCurrentPage(1);
       setOwnerFilter("all");
       setNotice(
         `Excel importado: ${data.created || 0} nuevos, ${data.updated || 0} actualizados, ${data.skipped || 0} omitidos.${
@@ -1913,7 +1938,7 @@ export function CrmBoard({
                 ))}
               </select>
               <span className="inline-flex min-h-11 items-center rounded-full border border-ink/12 bg-cream-100 px-4 text-sm text-ink/62">
-                {sortedLeads.length} contacto{sortedLeads.length !== 1 ? "s" : ""}
+                {totalLeads} contacto{totalLeads !== 1 ? "s" : ""}
               </span>
               <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/12 bg-white px-4 text-sm text-ink/65">
                 <span>Por página</span>
@@ -1968,7 +1993,7 @@ export function CrmBoard({
 
           <div className="bg-[#efe7da] px-4 pb-28 pt-4 text-ink lg:hidden">
             <div className="mb-4 text-[15px] font-semibold leading-tight text-ink/76">
-              <p>{sortedLeads.length.toLocaleString("es-AR")} resultados</p>
+              <p>{totalLeads.toLocaleString("es-AR")} resultados</p>
               <p>
                 Ordenado por Fecha de creación{" "}
                 {sortState.column === "createdAt" && sortState.direction === "asc" ? "↑" : "↓"}
@@ -1978,6 +2003,13 @@ export function CrmBoard({
             <div className="overflow-hidden rounded-xl border border-ink/10 bg-white shadow-sm">
               {paginatedLeads.map(renderMobileLeadCard)}
             </div>
+            {totalLeads > 0 && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safeCurrentPage <= 1 || isLoadingLeads} className="min-h-11 rounded-full border border-ink/15 bg-white px-4 text-sm font-medium disabled:opacity-40">Anterior</button>
+                <span className="text-sm text-ink/60">Página {safeCurrentPage} de {pageCount}</span>
+                <button type="button" onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))} disabled={safeCurrentPage >= pageCount || isLoadingLeads} className="min-h-11 rounded-full border border-ink/15 bg-white px-4 text-sm font-medium disabled:opacity-40">Siguiente</button>
+              </div>
+            )}
           </div>
 
           <div className="hidden overflow-x-auto lg:block">
@@ -2016,10 +2048,10 @@ export function CrmBoard({
             </table>
           </div>
 
-          {sortedLeads.length > 0 && (
+          {totalLeads > 0 && (
             <div className="flex flex-col gap-3 border-t border-ink/12 bg-white px-5 py-4 max-lg:hidden md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-ink/58">
-                Mostrando {pageStart}-{pageEnd} de {sortedLeads.length} contactos
+                Mostrando {pageStart}-{pageEnd} de {totalLeads} contactos
               </p>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -2066,7 +2098,7 @@ export function CrmBoard({
             </div>
           )}
 
-          {sortedLeads.length === 0 && (
+          {totalLeads === 0 && !isLoadingLeads && (
             <div className="px-5 py-16 text-center">
               <UserRound className="mx-auto h-8 w-8 text-ink/28" />
               <p className="mt-3 text-sm font-medium text-ink">Todavía no hay contactos</p>

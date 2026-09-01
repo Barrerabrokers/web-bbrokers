@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { deleteCrmLead, getCrmLeadById, getCrmLeads, upsertCrmLead } from "@/lib/db";
+import { deleteCrmLead, getCrmLeadById, getCrmLeadsPage, upsertCrmLead } from "@/lib/db";
 import { isCrmLeadStatus, type CrmLeadStatus } from "@/lib/crm-statuses";
 import { runLeadStatusWorkflows } from "@/lib/crm-workflow-runner";
 import { canManageAdminPanel, canManageListings, canViewAllCrmContacts } from "@/lib/roles";
@@ -71,18 +71,38 @@ function getPublicBaseUrl(request: NextRequest) {
   return host ? `${proto}://${host}` : "";
 }
 
-export async function GET() {
+const privateHeaders = {
+  "Cache-Control": "private, no-store, max-age=0",
+  Vary: "Cookie",
+};
+
+function privateJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: privateHeaders });
+}
+
+export async function GET(request: NextRequest) {
   const session = await requireApprovedAgent();
   if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    return privateJson({ error: "No autorizado" }, 403);
   }
-
-  const leads = await getCrmLeads({
+  const params = request.nextUrl.searchParams;
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const pageSize = Math.min(500, Math.max(1, Number(params.get("pageSize")) || 50));
+  const includeAll = canViewAllCrmContacts(session.user.role);
+  const sortColumn = params.get("sort") || "createdAt";
+  const allowedSortColumns = new Set(["name", "email", "phone", "whatsapp", "status", "temperature", "development", "createdAt", "owner"]);
+  const result = await getCrmLeadsPage({
     agentId: session.user.id,
-    includeAll: canViewAllCrmContacts(session.user.role),
+    includeAll,
+    ownerId: includeAll ? params.get("owner") || "all" : session.user.id,
+    status: params.get("status") || "all",
+    query: params.get("query") || "",
+    page,
+    pageSize,
+    sortColumn: (allowedSortColumns.has(sortColumn) ? sortColumn : "createdAt") as Parameters<typeof getCrmLeadsPage>[0]["sortColumn"],
+    sortDirection: params.get("direction") === "asc" ? "asc" : "desc",
   });
-
-  return NextResponse.json({ leads });
+  return privateJson({ ...result, page, pageSize, pageCount: Math.max(1, Math.ceil(result.total / pageSize)) });
 }
 
 export async function POST(request: NextRequest) {
@@ -102,12 +122,11 @@ export async function POST(request: NextRequest) {
 
   const canAssignTeam = canViewAllCrmContacts(session.user.role);
   if (parsed.data.id && !canAssignTeam) {
-    const visibleLeads = await getCrmLeads({
+    const currentLead = await getCrmLeadById(parsed.data.id, {
       agentId: session.user.id,
       includeAll: false,
     });
-    const canEditLead = visibleLeads.some((lead) => lead.id === parsed.data.id);
-    if (!canEditLead) {
+    if (!currentLead) {
       return NextResponse.json({ error: "No podés editar este lead" }, { status: 403 });
     }
   }

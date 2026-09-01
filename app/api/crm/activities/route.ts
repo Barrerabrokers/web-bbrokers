@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { createCrmActivity, deleteCrmActivity, getCrmActivities, getCrmLeadById, getCrmLeads } from "@/lib/db";
+import { createCrmActivity, deleteCrmActivity, getCrmActivities, getCrmLeadById } from "@/lib/db";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 
 export const runtime = "nodejs";
@@ -50,15 +50,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!canViewAllCrmContacts(session.user.role)) {
-    const visibleLeads = await getCrmLeads({
-      agentId: session.user.id,
-      includeAll: false,
-    });
-    const canUseLead = visibleLeads.some((lead) => lead.id === parsed.data.leadId);
-    if (!canUseLead) {
-      return NextResponse.json({ error: "No podés modificar este contacto" }, { status: 403 });
-    }
+  const lead = await getCrmLeadById(parsed.data.leadId, {
+    agentId: session.user.id,
+    includeAll: canViewAllCrmContacts(session.user.role),
+  });
+  if (!lead) {
+    return NextResponse.json({ error: "No podés modificar este contacto" }, { status: 403 });
   }
 
   const { activity, error } = await createCrmActivity({
@@ -88,14 +85,10 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Falta la actividad a eliminar" }, { status: 400 });
   }
 
-  const visibleLeads = await getCrmLeads({
+  const { success, error } = await deleteCrmActivity(id, {
     agentId: session.user.id,
     includeAll: canViewAllCrmContacts(session.user.role),
   });
-  const { success, error } = await deleteCrmActivity(
-    id,
-    visibleLeads.map((lead) => lead.id)
-  );
 
   if (!success) {
     return NextResponse.json(
