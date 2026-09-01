@@ -5,8 +5,8 @@ import { absoluteUrl } from "@/lib/seo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [developments, properties] = await Promise.all([
-    getDevelopments(),
-    getProperties({ status: "disponible" }),
+    getDevelopments({ visibility: "public" }),
+    getProperties({ status: "disponible", visibility: "public" }),
   ]);
 
   const now = new Date();
@@ -23,6 +23,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.95,
+    },
+    {
+      url: absoluteUrl("/inversiones-real-estate-buenos-aires"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.98,
+    },
+    {
+      url: absoluteUrl("/invertir-en-real-estate-argentina"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.96,
+    },
+    {
+      url: absoluteUrl("/ciudad-de-buenos-aires"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.9,
     },
     {
       url: absoluteUrl("/propiedades"),
@@ -60,4 +78,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [...staticRoutes, ...developmentRoutes, ...propertyRoutes];
 }
-

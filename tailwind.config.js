@@ -12,6 +12,12 @@ module.exports = {
         display: ["var(--font-display)", "Playfair Display", "Georgia", "serif"],
         serif: ["var(--font-display)", "Playfair Display", "Georgia", "serif"],
       },
+      fontWeight: {
+        semibold: "500",
+        bold: "600",
+        extrabold: "600",
+        black: "600",
+      },
       colors: {
         obsidian: {
           DEFAULT: "#151415",

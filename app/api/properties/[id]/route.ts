@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPropertyById, updateProperty, deleteProperty } from "@/lib/db";
+import { canManageAdminPanel, canManageListings } from "@/lib/roles";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const property = await getPropertyById(params.id);
 
-    if (!property) {
+    if (!property || (property.visibility === "agents" && !session)) {
       return NextResponse.json(
         { error: "Propiedad no encontrada" },
         { status: 404 }
@@ -40,6 +42,13 @@ export async function PATCH(
       );
     }
 
+    if (!canManageListings(session.user.role)) {
+      return NextResponse.json(
+        { error: "No autorizado para gestionar propiedades" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { property, error } = await updateProperty(params.id, body);
 
@@ -66,10 +75,10 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session) {
+    if (!session || !canManageAdminPanel(session.user.role)) {
       return NextResponse.json(
-        { error: "No autorizado" },
-        { status: 401 }
+        { error: "No autorizado para eliminar propiedades" },
+        { status: 403 }
       );
     }
 

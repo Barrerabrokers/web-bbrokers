@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getDevelopmentById } from "@/lib/developments-db";
+import { canManageListings } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,9 @@ export async function GET(
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  if (!canManageListings(session.user.role)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
 
   const development = await getDevelopmentById(params.id);
   if (!development?.priceListUrl) {
@@ -23,7 +27,15 @@ export async function GET(
     );
   }
 
-  const fileResponse = await fetch(development.priceListUrl, {
+  const priceListUrl = new URL(development.priceListUrl);
+  if (
+    priceListUrl.hostname === "drive.google.com" ||
+    priceListUrl.hostname === "docs.google.com"
+  ) {
+    return NextResponse.redirect(priceListUrl);
+  }
+
+  const fileResponse = await fetch(priceListUrl, {
     cache: "no-store",
   });
 
@@ -36,7 +48,7 @@ export async function GET(
 
   const contentType =
     fileResponse.headers.get("content-type") || "application/octet-stream";
-  const pathname = new URL(development.priceListUrl).pathname;
+  const pathname = priceListUrl.pathname;
   const fallbackName = `lista-precios-${development.slug}`;
   const fileName =
     decodeURIComponent(pathname.split("/").pop() || fallbackName) ||

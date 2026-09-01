@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
+import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
-import { SmoothScroll } from "@/components/smooth-scroll";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { ObsidianMotion } from "@/components/obsidian-motion";
 import {
   DEFAULT_SEO_DESCRIPTION,
   DEFAULT_SEO_TITLE,
@@ -12,12 +12,13 @@ import {
   SITE_NAME,
   SITE_URL,
 } from "@/lib/seo";
+import { getSiteSettings } from "@/lib/db";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600"],
 });
 
 const cormorant = Cormorant_Garamond({
@@ -28,7 +29,9 @@ const cormorant = Cormorant_Garamond({
   style: ["normal", "italic"],
 });
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  return {
   metadataBase: new URL(SITE_URL),
   title: {
     default: DEFAULT_SEO_TITLE,
@@ -37,6 +40,7 @@ export const metadata: Metadata = {
   description: DEFAULT_SEO_DESCRIPTION,
   keywords: SEO_KEYWORDS,
   applicationName: SITE_NAME,
+  manifest: "/manifest.webmanifest",
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
@@ -44,12 +48,9 @@ export const metadata: Metadata = {
     canonical: SITE_URL,
   },
   icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/BarreraBrokers.png", sizes: "512x512", type: "image/png" },
-    ],
-    shortcut: "/icon.svg",
-    apple: [{ url: "/BarreraBrokers.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: settings.faviconUrl }],
+    shortcut: settings.faviconUrl,
+    apple: [{ url: settings.faviconUrl }],
   },
   robots: {
     index: true,
@@ -75,7 +76,8 @@ export const metadata: Metadata = {
     title: DEFAULT_SEO_TITLE,
     description: DEFAULT_SEO_DESCRIPTION,
   },
-};
+  };
+}
 
 export default function RootLayout({
   children,
@@ -85,10 +87,12 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
       <body className="font-sans bg-obsidian text-ivory antialiased">
-        <Providers>{children}</Providers>
-        <SmoothScroll />
+        <Providers>
+          {children}
+          <WhatsAppButton />
+        </Providers>
+        <ObsidianMotion />
         <CursorTrail />
-        <WhatsAppButton />
       </body>
     </html>
   );

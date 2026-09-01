@@ -5,6 +5,7 @@ import {
   getDevelopments,
   createDevelopment,
 } from "@/lib/developments-db";
+import { canManageListings } from "@/lib/roles";
 import { Development } from "@/types";
 import { z } from "zod";
 
@@ -34,6 +35,10 @@ const developmentSchema = z.object({
   agentId: z.string().optional(),
   brochureUrl: z.string().url().optional(),
   priceListUrl: z.string().url().optional(),
+  videoUrl: z.string().url().optional(),
+  videoUrls: z.array(z.string().url()).default([]),
+  videoIsPrimary: z.boolean().optional(),
+  visibility: z.enum(["public", "agents"]).default("public"),
   images: z.array(imageSchema).default([]),
 });
 
@@ -47,6 +52,7 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status") || undefined;
+    const visibility = searchParams.get("visibility") || undefined;
     const highlightParam = searchParams.get("highlight");
     const highlight =
       highlightParam === "true"
@@ -55,7 +61,11 @@ export async function GET(request: NextRequest) {
         ? false
         : undefined;
 
-    const developments = await getDevelopments({ status, highlight });
+    const developments = await getDevelopments({
+      status,
+      highlight,
+      visibility: visibility || (!session ? "public" : undefined),
+    });
 
     return NextResponse.json(
       session ? developments : developments.map(hidePrivateDevelopmentFields)
@@ -75,6 +85,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "No autorizado" },
         { status: 401 }
+      );
+    }
+
+    if (!canManageListings(session.user.role)) {
+      return NextResponse.json(
+        { error: "No autorizado para gestionar desarrollos" },
+        { status: 403 }
       );
     }
 

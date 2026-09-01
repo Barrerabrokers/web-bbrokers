@@ -1,10 +1,11 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Plus, Building2, MapPin, Edit3 } from "lucide-react";
 import { getDevelopments } from "@/lib/developments-db";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { DevelopmentActions } from "@/components/admin/development-actions";
+import { DevelopmentCoverMedia } from "@/components/development/development-cover-media";
+import { getDevelopmentVideo } from "@/lib/development-media";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -63,11 +64,11 @@ export default async function AdminDevelopmentsPage() {
                 className="group card overflow-hidden hover:border-accent/40 transition-all"
               >
                 <div className="relative aspect-[4/3] bg-cream-200 overflow-hidden">
-                  {primaryImage ? (
-                    <Image
-                      src={primaryImage}
-                      alt={dev.name}
-                      fill
+                  {primaryImage || getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary) ? (
+                    <DevelopmentCoverMedia
+                      name={dev.name}
+                      image={primaryImage}
+                      video={getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary)}
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 33vw"
                     />
@@ -89,6 +90,15 @@ export default async function AdminDevelopmentsPage() {
                         Destacado
                       </span>
                     )}
+                    <span
+                      className={`inline-block px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest font-medium border ${
+                        dev.visibility === "agents"
+                          ? "bg-ink text-cream-50 border-ink"
+                          : "bg-white/90 text-ink border-ink/15"
+                      }`}
+                    >
+                      {dev.visibility === "agents" ? "Solo agentes" : "Público"}
+                    </span>
                   </div>
                   <div className="absolute top-3 right-3">
                     <div className="bg-white/90 backdrop-blur-sm rounded-md shadow-sm">

@@ -5,19 +5,36 @@ import { Property } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
 export function PropertyCard({ property }: { property: Property }) {
+  const coverVideo = property.videoIsPrimary ? property.videoUrls?.[0] : undefined;
+
   return (
     <Link
       href={`/propiedades/${property.id}`}
       className="group block"
     >
       <div className="relative h-[420px] mb-6 overflow-hidden bg-cream-300">
-        <Image
-          src={property.images[0]}
-          alt={property.title}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        />
+        {coverVideo ? (
+          <video
+            src={coverVideo}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster={property.images[0]}
+            disablePictureInPicture
+            aria-label={`Video sin audio de ${property.title}`}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <Image
+            src={property.images[0]}
+            alt={property.title}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        )}
         <div className="absolute top-5 left-5 flex items-center gap-3 text-cream-100">
           <span className="text-[10px] uppercase tracking-widest bg-ink/30 backdrop-blur-sm px-2.5 py-1 rounded-full">
             {property.category}

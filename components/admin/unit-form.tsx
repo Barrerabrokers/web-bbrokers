@@ -6,7 +6,11 @@ import Link from "next/link";
 import { Save, ArrowLeft, Trash2 } from "lucide-react";
 import { UNIT_IMAGE_TYPES, Unit } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { type ImageItem } from "@/components/admin/image-uploader";
+import {
+  type ImageItem,
+  getImageItemStableId,
+  withStableImageItemIds,
+} from "@/components/admin/image-uploader";
 import { MediaUploader } from "@/components/admin/media-uploader";
 
 type ImageMeta = { type: string };
@@ -38,7 +42,9 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
 
   // Prefill items from unit images if editing
   const initialItems: ImageItem[] = unit
-    ? unit.images.map((img) => ({ kind: "existing" as const, url: img.url }))
+    ? withStableImageItemIds(
+        unit.images.map((img) => ({ kind: "existing" as const, url: img.url }))
+      )
     : [];
   const initialMeta: ImageMeta[] = unit
     ? unit.images.map((img) => ({ type: img.type || "foto" }))
@@ -50,7 +56,7 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
   const [items, setItems] = useState<ImageItem[]>(initialItems);
   const [primaryIndex, setPrimaryIndex] = useState(initialPrimary);
   const [imageMeta, setImageMeta] = useState<ImageMeta[]>(initialMeta);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(unit?.videoUrl || null);
 
 
   const [formData, setFormData] = useState({
@@ -76,13 +82,16 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
     nextItems: ImageItem[],
     nextPrimary: number
   ) => {
-    setImageMeta((prev) => {
-      const next = [...prev];
-      while (next.length < nextItems.length) next.push({ type: "foto" });
-      while (next.length > nextItems.length) next.pop();
-      return next;
-    });
-    setItems(nextItems);
+    const stableNextItems = withStableImageItemIds(nextItems);
+    setImageMeta((prev) =>
+      stableNextItems.map((item) => {
+        const oldIndex = items.findIndex(
+          (oldItem) => getImageItemStableId(oldItem) === getImageItemStableId(item)
+        );
+        return oldIndex >= 0 ? prev[oldIndex] || { type: "foto" } : { type: "foto" };
+      })
+    );
+    setItems(stableNextItems);
     setPrimaryIndex(nextPrimary);
   };
 
@@ -179,6 +188,7 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
           .split("\n")
           .map((s) => s.trim())
           .filter(Boolean),
+        videoUrl: videoUrl || undefined,
         images,
       };
 

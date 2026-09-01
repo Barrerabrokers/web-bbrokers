@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowUpRight, MapPin, Calendar, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Development, DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { DevelopmentCoverMedia } from "@/components/development/development-cover-media";
+import { getDevelopmentVideo } from "@/lib/development-media";
 
 interface Props {
   highlighted?: Development;
@@ -144,11 +145,11 @@ export function DevelopmentsSectionView({ highlighted, others }: Props) {
                     <div
                       className={`relative ${aspect} overflow-hidden bg-ink-800 mb-6`}
                     >
-                      {primaryImage && (
-                        <Image
-                          src={primaryImage}
-                          alt={dev.name}
-                          fill
+                      {(primaryImage || getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary)) && (
+                        <DevelopmentCoverMedia
+                          name={dev.name}
+                          image={primaryImage}
+                          video={getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary)}
                           className="object-cover transition-transform duration-[2000ms] ease-out-expo group-hover:scale-[1.04]"
                           sizes="(max-width: 768px) 100vw, 50vw"
                         />

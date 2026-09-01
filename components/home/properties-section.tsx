@@ -1,9 +1,14 @@
 import { getProperties } from "@/lib/db";
+import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { formatPrice } from "@/lib/utils";
 import { InteractiveShowcaseSection, ShowcaseItem } from "./interactive-showcase-section";
 
 export async function PropertiesSection() {
-  const properties = await getProperties({ status: "disponible" });
+  const visibility = await getListingVisibilityFilter();
+  const properties = await getProperties({
+    status: "disponible",
+    visibility,
+  });
 
   const items: ShowcaseItem[] = properties.slice(0, 8).map((p) => ({
     id: p.id,
@@ -11,6 +16,7 @@ export async function PropertiesSection() {
     title: p.title,
     location: p.location,
     image: p.images[0] || undefined,
+    video: p.videoIsPrimary ? p.videoUrls?.[0] : undefined,
     statusLabel: p.category === "rentals" ? "Alquiler" : p.category === "desarrollo" ? "En desarrollo" : "En venta",
     priceLabel: p.price ? formatPrice(p.price) : undefined,
     extraStats: [
@@ -34,6 +40,7 @@ export async function PropertiesSection() {
       ctaText="Ver catálogo completo"
       ctaHref="/propiedades"
       gradientColor="rgba(120,82,60,0.05)"
+      imageTone="clear"
     />
   );
 }

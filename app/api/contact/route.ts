@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createContact } from "@/lib/db";
+import { sendContactNotification } from "@/lib/contact-notifications";
 
 const contactSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -30,8 +31,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let notificationSent = false;
+    try {
+      const notification = await sendContactNotification({
+        name: validatedData.name,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        message: validatedData.message,
+        propertyId: validatedData.propertyId,
+      });
+      notificationSent = notification.sent;
+    } catch (notificationError) {
+      console.error("Error sending contact notification:", notificationError);
+    }
+
     return NextResponse.json(
-      { message: "Mensaje enviado correctamente" },
+      { message: "Mensaje enviado correctamente", notificationSent },
       { status: 200 }
     );
   } catch (error) {

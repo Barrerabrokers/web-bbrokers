@@ -6,6 +6,7 @@ import {
   updateUnit,
   deleteUnit,
 } from "@/lib/developments-db";
+import { canManageListings } from "@/lib/roles";
 
 export async function GET(
   _req: NextRequest,
@@ -25,6 +26,13 @@ export async function PUT(
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  if (!canManageListings(session.user.role)) {
+    return NextResponse.json(
+      { error: "No autorizado para gestionar unidades" },
+      { status: 403 }
+    );
   }
 
   try {
@@ -49,6 +57,12 @@ export async function DELETE(
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (!canManageListings(session.user.role)) {
+    return NextResponse.json(
+      { error: "No autorizado para gestionar unidades" },
+      { status: 403 }
+    );
   }
   const ok = await deleteUnit(params.id);
   if (!ok) {

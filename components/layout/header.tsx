@@ -20,7 +20,10 @@ export function Header() {
 
   const navItems = [
     { href: "/#desarrollos", label: "Desarrollos" },
+    { href: "/#desarrollos-terminados", label: "Terminados" },
+    { href: "/#mapa", label: "Mapa" },
     { href: "/#modelo", label: "Inversión" },
+    { href: "/#prensa", label: "Prensa" },
     { href: "/#rentals", label: "Rentals" },
     { href: "/#propiedades", label: "Propiedades" },
   ];
@@ -34,31 +37,31 @@ export function Header() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
-          scrolled ? "py-2.5 md:py-3" : "py-3.5 md:py-5"
+        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-[900ms] ${
+          scrolled ? "py-2.5 md:py-3" : "py-4 md:py-5"
         }`}
         style={{
           background: scrolled
-            ? "rgba(10,10,11,0.82)"
-            : "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%)",
-          backdropFilter: scrolled ? "blur(20px)" : "none",
-          borderBottom: scrolled ? "1px solid rgba(255,255,255,0.07)" : "none",
-          transitionTimingFunction: "var(--ease-out-expo)",
+            ? "rgba(7,7,7,0.86)"
+            : "linear-gradient(180deg, rgba(7,7,7,0.6) 0%, rgba(7,7,7,0.22) 56%, transparent 100%)",
+          backdropFilter: scrolled ? "blur(28px)" : "none",
+          borderBottom: scrolled ? "1px solid rgba(248,245,239,0.12)" : "1px solid transparent",
+          transitionTimingFunction: "var(--f-drawer)",
         }}
       >
-        <div className="container-custom flex items-center justify-between">
+        <div className="mx-auto flex w-full max-w-[1880px] items-center justify-between gap-5 px-5 md:px-8 xl:px-12 2xl:px-16">
           {/* Logo — siempre blanco sobre el hero */}
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex shrink-0 items-center gap-4">
             <Image
-              src="/logo.png"
+              src={settings.logoUrl}
               alt={settings.companyName}
-              width={40}
-              height={40}
+              width={56}
+              height={56}
               priority
-              className="h-9 w-9 object-contain md:h-10 md:w-10"
+              className="h-11 w-11 object-contain md:h-12 md:w-12 xl:h-14 xl:w-14"
             />
             <span className="flex flex-col">
-              <span className="font-display text-lg tracking-tight leading-none md:text-xl" style={{ color: "#f8f5ef" }}>
+              <span className="whitespace-nowrap font-display text-2xl tracking-[-0.04em] leading-none md:text-3xl xl:text-[2rem]" style={{ color: "#f8f5ef" }}>
                 {firstWord}
                 {restWords && (
                   <>
@@ -67,7 +70,7 @@ export function Header() {
                   </>
                 )}
               </span>
-              <span className="text-[8px] uppercase tracking-[0.16em] mt-1 md:text-[9px] md:tracking-[0.2em]" style={{ color: "rgba(248,245,239,0.45)" }}>
+              <span className="mt-1 whitespace-nowrap text-[8px] uppercase tracking-[0.16em] md:text-[9px] md:tracking-[0.22em]" style={{ color: "rgba(248,245,239,0.45)" }}>
                 {city} · Est. 2000
               </span>
             </span>
@@ -75,25 +78,24 @@ export function Header() {
 
           {/* Center nav — desktop */}
           <nav
-            className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-full backdrop-blur-md"
+            className="hidden min-w-0 flex-1 items-center justify-center gap-4 lg:flex xl:gap-5 2xl:gap-7"
             style={{
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.72)",
             }}
           >
             {navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="px-4 py-2 rounded-full text-[10px] uppercase tracking-[0.14em] font-medium transition-all duration-300"
-                style={{ color: "rgba(255,255,255,0.75)" }}
+                className="whitespace-nowrap border-b border-transparent py-2 text-[9px] font-medium uppercase tracking-[0.2em] transition-all duration-300 2xl:text-[10px] 2xl:tracking-[0.24em]"
+                style={{ color: "rgba(255,255,255,0.72)" }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.color = "#fff";
-                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)";
+                  (e.currentTarget as HTMLElement).style.borderBottomColor = "rgba(255,255,255,0.45)";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.75)";
-                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.72)";
+                  (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent";
                 }}
               >
                 {item.label}
@@ -102,11 +104,14 @@ export function Header() {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-3">
-            <SocialLinks iconOnly className="hidden lg:flex" />
+          <div className="flex shrink-0 items-center gap-2 xl:gap-3">
+            <SocialLinks
+              iconOnly
+              className="hidden flex-nowrap gap-1.5 xl:flex [&_a]:h-8 [&_a]:w-8 [&_svg]:h-3.5 [&_svg]:w-3.5 2xl:[&_a]:h-9 2xl:[&_a]:w-9 2xl:[&_svg]:h-4 2xl:[&_svg]:w-4"
+            />
             <Link
               href="/login"
-              className="hidden md:inline-flex text-[10px] uppercase tracking-[0.15em] transition-colors duration-300 px-3 py-2"
+              className="hidden whitespace-nowrap px-2 py-2 text-[9px] uppercase tracking-[0.14em] transition-colors duration-300 md:inline-flex 2xl:px-3 2xl:text-[10px]"
               style={{ color: "rgba(255,255,255,0.55)" }}
               onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "#fff")}
               onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)")}
@@ -115,7 +120,7 @@ export function Header() {
             </Link>
             <Link
               href="/#contacto"
-              className="hidden md:inline-flex items-center px-6 py-2.5 pr-10 rounded-full text-[10px] uppercase tracking-[0.18em] font-medium relative transition-all duration-500"
+              className="relative hidden items-center whitespace-nowrap rounded-full px-4 py-2 pr-8 text-[9px] font-medium uppercase tracking-[0.16em] transition-all duration-500 md:inline-flex 2xl:px-5 2xl:py-2.5 2xl:pr-9 2xl:text-[10px] 2xl:tracking-[0.18em]"
               style={{
                 background: "rgba(255,255,255,0.92)",
                 color: "#0a0a0b",
@@ -124,7 +129,7 @@ export function Header() {
             >
               Agendar consulta
               <span
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                className="absolute right-3 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full"
                 style={{ background: "#0a0a0b" }}
               />
             </Link>
@@ -132,7 +137,7 @@ export function Header() {
             {/* Hamburger capsule */}
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="lg:hidden flex h-10 w-12 items-center justify-center rounded-full backdrop-blur-md transition-all sm:w-auto sm:px-4 sm:py-2.5"
+              className="flex h-10 w-12 items-center justify-center rounded-full backdrop-blur-md transition-all sm:w-auto sm:px-4 sm:py-2.5 xl:hidden"
               style={{
                 border: "1px solid rgba(255,255,255,0.2)",
                 background: "rgba(255,255,255,0.08)",
@@ -155,11 +160,16 @@ export function Header() {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
-            className="fixed inset-0 z-[100] bg-obsidian/98 backdrop-blur-2xl flex flex-col overflow-y-auto"
+            initial={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }}
+            animate={{ opacity: 1, clipPath: "inset(0 0 0% 0)" }}
+            exit={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }}
+            transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1] }}
+            className="fixed inset-0 z-[100] flex flex-col overflow-y-auto backdrop-blur-2xl"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 14%, rgba(216,196,175,0.13), transparent 28%), #151415",
+              color: "#f8f5ef",
+            }}
           >
             {/* Close button */}
             <div className="container-custom flex justify-end pt-6">
@@ -188,7 +198,7 @@ export function Header() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 + idx * 0.06, duration: 0.6, ease: [0.19, 1, 0.22, 1] }}
-                  className="font-display text-4xl md:text-6xl text-ivory/80 hover:text-ivory transition-colors duration-300 py-1.5"
+                  className="font-display text-4xl md:text-7xl text-[#f8f5ef]/82 hover:text-[#f8f5ef] transition-colors duration-300 py-1.5"
                 >
                   {item.label}
                 </motion.a>

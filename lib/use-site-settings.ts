@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 
 export type ClientSiteSettings = {
   companyName:     string;
+  logoUrl:         string;
+  faviconUrl:      string;
+  heroVideos:      string[];
   email:           string;
   phone:           string;
   whatsapp:        string;
@@ -14,6 +17,9 @@ export type ClientSiteSettings = {
 
 export const DEFAULT_CLIENT_SETTINGS: ClientSiteSettings = {
   companyName:     "Barrera Brokers",
+  logoUrl:         "/logo.png",
+  faviconUrl:      "/icon.svg",
+  heroVideos:      ["/Buenos-Aires1.mp4", "/Buenos-Aires2.mp4", "/Buenos-Aires3.mp4"],
   email:           "info@barrerabrokers.com",
   phone:           "+54 11 1234-5678",
   whatsapp:        "541112345678",
@@ -27,6 +33,11 @@ export const DEFAULT_CLIENT_SETTINGS: ClientSiteSettings = {
 let cachedSettings: ClientSiteSettings | null = null;
 let inflight: Promise<ClientSiteSettings> | null = null;
 const subscribers = new Set<(s: ClientSiteSettings) => void>();
+
+export function updateCachedSiteSettings(settings: Partial<ClientSiteSettings>) {
+  cachedSettings = { ...DEFAULT_CLIENT_SETTINGS, ...(cachedSettings || {}), ...settings };
+  subscribers.forEach((fn) => fn(cachedSettings!));
+}
 
 async function fetchSettings(): Promise<ClientSiteSettings> {
   if (cachedSettings) return cachedSettings;

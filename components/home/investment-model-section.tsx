@@ -171,17 +171,28 @@ export async function InvestmentModelSection() {
         </div>
 
         {/* ── Imagen al final — sin recortar ── */}
-        {s.investmentImage && (
+        {(s.investmentVideo || s.investmentImage) && (
           <div className="mt-16 md:mt-24 flex justify-center">
-            <Image
-              src={s.investmentImage}
-              alt={s.investmentTitle}
-              width={1920}
-              height={1080}
-              className="w-auto max-w-full h-auto rounded-lg"
-              sizes="(max-width: 1024px) 100vw, 1024px"
-              style={{ maxHeight: "85vh" }}
-            />
+            {s.investmentVideo ? (
+              <video
+                src={s.investmentVideo}
+                muted
+                playsInline
+                autoPlay
+                loop
+                className="h-auto max-h-[85vh] w-auto max-w-full rounded-lg object-contain"
+              />
+            ) : (
+              <Image
+                src={s.investmentImage}
+                alt={s.investmentTitle}
+                width={1920}
+                height={1080}
+                className="w-auto max-w-full h-auto rounded-lg"
+                sizes="(max-width: 1024px) 100vw, 1024px"
+                style={{ maxHeight: "85vh" }}
+              />
+            )}
           </div>
         )}
       </div>

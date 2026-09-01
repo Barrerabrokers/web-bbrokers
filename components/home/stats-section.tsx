@@ -1,38 +1,44 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FullSiteSettings } from "@/lib/db";
 
 /**
  * Stats Section — Animated numbers with scroll trigger
  * Key metrics for investor confidence
  */
 
-const stats = [
+const defaultStats = [
   {
-    value: 25,
+    value: "25",
     suffix: "+",
     label: "Años de experiencia",
     description: "Más de dos décadas operando en el mercado inmobiliario de Buenos Aires.",
   },
   {
-    value: 500,
+    value: "500",
     suffix: "+",
     label: "Unidades vendidas",
     description: "Propiedades comercializadas entre desarrollos, departamentos y casas.",
   },
   {
-    value: 40,
+    value: "40",
     suffix: "%",
     label: "Retorno promedio",
     description: "Ganancia típica al revender una unidad comprada en pozo.",
   },
   {
-    value: 12,
+    value: "12",
     suffix: "",
     label: "Desarrollos activos",
     description: "Proyectos en construcción o pre-venta disponibles para inversores.",
   },
 ];
+
+function parseStatValue(value: string | number | undefined) {
+  const parsed = Number(String(value ?? "0").replace(/[^\d.]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 function AnimatedNumber({ 
   value, 
@@ -75,9 +81,39 @@ function AnimatedNumber({
 
 
 
-export function StatsSection() {
+export function StatsSection({ settings }: { settings?: Partial<FullSiteSettings> }) {
   const sectionRef = useRef<HTMLElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const title = settings?.statsTitle || "Números que respaldan nuestra trayectoria.";
+  const quote =
+    settings?.statsQuote ||
+    "Invertir en desarrollos es la forma más inteligente de multiplicar tu capital en el mercado inmobiliario.";
+  const stats = [
+    {
+      value: settings?.statsItem1Value || defaultStats[0].value,
+      suffix: settings?.statsItem1Suffix ?? defaultStats[0].suffix,
+      label: settings?.statsItem1Label || defaultStats[0].label,
+      description: settings?.statsItem1Description || defaultStats[0].description,
+    },
+    {
+      value: settings?.statsItem2Value || defaultStats[1].value,
+      suffix: settings?.statsItem2Suffix ?? defaultStats[1].suffix,
+      label: settings?.statsItem2Label || defaultStats[1].label,
+      description: settings?.statsItem2Description || defaultStats[1].description,
+    },
+    {
+      value: settings?.statsItem3Value || defaultStats[2].value,
+      suffix: settings?.statsItem3Suffix ?? defaultStats[2].suffix,
+      label: settings?.statsItem3Label || defaultStats[2].label,
+      description: settings?.statsItem3Description || defaultStats[2].description,
+    },
+    {
+      value: settings?.statsItem4Value || defaultStats[3].value,
+      suffix: settings?.statsItem4Suffix ?? defaultStats[3].suffix,
+      label: settings?.statsItem4Label || defaultStats[3].label,
+      description: settings?.statsItem4Description || defaultStats[3].description,
+    },
+  ];
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -126,7 +162,7 @@ export function StatsSection() {
             </p>
           </div>
           <h2 className="font-display font-light text-[32px] md:text-[48px] lg:text-[64px] tracking-[-0.025em] leading-[1.05] text-bone max-w-3xl mx-auto">
-            Números que <span className="italic">respaldan</span> nuestra trayectoria.
+            {title}
           </h2>
         </div>
 
@@ -143,7 +179,7 @@ export function StatsSection() {
               style={{ transitionDelay: `${200 + idx * 150}ms` }}
             >
               <AnimatedNumber
-                value={stat.value}
+                value={parseStatValue(stat.value)}
                 suffix={stat.suffix}
                 isVisible={isVisible}
               />
@@ -165,8 +201,7 @@ export function StatsSection() {
           style={{ transitionDelay: "800ms" }}
         >
           <blockquote className="font-display font-light text-2xl md:text-3xl text-bone/80 italic max-w-3xl mx-auto leading-relaxed">
-            &ldquo;Invertir en desarrollos es la forma más inteligente de multiplicar tu
-            capital en el mercado inmobiliario.&rdquo;
+            &ldquo;{quote}&rdquo;
           </blockquote>
           <cite className="block mt-6 text-[11px] uppercase tracking-widest text-accent not-italic">
             — Barrera Brokers

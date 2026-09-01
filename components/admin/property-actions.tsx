@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Edit, Trash2, Eye, AlertTriangle } from "lucide-react";
+import { canManageAdminPanel } from "@/lib/roles";
 
 interface Props {
   propertyId: string;
@@ -12,6 +14,8 @@ interface Props {
 
 export function PropertyActions({ propertyId, propertyTitle }: Props) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canDelete = canManageAdminPanel(session?.user?.role);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -59,17 +63,19 @@ export function PropertyActions({ propertyId, propertyTitle }: Props) {
         >
           <Edit className="h-4 w-4" />
         </Link>
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
-          title="Eliminar"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        {canDelete && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Eliminar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Confirm modal */}
-      {showConfirm && (
+      {canDelete && showConfirm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-cream-200/85 backdrop-blur-sm p-4 animate-fade-in"
           onClick={() => !isDeleting && setShowConfirm(false)}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getServerSupabase } from "@/lib/supabase";
+import { canManageListings, canManageSiteSettings } from "@/lib/roles";
 
 // Route segment config: increase body size limit for PDF uploads
 export const runtime = "nodejs";
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
     const folder = (formData.get("folder") as string) || "properties";
+    const role = session.user.role;
 
     // Validar folder permitido
     const allowedFolders = [
@@ -31,8 +33,18 @@ export async function POST(request: NextRequest) {
       "brochures",
       "price-lists",
       "settings",
+      "quotes",
+      "templates",
     ];
     const safeFolder = allowedFolders.includes(folder) ? folder : "properties";
+
+    if (safeFolder === "settings" && !canManageSiteSettings(role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    if (safeFolder !== "settings" && !canManageListings(role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
 
     if (!files || files.length === 0) {
       return NextResponse.json(
@@ -46,13 +58,14 @@ export async function POST(request: NextRequest) {
 
     const allowedTypes = [
       "image/",
+      "video/",
       "application/pdf",
       "text/csv",
       "application/csv",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
-    const allowedExtensions = ["pdf", "xls", "xlsx", "csv", "jpg", "jpeg", "png", "webp", "gif"];
+    const allowedExtensions = ["pdf", "xls", "xlsx", "csv", "jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "m4v", "webm"];
 
     for (const file of files) {
       // Validar que sea imagen, PDF o planilla
@@ -83,10 +96,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validar tamaño (max 10MB para documentos, 5MB para imágenes)
-      const isDocument = !file.type.startsWith("image/");
-      const maxSize = isDocument ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
-      const maxLabel = isDocument ? "10MB" : "5MB";
+      // Validar tamaño (max 50MB para videos, 20MB para documentos, 5MB para imágenes)
+      const isVideo = file.type.startsWith("video/");
+      const isDocument = !file.type.startsWith("image/") && !isVideo;
+      const maxSize = isVideo ? 50 * 1024 * 1024 : isDocument ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+      const maxLabel = isVideo ? "50MB" : isDocument ? "20MB" : "5MB";
       if (file.size > maxSize) {
         return NextResponse.json(
           { error: `Archivo ${file.name} es muy grande (max ${maxLabel})` },

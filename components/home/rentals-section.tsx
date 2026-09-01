@@ -1,4 +1,5 @@
 import { getProperties } from "@/lib/db";
+import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { formatPrice } from "@/lib/utils";
 import { InteractiveShowcaseSection, ShowcaseItem } from "./interactive-showcase-section";
 
@@ -86,7 +87,11 @@ const barentalsItems: ShowcaseItem[] = [
 ];
 
 export async function RentalsSection() {
-  const properties = await getProperties({ category: "rentals" });
+  const visibility = await getListingVisibilityFilter();
+  const properties = await getProperties({
+    category: "rentals",
+    visibility,
+  });
 
   const localItems: ShowcaseItem[] = properties.slice(0, 8).map((p) => ({
     id: p.id,

@@ -5,6 +5,7 @@ import {
   getUnitsByDevelopment,
   createUnit,
 } from "@/lib/developments-db";
+import { canManageListings } from "@/lib/roles";
 import { z } from "zod";
 
 const imageSchema = z.object({
@@ -31,6 +32,7 @@ const unitSchema = z.object({
   status: z.enum(["disponible", "reservada", "vendida"]).optional(),
   description: z.string().optional(),
   features: z.array(z.string()).default([]),
+  videoUrl: z.string().url().optional(),
   images: z.array(imageSchema).default([]),
 });
 
@@ -52,6 +54,13 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    if (!canManageListings(session.user.role)) {
+      return NextResponse.json(
+        { error: "No autorizado para gestionar unidades" },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

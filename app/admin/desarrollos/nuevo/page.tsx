@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Save, ArrowLeft, FileText, Upload, X } from "lucide-react";
+import { Save, ArrowLeft, FileText, Upload, X, Link2 } from "lucide-react";
 import Link from "next/link";
 import { COMMON_AMENITIES, DEVELOPMENT_IMAGE_TYPES } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { type ImageItem } from "@/components/admin/image-uploader";
+import {
+  type ImageItem,
+  getImageItemStableId,
+  withStableImageItemIds,
+} from "@/components/admin/image-uploader";
 import { MediaUploader } from "@/components/admin/media-uploader";
 
 type ImageMeta = { type: string; caption: string };
@@ -23,7 +27,10 @@ export default function NewDevelopmentPage() {
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [imageMeta, setImageMeta] = useState<ImageMeta[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoUrls, setVideoUrls] = useState<string[]>([]);
+  const [videoIsPrimary, setVideoIsPrimary] = useState(false);
   const [priceListFile, setPriceListFile] = useState<File | null>(null);
+  const [priceListLink, setPriceListLink] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -39,6 +46,7 @@ export default function NewDevelopmentPage() {
     amenities: [] as string[],
     features: "",
     highlight: false,
+    visibility: "public" as const,
   });
 
   const toggleAmenity = (a: string) => {
@@ -55,15 +63,18 @@ export default function NewDevelopmentPage() {
     nextItems: ImageItem[],
     nextPrimary: number
   ) => {
-    // Sync image metadata array
-    setImageMeta((prev) => {
-      const next = [...prev];
-      while (next.length < nextItems.length)
-        next.push({ type: "espacios_comunes", caption: "" });
-      while (next.length > nextItems.length) next.pop();
-      return next;
-    });
-    setItems(nextItems);
+    const stableNextItems = withStableImageItemIds(nextItems);
+    setImageMeta((prev) =>
+      stableNextItems.map((item) => {
+        const oldIndex = items.findIndex(
+          (oldItem) => getImageItemStableId(oldItem) === getImageItemStableId(item)
+        );
+        return oldIndex >= 0
+          ? prev[oldIndex] || { type: "espacios_comunes", caption: "" }
+          : { type: "espacios_comunes", caption: "" };
+      })
+    );
+    setItems(stableNextItems);
     setPrimaryIndex(nextPrimary);
   };
 
@@ -126,30 +137,30 @@ export default function NewDevelopmentPage() {
   };
 
   const uploadPriceList = async () => {
-    if (!priceListFile) return undefined;
+    if (!priceListFile) return priceListLink.trim() || undefined;
 
-    const uploadFormData = new FormData();
-    uploadFormData.append("files", priceListFile);
-    uploadFormData.append("folder", "price-lists");
+    const ext = priceListFile.name.split(".").pop()?.toLowerCase() || "pdf";
+    const fileName = `price-lists/${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}.${ext}`;
 
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      body: uploadFormData,
-    });
+    const { error: uploadError } = await supabase.storage
+      .from("properties")
+      .upload(fileName, priceListFile, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: priceListFile.type || "application/octet-stream",
+      });
 
-    if (!response.ok) {
-      let errorMsg = "Error subiendo lista de precios";
-      try {
-        const err = await response.json();
-        errorMsg = err.error || errorMsg;
-      } catch {
-        errorMsg = `Error del servidor: ${response.status}`;
-      }
-      throw new Error(errorMsg);
+    if (uploadError) {
+      throw new Error(`Error subiendo lista de precios: ${uploadError.message}`);
     }
 
-    const data = await response.json();
-    return data.urls[0] as string;
+    const { data: urlData } = supabase.storage
+      .from("properties")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
   };
 
 
@@ -190,10 +201,13 @@ export default function NewDevelopmentPage() {
             .map((s) => s.trim())
             .filter(Boolean),
           highlight: formData.highlight,
+          visibility: formData.visibility,
           agentId: session?.user?.id,
           images,
           priceListUrl,
           videoUrl: videoUrl || undefined,
+          videoUrls,
+          videoIsPrimary: Boolean(videoUrl && videoIsPrimary),
         }),
       });
 
@@ -204,7 +218,7 @@ export default function NewDevelopmentPage() {
         return;
       }
 
-      if (priceListUrl) {
+      if (priceListFile && priceListUrl) {
         const importResponse = await fetch(
           `/api/developments/${data.id}/import-price-list`,
           {
@@ -268,6 +282,10 @@ export default function NewDevelopmentPage() {
             onImagesChange={handleItemsChange}
             videoUrl={videoUrl}
             onVideoChange={setVideoUrl}
+            videoUrls={videoUrls}
+            onVideosChange={setVideoUrls}
+            videoIsPrimary={videoIsPrimary}
+            onVideoPrimaryChange={setVideoIsPrimary}
             imageLabel="Imágenes del desarrollo *"
             videoLabel="Video del desarrollo"
             imageHelperText="Subí imágenes de la fachada, espacios comunes, amenities, renders, etc."
@@ -362,8 +380,8 @@ export default function NewDevelopmentPage() {
                       setError("La lista de precios debe ser PDF o Excel");
                       return;
                     }
-                    if (file.size > 10 * 1024 * 1024) {
-                      setError("La lista de precios es muy grande (máx 10MB)");
+                    if (file.size > 20 * 1024 * 1024) {
+                      setError("La lista de precios es muy grande (máx 20MB)");
                       return;
                     }
                     setPriceListFile(file);
@@ -375,7 +393,33 @@ export default function NewDevelopmentPage() {
           )}
 
           <p className="text-xs text-ink/50 mt-2">
-            PDF o Excel · Máximo 10MB. También podés cargarla después desde la edición.
+            PDF o Excel · Máximo 20MB.
+          </p>
+
+          <div className="my-4 flex items-center gap-3 text-[10px] uppercase tracking-widest text-ink/40">
+            <span className="h-px flex-1 bg-ink/10" />
+            o usar enlace
+            <span className="h-px flex-1 bg-ink/10" />
+          </div>
+
+          <label className="block">
+            <span className="text-xs font-medium text-ink/75">Link de Google Drive</span>
+            <div className="relative mt-2">
+              <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" />
+              <input
+                type="url"
+                value={priceListLink}
+                onChange={(e) => {
+                  setPriceListLink(e.target.value);
+                  if (e.target.value) setPriceListFile(null);
+                }}
+                placeholder="https://drive.google.com/..."
+                className="form-input pl-10"
+              />
+            </div>
+          </label>
+          <p className="mt-2 text-xs text-ink/50">
+            El enlace debe tener acceso habilitado para quienes tengan el vínculo.
           </p>
         </div>
 
@@ -480,6 +524,26 @@ export default function NewDevelopmentPage() {
               <option value="finalizado">Finalizado</option>
               <option value="entregado">Entregado</option>
             </select>
+          </div>
+
+          <div>
+            <label className="label-tracking text-ink/85 block mb-2">
+              Visibilidad *
+            </label>
+            <select
+              required
+              value={formData.visibility}
+              onChange={(e) =>
+                setFormData({ ...formData, visibility: e.target.value as any })
+              }
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
+            >
+              <option value="public">Público: visible en el sitio</option>
+              <option value="agents">Solo agentes logueados</option>
+            </select>
+            <p className="mt-1 text-xs text-ink/50">
+              Si elegís solo agentes, no aparece en la home, mapa ni listado público.
+            </p>
           </div>
 
           <div>

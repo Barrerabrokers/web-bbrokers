@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 /**
  * SmartCursor (export name kept as CursorTrail for compatibility)
@@ -14,10 +15,17 @@ import { useEffect, useRef } from "react";
  * Skip en touch devices y prefers-reduced-motion (oculta los divs).
  */
 export function CursorTrail() {
+  const pathname = usePathname();
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
+  const disableCustomCursor = pathname?.startsWith("/admin");
 
   useEffect(() => {
+    if (disableCustomCursor) {
+      document.documentElement.classList.remove("smart-cursor-active");
+      return;
+    }
+
     const dot = dotRef.current;
     const ring = ringRef.current;
     if (!dot || !ring) return;
@@ -112,7 +120,9 @@ export function CursorTrail() {
       document.removeEventListener("mousedown", handleDown);
       document.removeEventListener("mouseup", handleUp);
     };
-  }, []);
+  }, [disableCustomCursor]);
+
+  if (disableCustomCursor) return null;
 
   return (
     <>

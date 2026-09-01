@@ -1,26 +1,30 @@
 import Link from "next/link";
-import Image from "next/image";
+import { DevelopmentCoverMedia } from "@/components/development/development-cover-media";
+import { getDevelopmentVideo } from "@/lib/development-media";
 import { ArrowUpRight, MapPin, TrendingUp } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getDevelopments } from "@/lib/developments-db";
+import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import type { Metadata } from "next";
-import { absoluteUrl, SEO_KEYWORDS } from "@/lib/seo";
+import { absoluteUrl, SEO_KEYWORDS, SITE_NAME, truncateDescription } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: "Desarrollos inmobiliarios en pozo en Buenos Aires",
+  title: "Desarrollos en pozo para invertir en Buenos Aires",
   description:
-    "Conoce desarrollos inmobiliarios y departamentos en pozo para comprar o invertir en Recoleta, Palermo, Belgrano, Nunez y Buenos Aires.",
+    "Conocé desarrollos inmobiliarios en pozo para invertir en Buenos Aires. Departamentos con financiación y oportunidades en Recoleta, Palermo, Belgrano, Nuñez y Puerto Madero.",
   keywords: [
     ...SEO_KEYWORDS,
     "desarrollos en pozo",
     "departamentos en pozo",
     "comprar departamento en pozo",
+    "invertir en desarrollos en pozo",
+    "real estate en pozo Buenos Aires",
   ],
   alternates: {
     canonical: absoluteUrl("/desarrollos"),
@@ -28,10 +32,81 @@ export const metadata: Metadata = {
 };
 
 export default async function DesarrollosPage() {
-  const developments = await getDevelopments();
+  const visibility = await getListingVisibilityFilter();
+  const developments = await getDevelopments({ visibility });
+  const itemListSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Desarrollos en pozo para invertir en Buenos Aires",
+    description:
+      "Catálogo de desarrollos inmobiliarios en pozo, departamentos para invertir y oportunidades de real estate en Buenos Aires.",
+    url: absoluteUrl("/desarrollos"),
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: developments.map((dev, index) => {
+        const image =
+          dev.images.find((item) => item.isPrimary)?.url || dev.images[0]?.url;
+        const priceFrom = dev.minPriceAvailable ?? dev.priceFrom;
+
+        return {
+          "@type": "ListItem",
+          position: index + 1,
+          url: absoluteUrl(`/desarrollos/${dev.slug}`),
+          item: {
+            "@type": "Product",
+            name: dev.name,
+            description: truncateDescription(
+              dev.shortDescription || dev.description,
+              180
+            ),
+            image,
+            category: "Desarrollo inmobiliario en pozo",
+            areaServed: dev.location,
+            offers: priceFrom
+              ? {
+                  "@type": "Offer",
+                  priceCurrency: dev.currency || "USD",
+                  price: priceFrom,
+                  availability: "https://schema.org/InStock",
+                  url: absoluteUrl(`/desarrollos/${dev.slug}`),
+                }
+              : undefined,
+          },
+        };
+      }),
+    },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Inicio",
+          item: absoluteUrl("/"),
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Desarrollos",
+          item: absoluteUrl("/desarrollos"),
+        },
+      ],
+    },
+  };
 
   return (
     <div className="min-h-screen bg-ink">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(itemListSchema),
+        }}
+      />
       <Header />
 
       <main>
@@ -89,15 +164,12 @@ export default async function DesarrollosPage() {
                       className="group block"
                     >
                       <div className="relative aspect-[4/5] mb-5 overflow-hidden bg-ink-600">
-                        {primaryImage && (
-                          <Image
-                            src={primaryImage}
-                            alt={dev.name}
-                            fill
+                        {(primaryImage || getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary)) && (
+                          <DevelopmentCoverMedia
+                            name={dev.name}
+                            image={primaryImage}
+                            video={getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary)}
                             className="object-cover transition-transform duration-[1500ms] group-hover:scale-[1.05]"
-                            style={{
-                              transitionTimingFunction: "var(--f-cubic)",
-                            }}
                             sizes="(max-width: 768px) 100vw, 33vw"
                           />
                         )}

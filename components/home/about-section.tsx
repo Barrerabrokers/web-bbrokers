@@ -33,7 +33,16 @@ export async function AboutSection() {
             {/* Imagen 7 cols */}
             <div className="col-span-12 md:col-span-7 order-2 md:order-1">
               <div className="relative aspect-[4/5] overflow-hidden bg-cream-200">
-                {settings.aboutImage ? (
+                {settings.aboutVideo ? (
+                  <video
+                    src={settings.aboutVideo}
+                    muted
+                    playsInline
+                    autoPlay
+                    loop
+                    className="h-full w-full object-cover"
+                  />
+                ) : settings.aboutImage ? (
                   <Image
                     src={settings.aboutImage}
                     alt={`Equipo ${settings.companyName}`}

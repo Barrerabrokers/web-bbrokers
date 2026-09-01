@@ -36,6 +36,12 @@ CREATE INDEX IF NOT EXISTS idx_developments_slug ON developments(slug);
 CREATE INDEX IF NOT EXISTS idx_developments_status ON developments(status);
 CREATE INDEX IF NOT EXISTS idx_developments_highlight ON developments(highlight);
 
+ALTER TABLE developments
+  ADD COLUMN IF NOT EXISTS video_url TEXT;
+
+ALTER TABLE developments
+  ADD COLUMN IF NOT EXISTS video_is_primary BOOLEAN DEFAULT false;
+
 
 -- ====================================================================
 -- TABLA: development_images (Imagenes del desarrollo)
@@ -75,6 +81,7 @@ CREATE TABLE IF NOT EXISTS units (
   status VARCHAR(20) DEFAULT 'disponible' CHECK (status IN ('disponible', 'reservada', 'vendida')),
   description TEXT,
   features TEXT[] DEFAULT '{}',
+  video_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

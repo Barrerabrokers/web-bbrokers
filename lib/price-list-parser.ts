@@ -1,4 +1,3 @@
-import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
 
 export type ParsedPriceListUnit = {
@@ -26,6 +25,7 @@ type ParseResult = {
 };
 
 export async function parsePriceListPdf(buffer: Buffer): Promise<ParseResult> {
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText({

@@ -1,10 +1,17 @@
 import { Mail, Phone, Calendar } from "lucide-react";
 import { getAllContacts } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+import { canManageAdminPanel } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function ContactsPage() {
+  const session = await getServerSession(authOptions);
+  if (!canManageAdminPanel(session?.user?.role)) redirect("/admin");
+
   const contacts = await getAllContacts();
 
   return (

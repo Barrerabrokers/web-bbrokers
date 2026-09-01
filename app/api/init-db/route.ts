@@ -65,13 +65,40 @@ export async function POST(request: NextRequest) {
           password VARCHAR(255) NOT NULL,
           phone VARCHAR(50),
           photo TEXT,
+          title VARCHAR(255),
           role VARCHAR(20) DEFAULT 'agent',
-          active BOOLEAN DEFAULT true,
+          active BOOLEAN DEFAULT false,
+          sort_order INTEGER DEFAULT 0,
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
       results.push("Tabla agents OK");
+
+      await sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS agent_password_reset_tokens (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          token_hash TEXT UNIQUE NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          approve_on_use BOOLEAN DEFAULT false,
+          used_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+      await sql.unsafe(`
+        ALTER TABLE agent_password_reset_tokens
+        ADD COLUMN IF NOT EXISTS approve_on_use BOOLEAN DEFAULT false;
+      `);
+      await sql.unsafe(`
+        CREATE INDEX IF NOT EXISTS idx_agent_password_reset_tokens_token_hash
+        ON agent_password_reset_tokens(token_hash);
+      `);
+      await sql.unsafe(`
+        CREATE INDEX IF NOT EXISTS idx_agent_password_reset_tokens_agent_id
+        ON agent_password_reset_tokens(agent_id);
+      `);
+      results.push("Tabla agent_password_reset_tokens OK");
 
       // Crear properties con TODAS las columnas
       await sql.unsafe(`
@@ -91,6 +118,9 @@ export async function POST(request: NextRequest) {
           features TEXT[] DEFAULT '{}',
           agent_id UUID,
           status VARCHAR(20) DEFAULT 'disponible',
+          visibility VARCHAR(20) DEFAULT 'public',
+          video_urls TEXT[] DEFAULT '{}',
+          video_is_primary BOOLEAN DEFAULT false,
           featured BOOLEAN DEFAULT false,
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -114,6 +144,9 @@ export async function POST(request: NextRequest) {
         { name: "features", type: "TEXT[] DEFAULT '{}'" },
         { name: "agent_id", type: "UUID" },
         { name: "status", type: "VARCHAR(20) DEFAULT 'disponible'" },
+        { name: "visibility", type: "VARCHAR(20) DEFAULT 'public'" },
+        { name: "video_urls", type: "TEXT[] DEFAULT '{}'" },
+        { name: "video_is_primary", type: "BOOLEAN DEFAULT false" },
         { name: "featured", type: "BOOLEAN DEFAULT false" },
         { name: "updated_at", type: "TIMESTAMPTZ DEFAULT NOW()" },
       ];
@@ -127,6 +160,14 @@ export async function POST(request: NextRequest) {
         } catch (e: any) {
           results.push(`Error columna ${col.name}: ${e.message}`);
         }
+      }
+
+      try {
+        await sql.unsafe(`UPDATE properties SET visibility = 'public' WHERE visibility IS NULL;`);
+        await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_properties_visibility ON properties(visibility);`);
+        results.push("Indice visibility en properties OK");
+      } catch (e: any) {
+        results.push(`Error indice visibility properties: ${e.message}`);
       }
 
       // Listar columnas existentes
@@ -168,6 +209,49 @@ export async function POST(request: NextRequest) {
         );
       `);
       results.push("Tabla contacts OK");
+
+      await sql.unsafe(`ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;`);
+      results.push("RLS de contacts habilitado");
+
+      await sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS site_settings (
+          id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+          company_name VARCHAR(255) NOT NULL DEFAULT 'Barrera Brokers',
+          email VARCHAR(255) NOT NULL DEFAULT 'info@barrerabrokers.com',
+          phone VARCHAR(50) NOT NULL DEFAULT '+54 11 1234-5678',
+          whatsapp VARCHAR(50) NOT NULL DEFAULT '541112345678',
+          address_street VARCHAR(255) NOT NULL DEFAULT 'Av. Principal 123',
+          address_city VARCHAR(255) NOT NULL DEFAULT 'Buenos Aires, Argentina',
+          whatsapp_message TEXT NOT NULL DEFAULT 'Hola! Me interesa conocer más sobre los desarrollos de Barrera Brokers.',
+          hero_videos TEXT[] DEFAULT '{}',
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+      await sql.unsafe(`INSERT INTO site_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;`);
+      await sql.unsafe(`
+        ALTER TABLE site_settings
+          ADD COLUMN IF NOT EXISTS stats_title TEXT DEFAULT 'Números que respaldan nuestra trayectoria.',
+          ADD COLUMN IF NOT EXISTS stats_quote TEXT DEFAULT 'Invertir en desarrollos es la forma más inteligente de multiplicar tu capital en el mercado inmobiliario.',
+          ADD COLUMN IF NOT EXISTS stats_item_1_value VARCHAR(50) DEFAULT '25',
+          ADD COLUMN IF NOT EXISTS stats_item_1_suffix VARCHAR(20) DEFAULT '+',
+          ADD COLUMN IF NOT EXISTS stats_item_1_label VARCHAR(255) DEFAULT 'Años de experiencia',
+          ADD COLUMN IF NOT EXISTS stats_item_1_description TEXT DEFAULT 'Más de dos décadas operando en el mercado inmobiliario de Buenos Aires.',
+          ADD COLUMN IF NOT EXISTS stats_item_2_value VARCHAR(50) DEFAULT '500',
+          ADD COLUMN IF NOT EXISTS stats_item_2_suffix VARCHAR(20) DEFAULT '+',
+          ADD COLUMN IF NOT EXISTS stats_item_2_label VARCHAR(255) DEFAULT 'Unidades vendidas',
+          ADD COLUMN IF NOT EXISTS stats_item_2_description TEXT DEFAULT 'Propiedades comercializadas entre desarrollos, departamentos y casas.',
+          ADD COLUMN IF NOT EXISTS stats_item_3_value VARCHAR(50) DEFAULT '40',
+          ADD COLUMN IF NOT EXISTS stats_item_3_suffix VARCHAR(20) DEFAULT '%',
+          ADD COLUMN IF NOT EXISTS stats_item_3_label VARCHAR(255) DEFAULT 'Retorno promedio',
+          ADD COLUMN IF NOT EXISTS stats_item_3_description TEXT DEFAULT 'Ganancia típica al revender una unidad comprada en pozo.',
+          ADD COLUMN IF NOT EXISTS stats_item_4_value VARCHAR(50) DEFAULT '12',
+          ADD COLUMN IF NOT EXISTS stats_item_4_suffix VARCHAR(20) DEFAULT '',
+          ADD COLUMN IF NOT EXISTS stats_item_4_label VARCHAR(255) DEFAULT 'Desarrollos activos',
+          ADD COLUMN IF NOT EXISTS stats_item_4_description TEXT DEFAULT 'Proyectos en construcción o pre-venta disponibles para inversores.',
+          ADD COLUMN IF NOT EXISTS about_video TEXT DEFAULT '',
+          ADD COLUMN IF NOT EXISTS investment_video TEXT DEFAULT ''
+      `);
+      results.push("Tabla site_settings y estadísticas OK");
 
       await sql.unsafe(`
         INSERT INTO agents (name, email, password, phone, role, active)
@@ -275,6 +359,25 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        await sql.unsafe(`ALTER TABLE developments ADD COLUMN IF NOT EXISTS video_url TEXT;`);
+        await sql.unsafe(`ALTER TABLE developments ADD COLUMN IF NOT EXISTS video_urls TEXT[] DEFAULT '{}';`);
+        await sql.unsafe(`ALTER TABLE developments ADD COLUMN IF NOT EXISTS video_is_primary BOOLEAN DEFAULT false;`);
+        await sql.unsafe(`NOTIFY pgrst, 'reload schema';`);
+        results.push("Columnas de video en developments OK");
+      } catch (e: any) {
+        results.push(`Error columna video_url: ${e.message}`);
+      }
+
+      try {
+        await sql.unsafe(`ALTER TABLE developments ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) DEFAULT 'public';`);
+        await sql.unsafe(`UPDATE developments SET visibility = 'public' WHERE visibility IS NULL;`);
+        await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_developments_visibility ON developments(visibility);`);
+        results.push("Columna visibility en developments OK");
+      } catch (e: any) {
+        results.push(`Error columna visibility en developments: ${e.message}`);
+      }
+
+      try {
         await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS down_payment DECIMAL(12,2);`);
         results.push("Columna down_payment en units OK");
       } catch (e: any) {
@@ -296,10 +399,36 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS video_url TEXT;`);
+        await sql.unsafe(`NOTIFY pgrst, 'reload schema';`);
+        results.push("Columna video_url en units OK");
+      } catch (e: any) {
+        results.push(`Error columna video_url en units: ${e.message}`);
+      }
+
+      try {
         await sql.unsafe(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS title VARCHAR(255);`);
         results.push("Columna title en agents OK");
       } catch (e: any) {
         results.push(`Error columna title en agents: ${e.message}`);
+      }
+
+      try {
+        await sql.unsafe(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;`);
+        await sql.unsafe(`
+          WITH ordered_agents AS (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY COALESCE(sort_order, 999999), created_at ASC) - 1 AS rn
+            FROM agents
+          )
+          UPDATE agents
+          SET sort_order = ordered_agents.rn
+          FROM ordered_agents
+          WHERE agents.id = ordered_agents.id
+        `);
+        await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_agents_sort_order ON agents(sort_order);`);
+        results.push("Columna sort_order en agents OK");
+      } catch (e: any) {
+        results.push(`Error columna sort_order en agents: ${e.message}`);
       }
 
       // Promote pablo@barrerabrokers.com to admin if exists
@@ -350,11 +479,15 @@ export async function POST(request: NextRequest) {
             "image/png",
             "image/webp",
             "image/jpg",
+            "video/mp4",
+            "video/quicktime",
+            "video/webm",
+            "video/x-m4v",
             "application/pdf",
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           ],
-          fileSizeLimit: 10485760,
+          fileSizeLimit: 52428800,
         });
         if (updateError) {
           results.push(`Error actualizando bucket: ${updateError.message}`);
@@ -369,11 +502,15 @@ export async function POST(request: NextRequest) {
             "image/png",
             "image/webp",
             "image/jpg",
+            "video/mp4",
+            "video/quicktime",
+            "video/webm",
+            "video/x-m4v",
             "application/pdf",
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           ],
-          fileSizeLimit: 10485760,
+          fileSizeLimit: 52428800,
         });
 
         if (bucketError) {

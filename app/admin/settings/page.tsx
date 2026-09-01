@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFullSiteSettings } from "@/lib/db";
+import { canManageSiteSettings } from "@/lib/roles";
 import { SettingsForm } from "./settings-form";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export const revalidate = 0;
 export default async function AdminSettingsPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user?.role !== "admin") {
+  if (!session || !canManageSiteSettings(session.user?.role)) {
     redirect("/admin");
   }
 

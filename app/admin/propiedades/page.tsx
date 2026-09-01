@@ -45,7 +45,16 @@ export default async function PropertiesAdminPage() {
             className="card-hover overflow-hidden md:flex"
           >
             <div className="md:w-56 h-44 md:h-auto relative bg-cream-100 flex-shrink-0">
-              {property.images && property.images.length > 0 ? (
+              {property.videoIsPrimary && property.videoUrls?.[0] ? (
+                <video
+                  src={property.videoUrls[0]}
+                  muted
+                  playsInline
+                  preload="metadata"
+                  poster={property.images[0]}
+                  className="h-full w-full object-cover"
+                />
+              ) : property.images && property.images.length > 0 ? (
                 <Image
                   src={property.images[0]}
                   alt={property.title}
@@ -71,6 +80,15 @@ export default async function PropertiesAdminPage() {
                       }`}
                     >
                       {property.status}
+                    </span>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium border ${
+                        property.visibility === "agents"
+                          ? "bg-ink text-cream-50 border-ink"
+                          : "bg-cream-100 text-ink/70 border-ink/15"
+                      }`}
+                    >
+                      {property.visibility === "agents" ? "Solo agentes" : "Público"}
                     </span>
                   </div>
                   <h3 className="text-base font-semibold tracking-tight text-ink mb-1 truncate">

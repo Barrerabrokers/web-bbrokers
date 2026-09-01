@@ -3,12 +3,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { QrCode, RefreshCw, Smartphone, Check } from "lucide-react";
 import QRCode from "qrcode";
+import { cn } from "@/lib/utils";
 
 interface QrUploadProps {
   onFilesReceived: (urls: string[]) => void;
+  buttonLabel?: string;
+  title?: string;
+  description?: string;
+  className?: string;
+  mediaMode?: "all" | "images";
 }
 
-export function QrUpload({ onFilesReceived }: QrUploadProps) {
+export function QrUpload({
+  onFilesReceived,
+  buttonLabel = "Subir desde celular (QR)",
+  title = "Subir desde celular",
+  description = "Escanealo con la cámara del celular. Las fotos y videos aparecen acá automáticamente.",
+  className,
+  mediaMode = "all",
+}: QrUploadProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
@@ -22,11 +35,15 @@ export function QrUpload({ onFilesReceived }: QrUploadProps) {
       const res = await fetch("/api/upload-session", { method: "POST" });
       if (!res.ok) throw new Error("Error creando sesion");
       const data = await res.json();
+      const nextUploadUrl =
+        mediaMode === "images"
+          ? `${data.uploadUrl}${data.uploadUrl.includes("?") ? "&" : "?"}media=images`
+          : data.uploadUrl;
       setSessionId(data.sessionId);
-      setUploadUrl(data.uploadUrl);
+      setUploadUrl(nextUploadUrl);
       setFileCount(0);
 
-      const qr = await QRCode.toDataURL(data.uploadUrl, {
+      const qr = await QRCode.toDataURL(nextUploadUrl, {
         width: 280,
         margin: 2,
         color: { dark: "#151415", light: "#F1EADE" },
@@ -37,7 +54,7 @@ export function QrUpload({ onFilesReceived }: QrUploadProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [mediaMode]);
 
   // Poll for new files every 3 seconds
   useEffect(() => {
@@ -75,10 +92,13 @@ export function QrUpload({ onFilesReceived }: QrUploadProps) {
       <button
         type="button"
         onClick={handleOpen}
-        className="flex items-center gap-2 px-4 py-2.5 border border-ink/20 rounded-lg hover:border-ink/40 hover:bg-ink/5 transition-colors text-sm"
+        className={cn(
+          "flex items-center gap-2 rounded-lg border border-ink/20 px-4 py-2.5 text-sm transition-colors hover:border-ink/40 hover:bg-ink/5",
+          className
+        )}
       >
         <Smartphone className="h-4 w-4" />
-        <span>Subir desde celular (QR)</span>
+        <span>{buttonLabel}</span>
       </button>
     );
   }
@@ -88,7 +108,7 @@ export function QrUpload({ onFilesReceived }: QrUploadProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <QrCode className="h-4 w-4 text-ink/70" />
-          <span className="label-tracking text-ink/85">Subir desde celular</span>
+          <span className="label-tracking text-ink/85">{title}</span>
         </div>
         <button
           type="button"
@@ -112,7 +132,7 @@ export function QrUpload({ onFilesReceived }: QrUploadProps) {
             className="w-[200px] h-[200px] rounded-lg border border-ink/10"
           />
           <p className="text-xs text-ink/60 mt-3 text-center max-w-[240px]">
-            Escanealo con la camara del celular. Las fotos que subas aparecen aca automaticamente.
+            {description}
           </p>
           {fileCount > 0 && (
             <div className="flex items-center gap-1.5 mt-3 text-sm text-green-700 bg-green-500/10 px-3 py-1.5 rounded-full">

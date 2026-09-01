@@ -2,9 +2,11 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2, FileText, Upload, X, ListPlus } from "lucide-react";
+import { Save, Trash2, ChevronDown, ChevronUp, ImageIcon, Loader2, FileText, Upload, X, ListPlus, Link2 } from "lucide-react";
 import { COMMON_AMENITIES, Development, DevelopmentImage, DEVELOPMENT_IMAGE_TYPES, DevelopmentImageType } from "@/types";
-import { ImageUploader, ImageItem } from "./image-uploader";
+import { ImageItem } from "./image-uploader";
+import { MediaUploader } from "./media-uploader";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   development: Development;
@@ -33,6 +35,7 @@ export function DevelopmentEditor({ development }: Props) {
     amenities: [...development.amenities],
     features: development.features.join("\n"),
     highlight: development.highlight || false,
+    visibility: development.visibility || "public",
   });
 
   // === IMAGE STATE ===
@@ -42,6 +45,19 @@ export function DevelopmentEditor({ development }: Props) {
       url: img.url,
       id: img.id || `existing-${img.url}`,
     }))
+  );
+  const [videoUrl, setVideoUrl] = useState<string | null>(
+    development.videoUrl || null
+  );
+  const [videoUrls, setVideoUrls] = useState<string[]>(
+    development.videoUrls?.length
+      ? development.videoUrls
+      : development.videoUrl
+        ? [development.videoUrl]
+        : []
+  );
+  const [videoIsPrimary, setVideoIsPrimary] = useState(
+    development.videoIsPrimary || false
   );
 
   // === BROCHURE STATE ===
@@ -56,6 +72,15 @@ export function DevelopmentEditor({ development }: Props) {
   const [priceListExpanded, setPriceListExpanded] = useState(false);
   const [isImportingPriceList, setIsImportingPriceList] = useState(false);
   const [priceListImportSummary, setPriceListImportSummary] = useState("");
+  const isGooglePriceListLink = /(^|\.)((drive|docs)\.google\.com)$/i.test(
+    (() => {
+      try {
+        return new URL(priceListUrl).hostname;
+      } catch {
+        return "";
+      }
+    })()
+  );
 
   const [imagePrimaryIndex, setImagePrimaryIndex] = useState<number>(() => {
     const idx = (development.images || []).findIndex((img) => img.isPrimary);
@@ -70,6 +95,34 @@ export function DevelopmentEditor({ development }: Props) {
       caption: img.caption || "",
     }))
   );
+
+  const uploadDocumentToSupabase = async (
+    file: File,
+    folder: "brochures" | "price-lists"
+  ) => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+    const fileName = `${folder}/${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("properties")
+      .upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || "application/octet-stream",
+      });
+
+    if (uploadError) {
+      throw new Error(`Error subiendo archivo: ${uploadError.message}`);
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("properties")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
 
   const handleImagesChange = useCallback(
     (newItems: ImageItem[], newPrimary: number) => {
@@ -176,66 +229,12 @@ export function DevelopmentEditor({ development }: Props) {
   // Upload brochure PDF if new file selected
   const uploadBrochure = async (): Promise<string | undefined> => {
     if (!brochureFile) return brochureUrl || undefined;
-
-    const uploadFormData = new FormData();
-    uploadFormData.append("files", brochureFile);
-    uploadFormData.append("folder", "brochures");
-
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      body: uploadFormData,
-    });
-
-    if (!response.ok) {
-      let errorMsg = "Error subiendo brochure";
-      try {
-        const err = await response.json();
-        errorMsg = err.error || errorMsg;
-      } catch {
-        const text = await response.text();
-        if (text.toLowerCase().includes("entity too large") || text.toLowerCase().includes("request en")) {
-          errorMsg = "El archivo es demasiado grande. Máximo 4.5MB en Vercel.";
-        } else {
-          errorMsg = `Error del servidor: ${response.status}`;
-        }
-      }
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    return data.urls[0];
+    return uploadDocumentToSupabase(brochureFile, "brochures");
   };
 
   const uploadPriceList = async (): Promise<string | undefined> => {
     if (!priceListFile) return priceListUrl || undefined;
-
-    const uploadFormData = new FormData();
-    uploadFormData.append("files", priceListFile);
-    uploadFormData.append("folder", "price-lists");
-
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      body: uploadFormData,
-    });
-
-    if (!response.ok) {
-      let errorMsg = "Error subiendo lista de precios";
-      try {
-        const err = await response.json();
-        errorMsg = err.error || errorMsg;
-      } catch {
-        const text = await response.text();
-        if (text.toLowerCase().includes("entity too large") || text.toLowerCase().includes("request en")) {
-          errorMsg = "El archivo es demasiado grande. Máximo 4.5MB en Vercel.";
-        } else {
-          errorMsg = `Error del servidor: ${response.status}`;
-        }
-      }
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    return data.urls[0];
+    return uploadDocumentToSupabase(priceListFile, "price-lists");
   };
 
   const importPriceListUnits = async (url?: string) => {
@@ -322,9 +321,13 @@ export function DevelopmentEditor({ development }: Props) {
             .map((s) => s.trim())
             .filter(Boolean),
           highlight: formData.highlight,
+          visibility: formData.visibility,
           images,
           brochureUrl: finalBrochureUrl || null,
           priceListUrl: finalPriceListUrl || null,
+          videoUrl: videoUrl || null,
+          videoUrls,
+          videoIsPrimary: Boolean(videoUrl && videoIsPrimary),
         }),
       });
 
@@ -524,6 +527,25 @@ export function DevelopmentEditor({ development }: Props) {
 
               <div>
                 <label className="label-tracking text-ink/85 block mb-2">
+                  Visibilidad *
+                </label>
+                <select
+                  value={formData.visibility}
+                  onChange={(e) =>
+                    setFormData({ ...formData, visibility: e.target.value as any })
+                  }
+                  className="w-full px-3 py-2 border border-ink/15 focus:border-accent focus:outline-none rounded"
+                >
+                  <option value="public">Público: visible en el sitio</option>
+                  <option value="agents">Solo agentes logueados</option>
+                </select>
+                <p className="mt-1 text-xs text-ink/50">
+                  Si elegís solo agentes, no aparece en la home, mapa ni listado público.
+                </p>
+              </div>
+
+              <div>
+                <label className="label-tracking text-ink/85 block mb-2">
                   Fecha de entrega
                 </label>
                 <input
@@ -674,12 +696,12 @@ export function DevelopmentEditor({ development }: Props) {
           <div className="text-left">
             <h2 className="font-semibold text-ink flex items-center gap-2">
               <ImageIcon className="h-5 w-5 text-accent-700" />
-              Fotos, Renders y Planos
+              Fotos, Videos, Renders y Planos
             </h2>
             <p className="text-xs text-ink/60 mt-0.5">
               {imagesExpanded
                 ? "Ocultar"
-                : `${imageItems.length} imagen${imageItems.length !== 1 ? "es" : ""} · Agregar fotos, renders y planos del desarrollo`}
+                : `${imageItems.length} imagen${imageItems.length !== 1 ? "es" : ""}${videoUrls.length ? ` · ${videoUrls.length} video${videoUrls.length !== 1 ? "s" : ""}` : ""} · Administrar contenido visual`}
             </p>
           </div>
           {imagesExpanded ? (
@@ -692,12 +714,19 @@ export function DevelopmentEditor({ development }: Props) {
         {imagesExpanded && (
           <div className="border-t border-ink/15 p-6 space-y-5">
             {/* Image Uploader */}
-            <ImageUploader
+            <MediaUploader
               items={imageItems}
               primaryIndex={imagePrimaryIndex}
-              onChange={handleImagesChange}
-              label="Imágenes del desarrollo"
-              helperText="Agregá fotos, renders y planos. Tocá la estrella para elegir portada. Arrastrá para reordenar."
+              onImagesChange={handleImagesChange}
+              videoUrl={videoUrl}
+              onVideoChange={setVideoUrl}
+              videoUrls={videoUrls}
+              onVideosChange={setVideoUrls}
+              videoIsPrimary={videoIsPrimary}
+              onVideoPrimaryChange={setVideoIsPrimary}
+              imageLabel="Imágenes del desarrollo"
+              videoLabel="Video del desarrollo"
+              imageHelperText="Agregá fotos, renders y planos. Tocá la estrella para elegir portada. Arrastrá para reordenar."
             />
 
             {/* Image metadata/classification */}
@@ -878,8 +907,8 @@ export function DevelopmentEditor({ development }: Props) {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.size > 10 * 1024 * 1024) {
-                          setError("El PDF es muy grande (máx 10MB)");
+                        if (file.size > 20 * 1024 * 1024) {
+                          setError("El PDF es muy grande (máx 20MB)");
                           return;
                         }
                         setBrochureFile(file);
@@ -889,7 +918,7 @@ export function DevelopmentEditor({ development }: Props) {
                   />
                 </label>
                 <p className="text-xs text-ink/50 mt-2">
-                  PDF · Máximo 10MB · Se mostrará en una página pública para clientes
+                  PDF · Máximo 20MB · Se mostrará en una página pública para clientes
                 </p>
               </div>
             )}
@@ -973,21 +1002,23 @@ export function DevelopmentEditor({ development }: Props) {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleManualPriceListImport}
-                  disabled={isImportingPriceList || isLoading}
-                  className="mt-4 inline-flex items-center gap-2 px-3 py-2 text-sm bg-ink text-cream-50 rounded hover:bg-ink/90 disabled:opacity-50"
-                >
-                  {isImportingPriceList ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ListPlus className="h-4 w-4" />
-                  )}
-                  {isImportingPriceList
-                    ? "Analizando archivo..."
-                    : "Analizar archivo y cargar unidades"}
-                </button>
+                {!isGooglePriceListLink && (
+                  <button
+                    type="button"
+                    onClick={handleManualPriceListImport}
+                    disabled={isImportingPriceList || isLoading}
+                    className="mt-4 inline-flex items-center gap-2 px-3 py-2 text-sm bg-ink text-cream-50 rounded hover:bg-ink/90 disabled:opacity-50"
+                  >
+                    {isImportingPriceList ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ListPlus className="h-4 w-4" />
+                    )}
+                    {isImportingPriceList
+                      ? "Analizando archivo..."
+                      : "Analizar archivo y cargar unidades"}
+                  </button>
+                )}
               </div>
             )}
 
@@ -1046,8 +1077,8 @@ export function DevelopmentEditor({ development }: Props) {
                           setError("La lista de precios debe ser PDF o Excel");
                           return;
                         }
-                        if (file.size > 10 * 1024 * 1024) {
-                          setError("La lista de precios es muy grande (máx 10MB)");
+                        if (file.size > 20 * 1024 * 1024) {
+                          setError("La lista de precios es muy grande (máx 20MB)");
                           return;
                         }
                         setPriceListFile(file);
@@ -1057,7 +1088,33 @@ export function DevelopmentEditor({ development }: Props) {
                   />
                 </label>
                 <p className="text-xs text-ink/50 mt-2">
-                  PDF o Excel · Máximo 10MB. Al guardar, se analizará y cargará las unidades detectadas.
+                  PDF o Excel · Máximo 20MB. Al guardar, se analizará y cargará las unidades detectadas.
+                </p>
+
+                <div className="my-4 flex items-center gap-3 text-[10px] uppercase tracking-widest text-ink/40">
+                  <span className="h-px flex-1 bg-ink/10" />
+                  o usar enlace
+                  <span className="h-px flex-1 bg-ink/10" />
+                </div>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-ink/75">Link de Google Drive</span>
+                  <div className="relative mt-2">
+                    <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" />
+                    <input
+                      type="url"
+                      value={priceListUrl}
+                      onChange={(e) => {
+                        setPriceListUrl(e.target.value);
+                        setPriceListImportSummary("");
+                      }}
+                      placeholder="https://drive.google.com/..."
+                      className="form-input pl-10"
+                    />
+                  </div>
+                </label>
+                <p className="mt-2 text-xs text-ink/50">
+                  Conservá el mismo enlace para mostrar siempre la lista actualizada.
                 </p>
               </div>
             )}

@@ -21,11 +21,13 @@ export function SmoothScroll() {
     if (reduceMotion) return;
 
     const lenis = new Lenis({
-      duration: 1.4,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      duration: 1.8,
+      easing: (t) => 1 - Math.pow(1 - t, 4),
       smoothWheel: true,
-      wheelMultiplier: 1,
-      touchMultiplier: 1.4,
+      wheelMultiplier: 0.86,
+      touchMultiplier: 1.18,
+      prevent: (node) =>
+        node instanceof Element && Boolean(node.closest("[data-native-scroll]")),
     });
 
     let raf = 0;

@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { canManageListings } from "@/lib/roles";
 import { randomUUID } from "crypto";
+import {
+  appendMobileUploadSessionFile,
+  createMobileUploadSession,
+  getMobileUploadSessionFiles,
+} from "@/lib/db";
 
-// In-memory store for upload sessions (in production, use Redis or DB)
-// Each session expires after 30 minutes
-const uploadSessions = new Map<string, { createdAt: number; files: string[] }>();
+const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
 
-// Clean expired sessions
-function cleanExpired() {
-  const now = Date.now();
-  uploadSessions.forEach((session, id) => {
-    if (now - session.createdAt > 30 * 60 * 1000) {
-      uploadSessions.delete(id);
-    }
-  });
+function getUploadBaseUrl(request: NextRequest) {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    request.nextUrl.origin
+  ).replace(/\/$/, "");
 }
 
 export async function POST(request: NextRequest) {
@@ -22,16 +24,31 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-
-  cleanExpired();
+  if (!canManageListings(session.user.role)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
 
   const sessionId = randomUUID();
-  uploadSessions.set(sessionId, { createdAt: Date.now(), files: [] });
+  const created = await createMobileUploadSession({
+    id: sessionId,
+    expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
+  });
 
-  const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
+  if (!created.success) {
+    return NextResponse.json(
+      { error: created.error || "No se pudo crear la sesion" },
+      { status: 500 }
+    );
+  }
+
+  const baseUrl = getUploadBaseUrl(request);
   const uploadUrl = `${baseUrl}/upload/${sessionId}`;
 
-  return NextResponse.json({ sessionId, uploadUrl });
+  return NextResponse.json({
+    sessionId,
+    uploadUrl,
+    expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -40,18 +57,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "sessionId requerido" }, { status: 400 });
   }
 
-  const session = uploadSessions.get(sessionId);
-  if (!session) {
-    return NextResponse.json({ error: "Sesion expirada o invalida" }, { status: 404 });
+  const session = await getMobileUploadSessionFiles(sessionId);
+  if (session.expired) {
+    return NextResponse.json(
+      { error: session.error || "Sesion expirada o invalida" },
+      { status: 410 }
+    );
+  }
+  if (session.error) {
+    return NextResponse.json({ error: session.error }, { status: 500 });
   }
 
-  // Check expiration
-  if (Date.now() - session.createdAt > 30 * 60 * 1000) {
-    uploadSessions.delete(sessionId);
-    return NextResponse.json({ error: "Sesion expirada" }, { status: 410 });
-  }
-
-  return NextResponse.json({ files: session.files });
+  return NextResponse.json({ files: session.files || [] });
 }
 
 // Mobile page posts uploaded file URLs here
@@ -63,16 +80,19 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "sessionId y fileUrl requeridos" }, { status: 400 });
   }
 
-  const session = uploadSessions.get(sessionId);
-  if (!session) {
-    return NextResponse.json({ error: "Sesion expirada o invalida" }, { status: 404 });
+  const result = await appendMobileUploadSessionFile({ id: sessionId, fileUrl });
+  if (result.expired) {
+    return NextResponse.json(
+      { error: result.error || "Sesion expirada o invalida" },
+      { status: 410 }
+    );
+  }
+  if (!result.success) {
+    return NextResponse.json(
+      { error: result.error || "No se pudo guardar el archivo" },
+      { status: 500 }
+    );
   }
 
-  if (Date.now() - session.createdAt > 30 * 60 * 1000) {
-    uploadSessions.delete(sessionId);
-    return NextResponse.json({ error: "Sesion expirada" }, { status: 410 });
-  }
-
-  session.files.push(fileUrl);
-  return NextResponse.json({ success: true, totalFiles: session.files.length });
+  return NextResponse.json({ success: true, totalFiles: result.totalFiles });
 }

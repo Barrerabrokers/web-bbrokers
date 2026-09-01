@@ -15,6 +15,7 @@ import { getDevelopments } from "@/lib/developments-db";
 import { formatPrice } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { canManageAdminPanel } from "@/lib/roles";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +23,13 @@ export const revalidate = 0;
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "admin";
+
+  const canManagePanel = canManageAdminPanel(session?.user?.role);
 
   const [properties, developments, agents] = await Promise.all([
     getProperties(),
     getDevelopments(),
-    isAdmin ? getAllAgents() : Promise.resolve([]),
+    canManagePanel ? getAllAgents() : Promise.resolve([]),
   ]);
 
   const activeAgents = agents.filter((a) => a.active).length;
@@ -346,8 +348,8 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Equipo / Agentes — solo admins */}
-      {isAdmin && (
+      {/* Equipo / Agentes */}
+      {canManagePanel && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-ink tracking-tight">
@@ -386,7 +388,7 @@ export default async function AdminDashboard() {
       )}
 
       {/* Quick Actions */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4 mt-6`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${canManagePanel ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4 mt-6`}>
         <Link
           href="/admin/desarrollos/nuevo"
           className="group card p-6 hover:border-accent/40 hover:shadow-sm transition-all"
@@ -417,7 +419,7 @@ export default async function AdminDashboard() {
           </p>
         </Link>
 
-        {isAdmin && (
+        {canManagePanel && (
           <Link
             href="/admin/agentes"
             className="group card p-6 hover:border-accent/40 hover:shadow-sm transition-all"
@@ -434,20 +436,22 @@ export default async function AdminDashboard() {
           </Link>
         )}
 
-        <Link
-          href="/admin/contactos"
-          className="group card p-6 hover:border-ink/25 transition-all"
-        >
-          <div className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-ink/15 bg-cream-100 text-ink/75 mb-4">
-            <Users className="h-4 w-4" />
-          </div>
-          <h3 className="text-base font-semibold tracking-tight text-ink mb-1">
-            Ver contactos
-          </h3>
-          <p className="text-sm text-ink/60">
-            Revisá los mensajes de clientes potenciales.
-          </p>
-        </Link>
+        {canManagePanel && (
+          <Link
+            href="/admin/contactos"
+            className="group card p-6 hover:border-ink/25 transition-all"
+          >
+            <div className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-ink/15 bg-cream-100 text-ink/75 mb-4">
+              <Users className="h-4 w-4" />
+            </div>
+            <h3 className="text-base font-semibold tracking-tight text-ink mb-1">
+              Ver contactos
+            </h3>
+            <p className="text-sm text-ink/60">
+              Revisá los mensajes de clientes potenciales.
+            </p>
+          </Link>
+        )}
       </div>
     </div>
   );

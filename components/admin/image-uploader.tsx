@@ -2,33 +2,17 @@
 
 import { useCallback, useRef, useState } from "react";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  Upload,
-  X,
-  Star,
-  Loader2,
+  ArrowDown,
+  ArrowUp,
   Camera,
   Image as ImageIcon,
-  GripVertical,
+  Loader2,
+  Star,
+  Trash2,
+  Upload,
 } from "lucide-react";
 import { compressImage, formatBytes } from "@/lib/image-utils";
+import { QrUpload } from "./qr-upload";
 
 export type ImageItem =
   | { kind: "existing"; url: string; id?: string }
@@ -41,19 +25,50 @@ interface ImageUploaderProps {
   maxSizeMB?: number;
   label?: string;
   helperText?: string;
+  displayMode?: "list" | "grid";
+  enableQrUpload?: boolean;
+  maxItems?: number;
 }
 
 const MAX_SIZE_MB_DEFAULT = 15;
 
-// Helper to ensure each item has a stable id for dnd-kit
-function ensureIds(items: ImageItem[]): (ImageItem & { id: string })[] {
-  return items.map((item, idx) => ({
-    ...item,
-    id: item.id || `${item.kind}-${idx}-${Date.now()}-${Math.random()}`,
-  }));
+export function getImageItemStableId(item: ImageItem): string {
+  if (item.id) return item.id;
+  if (item.kind === "existing") return `existing-${item.url}`;
+  return `new-${item.file.name}-${item.file.lastModified}-${item.file.size}`;
 }
 
+export function withStableImageItemIds(items: ImageItem[]): (ImageItem & { id: string })[] {
+  const seen = new Map<string, number>();
 
+  return items.map((item) => {
+    const baseId = getImageItemStableId(item);
+    const count = seen.get(baseId) || 0;
+    seen.set(baseId, count + 1);
+    const id = count === 0 ? baseId : `${baseId}-${count + 1}`;
+
+    return { ...item, id };
+  });
+}
+
+function itemPreview(item: ImageItem) {
+  return item.kind === "existing" ? item.url : item.preview;
+}
+
+function itemLabel(item: ImageItem) {
+  if (item.kind === "new") return item.file.name;
+  try {
+    const url = new URL(item.url);
+    return decodeURIComponent(url.pathname.split("/").pop() || "Imagen cargada");
+  } catch {
+    return "Imagen cargada";
+  }
+}
+
+function itemMeta(item: ImageItem) {
+  if (item.kind === "new") return `Nueva · ${formatBytes(item.file.size)}`;
+  return "Guardada";
+}
 
 export function ImageUploader({
   items,
@@ -62,27 +77,26 @@ export function ImageUploader({
   maxSizeMB = MAX_SIZE_MB_DEFAULT,
   label = "Imágenes de la propiedad",
   helperText,
+  displayMode = "list",
+  enableQrUpload = false,
+  maxItems,
 }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
+  const isGrid = displayMode === "grid";
 
-  // Items con IDs estables para dnd-kit
-  const itemsWithIds = ensureIds(items);
-
-  // Sensors: pointer (mouse), touch, keyboard
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+  const emit = useCallback(
+    (nextItems: ImageItem[], nextPrimaryIndex = primaryIndex) => {
+      const safePrimary =
+        nextItems.length === 0
+          ? 0
+          : Math.min(Math.max(nextPrimaryIndex, 0), nextItems.length - 1);
+      onChange(nextItems, safePrimary);
+    },
+    [onChange, primaryIndex]
   );
 
   const addFiles = useCallback(
@@ -92,367 +106,366 @@ export function ImageUploader({
       setIsProcessing(true);
 
       try {
+        const availableSlots =
+          typeof maxItems === "number" ? Math.max(0, maxItems - items.length) : files.length;
+        if (availableSlots <= 0) {
+          setError(`Ya cargaste el máximo de ${maxItems} imagen${maxItems === 1 ? "" : "es"}.`);
+          return;
+        }
         const accepted: ImageItem[] = [];
-        for (const file of files) {
+
+        for (const file of files.slice(0, availableSlots)) {
           if (!file.type.startsWith("image/")) {
             setError(`${file.name} no es una imagen`);
             continue;
           }
+
           if (file.size > maxSizeMB * 1024 * 1024) {
             setError(`${file.name} es muy grande (máx ${maxSizeMB}MB)`);
             continue;
           }
+
           const compressed = await compressImage(file);
-          const preview = URL.createObjectURL(compressed);
           accepted.push({
             kind: "new",
             file: compressed,
-            preview,
-            id: `new-${Date.now()}-${Math.random()}`,
+            preview: URL.createObjectURL(compressed),
+            id: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           });
         }
 
         if (accepted.length > 0) {
-          const next = [...items, ...accepted];
-          const nextPrimary = items.length === 0 ? 0 : primaryIndex;
-          onChange(next, nextPrimary);
+          emit([...items, ...accepted], items.length === 0 ? 0 : primaryIndex);
         }
+      } catch (err: any) {
+        setError(err?.message || "No se pudieron procesar las imágenes");
       } finally {
         setIsProcessing(false);
       }
     },
-    [items, primaryIndex, onChange, maxSizeMB]
+    [emit, items, maxItems, maxSizeMB, primaryIndex]
   );
 
-  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const handleSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
     addFiles(files);
-    if (e.target) e.target.value = "";
+    event.target.value = "";
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isDragging) setIsDragging(true);
+  const handleQrFiles = useCallback(
+    (urls: string[]) => {
+      const videoPattern = /\.(mp4|mov|m4v|webm|avi)(?:\?|$)/i;
+      const imageUrls = urls.filter((url) => !videoPattern.test(url));
+
+      if (imageUrls.length === 0) {
+        setError("El QR recibió archivos, pero no había imágenes para agregar en esta sección.");
+        return;
+      }
+
+      setError("");
+      const now = Date.now();
+      const availableSlots =
+        typeof maxItems === "number" ? Math.max(0, maxItems - items.length) : imageUrls.length;
+      if (availableSlots <= 0) {
+        setError(`Ya cargaste el máximo de ${maxItems} imagen${maxItems === 1 ? "" : "es"}.`);
+        return;
+      }
+
+      const nextItems: ImageItem[] = imageUrls.slice(0, availableSlots).map((url, index) => ({
+        kind: "existing",
+        url,
+        id: `qr-image-${now}-${index}`,
+      }));
+
+      emit([...items, ...nextItems], items.length === 0 ? 0 : primaryIndex);
+    },
+    [emit, items, maxItems, primaryIndex]
+  );
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
   };
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setIsDragging(false);
   };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files || []);
-    addFiles(files);
+    addFiles(Array.from(event.dataTransfer.files || []));
   };
 
   const removeAt = (index: number) => {
     const item = items[index];
-    if (item?.kind === "new") {
-      URL.revokeObjectURL(item.preview);
-    }
-    const next = items.filter((_, i) => i !== index);
+    if (item?.kind === "new") URL.revokeObjectURL(item.preview);
 
-    let nextPrimary = primaryIndex;
-    if (index === primaryIndex) nextPrimary = 0;
-    else if (index < primaryIndex) nextPrimary = primaryIndex - 1;
-    if (next.length === 0) nextPrimary = 0;
+    const nextItems = items.filter((_, itemIndex) => itemIndex !== index);
+    let nextPrimaryIndex = primaryIndex;
 
-    onChange(next, nextPrimary);
+    if (index === primaryIndex) nextPrimaryIndex = 0;
+    else if (index < primaryIndex) nextPrimaryIndex = primaryIndex - 1;
+
+    emit(nextItems, nextPrimaryIndex);
   };
 
-  const setPrimary = (index: number) => onChange(items, index);
-
-  // Reorder via drag-and-drop
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = itemsWithIds.findIndex((i) => i.id === active.id);
-    const newIndex = itemsWithIds.findIndex((i) => i.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    const reordered = arrayMove(items, oldIndex, newIndex);
-
-    // Recalcular primary index siguiendo al item original
-    let nextPrimary = primaryIndex;
-    if (oldIndex === primaryIndex) {
-      nextPrimary = newIndex;
-    } else if (oldIndex < primaryIndex && newIndex >= primaryIndex) {
-      nextPrimary = primaryIndex - 1;
-    } else if (oldIndex > primaryIndex && newIndex <= primaryIndex) {
-      nextPrimary = primaryIndex + 1;
-    }
-
-    onChange(reordered, nextPrimary);
+  const setPrimary = (index: number) => {
+    emit(items, index);
   };
 
+  const moveItem = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
 
+    const reordered = [...items];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, item);
+
+    let nextPrimaryIndex = primaryIndex;
+    if (index === primaryIndex) nextPrimaryIndex = targetIndex;
+    else if (targetIndex === primaryIndex) nextPrimaryIndex = index;
+
+    emit(reordered, nextPrimaryIndex);
+  };
 
   return (
-    <div>
-      <label className="label-tracking text-ink/85 block mb-3">{label}</label>
+    <div className="space-y-4">
+      <div>
+        <label className="label-tracking block text-ink/85">{label}</label>
+        <p className="mt-1 text-xs leading-relaxed text-ink/55">
+          {helperText ||
+            "Subí imágenes, marcá la portada y ordenalas con los botones. Sin arrastrar."}
+        </p>
+      </div>
 
       {error && (
-        <div className="mb-3 bg-red-50 border-l-4 border-red-500 text-red-700 px-3 py-2 text-sm">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      {/* Grid de imágenes con drag & drop sortable */}
-      {items.length > 0 && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={itemsWithIds.map((i) => i.id)}
-            strategy={rectSortingStrategy}
+      {items.length > 0 ? (
+        <div className="rounded-xl border border-ink/12 bg-white/55">
+          <div className="flex items-center justify-between border-b border-ink/10 px-4 py-3">
+            <span className="text-xs font-medium text-ink">
+              {items.length} imagen{items.length !== 1 ? "es" : ""} cargada
+              {items.length !== 1 ? "s" : ""}
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.16em] text-ink/45">
+              Portada: {items[primaryIndex] ? primaryIndex + 1 : "sin definir"}
+            </span>
+          </div>
+
+          <div
+            className={
+              isGrid
+                ? "grid grid-cols-1 gap-3 p-3 md:grid-cols-2 xl:grid-cols-3"
+                : "divide-y divide-ink/8"
+            }
           >
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-              {itemsWithIds.map((item, index) => (
-                <SortableImageCard
-                  key={item.id}
-                  id={item.id}
-                  item={item}
-                  index={index}
-                  isPrimary={index === primaryIndex}
-                  onRemove={() => removeAt(index)}
-                  onSetPrimary={() => setPrimary(index)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+            {items.map((item, index) => {
+              const isPrimary = index === primaryIndex;
+              const key = `${item.id || getImageItemStableId(item)}-${index}`;
+
+              return (
+                <div
+                  key={key}
+                  className={
+                    isGrid
+                      ? `overflow-hidden rounded-xl border p-3 transition-colors ${
+                          isPrimary
+                            ? "border-accent bg-accent/10"
+                            : "border-ink/10 bg-white"
+                        }`
+                      : `flex gap-3 p-3 sm:items-center ${
+                          isPrimary ? "bg-accent/10" : "bg-transparent"
+                        }`
+                  }
+                >
+                  <div
+                    className={
+                      isGrid
+                        ? "relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-ink/12 bg-cream-200"
+                        : "relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-ink/12 bg-cream-200 sm:h-24 sm:w-24"
+                    }
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={itemPreview(item)}
+                      alt={`Imagen ${index + 1}`}
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                    />
+                    <span className="absolute left-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-ink px-1.5 text-[10px] font-semibold text-bone">
+                      {index + 1}
+                    </span>
+                  </div>
+
+                  <div className={isGrid ? "mt-3 min-w-0" : "min-w-0 flex-1"}>
+                    <div
+                      className={
+                        isGrid
+                          ? "flex flex-col gap-2"
+                          : "flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                      }
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {itemLabel(item)}
+                        </p>
+                        <p className="text-xs text-ink/55">{itemMeta(item)}</p>
+                      </div>
+
+                      {isPrimary ? (
+                        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink">
+                          <Star className="h-3 w-3 fill-current" />
+                          Portada
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setPrimary(index)}
+                          className="inline-flex w-fit items-center gap-1 rounded-full border border-ink/15 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink transition-colors hover:border-accent hover:bg-accent/15"
+                        >
+                          <Star className="h-3 w-3" />
+                          Hacer portada
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => moveItem(index, -1)}
+                        disabled={index === 0}
+                        className="inline-flex h-9 items-center gap-1 rounded-lg border border-ink/12 bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink/28 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                        <span className={isGrid ? "sr-only sm:not-sr-only" : ""}>
+                          Subir
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(index, 1)}
+                        disabled={index === items.length - 1}
+                        className="inline-flex h-9 items-center gap-1 rounded-lg border border-ink/12 bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink/28 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                        <span className={isGrid ? "sr-only sm:not-sr-only" : ""}>
+                          Bajar
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeAt(index)}
+                        className="inline-flex h-9 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className={isGrid ? "sr-only sm:not-sr-only" : ""}>
+                          Eliminar
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-ink/18 bg-white/45 px-4 py-8 text-center">
+          <ImageIcon className="mx-auto h-8 w-8 text-ink/35" />
+          <p className="mt-3 text-sm font-medium text-ink">Todavía no hay imágenes.</p>
+          <p className="mt-1 text-xs text-ink/55">
+            Agregá fotos desde la cámara, la galería o arrastrando archivos.
+          </p>
+        </div>
       )}
 
-      {items.length > 1 && (
-        <p className="text-[11px] text-accent-700 mb-3 flex items-center gap-1.5">
-          <GripVertical className="h-3 w-3" />
-          Arrastrá las imágenes para reordenar. La primera (#1) es la portada.
-        </p>
-      )}
-
-      {/* Botones explícitos para mobile + drop zone para desktop */}
-      <div className="space-y-3">
-        {/* Botones rápidos: cámara y galería */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={isProcessing}
-            className="flex flex-col items-center justify-center gap-1.5 p-4 border border-ink/20 rounded-lg hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
-          >
-            <Camera className="h-5 w-5 text-accent-700" />
-            <span className="label-tracking text-xs text-ink">
-              Tomar foto
-            </span>
-            <span className="text-[10px] text-ink/50">Cámara</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessing}
-            className="flex flex-col items-center justify-center gap-1.5 p-4 border border-ink/20 rounded-lg hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
-          >
-            <ImageIcon className="h-5 w-5 text-accent-700" />
-            <span className="label-tracking text-xs text-ink">
-              Elegir de galería
-            </span>
-            <span className="text-[10px] text-ink/50">Múltiples permitidas</span>
-          </button>
-        </div>
-
-        {/* Drop zone (desktop) */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`hidden md:block border-2 border-dashed transition-colors cursor-pointer p-6 text-center rounded-lg ${
-            isDragging
-              ? "border-accent bg-accent/5"
-              : "border-ink/20 hover:border-accent"
-          }`}
-        >
-          {isProcessing ? (
-            <div className="flex flex-col items-center justify-center text-ink/60">
-              <Loader2 className="h-7 w-7 mb-2 animate-spin" />
-              <span className="label-tracking text-sm">
-                Procesando imágenes...
-              </span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center text-ink/60">
-              <Upload className="h-7 w-7 mb-2" />
-              <span className="label-tracking text-sm mb-1">
-                {isDragging
-                  ? "Soltá las imágenes acá"
-                  : "O arrastrá imágenes acá"}
-              </span>
-              <span className="text-xs text-ink/50">
-                JPG, PNG, WebP · se comprimen automáticamente · máx {maxSizeMB}MB
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Inputs ocultos */}
-        {/* Cámara (móvil): capture="environment" abre la cámara trasera */}
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleSelect}
-          className="hidden"
-        />
-        {/* Galería: multiple permite seleccionar varias */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleSelect}
-          className="hidden"
-        />
-      </div>
-
-      <p className="text-xs text-ink/60 mt-3">
-        {helperText ||
-          "Tocá la estrella para marcar una imagen como portada. Arrastrá para reordenar."}
-      </p>
-    </div>
-  );
-}
-
-
-
-// ============================================================
-// SortableImageCard — una imagen individual draggable
-// ============================================================
-interface SortableImageCardProps {
-  id: string;
-  item: ImageItem & { id: string };
-  index: number;
-  isPrimary: boolean;
-  onRemove: () => void;
-  onSetPrimary: () => void;
-}
-
-function SortableImageCard({
-  id,
-  item,
-  index,
-  isPrimary,
-  onRemove,
-  onSetPrimary,
-}: SortableImageCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 50 : "auto",
-  };
-
-  const previewSrc = item.kind === "existing" ? item.url : item.preview;
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`relative group aspect-square rounded-lg overflow-hidden border-2 ${
-        isPrimary ? "border-accent-700" : "border-transparent"
-      } ${isDragging ? "ring-2 ring-accent-700 shadow-2xl" : ""}`}
-    >
-      {/* Imagen */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={previewSrc}
-        alt={`Imagen ${index + 1}`}
-        className="w-full h-full object-cover pointer-events-none select-none"
-        draggable={false}
-      />
-
-      {/* Drag handle: cubre la mayor parte de la card */}
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="absolute inset-0 cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-accent-700"
-        aria-label={`Arrastrar imagen ${index + 1}`}
-      />
-
-      {/* Overlay oscuro al hover */}
-      <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/20 transition-colors pointer-events-none" />
-
-      {/* Número de orden — esquina superior izquierda */}
-      <div className="absolute top-2 left-2 bg-ink/85 backdrop-blur-sm text-bone text-xs font-display font-light h-7 w-7 rounded-full flex items-center justify-center pointer-events-none">
-        {index + 1}
-      </div>
-
-      {/* Drag indicator — visible en hover */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-ink/85 backdrop-blur-sm text-bone p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <GripVertical className="h-3.5 w-3.5" />
-      </div>
-
-      {/* Acciones — esquina superior derecha */}
-      <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10">
+      <div className={enableQrUpload ? "grid gap-3 md:grid-cols-3" : "grid grid-cols-2 gap-3"}>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className="bg-red-500/90 hover:bg-red-600 text-white p-1.5 rounded-md backdrop-blur-sm shadow-lg"
-          aria-label="Eliminar imagen"
-          title="Eliminar"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={isProcessing}
+          className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-ink/18 bg-white/50 p-4 text-ink transition-colors hover:border-accent hover:bg-accent/8 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <X className="h-3.5 w-3.5" />
+          <Camera className="h-5 w-5 text-accent-700" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em]">
+            Tomar foto
+          </span>
+          <span className="text-xs text-ink/50">Cámara del celular</span>
         </button>
-        {!isPrimary && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetPrimary();
-            }}
-            className="bg-bone/90 hover:bg-accent text-ink p-1.5 rounded-md backdrop-blur-sm shadow-lg"
-            aria-label="Marcar como portada"
-            title="Hacer portada"
-          >
-            <Star className="h-3.5 w-3.5" />
-          </button>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isProcessing}
+          className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-ink/18 bg-white/50 p-4 text-ink transition-colors hover:border-accent hover:bg-accent/8 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Upload className="h-5 w-5 text-accent-700" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em]">
+            Elegir imágenes
+          </span>
+          <span className="text-xs text-ink/50">Permite múltiples</span>
+        </button>
+
+        {enableQrUpload && (
+          <div className="md:col-span-1">
+            <QrUpload
+              onFilesReceived={handleQrFiles}
+              buttonLabel="QR desde celular"
+              title="Fotos desde celular"
+              description="Escanealo con el celular. Podés sacar fotos con la cámara o elegirlas desde la galería; aparecen acá automáticamente."
+              className="min-h-24 w-full flex-col justify-center rounded-xl border-ink/18 bg-white/50 p-4 text-ink hover:border-accent hover:bg-accent/8"
+              mediaMode="images"
+            />
+          </div>
         )}
       </div>
 
-      {/* Badge "Portada" */}
-      {isPrimary && (
-        <div className="absolute bottom-2 left-2 bg-accent text-ink text-[10px] uppercase tracking-widest font-medium px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
-          <Star className="h-2.5 w-2.5 fill-current" />
-          Portada
-        </div>
-      )}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`hidden rounded-xl border border-dashed px-4 py-5 text-center transition-colors md:block ${
+          isDragging ? "border-accent bg-accent/10" : "border-ink/18 bg-white/35"
+        }`}
+      >
+        {isProcessing ? (
+          <div className="flex items-center justify-center gap-2 text-sm text-ink/60">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Procesando imágenes...
+          </div>
+        ) : (
+          <p className="text-sm text-ink/55">
+            Arrastrá imágenes acá si estás en computadora. JPG, PNG o WebP · máx{" "}
+            {maxSizeMB}MB.
+          </p>
+        )}
+      </div>
 
-      {/* Badge "Nueva" */}
-      {item.kind === "new" && (
-        <div className="absolute bottom-2 right-2 bg-ink/85 text-bone text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded pointer-events-none">
-          {formatBytes(item.file.size)}
-        </div>
-      )}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleSelect}
+        className="hidden"
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleSelect}
+        className="hidden"
+      />
     </div>
   );
 }

@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Star } from "lucide-react";
 import Link from "next/link";
 import { PROPERTY_CATEGORIES } from "@/types";
 import { supabase } from "@/lib/supabase";
 import {
   ImageUploader,
   type ImageItem,
+  withStableImageItemIds,
 } from "@/components/admin/image-uploader";
+import { VideoUploader } from "@/components/admin/video-uploader";
 
 export default function EditPropertyPage() {
   const router = useRouter();
@@ -24,6 +26,9 @@ export default function EditPropertyPage() {
   // Estado unificado del uploader (mezcla existentes + nuevas)
   const [items, setItems] = useState<ImageItem[]>([]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
+  const [videoUrls, setVideoUrls] = useState<string[]>([]);
+  const [primaryVideoUrl, setPrimaryVideoUrl] = useState<string | null>(null);
+  const [videoIsPrimary, setVideoIsPrimary] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -38,6 +43,7 @@ export default function EditPropertyPage() {
     area: "",
     features: "",
     status: "disponible" as const,
+    visibility: "public" as const,
   });
 
   // Cargar datos de la propiedad
@@ -65,12 +71,21 @@ export default function EditPropertyPage() {
           area: data.area?.toString() || "",
           features: (data.features || []).join("\n"),
           status: data.status || "disponible",
+          visibility: data.visibility || "public",
         });
 
         const existingItems: ImageItem[] = (data.images || []).map(
-          (url: string) => ({ kind: "existing" as const, url })
+          (url: string, index: number) => ({
+            kind: "existing" as const,
+            url,
+            id: `property-${propertyId}-image-${index}-${url}`,
+          })
         );
-        setItems(existingItems);
+        setItems(withStableImageItemIds(existingItems));
+        const loadedVideoUrls = data.videoUrls || [];
+        setVideoUrls(loadedVideoUrls);
+        setPrimaryVideoUrl(loadedVideoUrls[0] || null);
+        setVideoIsPrimary(Boolean(data.videoIsPrimary && loadedVideoUrls.length));
         setPrimaryIndex(0);
       } catch (err) {
         setError("Error cargando la propiedad");
@@ -148,6 +163,13 @@ export default function EditPropertyPage() {
       }
 
       const imageUrls = await buildFinalImageUrls();
+      const orderedVideoUrls =
+        videoIsPrimary && primaryVideoUrl
+          ? [
+              primaryVideoUrl,
+              ...videoUrls.filter((url) => url !== primaryVideoUrl),
+            ]
+          : videoUrls;
 
       const response = await fetch(`/api/properties/${propertyId}`, {
         method: "PATCH",
@@ -162,6 +184,8 @@ export default function EditPropertyPage() {
             : undefined,
           area: parseFloat(formData.area),
           images: imageUrls,
+          videoUrls: orderedVideoUrls,
+          videoIsPrimary: Boolean(videoIsPrimary && orderedVideoUrls.length),
           features: formData.features
             .split("\n")
             .filter(Boolean)
@@ -227,11 +251,79 @@ export default function EditPropertyPage() {
             items={items}
             primaryIndex={primaryIndex}
             onChange={(nextItems, nextPrimary) => {
-              setItems(nextItems);
+              setItems(withStableImageItemIds(nextItems));
               setPrimaryIndex(nextPrimary);
             }}
             label="Imagenes de la propiedad"
+            displayMode="grid"
+            enableQrUpload
           />
+          <div className="mt-8 border-t border-ink/10 pt-8">
+            <VideoUploader
+              videoUrls={videoUrls}
+              onUrlsChange={(nextUrls) => {
+                setVideoUrls(nextUrls);
+                if (!nextUrls.length) {
+                  setPrimaryVideoUrl(null);
+                  setVideoIsPrimary(false);
+                } else if (!primaryVideoUrl || !nextUrls.includes(primaryVideoUrl)) {
+                  setPrimaryVideoUrl(nextUrls[0]);
+                }
+              }}
+              label="Videos de la propiedad"
+            />
+            {videoUrls.length > 0 && (
+              <div className="mt-4 rounded-lg border border-ink/15 bg-cream-50 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-ink">
+                      Video como referencia principal
+                    </p>
+                    <p className="mt-1 text-xs text-ink/55">
+                      Si lo activás, el video se muestra como portada en las tarjetas y ficha.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVideoIsPrimary((current) => !current)}
+                    className={`rounded-full px-4 py-2 text-xs font-medium transition-colors ${
+                      videoIsPrimary
+                        ? "bg-ink text-cream-50"
+                        : "bg-white text-ink/65 border border-ink/15"
+                    }`}
+                  >
+                    {videoIsPrimary ? "Activado" : "Usar video"}
+                  </button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {videoUrls.map((url, index) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => {
+                        setPrimaryVideoUrl(url);
+                        setVideoIsPrimary(true);
+                      }}
+                      className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                        videoIsPrimary && primaryVideoUrl === url
+                          ? "border-accent-700 bg-accent/10 text-ink"
+                          : "border-ink/15 bg-white text-ink/65 hover:border-ink/35"
+                      }`}
+                    >
+                      <Star
+                        className={`h-4 w-4 shrink-0 ${
+                          videoIsPrimary && primaryVideoUrl === url
+                            ? "fill-current text-accent-700"
+                            : ""
+                        }`}
+                      />
+                      <span>Video {index + 1} como portada</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -301,6 +393,26 @@ export default function EditPropertyPage() {
               <option value="reservada">Reservada</option>
               <option value="vendida">Vendida</option>
             </select>
+          </div>
+
+          <div>
+            <label className="label-tracking text-ink/85 block mb-2">
+              Visibilidad *
+            </label>
+            <select
+              required
+              value={formData.visibility}
+              onChange={(e) =>
+                setFormData({ ...formData, visibility: e.target.value as any })
+              }
+              className="w-full px-4 py-3 border border-ink/15 focus:border-accent focus:outline-none"
+            >
+              <option value="public">Público: visible en el sitio</option>
+              <option value="agents">Solo agentes logueados</option>
+            </select>
+            <p className="mt-1 text-xs text-ink/50">
+              Si elegís solo agentes, no aparece en el sitio público.
+            </p>
           </div>
 
           <div>

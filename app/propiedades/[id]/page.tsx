@@ -18,6 +18,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { absoluteUrl, SITE_NAME, truncateDescription } from "@/lib/seo";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { ShareListingPdf } from "@/components/share-listing-pdf";
+import { PropertyInquiryForm } from "@/components/property-inquiry-form";
+import { createShareToken, hasValidShareToken, withShareParam } from "@/lib/share-token";
+import { RestorePageScroll } from "@/components/restore-page-scroll";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,7 +34,7 @@ export async function generateMetadata({
   params: { id: string };
 }): Promise<Metadata> {
   const property = await getPropertyById(params.id);
-  if (!property) {
+  if (!property || property.visibility === "agents") {
     return {
       title: "Propiedad no encontrada",
       robots: { index: false, follow: false },
@@ -75,12 +81,19 @@ export async function generateMetadata({
 
 export default async function PropertyDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams?: { share?: string };
 }) {
+  const session = await getServerSession(authOptions);
   const property = await getPropertyById(params.id);
+  const shareToken = property ? createShareToken("property", property.id) : undefined;
+  const hasSharedAccess =
+    property?.visibility === "agents" &&
+    hasValidShareToken(searchParams?.share, "property", property.id);
 
-  if (!property) {
+  if (!property || (property.visibility === "agents" && !session && !hasSharedAccess)) {
     notFound();
   }
 
@@ -90,7 +103,20 @@ export default async function PropertyDetailPage({
     vendida: "border-ink/20 text-ink/60 bg-cream-300",
   };
   const statusClass = statusStyles[property.status] ?? statusStyles.vendida;
-  const pageUrl = absoluteUrl(`/propiedades/${property.id}`);
+  const sharedPath = withShareParam(
+    `/propiedades/${property.id}`,
+    property.visibility === "agents" ? shareToken : undefined
+  );
+  const sharedPdfPath = withShareParam(
+    `/api/properties/${property.id}/ficha`,
+    property.visibility === "agents" ? shareToken : undefined
+  );
+  const pageUrl = absoluteUrl(sharedPath);
+  const pdfUrl = absoluteUrl(sharedPdfPath);
+  const coverVideo = property.videoIsPrimary ? property.videoUrls?.[0] : undefined;
+  const galleryVideoUrls = coverVideo
+    ? (property.videoUrls || []).filter((url) => url !== coverVideo)
+    : property.videoUrls || [];
   const propertySchema = {
     "@context": "https://schema.org",
     "@type": "Offer",
@@ -131,6 +157,7 @@ export default async function PropertyDetailPage({
 
   return (
     <div className="min-h-screen bg-cream-200">
+      <RestorePageScroll />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -152,9 +179,104 @@ export default async function PropertyDetailPage({
             </Link>
           </div>
 
+          <section className="mb-8 rounded-xl border border-ink/10 bg-cream-50 p-5 shadow-sm md:mb-10 md:p-8 lg:p-10">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.38fr)] lg:items-end">
+              <div>
+                <div className="mb-5 flex flex-wrap gap-2">
+                  <span
+                    className={`inline-flex px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium rounded-full border capitalize ${statusClass}`}
+                  >
+                    {property.status}
+                  </span>
+                  <span className="inline-flex rounded-full border border-ink/12 px-3 py-1.5 text-[10px] font-medium uppercase tracking-widest text-ink/62">
+                    {property.category}
+                  </span>
+                </div>
+                <h1 className="max-w-5xl font-display text-[42px] font-light leading-[0.96] tracking-[-0.03em] text-ink md:text-[64px] lg:text-[78px]">
+                  {property.title}
+                </h1>
+                <div className="mt-6 flex flex-col gap-1 text-sm leading-relaxed text-ink/70 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+                  <span className="inline-flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-accent" />
+                    {property.location}
+                  </span>
+                  <span className="hidden text-ink/28 sm:inline">/</span>
+                  <span>{property.address}</span>
+                </div>
+              </div>
+
+              <aside className="rounded-xl border border-ink/12 bg-cream-200 p-5 md:p-6">
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-ink/52">
+                  Valor publicado
+                </p>
+                <p className="mt-2 font-display text-4xl font-light leading-none tracking-[-0.025em] text-ink md:text-5xl">
+                  {formatPrice(property.price)}
+                </p>
+                {property.expenses ? (
+                  <p className="mt-2 text-xs text-ink/64">
+                    + Expensas: {formatPriceARS(property.expenses)}/mes
+                  </p>
+                ) : null}
+                <div className="mt-5 grid grid-cols-3 gap-2 border-y border-ink/12 py-4 text-center">
+                  <div>
+                    <p className="font-display text-2xl font-light text-ink">
+                      {property.bedrooms || "—"}
+                    </p>
+                    <p className="mt-1 text-[9px] uppercase tracking-widest text-ink/50">
+                      Dorm.
+                    </p>
+                  </div>
+                  <div className="border-x border-ink/10">
+                    <p className="font-display text-2xl font-light text-ink">
+                      {property.bathrooms || "—"}
+                    </p>
+                    <p className="mt-1 text-[9px] uppercase tracking-widest text-ink/50">
+                      Baños
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-display text-2xl font-light text-ink">
+                      {property.area}
+                    </p>
+                    <p className="mt-1 text-[9px] uppercase tracking-widest text-ink/50">
+                      m2
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row lg:flex-col">
+                  <a href="#consulta" className="btn-primary w-full">
+                    Consultar
+                  </a>
+                  <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn-outline w-full">
+                    Abrir PDF
+                  </a>
+                </div>
+              </aside>
+            </div>
+          </section>
+
           <div className="grid lg:grid-cols-3 gap-10 lg:gap-12">
             {/* Main */}
             <div className="lg:col-span-2 space-y-10">
+              {coverVideo && (
+                <section
+                  className="overflow-hidden rounded-lg bg-ink"
+                  aria-label={`Video principal sin audio de ${property.title}`}
+                >
+                  <video
+                    src={coverVideo}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    poster={property.images[0]}
+                    disablePictureInPicture
+                    className="aspect-[16/10] w-full object-cover md:aspect-video"
+                  />
+                </section>
+              )}
+
               {/* Galeria */}
               <PropertyGallery
                 images={property.images}
@@ -162,13 +284,38 @@ export default async function PropertyDetailPage({
                 category={property.category}
               />
 
+              {galleryVideoUrls.length > 0 && (
+                <section
+                  className="grid gap-4 md:grid-cols-2"
+                  aria-label={`Videos de ${property.title}`}
+                >
+                  {galleryVideoUrls.map((url, index) => (
+                    <video
+                      key={url}
+                      src={url}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      poster={property.images[0]}
+                      disablePictureInPicture
+                      aria-label={`Video ${index + 1} sin audio de ${property.title}`}
+                      className={`aspect-video w-full rounded-lg bg-ink object-cover ${
+                        galleryVideoUrls.length === 1 ? "md:col-span-2" : ""
+                      }`}
+                    />
+                  ))}
+                </section>
+              )}
+
               {/* Detalles */}
               <div className="border-t border-ink/15 pt-10">
                 <div className="grid grid-cols-12 gap-6 mb-10 pb-10 border-b border-ink/15">
                   <div className="col-span-12 md:col-span-8">
-                    <h1 className="font-display font-light text-4xl md:text-5xl lg:text-6xl leading-[1.02] tracking-[-0.025em] text-ink mb-5">
-                      {property.title}
-                    </h1>
+                    <h2 className="font-display font-light text-4xl md:text-5xl lg:text-6xl leading-[1.02] tracking-[-0.025em] text-ink mb-5">
+                      Resumen de la propiedad
+                    </h2>
                     <div className="flex items-center text-ink/70 gap-2 text-sm">
                       <MapPin className="h-4 w-4" />
                       <span>{property.location}</span>
@@ -283,7 +430,7 @@ export default async function PropertyDetailPage({
 
             {/* Sidebar Contact */}
             <div className="lg:col-span-1">
-              <div className="card p-7 lg:sticky lg:top-28">
+              <div id="consulta" className="card scroll-mt-28 p-7 lg:sticky lg:top-28">
                 <p className="eyebrow mb-4">Consultar</p>
                 <h3 className="font-display font-light text-3xl text-ink mb-2 leading-tight">
                   Interesado en
@@ -294,57 +441,20 @@ export default async function PropertyDetailPage({
                   Contactanos y un agente te respondera a la brevedad.
                 </p>
 
-                <form className="space-y-5">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
-                      Nombre
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input"
-                      placeholder="Tu nombre"
-                    />
-                  </div>
+                <div className="mb-6 rounded-lg border border-ink/12 bg-cream-50 p-4">
+                  <ShareListingPdf
+                    title={property.title}
+                    pdfUrl={pdfUrl}
+                    pageUrl={pageUrl}
+                    typeLabel="propiedad"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      className="form-input"
-                      placeholder="tu@email.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
-                      Telefono
-                    </label>
-                    <input
-                      type="tel"
-                      className="form-input"
-                      placeholder="+54 11 1234-5678"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
-                      Mensaje
-                    </label>
-                    <textarea
-                      rows={4}
-                      className="form-input resize-none"
-                      placeholder="Me gustaria mas informacion..."
-                    />
-                  </div>
-
-                  <button type="submit" className="btn-primary w-full mt-2">
-                    Enviar consulta
-                  </button>
-                </form>
+                <PropertyInquiryForm
+                  propertyId={property.id}
+                  propertyTitle={property.title}
+                  propertyLocation={`${property.address}, ${property.location}`}
+                />
 
                 <div className="mt-6 pt-5 border-t border-ink/15 space-y-3">
                   <a

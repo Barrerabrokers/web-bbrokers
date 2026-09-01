@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useCallback } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { ArrowDownRight } from "lucide-react";
 
 const VIDEO_SOURCES = [
   "/Buenos-Aires1.mp4",
@@ -10,259 +10,194 @@ const VIDEO_SOURCES = [
   "/Buenos-Aires3.mp4",
 ];
 
-/**
- * Hero con crossfade entre videos — doble buffer A/B.
- * Los 3 videos rotan en secuencia: 0→1→2→0→1→2…
- * Sin flash negro entre transiciones.
- */
-export function HeroSection() {
+type HeroSectionProps = {
+  videos?: string[];
+};
+
+export function HeroSection({ videos = [] }: HeroSectionProps) {
+  const sources = useMemo(() => {
+    const videoSources = videos.filter(Boolean).slice(0, 3);
+    return videoSources.length > 0 ? videoSources : VIDEO_SOURCES;
+  }, [videos]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [active, setActive]     = useState<"a" | "b">("a");
-  const [srcA, setSrcA]         = useState(VIDEO_SOURCES[0]);
-  const [srcB, setSrcB]         = useState(VIDEO_SOURCES[1]);
+  const [active, setActive] = useState<"a" | "b">("a");
+  const [srcA, setSrcA] = useState(sources[0]);
+  const [srcB, setSrcB] = useState(sources[1] || sources[0]);
 
   const refA = useRef<HTMLVideoElement>(null);
   const refB = useRef<HTMLVideoElement>(null);
-
-  // Siguiente índice en la cola circular (independiente de A/B)
-  // Empieza en 2 porque A=0 y B=1 ya están asignados
   const queueIdx = useRef(2);
 
   const playVideo = (el: HTMLVideoElement | null) => {
     if (!el) return;
     el.currentTime = 0;
-    el.playbackRate = 0.75;
+    el.playbackRate = 0.72;
     el.play().catch(() => {});
   };
 
-  const nextSrc = () => {
-    const src = VIDEO_SOURCES[queueIdx.current % VIDEO_SOURCES.length];
+  const nextSrc = useCallback(() => {
+    const src = sources[queueIdx.current % sources.length];
     queueIdx.current++;
     return src;
-  };
+  }, [sources]);
 
-  // Al montar: arranca A
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100);
+    const timer = setTimeout(() => setIsLoaded(true), 120);
     playVideo(refA.current);
     return () => clearTimeout(timer);
   }, []);
 
-  // Cuando cambia srcA y A NO está activo → recargar (precarga el siguiente)
   useEffect(() => {
     if (active !== "a") refA.current?.load();
   }, [srcA, active]);
 
-  // Cuando cambia srcB y B NO está activo → recargar (precarga el siguiente)
   useEffect(() => {
     if (active !== "b") refB.current?.load();
   }, [srcB, active]);
 
-  // A terminó → mostrar B, queueA con el siguiente video
   const handleEndedA = useCallback(() => {
     setActive("b");
     playVideo(refB.current);
     setSrcA(nextSrc());
-  }, []);
+  }, [nextSrc]);
 
-  // B terminó → mostrar A, queueB con el siguiente video
   const handleEndedB = useCallback(() => {
     setActive("a");
     playVideo(refA.current);
     setSrcB(nextSrc());
-  }, []);
+  }, [nextSrc]);
 
-  const handleErrorA = useCallback(() => handleEndedA(), [handleEndedA]);
-  const handleErrorB = useCallback(() => handleEndedB(), [handleEndedB]);
-
-  const FADE = "opacity 0.8s ease";
+  const fade = "opacity 1.1s cubic-bezier(0.19, 1, 0.22, 1)";
 
   return (
     <section
       id="inicio"
-      className="relative min-h-[100svh] flex flex-col overflow-hidden"
-      style={{ backgroundColor: "#0a0a0b" }}
+      className="relative min-h-[100svh] overflow-hidden bg-[#070707] text-[#f8f5ef]"
     >
-      {/* Video Background — doble buffer con crossfade */}
-      <div className="absolute inset-0 z-0">
-        {/* Buffer A */}
+      <div className="absolute inset-0">
         <video
           ref={refA}
           autoPlay
           muted
           playsInline
           onEnded={handleEndedA}
-          onError={handleErrorA}
-          className="absolute inset-0 w-full h-full object-cover"
+          onError={handleEndedA}
+          className="absolute inset-0 h-full w-full object-cover"
           style={{
             opacity: active === "a" ? 1 : 0,
-            transition: FADE,
+            transition: fade,
             zIndex: active === "a" ? 2 : 1,
           }}
         >
           <source src={srcA} type="video/mp4" />
         </video>
-        {/* Buffer B */}
         <video
           ref={refB}
           muted
           playsInline
           onEnded={handleEndedB}
-          onError={handleErrorB}
-          className="absolute inset-0 w-full h-full object-cover"
+          onError={handleEndedB}
+          className="absolute inset-0 h-full w-full object-cover"
           style={{
             opacity: active === "b" ? 1 : 0,
-            transition: FADE,
+            transition: fade,
             zIndex: active === "b" ? 2 : 1,
           }}
         >
           <source src={srcB} type="video/mp4" />
         </video>
-        {/* Overlay oscuro para legibilidad del menú y headline */}
-        <div
-          className="absolute inset-0"
-          style={{
-            zIndex: 3,
-            background:
-              "linear-gradient(180deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.58) 45%, rgba(0,0,0,0.83) 100%)",
-          }}
-        />
-        {/* Capa de negro transparente uniforme — oscurece más todo el video */}
-        <div
-          className="absolute inset-0"
-          style={{ zIndex: 4, background: "rgba(0,0,0,0.35)" }}
-        />
-        {/* Grain texture sutil */}
-        <div className="absolute inset-0 bg-grain opacity-20" style={{ zIndex: 5 }} />
-      </div>
-
-      {/* Accent glow */}
-      <div
-        aria-hidden="true"
-        className="absolute top-0 right-0 w-[50vw] h-[50vw] max-w-[800px] max-h-[800px] pointer-events-none z-10"
-        style={{
-          background:
-            "radial-gradient(ellipse at top right, rgba(21,20,21,0.18) 0%, transparent 60%)",
-        }}
-      />
-
-      {/* Top label line */}
-      <div className="relative z-20 container-custom pt-24 md:pt-36">
-        <div
-          className={`flex items-start justify-between gap-6 text-[10px] uppercase tracking-widest transition-all duration-1500 md:text-[11px] ${
-            isLoaded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
-          }`}
-          style={{ transitionTimingFunction: "var(--f-cubic)", color: "rgba(255,255,255,0.6)" }}
+        <div className="absolute inset-0 z-[3] bg-[linear-gradient(180deg,rgba(0,0,0,0.58)_0%,rgba(0,0,0,0.18)_38%,rgba(0,0,0,0.82)_100%)]" />
+        <div className="absolute inset-0 z-[4] bg-[radial-gradient(circle_at_70%_35%,rgba(255,255,255,0.12),transparent_28%),linear-gradient(90deg,rgba(0,0,0,0.76)_0%,rgba(0,0,0,0.24)_55%,rgba(0,0,0,0.58)_100%)]" />
+        <div className="absolute inset-0 z-[5] bg-grain opacity-30" />
+        <svg
+          aria-hidden="true"
+          className="oa-arch-path z-[6]"
+          viewBox="0 0 1440 820"
+          preserveAspectRatio="none"
         >
-          <span className="flex items-center gap-3">
-            <span className="h-px w-8" style={{ background: "rgba(255,255,255,0.5)" }} />
-            Desarrollos Inmobiliarios
-          </span>
-          <span className="text-right">Buenos Aires · Est. 2000</span>
-        </div>
+          <linearGradient id="bb-hero-path" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stopColor="#f8f5ef" stopOpacity="0" />
+            <stop offset="0.32" stopColor="#d8c4af" stopOpacity="0.5" />
+            <stop offset="0.68" stopColor="#f8f5ef" stopOpacity="0.22" />
+            <stop offset="1" stopColor="#f8f5ef" stopOpacity="0" />
+          </linearGradient>
+          <path
+            d="M-40 705C245 464 446 895 690 572c199-263 335-623 496-467 143 139-83 426 300 225"
+            fill="none"
+            stroke="url(#bb-hero-path)"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
       </div>
 
-      {/* Manifest content */}
-      <div className="relative z-20 container-custom flex-1 flex items-center py-10 md:py-24">
-        <div className="grid grid-cols-12 gap-6 w-full">
-          <div className="col-span-12 lg:col-span-10 xl:col-span-9">
-            <h1
-              className={`font-display font-light text-[40px] sm:text-[56px] md:text-[72px] lg:text-[96px] xl:text-[120px] leading-[0.95] tracking-[-0.03em] transition-all duration-[2000ms] ${
-                isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16"
-              }`}
-              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "200ms", color: "#f8f5ef" }}
-            >
-              <span className="block">
-                Invertí en <span className="italic" style={{ color: "#d8c4af" }}>desarrollos</span>
-              </span>
-              <span className="block">
-                desde el inicio.
-              </span>
-            </h1>
+      <div className="relative z-10 flex min-h-[100svh] flex-col">
+        <div className="container-custom flex flex-1 items-end pb-24 pt-32 md:pb-28 md:pt-40">
+          <div className="grid w-full grid-cols-12 gap-6">
+            <div className="col-span-12 lg:col-span-9 xl:col-span-8">
+              <p
+                className={`mb-6 text-[10px] uppercase tracking-[0.34em] text-white/58 transition-all duration-1000 md:mb-8 ${
+                  isLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+                }`}
+              >
+                Barrera Brokers · Buenos Aires real estate
+              </p>
+              <h1
+                className={`oa-hero-title font-display text-[14vw] font-light leading-[0.9] text-[#f8f5ef] transition-all duration-[1600ms] sm:text-[12vw] lg:text-[8.2vw] ${
+                  isLoaded ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                }`}
+                style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
+              >
+                <span className="block">
+                  <span>Invertí en </span><em className="italic text-[#d8c4af]">desarrollos</em>
+                </span>
+                <span className="block"><span> desde el inicio.</span></span>
+              </h1>
+            </div>
 
-            <p
-              className={`mt-7 md:mt-14 max-w-2xl text-base md:text-xl leading-relaxed transition-all duration-[2000ms] ${
-                isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
-              }`}
-              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "400ms", color: "rgba(248,245,239,0.72)" }}
-            >
-              Ingresá cuando la obra recién empieza, financiá en cuotas con un
-              anticipo del 35%, y al finalizar revendé con una ganancia del 30-40%
-              o generá renta pasiva con alquiler temporario.
-            </p>
-
-            <div
-              className={`mt-8 flex flex-col gap-3 transition-all duration-[2000ms] sm:flex-row sm:flex-wrap sm:gap-4 md:mt-10 ${
-                isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-              }`}
-              style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "600ms" }}
-            >
-              <Link href="#desarrollos" className="btn-primary w-full sm:w-auto">
-                Ver desarrollos
-              </Link>
-              <Link href="#modelo" className="btn-outline-light w-full sm:w-auto">
-                Cómo funciona
-              </Link>
+            <div className="col-span-12 flex flex-col justify-end lg:col-span-3">
+              <div
+                className={`max-w-sm border-t border-white/18 pt-6 transition-all delay-300 duration-[1400ms] ${
+                  isLoaded ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+                }`}
+              >
+                <p className="text-lg leading-relaxed text-white/76 md:text-xl">
+                  Ingresá cuando la obra recién empieza, financiá en cuotas con
+                  un anticipo del 35%, y al finalizar revendé con una ganancia
+                  del 30-40% o generá renta pasiva con alquiler temporario.
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:flex-col">
+                  <Link href="#desarrollos" className="btn-primary">
+                    Ver desarrollos
+                  </Link>
+                  <Link href="#contacto" className="bb-hero-link">
+                    Agendar consulta
+                    <ArrowDownRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Stats strip */}
-      <div className="relative z-20 container-custom pb-5 md:pb-8">
-        <div
-          className={`grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-6 py-5 md:gap-6 md:py-8 transition-all duration-[2000ms] ${
-            isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
-          style={{ transitionTimingFunction: "var(--f-cubic)", transitionDelay: "800ms", borderTop: "1px solid rgba(255,255,255,0.15)" }}
-        >
-          <div>
-            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#d8c4af" }}>
-              30-40%
-            </div>
-            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Retorno al finalizar
-            </p>
-          </div>
-          <div>
-            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
-              35%
-            </div>
-            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Anticipo inicial
-            </p>
-          </div>
-          <div>
-            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
-              24/7
-            </div>
-            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Gestión de renta
-            </p>
-          </div>
-          <div>
-            <div className="font-display font-light text-3xl md:text-5xl tracking-tight" style={{ color: "#f8f5ef" }}>
-              +25
-            </div>
-            <p className="mt-1.5 text-[9px] uppercase tracking-widest md:mt-2 md:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Años de experiencia
-            </p>
+        <div className="container-custom pb-5 md:pb-8">
+          <div className="grid border-t border-white/14 pt-5 text-white/70 sm:grid-cols-3">
+            {[
+              ["01", "Desarrollos premium en pozo"],
+              ["02", "Compra y reventa estrategica"],
+              ["03", "Rentals y administracion Airbnb"],
+            ].map(([number, label]) => (
+              <div key={number} className="flex items-center gap-4 py-3">
+                <span className="font-display text-2xl text-[#d8c4af]">
+                  {number}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.22em]">
+                  {label}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className="relative z-20 hidden justify-center pb-8 md:flex">
-        <a
-          href="#desarrollos"
-          className={`flex flex-col items-center gap-2 transition-all duration-700 ${
-            isLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          style={{ transitionDelay: "1200ms", color: "rgba(255,255,255,0.4)" }}
-        >
-          <span className="text-[10px] uppercase tracking-widest">Explorar</span>
-          <ChevronDown className="h-5 w-5 animate-bounce" />
-        </a>
       </div>
     </section>
   );

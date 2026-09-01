@@ -1,15 +1,21 @@
 "use client";
 
 /**
- * WhatsAppButton — botón flotante siempre visible.
+ * WhatsAppButton — botón flotante visible solo para visitantes/clientes.
  * Lee el número y mensaje desde site_settings (editable en /admin/settings).
  * Usa defaults si la DB aún no respondió.
  */
 
 import { useSiteSettings } from "@/lib/use-site-settings";
+import { useSession } from "next-auth/react";
 
 export function WhatsAppButton() {
+  const { status } = useSession();
   const { whatsapp, whatsappMessage } = useSiteSettings();
+
+  // Evita mostrar el acceso comercial a agentes o administradores autenticados.
+  // Durante la validación tampoco se renderiza, para impedir un destello al cargar.
+  if (status !== "unauthenticated") return null;
 
   // Sanitiza por si vino con formato (igual el server lo limpia, pero defensivo)
   const phone = whatsapp.replace(/[^\d]/g, "");

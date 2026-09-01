@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/db";
 import { SocialLinks } from "@/components/social-links";
+import Image from "next/image";
 
 export async function Footer() {
   const s = await getSiteSettings();
@@ -18,7 +19,14 @@ export async function Footer() {
       <div className="container-custom pt-20 pb-8">
         {/* Top wordmark */}
         <div className="mb-16">
-          <Link href="/" className="inline-block group">
+          <Link href="/" className="inline-flex items-center gap-4 group md:gap-6">
+            <Image
+              src={s.logoUrl}
+              alt={s.companyName}
+              width={72}
+              height={72}
+              className="h-12 w-12 object-contain md:h-16 md:w-16"
+            />
             <span className="block font-display text-[48px] md:text-[80px] lg:text-[100px] leading-[0.9] tracking-tight text-ivory/90 group-hover:text-ivory transition-colors duration-500">
               {firstWord}
               {restWords && (
@@ -43,7 +51,9 @@ export async function Footer() {
             <ul className="space-y-2.5">
               {[
                 { href: "/#desarrollos", label: "Desarrollos" },
+                { href: "/#mapa", label: "Mapa" },
                 { href: "/#modelo", label: "Inversión" },
+                { href: "/#prensa", label: "Prensa" },
                 { href: "/#rentals", label: "Rentals" },
                 { href: "/#propiedades", label: "Propiedades" },
                 { href: "/#contacto", label: "Contacto" },

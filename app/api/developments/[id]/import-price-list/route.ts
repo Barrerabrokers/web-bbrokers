@@ -6,6 +6,7 @@ import {
   getDevelopmentById,
   getUnitsByDevelopment,
 } from "@/lib/developments-db";
+import { canManageListings } from "@/lib/roles";
 import {
   parsePriceListExcel,
   parsePriceListPdf,
@@ -22,6 +23,9 @@ export async function POST(
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    if (!canManageListings(session.user.role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -70,9 +74,9 @@ export async function POST(
     }
 
     const arrayBuffer = await fileResponse.arrayBuffer();
-    if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+    if (arrayBuffer.byteLength > 20 * 1024 * 1024) {
       return NextResponse.json(
-        { error: "La lista de precios es muy grande (máx 10MB)" },
+        { error: "La lista de precios es muy grande (máx 20MB)" },
         { status: 400 }
       );
     }

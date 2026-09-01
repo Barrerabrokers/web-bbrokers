@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import {
   Mail,
   Lock,
@@ -16,7 +14,6 @@ import Link from "next/link";
 import Image from "next/image";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -66,21 +63,7 @@ export default function RegisterPage() {
       }
 
       setSuccess(true);
-
-      setTimeout(async () => {
-        const result = await signIn("credentials", {
-          email: formData.email,
-          password: formData.password,
-          redirect: false,
-        });
-
-        if (result?.ok) {
-          router.push("/admin");
-          router.refresh();
-        } else {
-          router.push("/login");
-        }
-      }, 1500);
+      setIsLoading(false);
     } catch (err) {
       setError("Error al crear la cuenta. Intenta nuevamente.");
       setIsLoading(false);
@@ -128,12 +111,12 @@ export default function RegisterPage() {
           <div className="mb-6 border-l-2 border-emerald-700 pl-4 py-2 flex items-start gap-2">
             <CheckCircle className="h-4 w-4 text-emerald-700 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-ink/80">
-              Cuenta creada! Redirigiendo...
+              Registro recibido. Tu acceso está pendiente de aprobación por un administrador.
             </p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-7">
+        {!success && <form onSubmit={handleSubmit} className="space-y-7">
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
               Nombre completo
@@ -242,7 +225,13 @@ export default function RegisterPage() {
           >
             {isLoading ? "Creando cuenta..." : "Crear cuenta"}
           </button>
-        </form>
+        </form>}
+
+        {success && (
+          <Link href="/login" className="btn-primary w-full mt-4">
+            Volver al inicio de sesión
+          </Link>
+        )}
 
         <div className="mt-8 pt-6 border-t border-ink/15 text-center">
           <p className="text-sm text-ink/60">

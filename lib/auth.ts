@@ -46,6 +46,10 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          if (!agent.active) {
+            throw new Error("PENDING_APPROVAL");
+          }
+
           console.log("[next-auth][authorize] success for:", credentials.email);
           return {
             id: agent.id,
@@ -54,6 +58,9 @@ export const authOptions: NextAuthOptions = {
             role: agent.role,
           };
         } catch (err: any) {
+          if (err?.message === "PENDING_APPROVAL") {
+            throw err;
+          }
           // Log detallado para diagnosticar en Vercel
           console.error("[next-auth][authorize] error:", {
             message: err?.message,
@@ -88,6 +95,11 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 180 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
+  },
+  jwt: {
+    maxAge: 180 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

@@ -4,9 +4,12 @@ import { useSession, signOut } from "next-auth/react";
 import { LogOut, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSiteSettings } from "@/lib/use-site-settings";
+import { PwaInstaller } from "@/components/pwa-installer";
 
 export function AdminHeader() {
   const { data: session } = useSession();
+  const settings = useSiteSettings();
 
   return (
     <header className="bg-cream-200/85 backdrop-blur-xl border-b border-ink/15 sticky top-0 z-30">
@@ -14,8 +17,8 @@ export function AdminHeader() {
         <Link href="/admin" className="flex items-center gap-2.5">
           <div className="relative h-7 w-7">
             <Image
-              src="/logo.png"
-              alt="Barrera Brokers"
+              src={settings.logoUrl}
+              alt={settings.companyName}
               fill
               className="object-contain"
               priority
@@ -23,7 +26,7 @@ export function AdminHeader() {
           </div>
           <div className="leading-tight">
             <div className="text-sm font-semibold tracking-tight text-ink">
-              Barrera Brokers
+              {settings.companyName}
             </div>
             <div className="text-[10px] tracking-widest uppercase text-ink0">
               Admin
@@ -32,6 +35,8 @@ export function AdminHeader() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <PwaInstaller compact />
+
           <Link
             href="/"
             target="_blank"

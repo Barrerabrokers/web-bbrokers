@@ -6,6 +6,7 @@ import {
   updateDevelopment,
   deleteDevelopment,
 } from "@/lib/developments-db";
+import { canManageAdminPanel, canManageListings } from "@/lib/roles";
 import { Development } from "@/types";
 
 function hidePrivateDevelopmentFields(development: Development): Development {
@@ -19,7 +20,7 @@ export async function GET(
 ) {
   const session = await getServerSession(authOptions);
   const development = await getDevelopmentById(params.id);
-  if (!development) {
+  if (!development || (development.visibility === "agents" && !session)) {
     return NextResponse.json(
       { error: "No encontrado" },
       { status: 404 }
@@ -37,6 +38,13 @@ export async function PUT(
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  if (!canManageListings(session.user.role)) {
+    return NextResponse.json(
+      { error: "No autorizado para gestionar desarrollos" },
+      { status: 403 }
+    );
   }
 
   try {
@@ -62,8 +70,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session || !canManageAdminPanel(session.user.role)) {
+    return NextResponse.json(
+      { error: "No autorizado para eliminar desarrollos" },
+      { status: 403 }
+    );
   }
 
   const ok = await deleteDevelopment(params.id);

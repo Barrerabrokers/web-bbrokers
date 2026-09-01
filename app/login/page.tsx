@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, AlertCircle, ArrowLeft } from "lucide-react";
+import { Mail, Lock, AlertCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSiteSettings } from "@/lib/use-site-settings";
 
 export default function LoginPage() {
   const router = useRouter();
+  const settings = useSiteSettings();
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const urlError = searchParams?.get("error");
 
@@ -23,11 +25,15 @@ export default function LoginPage() {
       ? "Credenciales inválidas."
       : ""
   );
+  const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setIsLoading(true);
 
     try {
@@ -38,7 +44,11 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Credenciales invalidas. Verifica tu email y contrasena.");
+        setError(
+          result.error.includes("PENDING_APPROVAL")
+            ? "Tu cuenta está pendiente de aprobación por un administrador."
+            : "Credenciales invalidas. Verifica tu email y contrasena."
+        );
       } else {
         router.push("/admin");
         router.refresh();
@@ -47,6 +57,37 @@ export default function LoginPage() {
       setError("Ocurrio un error. Por favor intenta nuevamente.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError("");
+    setSuccess("");
+
+    if (!formData.email) {
+      setError("Ingresá tu email para enviarte el enlace de recuperación.");
+      return;
+    }
+
+    setIsRecoveringPassword(true);
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "No se pudo enviar el email de recuperación.");
+        return;
+      }
+
+      setSuccess(data.message || "Te enviamos un enlace para cambiar la contraseña.");
+    } catch {
+      setError("No se pudo enviar el email de recuperación.");
+    } finally {
+      setIsRecoveringPassword(false);
     }
   };
 
@@ -60,15 +101,15 @@ export default function LoginPage() {
         >
           <div className="relative h-10 w-10 flex-shrink-0">
             <Image
-              src="/logo.png"
-              alt="Barrera Brokers"
+              src={settings.logoUrl}
+              alt={settings.companyName}
               fill
               priority
               className="object-contain"
             />
           </div>
           <span className="font-display font-light text-2xl tracking-tight text-ink">
-            Barrera Brokers
+            {settings.companyName}
           </span>
         </Link>
 
@@ -86,6 +127,13 @@ export default function LoginPage() {
           <div className="mb-6 border-l-2 border-accent pl-4 py-2 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-accent flex-shrink-0 mt-0.5" />
             <p className="text-sm text-ink/80">{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 border-l-2 border-emerald-700 pl-4 py-2 flex items-start gap-2">
+            <CheckCircle className="h-4 w-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-ink/80">{success}</p>
           </div>
         )}
 
@@ -111,20 +159,40 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-ink/55 mb-2">
-              Contrasena
+              Contraseña
             </label>
             <div className="relative">
               <Lock className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/40 pointer-events-none" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
-                className="form-input pl-7"
-                placeholder="Tu contrasena"
+                className="form-input pl-7 pr-32"
+                placeholder="Tu contraseña"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] uppercase tracking-widest text-ink/50 hover:text-ink"
+                aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+              >
+                {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showPassword ? "Ocultar" : "Ver contraseña"}
+              </button>
+            </div>
+            <div className="mt-3 text-right">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={isRecoveringPassword}
+                className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-ink/50 hover:text-ink disabled:opacity-50"
+              >
+                {isRecoveringPassword && <Loader2 className="h-3 w-3 animate-spin" />}
+                {isRecoveringPassword ? "Enviando..." : "Olvidé la contraseña"}
+              </button>
             </div>
           </div>
 

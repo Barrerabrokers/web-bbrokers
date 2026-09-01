@@ -5,10 +5,10 @@ import postgres from "postgres";
 // Helper: get raw postgres connection
 function getPgConnection() {
   const databaseUrl =
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.POSTGRES_URL ||
     process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL ||
     process.env.SUPABASE_DB_URL;
 
   if (!databaseUrl) {
@@ -43,81 +43,172 @@ export function slugify(text: string): string {
 export async function getDevelopments(filter?: {
   status?: string;
   highlight?: boolean;
+  visibility?: string;
 }): Promise<Development[]> {
-  const supabase = getServerSupabase();
+  return getDevelopmentsViaPostgres(filter);
+}
 
-  let query = supabase
-    .from("developments")
-    .select(`
-      *,
-      development_images (
-        id, url, type, caption, display_order, is_primary
-      ),
-      units ( id, status, price )
-    `)
-    .order("created_at", { ascending: false });
+async function getDevelopmentsViaPostgres(filter?: {
+  status?: string;
+  highlight?: boolean;
+  visibility?: string;
+}): Promise<Development[]> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    const conditions: string[] = [];
+    const values: any[] = [];
 
-  if (filter?.status) query = query.eq("status", filter.status);
-  if (filter?.highlight !== undefined)
-    query = query.eq("highlight", filter.highlight);
+    if (filter?.status) {
+      values.push(filter.status);
+      conditions.push(`d.status = $${values.length}`);
+    }
+    if (filter?.highlight !== undefined) {
+      values.push(filter.highlight);
+      conditions.push(`d.highlight = $${values.length}`);
+    }
+    if (filter?.visibility) {
+      values.push(filter.visibility);
+      conditions.push(`d.visibility = $${values.length}`);
+    }
 
-  const { data, error } = await query;
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const rows = await sql.unsafe(
+      `
+        SELECT
+          d.*,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', di.id,
+                'url', di.url,
+                'type', di.type,
+                'caption', di.caption,
+                'display_order', di.display_order,
+                'is_primary', di.is_primary
+              )
+            ) FILTER (WHERE di.id IS NOT NULL),
+            '[]'::json
+          ) AS development_images,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', u.id,
+                'status', u.status,
+                'price', u.price
+              )
+            ) FILTER (WHERE u.id IS NOT NULL),
+            '[]'::json
+          ) AS units
+        FROM developments d
+        LEFT JOIN development_images di ON di.development_id = d.id
+        LEFT JOIN units u ON u.development_id = d.id
+        ${where}
+        GROUP BY d.id
+        ORDER BY d.created_at DESC
+      `,
+      values
+    );
 
-  if (error) {
-    console.error("Error fetching developments:", error);
+    return rows.map((d: any) => {
+      d.development_images = (d.development_images || []).sort(
+        (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
+      );
+      return mapDevelopmentFromDb(d);
+    });
+  } catch (error) {
+    console.error("Error fetching developments via Postgres:", error);
     return [];
+  } finally {
+    try {
+      await sql?.end();
+    } catch {}
   }
-
-  return (data || []).map((d) => mapDevelopmentFromDb(d));
 }
 
 export async function getDevelopmentById(
   id: string
 ): Promise<Development | null> {
-  const supabase = getServerSupabase();
-
-  const { data, error } = await supabase
-    .from("developments")
-    .select(`
-      *,
-      development_images (
-        id, url, type, caption, display_order, is_primary
-      ),
-      units (
-        *,
-        unit_images ( id, url, type, display_order, is_primary )
-      )
-    `)
-    .eq("id", id)
-    .single();
-
-  if (error || !data) return null;
-  return mapDevelopmentFromDb(data, true);
+  return getDevelopmentViaPostgres("id", id);
 }
 
 
 export async function getDevelopmentBySlug(
   slug: string
 ): Promise<Development | null> {
-  const supabase = getServerSupabase();
+  return getDevelopmentViaPostgres("slug", slug);
+}
 
-  const { data, error } = await supabase
-    .from("developments")
-    .select(`
-      *,
-      development_images (
-        id, url, type, caption, display_order, is_primary
-      ),
-      units (
-        *,
-        unit_images ( id, url, type, display_order, is_primary )
-      )
-    `)
-    .eq("slug", slug)
-    .single();
+async function getDevelopmentViaPostgres(
+  field: "id" | "slug",
+  value: string
+): Promise<Development | null> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    sql = getPgConnection();
+    const rows = await sql.unsafe(
+      `
+        SELECT
+          d.*,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', di.id,
+                'url', di.url,
+                'type', di.type,
+                'caption', di.caption,
+                'display_order', di.display_order,
+                'is_primary', di.is_primary
+              )
+              ORDER BY di.display_order
+            ) FILTER (WHERE di.id IS NOT NULL),
+            '[]'::json
+          ) AS development_images
+        FROM developments d
+        LEFT JOIN development_images di ON di.development_id = d.id
+        WHERE d.${field} = $1
+        GROUP BY d.id
+        LIMIT 1
+      `,
+      [value]
+    );
 
-  if (error || !data) return null;
-  return mapDevelopmentFromDb(data, true);
+    const development = rows[0];
+    if (!development) return null;
+
+    const units = await sql`
+      SELECT
+        u.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', ui.id,
+              'url', ui.url,
+              'type', ui.type,
+              'display_order', ui.display_order,
+              'is_primary', ui.is_primary
+            )
+            ORDER BY ui.display_order
+          ) FILTER (WHERE ui.id IS NOT NULL),
+          '[]'::json
+        ) AS unit_images
+      FROM units u
+      LEFT JOIN unit_images ui ON ui.unit_id = u.id
+      WHERE u.development_id = ${development.id}
+      GROUP BY u.id
+      ORDER BY u.floor, u.unit_number
+    `;
+
+    development.units = units;
+    return mapDevelopmentFromDb(development, true);
+  } catch (error) {
+    console.error("Error fetching development via Postgres:", error);
+    return null;
+  } finally {
+    try {
+      await sql?.end();
+    } catch {}
+  }
 }
 
 // ============================================================
@@ -141,6 +232,10 @@ export async function createDevelopment(data: {
   agentId?: string;
   brochureUrl?: string;
   priceListUrl?: string;
+  videoUrl?: string;
+  videoUrls?: string[];
+  videoIsPrimary?: boolean;
+  visibility?: string;
   images?: { url: string; type?: string; caption?: string; isPrimary?: boolean }[];
 }): Promise<{ development: Development | null; error: string | null }> {
   let sql;
@@ -153,7 +248,9 @@ export async function createDevelopment(data: {
       INSERT INTO developments (
         name, slug, short_description, description, location, address,
         status, total_units, completion_date, progress, price_from,
-        amenities, features, highlight, agent_id, brochure_url, price_list_url
+        amenities, features, highlight, agent_id, brochure_url, price_list_url,
+        video_url, video_urls, video_is_primary,
+        visibility
       ) VALUES (
         ${data.name}, ${slug}, ${data.shortDescription || null},
         ${data.description}, ${data.location}, ${data.address},
@@ -162,7 +259,9 @@ export async function createDevelopment(data: {
         ${data.priceFrom || null}, ${data.amenities || []},
         ${data.features || []}, ${data.highlight || false},
         ${data.agentId || null}, ${data.brochureUrl || null},
-        ${data.priceListUrl || null}
+        ${data.priceListUrl || null}, ${data.videoUrl || null}, ${data.videoUrls || []},
+        ${data.videoIsPrimary || false},
+        ${data.visibility || "public"}
       )
       RETURNING id
     `;
@@ -231,8 +330,12 @@ export async function updateDevelopment(
       amenities: "amenities",
       features: "features",
       highlight: "highlight",
+      visibility: "visibility",
       brochureUrl: "brochure_url",
       priceListUrl: "price_list_url",
+      videoUrl: "video_url",
+      videoUrls: "video_urls",
+      videoIsPrimary: "video_is_primary",
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {
@@ -353,19 +456,21 @@ export async function createUnit(data: {
   status?: string;
   description?: string;
   features?: string[];
+  videoUrl?: string;
   images?: { url: string; type?: string; isPrimary?: boolean }[];
 }): Promise<{ unit: Unit | null; error: string | null }> {
   let sql;
   try {
     sql = getPgConnection();
 
+    await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS video_url TEXT;`);
 
     const result = await sql`
       INSERT INTO units (
         development_id, unit_number, floor, bedrooms, bathrooms, area,
         balcony_area, total_area, down_payment, installment_count,
         installment_value, price, expenses, orientation, status,
-        description, features
+        description, features, video_url
       ) VALUES (
         ${data.developmentId}, ${data.unitNumber}, ${data.floor || null},
         ${data.bedrooms}, ${data.bathrooms}, ${data.area},
@@ -374,7 +479,7 @@ export async function createUnit(data: {
         ${data.installmentValue || null},
         ${data.price}, ${data.expenses || null}, ${data.orientation || null},
         ${data.status || "disponible"}, ${data.description || null},
-        ${data.features || []}
+        ${data.features || []}, ${data.videoUrl || null}
       )
       RETURNING id
     `;
@@ -418,6 +523,8 @@ export async function updateUnit(
   try {
     sql = getPgConnection();
 
+    await sql.unsafe(`ALTER TABLE units ADD COLUMN IF NOT EXISTS video_url TEXT;`);
+
     const fieldMap: Record<string, string> = {
       unitNumber: "unit_number",
       floor: "floor",
@@ -435,6 +542,7 @@ export async function updateUnit(
       status: "status",
       description: "description",
       features: "features",
+      videoUrl: "video_url",
     };
 
     const updates: string[] = [];
@@ -495,8 +603,30 @@ export async function deleteUnit(id: string): Promise<boolean> {
 // MAPPERS
 // ============================================================
 
+function normalizeUnitStatus(status: unknown): Unit["status"] {
+  if (typeof status !== "string" || !status.trim()) return "disponible";
+
+  const normalized = status.trim().toLowerCase();
+  if (normalized === "reservada" || normalized === "vendida") {
+    return normalized;
+  }
+
+  return "disponible";
+}
+
+function safeStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+}
+
+function safeRows(value: unknown): any[] {
+  return Array.isArray(value) ? value : [];
+}
+
 function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
-  const images: DevelopmentImage[] = (data.development_images || [])
+  const images: DevelopmentImage[] = safeRows(data.development_images)
+    .filter((img: any) => typeof img?.url === "string" && img.url.trim().length > 0)
     .sort(
       (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
     )
@@ -509,12 +639,12 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
       isPrimary: img.is_primary,
     }));
 
-  const allUnits = data.units || [];
+  const allUnits = safeRows(data.units);
   const availableUnits = allUnits.filter(
-    (u: any) => u.status === "disponible"
+    (u: any) => normalizeUnitStatus(u.status) === "disponible"
   ).length;
   const minPrice = allUnits
-    .filter((u: any) => u.status === "disponible")
+    .filter((u: any) => normalizeUnitStatus(u.status) === "disponible")
     .map((u: any) => parseFloat(u.price))
     .reduce(
       (min: number | null, p: number) =>
@@ -536,12 +666,20 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
     progress: data.progress || 0,
     priceFrom: data.price_from ? parseFloat(data.price_from) : undefined,
     currency: data.currency,
-    amenities: data.amenities || [],
-    features: data.features || [],
+    amenities: safeStringArray(data.amenities),
+    features: safeStringArray(data.features),
     highlight: data.highlight,
+    visibility: data.visibility || "public",
     agentId: data.agent_id,
     brochureUrl: data.brochure_url || undefined,
     priceListUrl: data.price_list_url || undefined,
+    videoUrl: data.video_url || undefined,
+    videoUrls: safeStringArray(data.video_urls).length
+      ? safeStringArray(data.video_urls)
+      : data.video_url
+        ? [data.video_url]
+        : [],
+    videoIsPrimary: data.video_is_primary || false,
     images,
     availableUnits,
     unitsCount: allUnits.length,
@@ -559,7 +697,8 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
 
 
 function mapUnitFromDb(data: any): Unit {
-  const images: UnitImage[] = (data.unit_images || [])
+  const images: UnitImage[] = safeRows(data.unit_images)
+    .filter((img: any) => typeof img?.url === "string" && img.url.trim().length > 0)
     .sort(
       (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
     )
@@ -576,9 +715,9 @@ function mapUnitFromDb(data: any): Unit {
     developmentId: data.development_id,
     unitNumber: data.unit_number,
     floor: data.floor,
-    bedrooms: data.bedrooms,
-    bathrooms: data.bathrooms,
-    area: parseFloat(data.area),
+    bedrooms: Number.isFinite(Number(data.bedrooms)) ? Number(data.bedrooms) : 0,
+    bathrooms: Number.isFinite(Number(data.bathrooms)) ? Number(data.bathrooms) : 0,
+    area: Number.isFinite(parseFloat(data.area)) ? parseFloat(data.area) : 0,
     balconyArea: data.balcony_area
       ? parseFloat(data.balcony_area)
       : undefined,
@@ -588,13 +727,14 @@ function mapUnitFromDb(data: any): Unit {
     installmentValue: data.installment_value
       ? parseFloat(data.installment_value)
       : undefined,
-    price: parseFloat(data.price),
+    price: Number.isFinite(parseFloat(data.price)) ? parseFloat(data.price) : 0,
     currency: data.currency,
     expenses: data.expenses ? parseFloat(data.expenses) : undefined,
     orientation: data.orientation,
-    status: data.status,
+    status: normalizeUnitStatus(data.status),
     description: data.description,
-    features: data.features || [],
+    features: safeStringArray(data.features),
+    videoUrl: data.video_url || undefined,
     images,
     createdAt: data.created_at,
     updatedAt: data.updated_at,

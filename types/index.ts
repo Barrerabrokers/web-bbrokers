@@ -8,7 +8,9 @@ export type PropertyCategory =
 
 export type PropertyStatus = "disponible" | "reservada" | "vendida";
 
-export type AgentRole = "agent" | "admin";
+export type ListingVisibility = "public" | "agents";
+
+export type AgentRole = "agent" | "admin" | "marketing";
 
 export interface Property {
   id: string;
@@ -24,9 +26,12 @@ export interface Property {
   bathrooms?: number;
   area: number;
   images: string[];
+  videoUrls?: string[];
+  videoIsPrimary?: boolean;
   features: string[];
   agentId: string;
   status: PropertyStatus;
+  visibility: ListingVisibility;
   featured?: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -51,6 +56,7 @@ export interface Agent {
   title?: string;
   role: AgentRole;
   active: boolean;
+  sortOrder?: number;
   createdAt: Date | string;
 }
 
@@ -120,6 +126,7 @@ export interface Unit {
   status: UnitStatus;
   description?: string;
   features: string[];
+  videoUrl?: string;
   images: UnitImage[];
   createdAt?: Date | string;
   updatedAt?: Date | string;
@@ -142,9 +149,13 @@ export interface Development {
   amenities: string[];
   features: string[];
   highlight?: boolean;
+  visibility: ListingVisibility;
   agentId?: string;
   brochureUrl?: string;
   priceListUrl?: string;
+  videoUrl?: string;
+  videoUrls?: string[];
+  videoIsPrimary?: boolean;
   images: DevelopmentImage[];
   units?: Unit[];
   // Stats from view
@@ -160,6 +171,11 @@ export const DEVELOPMENT_STATUS_LABELS: Record<DevelopmentStatus, string> = {
   en_construccion: "En construcción",
   finalizado: "Finalizado",
   entregado: "Entregado",
+};
+
+export const LISTING_VISIBILITY_LABELS: Record<ListingVisibility, string> = {
+  public: "Público",
+  agents: "Solo agentes",
 };
 
 export const DEVELOPMENT_IMAGE_TYPES: {

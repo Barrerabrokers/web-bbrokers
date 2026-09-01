@@ -19,14 +19,38 @@ CREATE TABLE IF NOT EXISTS agents (
   password VARCHAR(255) NOT NULL,
   phone VARCHAR(50),
   photo TEXT,
-  role VARCHAR(20) DEFAULT 'agent' CHECK (role IN ('agent', 'admin')),
-  active BOOLEAN DEFAULT true,
+  title VARCHAR(255),
+  role VARCHAR(20) DEFAULT 'agent' CHECK (role IN ('agent', 'admin', 'marketing')),
+  active BOOLEAN DEFAULT false,
+  sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_agents_email ON agents(email);
 CREATE INDEX IF NOT EXISTS idx_agents_role ON agents(role);
+CREATE INDEX IF NOT EXISTS idx_agents_sort_order ON agents(sort_order);
+
+-- ====================================================================
+-- TABLA: agent_password_reset_tokens (Recuperación de contraseñas)
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS agent_password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  token_hash TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  approve_on_use BOOLEAN DEFAULT false,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE agent_password_reset_tokens
+  ADD COLUMN IF NOT EXISTS approve_on_use BOOLEAN DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_agent_password_reset_tokens_token_hash
+  ON agent_password_reset_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_agent_password_reset_tokens_agent_id
+  ON agent_password_reset_tokens(agent_id);
 
 -- ====================================================================
 -- TABLA: properties (Propiedades)
@@ -46,6 +70,9 @@ CREATE TABLE IF NOT EXISTS properties (
   features TEXT[] DEFAULT '{}',
   agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
   status VARCHAR(20) DEFAULT 'disponible' CHECK (status IN ('disponible', 'reservada', 'vendida')),
+  visibility VARCHAR(20) DEFAULT 'public' CHECK (visibility IN ('public', 'agents')),
+  video_urls TEXT[] DEFAULT '{}',
+  video_is_primary BOOLEAN DEFAULT false,
   featured BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -53,6 +80,7 @@ CREATE TABLE IF NOT EXISTS properties (
 
 CREATE INDEX IF NOT EXISTS idx_properties_category ON properties(category);
 CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
+CREATE INDEX IF NOT EXISTS idx_properties_visibility ON properties(visibility);
 CREATE INDEX IF NOT EXISTS idx_properties_agent ON properties(agent_id);
 
 -- ====================================================================
@@ -85,6 +113,8 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
+
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 
 -- ====================================================================
 -- TRIGGERS para updated_at automático
@@ -173,6 +203,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
   address_street VARCHAR(255) NOT NULL DEFAULT 'Av. Principal 123',
   address_city VARCHAR(255) NOT NULL DEFAULT 'Buenos Aires, Argentina',
   whatsapp_message TEXT NOT NULL DEFAULT 'Hola! Me interesa conocer más sobre los desarrollos de Barrera Brokers.',
+  hero_videos TEXT[] DEFAULT '{}',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -193,6 +224,8 @@ CREATE TRIGGER update_site_settings_updated_at
 ALTER TABLE site_settings
   ADD COLUMN IF NOT EXISTS about_image TEXT
     DEFAULT 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=90',
+  ADD COLUMN IF NOT EXISTS about_video TEXT
+    DEFAULT '',
   ADD COLUMN IF NOT EXISTS about_eyebrow VARCHAR(100)
     DEFAULT 'Nosotros',
   ADD COLUMN IF NOT EXISTS about_title VARCHAR(255)
@@ -217,12 +250,62 @@ ALTER TABLE site_settings
     DEFAULT 'Cada cliente recibe asesoramiento personalizado, desde la primera visita hasta la firma de la escritura o el contrato.';
 
 
+-- ====================================================================
+-- Extension de site_settings — Sección "Prensa"
+-- ====================================================================
+ALTER TABLE site_settings
+  ADD COLUMN IF NOT EXISTS press_links TEXT DEFAULT '';
+
+
+-- ====================================================================
+-- Extension de site_settings — Sección "Estadísticas"
+-- ====================================================================
+ALTER TABLE site_settings
+  ADD COLUMN IF NOT EXISTS stats_title TEXT
+    DEFAULT 'Números que respaldan nuestra trayectoria.',
+  ADD COLUMN IF NOT EXISTS stats_quote TEXT
+    DEFAULT 'Invertir en desarrollos es la forma más inteligente de multiplicar tu capital en el mercado inmobiliario.',
+  ADD COLUMN IF NOT EXISTS stats_item_1_value VARCHAR(50)
+    DEFAULT '25',
+  ADD COLUMN IF NOT EXISTS stats_item_1_suffix VARCHAR(20)
+    DEFAULT '+',
+  ADD COLUMN IF NOT EXISTS stats_item_1_label VARCHAR(255)
+    DEFAULT 'Años de experiencia',
+  ADD COLUMN IF NOT EXISTS stats_item_1_description TEXT
+    DEFAULT 'Más de dos décadas operando en el mercado inmobiliario de Buenos Aires.',
+  ADD COLUMN IF NOT EXISTS stats_item_2_value VARCHAR(50)
+    DEFAULT '500',
+  ADD COLUMN IF NOT EXISTS stats_item_2_suffix VARCHAR(20)
+    DEFAULT '+',
+  ADD COLUMN IF NOT EXISTS stats_item_2_label VARCHAR(255)
+    DEFAULT 'Unidades vendidas',
+  ADD COLUMN IF NOT EXISTS stats_item_2_description TEXT
+    DEFAULT 'Propiedades comercializadas entre desarrollos, departamentos y casas.',
+  ADD COLUMN IF NOT EXISTS stats_item_3_value VARCHAR(50)
+    DEFAULT '40',
+  ADD COLUMN IF NOT EXISTS stats_item_3_suffix VARCHAR(20)
+    DEFAULT '%',
+  ADD COLUMN IF NOT EXISTS stats_item_3_label VARCHAR(255)
+    DEFAULT 'Retorno promedio',
+  ADD COLUMN IF NOT EXISTS stats_item_3_description TEXT
+    DEFAULT 'Ganancia típica al revender una unidad comprada en pozo.',
+  ADD COLUMN IF NOT EXISTS stats_item_4_value VARCHAR(50)
+    DEFAULT '12',
+  ADD COLUMN IF NOT EXISTS stats_item_4_suffix VARCHAR(20)
+    DEFAULT '',
+  ADD COLUMN IF NOT EXISTS stats_item_4_label VARCHAR(255)
+    DEFAULT 'Desarrollos activos',
+  ADD COLUMN IF NOT EXISTS stats_item_4_description TEXT
+    DEFAULT 'Proyectos en construcción o pre-venta disponibles para inversores.';
+
+
 
 -- ====================================================================
 -- Extension de site_settings — Sección "Inversión" (modelo de inversión)
 -- ====================================================================
 ALTER TABLE site_settings
   ADD COLUMN IF NOT EXISTS investment_image TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS investment_video TEXT DEFAULT '',
   ADD COLUMN IF NOT EXISTS investment_eyebrow VARCHAR(100)
     DEFAULT 'Modelo de inversión',
   ADD COLUMN IF NOT EXISTS investment_title VARCHAR(255)

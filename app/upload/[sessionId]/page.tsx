@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Camera, Image as ImageIcon, Check, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { isVideoFile, removeAudioFromVideoFile } from "@/lib/video-utils";
 
 export default function MobileUploadPage({
   params,
 }: {
   params: { sessionId: string };
 }) {
+  const searchParams = useSearchParams();
+  const imageOnly = searchParams.get("media") === "images";
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
@@ -17,15 +21,18 @@ export default function MobileUploadPage({
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const uploadFile = async (file: File) => {
-    const ext = file.name.split(".").pop() || "jpg";
+    const fileToUpload = isVideoFile(file)
+      ? await removeAudioFromVideoFile(file)
+      : file;
+    const ext = fileToUpload.name.split(".").pop() || "jpg";
     const fileName = `mobile-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("properties")
-      .upload(fileName, file, {
+      .upload(fileName, fileToUpload, {
         cacheControl: "3600",
         upsert: false,
-        contentType: file.type,
+        contentType: fileToUpload.type,
       });
 
     if (uploadError) throw new Error(uploadError.message);
@@ -65,6 +72,10 @@ export default function MobileUploadPage({
 
     try {
       for (const file of files) {
+        if (imageOnly && !file.type.startsWith("image/")) {
+          setError("En este QR solo se pueden subir fotos.");
+          continue;
+        }
         if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
           continue;
         }
@@ -100,7 +111,9 @@ export default function MobileUploadPage({
       <div className="max-w-sm mx-auto pt-8">
         <h1 className="text-2xl font-light mb-2 text-center">Subir archivos</h1>
         <p className="text-sm opacity-60 text-center mb-8">
-          Las fotos y videos aparecen automaticamente en el formulario del admin.
+          {imageOnly
+            ? "Las fotos aparecen automaticamente en el formulario del admin."
+            : "Las fotos y videos aparecen automaticamente en el formulario del admin."}
         </p>
 
         {error && (
@@ -135,7 +148,7 @@ export default function MobileUploadPage({
         {isUploading && (
           <div className="flex items-center justify-center gap-2 mb-6 text-sm opacity-70">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Subiendo...
+            {imageOnly ? "Preparando y subiendo fotos..." : "Preparando y subiendo sin audio..."}
           </div>
         )}
 
@@ -149,7 +162,13 @@ export default function MobileUploadPage({
               {uploaded.map((url, idx) => (
                 <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-[#F1EADE]/10">
                   {url.match(/\.(mp4|mov|webm)$/i) ? (
-                    <video src={url} className="w-full h-full object-cover" />
+                    <video
+                      src={url}
+                      muted
+                      playsInline
+                      aria-label="Vista previa de video sin audio"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={url} alt="" className="w-full h-full object-cover" />
@@ -167,7 +186,7 @@ export default function MobileUploadPage({
         <input
           ref={cameraRef}
           type="file"
-          accept="image/*,video/*"
+          accept={imageOnly ? "image/*" : "image/*,video/*"}
           capture="environment"
           multiple
           onChange={handleFiles}
@@ -176,7 +195,7 @@ export default function MobileUploadPage({
         <input
           ref={galleryRef}
           type="file"
-          accept="image/*,video/*"
+          accept={imageOnly ? "image/*" : "image/*,video/*"}
           multiple
           onChange={handleFiles}
           className="hidden"
