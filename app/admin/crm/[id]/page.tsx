@@ -15,6 +15,7 @@ import { CrmMeetingScheduler } from "@/components/admin/crm-meeting-scheduler";
 import { getMeetingLinkByAgent } from "@/lib/meeting-scheduler";
 import { CrmContactHeader } from "@/components/admin/crm-contact-header";
 import { CrmCallActivityAction } from "@/components/admin/crm-call-activity-action";
+import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
 import { listWhatsAppMessagesForLead, type WhatsAppMessage } from "@/lib/whatsapp-inbox";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,12 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
 
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-[#f3f4f4] text-ink">
+      <CrmContactAssistant
+        canViewAll={includeAll}
+        contactId={lead.id}
+        buttonLabel="Analizar cliente"
+        initialQuestion={`Prepará un resumen ejecutivo de ${lead.firstName} ${lead.lastName}. Evaluá su interés, actividad, desarrollo consultado, estado y señales disponibles para estimar la posibilidad de cerrar una operación. Indicá también el próximo paso comercial recomendado, sin inventar datos.`}
+      />
       <div className="grid min-h-[calc(100vh-5rem)] gap-px bg-ink/10 xl:grid-cols-[320px_minmax(520px,1fr)_320px]">
         <aside className="min-w-0 bg-[#f3f4f4] p-3 lg:p-4">
           <section className="rounded-xl bg-white p-4 ring-1 ring-ink/10">

@@ -159,7 +159,7 @@ export function CrmLeadFieldsEditor({
       </div>
 
       <div className="mt-3 grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-        <div className="grid gap-2.5 sm:contents">
+        <div className="grid grid-cols-2 gap-2.5 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
           <label className="block">
             <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               Nombre
@@ -197,7 +197,7 @@ export function CrmLeadFieldsEditor({
           />
         </label>
 
-        <div className="grid min-w-0 grid-cols-1 gap-2.5 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:col-span-1 xl:grid-cols-1 2xl:col-span-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="grid min-w-0 grid-cols-[92px_minmax(0,1fr)] gap-2.5 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
           <label className="block">
             <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               País

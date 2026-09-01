@@ -8,14 +8,16 @@
 
 import { useSiteSettings } from "@/lib/use-site-settings";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 
 export function WhatsAppButton() {
   const { status } = useSession();
+  const pathname = usePathname();
   const { whatsapp, whatsappMessage } = useSiteSettings();
 
   // Evita mostrar el acceso comercial a agentes o administradores autenticados.
   // Durante la validación tampoco se renderiza, para impedir un destello al cargar.
-  if (status !== "unauthenticated") return null;
+  if (pathname.startsWith("/admin") || status !== "unauthenticated") return null;
 
   // Sanitiza por si vino con formato (igual el server lo limpia, pero defensivo)
   const phone = whatsapp.replace(/[^\d]/g, "");

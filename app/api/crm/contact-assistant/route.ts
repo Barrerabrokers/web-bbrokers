@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { getCrmLeads, type CrmLead } from "@/lib/db";
+import { getCrmActivities, getCrmLeads, type CrmLead } from "@/lib/db";
 import { leadStatusLabel } from "@/lib/crm-statuses";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 import { appendCrmAiExchange, createCrmAiConversation, deleteCrmAiConversation, getCrmAiConversation, listCrmAiConversations, type CrmAiContact } from "@/lib/crm-ai-conversations";
@@ -10,7 +10,7 @@ import { appendCrmAiExchange, createCrmAiConversation, deleteCrmAiConversation, 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const requestSchema = z.object({ question: z.string().trim().min(2).max(800), conversationId: z.string().uuid().optional() });
+const requestSchema = z.object({ question: z.string().trim().min(2).max(800), conversationId: z.string().uuid().optional(), contactId: z.string().uuid().optional() });
 
 async function authorizedSession() {
   const session = await getServerSession(authOptions);
@@ -84,10 +84,13 @@ export async function POST(request: NextRequest) {
     history = existing.messages.slice(-12).map(({ role, content }) => ({ role, content }));
   }
   const leads = await getCrmLeads({ agentId: session.user.id, includeAll });
+  const focusedLead = parsed.data.contactId ? leads.find((lead) => lead.id === parsed.data.contactId) : undefined;
+  if (parsed.data.contactId && !focusedLead) return NextResponse.json({ error: "Contacto no autorizado" }, { status: 403 });
+  const focusedActivities = focusedLead ? await getCrmActivities([focusedLead.id]) : [];
   const tokens = normalized(parsed.data.question).split(/[^a-z0-9@.+-]+/).filter((token) => token.length >= 3);
   const ranked = leads.map((lead) => ({ lead, score: tokens.reduce((score, token) => score + (searchable(lead).includes(token) ? 1 : 0), 0) })).sort((a, b) => b.score - a.score || new Date(b.lead.updatedAt).getTime() - new Date(a.lead.updatedAt).getTime());
   const matches = ranked.filter((item) => item.score > 0).slice(0, 30).map((item) => item.lead);
-  const contextLeads = (matches.length ? matches : ranked.slice(0, 20).map((item) => item.lead));
+  const contextLeads = focusedLead ? [focusedLead] : (matches.length ? matches : ranked.slice(0, 20).map((item) => item.lead));
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Falta configurar GROQ_API_KEY en el servidor" }, { status: 503 });
 
@@ -99,6 +102,14 @@ export async function POST(request: NextRequest) {
     desarrollos: counts(leads, (lead) => lead.developmentName || lead.developmentNameText || "Sin desarrollo"),
     propietarios: includeAll ? counts(leads, (lead) => lead.assignedAgentName || "Sin asignar") : undefined,
     contactosRelevantes: contextLeads.map(contactRecord),
+    actividadContacto: focusedActivities.slice(0, 40).map((activity) => ({
+      tipo: activity.type,
+      titulo: activity.title,
+      detalle: (activity.body || "").slice(0, 800),
+      fecha: activity.createdAt,
+      programado: activity.scheduledAt || undefined,
+      responsable: activity.createdByName || undefined,
+    })),
   };
 
   const instructions = `Sos el asistente interno de Contactos de Barrera Brokers. Respondé en español claro y breve usando exclusivamente los datos autorizados de la consulta actual. Tu alcance es ${scope}. La conversación anterior sirve para comprender referencias y preguntas de seguimiento, pero nunca prevalece sobre los permisos y datos actuales. No reveles información histórica de un contacto que no figure en los datos autorizados actuales. Nunca sugieras que podés ver contactos fuera de ese alcance. No inventes personas, cifras ni datos. Si la consulta pide un contacto, indicá nombre y los datos útiles disponibles. Si pide un análisis, explicá el resultado y la cantidad. Aclará cuando los contactos relevantes son una muestra y no un resultado exhaustivo. No realices cambios: solo consultas.`;
