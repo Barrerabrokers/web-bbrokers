@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ImageIcon, Loader2, Mail, Paperclip, Search, Trash2, X } from "lucide-react";
+import { CheckCircle2, Loader2, Mail, Search, X } from "lucide-react";
 import type { CrmEmailTemplate, CrmEmailTemplateContentBlock } from "@/lib/db";
+import { CrmRichEmailEditor } from "@/components/admin/crm-rich-email-editor";
 
 type EmailHistoryItem = { id: string; title: string; body: string; createdAt: string; openCount?: number };
 
@@ -42,7 +43,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
   const [subject, setSubject] = useState("Barrera Brokers");
   const [body, setBody] = useState(`Hola ${lead.firstName},\n\n`);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [contentBlocks, setContentBlocks] = useState<CrmEmailTemplateContentBlock[]>([]);
+  const [contentBlocks, setContentBlocks] = useState<CrmEmailTemplateContentBlock[]>([{ id: "crm-draft-text", type: "text", text: `Hola ${lead.firstName},\n\n`, html: `Hola ${lead.firstName},<br><br>`, color: "#1c1a17", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 16, align: "left" }]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -85,24 +86,10 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
     setError("");
   };
 
-  const updateBody = (value: string) => {
-    setBody(value);
-    setContentBlocks((current) => {
-      const firstTextIndex = current.findIndex((block) => block.type === "text");
-      if (firstTextIndex < 0) return current;
-      return current.map((block, index) => block.type === "text"
-        ? { ...block, text: index === firstTextIndex ? value : "", html: undefined }
-        : block);
-    });
-  };
-
-  const removeImage = (blockId: string, url: string) => {
-    setContentBlocks((current) => current.filter((block) => block.id !== blockId));
-    setImageUrls((current) => {
-      const position = current.indexOf(url);
-      return position < 0 ? current : current.filter((_, index) => index !== position);
-    });
-    setNotice("Imagen eliminada del correo.");
+  const updateBlocks = (next: CrmEmailTemplateContentBlock[]) => {
+    setContentBlocks(next);
+    setBody(next.flatMap((block) => block.type === "text" ? [block.text] : block.type === "columns" ? block.columns.flatMap((column) => column.type === "text" ? [column.text] : []) : []).filter(Boolean).join("\n\n"));
+    setImageUrls(next.flatMap((block) => block.type === "image" ? [block.url] : block.type === "columns" ? block.columns.flatMap((column) => column.type === "image" ? [column.url] : []) : []));
   };
 
   const send = async (event: FormEvent) => {
@@ -146,32 +133,10 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
           </aside>
           <div className="min-h-0 overflow-y-auto p-5 sm:p-6">
             <label className="block text-sm font-semibold text-ink">Asunto<input required value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-ink/15 px-3 text-sm font-normal text-ink outline-none focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label>
-            <label className="mt-4 block text-sm font-semibold text-ink">Mensaje<textarea required rows={8} value={body} onChange={(event) => updateBody(event.target.value)} className="mt-2 w-full resize-y rounded-lg border border-ink/15 px-3 py-3 text-sm font-normal leading-relaxed text-ink outline-none placeholder:text-ink/50 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label>
-            {contentBlocks.length > 0 && <section className="mt-4" aria-labelledby="email-images-preview">
-              <div className="flex items-center justify-between gap-3">
-                <h3 id="email-images-preview" className="flex items-center gap-2 text-sm font-semibold text-ink"><ImageIcon className="h-4 w-4 text-[#006b6b]" />Vista previa del correo</h3>
-                <span className="text-xs text-ink/55">{imageUrls.length} {imageUrls.length === 1 ? "imagen" : "imágenes"}</span>
-              </div>
-              <div className="mt-2 rounded-xl bg-[#f3f4f4] p-3 ring-1 ring-ink/10">
-                <div className="mx-auto max-w-2xl overflow-hidden rounded-lg bg-white px-4 py-5 sm:px-6">
-                  {contentBlocks.map((block) => {
-                    if (block.type === "text") return block.text ? <p key={block.id} className="whitespace-pre-wrap break-words leading-relaxed" style={{ color: block.color || "#1f2933", fontFamily: block.fontFamily, fontSize: block.fontSize ? `${block.fontSize}px` : "14px", textAlign: block.align || "left", backgroundColor: block.backgroundColor, padding: block.padding ? `${block.padding}px` : undefined }}>{block.text}</p> : null;
-                    if (block.type === "image") return <figure key={block.id} className={`group relative my-3 flex flex-col ${block.align === "left" ? "items-start" : block.align === "right" ? "items-end" : "items-center"}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={block.url} alt={block.alt || "Imagen de la plantilla"} className="block h-auto max-h-80 max-w-full object-contain" style={{ width: `${block.width || 100}%`, borderRadius: `${block.borderRadius || 0}px` }} />
-                      {block.caption && <figcaption className="mt-2 text-center text-xs leading-relaxed text-ink/55">{block.caption}</figcaption>}
-                      <button type="button" onClick={() => removeImage(block.id, block.url)} className="absolute right-2 top-2 inline-flex min-h-10 items-center gap-2 rounded-lg bg-white px-3 text-xs font-semibold text-red-700 shadow-sm ring-1 ring-red-200 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600" aria-label="Eliminar imagen del correo"><Trash2 className="h-4 w-4" />Eliminar</button>
-                    </figure>;
-                    if (block.type === "button") return <div key={block.id} className={`my-3 flex ${block.align === "left" ? "justify-start" : block.align === "right" ? "justify-end" : "justify-center"}`}><span className="inline-flex min-h-10 items-center rounded-lg px-5 text-sm font-semibold" style={{ backgroundColor: block.backgroundColor || "#006b6b", color: block.textColor || "#ffffff", borderRadius: `${block.borderRadius ?? 8}px` }}>{block.label}</span></div>;
-                    if (block.type === "divider") return <hr key={block.id} className="my-4 border-0" style={{ height: `${block.thickness || 1}px`, width: `${block.width || 100}%`, backgroundColor: block.color || "#d8dddf" }} />;
-                    if (block.type === "spacer") return <div key={block.id} aria-hidden="true" style={{ height: `${block.height}px` }} />;
-                    if (block.type === "columns") return <div key={block.id} className="my-3 grid items-start" style={{ gap: `${block.gap ?? 12}px`, gridTemplateColumns: (block.widths || block.columns.map(() => 1)).map((width) => `${width}fr`).join(" ") }}>{block.columns.map((column, index) => column.type === "text" ? <div key={index} className="max-w-full overflow-hidden whitespace-pre-wrap break-words leading-relaxed" style={{ color: column.color || "#1f2933", fontSize: `${column.fontSize || 14}px`, fontFamily: column.fontFamily, textAlign: column.align || "left", fontWeight: column.bold ? 700 : 400, overflowWrap: "anywhere" }} dangerouslySetInnerHTML={{ __html: column.html || column.text }} /> : <div key={index} className="overflow-hidden" style={{ borderRadius: `${column.borderRadius ?? 8}px` }}><img src={column.url} alt={column.alt || "Imagen de la plantilla"} className="block h-auto w-full object-contain" /></div>)}</div>;
-                    return <div key={block.id} className="my-3 flex items-center gap-2 rounded-lg bg-[#f3f4f4] px-3 py-2 text-sm text-ink"><Paperclip className="h-4 w-4 text-[#006b6b]" />{block.name}</div>;
-                  })}
-                </div>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-ink/55">El orden mostrado es el orden que recibirá el cliente. Podés eliminar cualquier imagen antes de enviar.</p>
-            </section>}
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-ink">Mensaje</h3><span className="text-xs text-ink/50">Vista final · 640 px</span></div>
+              <CrmRichEmailEditor blocks={contentBlocks} onChange={updateBlocks} onNotice={setNotice} />
+            </div>
             {notice && <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#006b6b]"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
             {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button disabled={sending} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar correo"}</button></div>
