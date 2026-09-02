@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { ArrowLeft, Building2, CalendarDays, Clock3, ExternalLink, FileSpreadsheet, GitBranch, Mail, MessageCircle, NotebookPen, Phone, Search } from "lucide-react";
 import { authOptions } from "@/lib/auth";
-import { getAllAgents, getCrmActivities, getCrmDataProperties, getCrmEmailTemplates, getCrmLeadById, type CrmActivity, type CrmLead } from "@/lib/db";
+import { getAllAgents, getCrmActivities, getCrmDataProperties, getCrmEmailTemplates, getCrmEmailTrackingsForLead, getCrmLeadById, type CrmActivity, type CrmLead } from "@/lib/db";
 import { getDevelopments } from "@/lib/developments-db";
 import { shouldShowHubSpotContactField } from "@/lib/hubspot-fields";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
@@ -50,11 +50,12 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
   const includeAll = canViewAllCrmContacts(session.user.role);
   const lead = await getCrmLeadById(params.id, { agentId: session.user.id, includeAll });
   if (!lead) notFound();
-  const [activities, developments, agents, customDevelopments, templates, meetingLink, whatsappMessages] = await Promise.all([
+  const [activities, developments, agents, customDevelopments, templates, meetingLink, whatsappMessages, emailTrackings] = await Promise.all([
     getCrmActivities([lead.id]), getDevelopments(), includeAll ? getAllAgents() : Promise.resolve([]), getCrmDataProperties("development"),
     getCrmEmailTemplates(),
     getMeetingLinkByAgent(lead.assignedAgentId || session.user.id),
     listWhatsAppMessagesForLead(lead.id, `${lead.countryCode}${lead.phone}`).catch(() => []),
+    getCrmEmailTrackingsForLead(lead.id),
   ]);
   const leadDevelopmentName = lead.developmentName || lead.developmentNameText || "";
   const mappedDevelopment = customDevelopments.find((property) => [property.value, property.label, property.hubspotValue, `text:${property.label}`].filter(Boolean).some((value) => value === lead.developmentId || normalizeDevelopmentName(value) === normalizeDevelopmentName(leadDevelopmentName)));
@@ -69,7 +70,14 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
   ];
   const waUrl = whatsappUrl(lead);
   const whatsappHistory = activities.filter((activity) => activity.type === "whatsapp");
-  const emailHistory = activities.filter((activity) => activity.type === "correo");
+  const emailHistory = activities
+    .filter((activity) => activity.type === "correo" && /^Correo enviado:/i.test(activity.title))
+    .map((activity) => {
+      const subject = activity.title.replace(/^Correo enviado:\s*/i, "").trim();
+      const trackingId = activity.externalId?.startsWith("email-tracking:") ? activity.externalId.slice("email-tracking:".length) : "";
+      const tracking = emailTrackings.find((item) => item.id === trackingId) || emailTrackings.find((item) => item.subject.trim() === subject && Math.abs(new Date(item.createdAt).getTime() - new Date(activity.createdAt).getTime()) < 10 * 60 * 1000);
+      return { ...activity, openCount: tracking?.openCount ?? 0 };
+    });
   const meetingHistory = activities.filter((activity) => activity.type === "reunion").sort((a, b) => new Date(b.scheduledAt || b.createdAt).getTime() - new Date(a.scheduledAt || a.createdAt).getTime());
   const hubspotFields = usefulHubSpotFields(lead);
   const activityFilter = searchParams?.activity || "all";

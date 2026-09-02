@@ -5,7 +5,21 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, ImageIcon, Loader2, Mail, Paperclip, Search, Trash2, X } from "lucide-react";
 import type { CrmEmailTemplate, CrmEmailTemplateContentBlock } from "@/lib/db";
 
-type EmailHistoryItem = { id: string; title: string; body: string; createdAt: string };
+type EmailHistoryItem = { id: string; title: string; body: string; createdAt: string; openCount?: number };
+
+const EMAIL_IMAGE_MARKER = /\[\[BB_EMAIL_IMAGE:(https?:\/\/[^\]]+)\]\]/g;
+const LEGACY_IMAGE_LINE = /^(?:Imagen:\s*)?(https?:\/\/\S+\.(?:avif|gif|jpe?g|png|webp)(?:\?\S*)?)$/i;
+
+function emailHistoryContent(body: string) {
+  const images = Array.from(body.matchAll(EMAIL_IMAGE_MARKER), (match) => match[1]);
+  const textLines: string[] = [];
+  for (const line of body.replace(EMAIL_IMAGE_MARKER, "").split("\n")) {
+    const legacyImage = line.trim().match(LEGACY_IMAGE_LINE);
+    if (legacyImage) images.push(legacyImage[1]);
+    else textLines.push(line);
+  }
+  return { text: textLines.join("\n").trim(), images: Array.from(new Set(images)) };
+}
 
 type LeadForEmail = {
   id: string;
@@ -108,7 +122,10 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
   return <>
     <section id="correo-crm" className="rounded-xl bg-white p-5 ring-1 ring-ink/10">
       <div className="flex items-center justify-between gap-3 border-b border-ink/10 pb-4"><span className="flex items-center gap-3 text-[#006b6b]"><Mail className="h-5 w-5" /><h2 className="text-base font-semibold text-ink">Correos enviados</h2></span><span className="text-xs font-medium text-ink/50">{history.length}</span></div>
-      {history.length ? <ol className="divide-y divide-ink/8">{history.slice(0, 3).map((item) => <li key={item.id} className="py-3"><p className="line-clamp-2 text-sm font-semibold leading-snug text-ink">{item.title.replace(/^Correo enviado:\s*/i, "")}</p><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink/60">{item.body || "Correo enviado desde el CRM"}</p><time className="mt-1.5 block text-[11px] font-medium text-ink/45">{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(item.createdAt))}</time></li>)}</ol> : <p className="mt-4 text-sm leading-relaxed text-ink/60">Todavía no se enviaron correos a este contacto.</p>}
+      {history.length ? <ol className="divide-y divide-ink/8">{history.slice(0, 3).map((item) => {
+        const content = emailHistoryContent(item.body || "");
+        return <li key={item.id} className="py-3"><div className="flex items-start justify-between gap-3"><p className="line-clamp-2 text-sm font-semibold leading-snug text-ink">{item.title.replace(/^Correo enviado:\s*/i, "")}</p>{typeof item.openCount === "number" && <span className="shrink-0 rounded-full bg-[#e7f4f2] px-2 py-1 text-[10px] font-semibold text-[#006b6b]">{item.openCount} {item.openCount === 1 ? "apertura" : "aperturas"}</span>}</div>{content.images.length > 0 && <div className="mt-2 space-y-2">{content.images.map((url) => <div key={url} className="overflow-hidden rounded-lg bg-[#f3f4f4]"><img src={url} alt="Imagen enviada en el correo" className="block h-auto max-h-48 w-full object-contain" loading="lazy" /></div>)}</div>}{content.text && <p className="mt-2 line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-ink/60">{content.text}</p>}<time className="mt-1.5 block text-[11px] font-medium text-ink/45">{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(item.createdAt))}</time></li>;
+      })}</ol> : <p className="mt-4 text-sm leading-relaxed text-ink/60">Todavía no se enviaron correos a este contacto.</p>}
       <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[#006b6b] px-4 text-sm font-medium text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] focus-visible:ring-offset-2">Redactar correo</button>
     </section>
 

@@ -58,6 +58,31 @@ function blocksToText(blocks: EmailContentBlock[]) {
     .join("\n\n");
 }
 
+function emailActivityBody(blocks: EmailContentBlock[], fallbackBody: string, fallbackImages: string[]) {
+  const text = blocks.length > 0
+    ? blocks
+        .flatMap((block) => {
+          if (block.type === "text") return [block.text];
+          if (block.type === "button") return [block.label];
+          if (block.type === "attachment") return [`Adjunto: ${block.name}`];
+          if (block.type === "columns") return block.columns
+            .filter((column) => column.type === "text")
+            .map((column) => column.text);
+          return [];
+        })
+        .filter(Boolean)
+        .join("\n\n")
+    : fallbackBody;
+  const images = blocks.length > 0
+    ? blocks.flatMap((block) => block.type === "image"
+        ? [block.url]
+        : block.type === "columns"
+          ? block.columns.filter((column) => column.type === "image").map((column) => column.url)
+          : [])
+    : fallbackImages;
+  return [text, ...images.map((url) => `[[BB_EMAIL_IMAGE:${url}]]`)].filter(Boolean).join("\n\n");
+}
+
 function blocksToHtml(blocks: EmailContentBlock[], attachmentTrackingUrls = new Map<string, string>()) {
   const safeColor = (value: string | undefined, fallback: string) =>
     value?.match(/^#[0-9a-f]{6}$/i) ? value : fallback;
@@ -363,12 +388,11 @@ export async function sendCrmEmail({
       type: "correo",
       title: activityTitle || `Correo enviado: ${subject}`,
       body:
-        blocksWithSignature.length > 0
-          ? blocksToText(blocksWithSignature)
-          : [bodyWithSignature, ...imageUrls.map((url) => `Imagen: ${url}`)].join("\n\n"),
+        emailActivityBody(blocksWithSignature, bodyWithSignature, imageUrls),
       scheduledAt: new Date().toISOString(),
       createdBy: agentId,
       externalSource: workflowName ? "crm_workflow" : null,
+      externalId: tracking ? `email-tracking:${tracking.id}` : null,
     });
 
     return {

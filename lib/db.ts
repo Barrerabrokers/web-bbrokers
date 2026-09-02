@@ -2517,6 +2517,28 @@ export async function createCrmEmailTracking(data: {
   }
 }
 
+export async function getCrmEmailTrackingsForLead(leadId: string): Promise<CrmEmailTracking[]> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    await ensureCrmEmailTrackingSchema();
+    sql = getPgConnection();
+    const rows = await sql`
+      SELECT *
+      FROM crm_email_trackings
+      WHERE lead_id = ${leadId}
+      ORDER BY created_at DESC
+    `;
+    return rows.map((row) => mapCrmEmailTracking(row as unknown as CrmEmailTrackingRow));
+  } catch (error) {
+    console.error("Error loading CRM email tracking:", error);
+    return [];
+  } finally {
+    try {
+      await sql?.end();
+    } catch {}
+  }
+}
+
 export async function createCrmEmailAttachmentTracking(data: {
   emailTrackingId?: string | null;
   leadId: string;
@@ -2581,12 +2603,19 @@ export async function registerCrmEmailOpen(
         last_opened_at = NOW(),
         updated_at = NOW()
       WHERE tracking_id = ${trackingId}
+        -- Evita contar la vista automática y la apertura inmediata de la copia enviada.
+        AND created_at < NOW() - INTERVAL '2 minutes'
+        AND (last_opened_at IS NULL OR last_opened_at < NOW() - INTERVAL '15 seconds')
       RETURNING *
     `;
-    const tracking = rows[0] ? mapCrmEmailTracking(rows[0] as unknown as CrmEmailTrackingRow) : null;
+    let tracking = rows[0] ? mapCrmEmailTracking(rows[0] as unknown as CrmEmailTrackingRow) : null;
 
     if (!tracking) {
-      return { tracking: null, activity: null, error: "Tracking no encontrado" };
+      const currentRows = await sql`SELECT * FROM crm_email_trackings WHERE tracking_id = ${trackingId} LIMIT 1`;
+      tracking = currentRows[0] ? mapCrmEmailTracking(currentRows[0] as unknown as CrmEmailTrackingRow) : null;
+      return tracking
+        ? { tracking, activity: null, error: null }
+        : { tracking: null, activity: null, error: "Tracking no encontrado" };
     }
 
     const subjectText = tracking.subject ? `: ${tracking.subject}` : "";

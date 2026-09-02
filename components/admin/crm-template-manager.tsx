@@ -46,6 +46,8 @@ import type { CrmEmailTemplate, CrmEmailTemplateContentBlock } from "@/lib/db";
 
 type TemplateContentBlock = CrmEmailTemplateContentBlock;
 
+type TextSelectionBookmark = { blockId: string; start: number; end: number };
+
 type TemplateForm = {
   id: string;
   channel: "email" | "whatsapp";
@@ -142,6 +144,38 @@ function stripHtml(value: string) {
     return element.textContent?.trim() || "";
   }
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function selectionOffsets(editor: HTMLElement, range: Range) {
+  const before = document.createRange();
+  before.selectNodeContents(editor);
+  before.setEnd(range.startContainer, range.startOffset);
+  const throughSelection = document.createRange();
+  throughSelection.selectNodeContents(editor);
+  throughSelection.setEnd(range.endContainer, range.endOffset);
+  return { start: before.toString().length, end: throughSelection.toString().length };
+}
+
+function rangeFromOffsets(editor: HTMLElement, start: number, end: number) {
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let offset = 0;
+  let startSet = false;
+  let node = walker.nextNode();
+  while (node) {
+    const length = node.textContent?.length || 0;
+    if (!startSet && start <= offset + length) {
+      range.setStart(node, Math.max(0, start - offset));
+      startSet = true;
+    }
+    if (end <= offset + length) {
+      range.setEnd(node, Math.max(0, end - offset));
+      return startSet ? range : null;
+    }
+    offset += length;
+    node = walker.nextNode();
+  }
+  return null;
 }
 
 function variablePreview(value: string) {
@@ -376,6 +410,7 @@ export function CrmTemplateManager({
   const [toolboxTab, setToolboxTab] = useState<"modules" | "sections">("modules");
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const selectedTextRange = useRef<Range | null>(null);
+  const selectedTextBookmark = useRef<TextSelectionBookmark | null>(null);
   const [selectionToolbar, setSelectionToolbar] = useState<{ blockId: string; left: number; top: number } | null>(null);
 
   useEffect(() => {
@@ -389,6 +424,13 @@ export function CrmTemplateManager({
       if (element?.closest("[data-template-block-id] [contenteditable='true']")) {
         selectedTextRange.current = range.cloneRange();
         const block = element.closest<HTMLElement>("[data-template-block-id]");
+        const editor = element.closest<HTMLElement>("[contenteditable='true']");
+        if (block?.dataset.templateBlockId && editor) {
+          selectedTextBookmark.current = {
+            blockId: block.dataset.templateBlockId,
+            ...selectionOffsets(editor, range),
+          };
+        }
         const rect = range.getBoundingClientRect();
         if (block?.dataset.templateBlockId && rect.width > 0) {
           const toolbarWidth = Math.min(390, window.innerWidth - 24);
@@ -689,38 +731,60 @@ export function CrmTemplateManager({
     });
   };
 
+  const selectedEditorRange = (editor: HTMLElement, blockId: string) => {
+    const bookmark = selectedTextBookmark.current;
+    if (bookmark?.blockId === blockId) {
+      const restored = rangeFromOffsets(editor, bookmark.start, bookmark.end);
+      if (restored && !restored.collapsed) return restored;
+    }
+    const saved = selectedTextRange.current;
+    return saved && !saved.collapsed && editor.contains(saved.commonAncestorContainer) ? saved.cloneRange() : null;
+  };
+
+  const applyInlineStyle = (style: Partial<CSSStyleDeclaration>) => {
+    if (selectedBlock?.type !== "text") return;
+    const editor = window.document.querySelector<HTMLElement>(
+      `[data-template-block-id="${selectedBlock.id}"] [contenteditable="true"]`
+    );
+    if (!editor) return false;
+    const range = selectedEditorRange(editor, selectedBlock.id);
+    if (!range) return false;
+    const span = document.createElement("span");
+    Object.assign(span.style, style);
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    editor.normalize();
+    const selection = window.getSelection();
+    const selectedSpanRange = document.createRange();
+    selectedSpanRange.selectNodeContents(span);
+    selection?.removeAllRanges();
+    selection?.addRange(selectedSpanRange);
+    selectedTextRange.current = selectedSpanRange.cloneRange();
+    selectedTextBookmark.current = { blockId: selectedBlock.id, ...selectionOffsets(editor, selectedSpanRange) };
+    updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
+    return true;
+  };
+
   const applyTextCommand = (command: string, value?: string) => {
     if (selectedBlock?.type !== "text") return;
-
+    if (command === "foreColor" && value && applyInlineStyle({ color: value })) return;
+    if (command === "bold" && applyInlineStyle({ fontWeight: "700" })) return;
+    if (command === "italic" && applyInlineStyle({ fontStyle: "italic" })) return;
+    if (command === "underline" && applyInlineStyle({ textDecoration: "underline" })) return;
+    if (command === "foreColor" && value) {
+      updateTextBlock(selectedBlock.id, { color: value });
+      return;
+    }
     const editor = window.document.querySelector<HTMLElement>(
       `[data-template-block-id="${selectedBlock.id}"] [contenteditable="true"]`
     );
     if (!editor) return;
-
-    editor.focus();
+    editor.focus({ preventScroll: true });
+    const range = selectedEditorRange(editor, selectedBlock.id);
     const selection = window.getSelection();
-    const savedRange = selectedTextRange.current;
-    if (selection && savedRange && editor.contains(savedRange.commonAncestorContainer)) {
+    if (selection && range) {
       selection.removeAllRanges();
-      selection.addRange(savedRange);
-    }
-    if (command === "foreColor" && value && savedRange && !savedRange.collapsed && editor.contains(savedRange.commonAncestorContainer)) {
-      const range = savedRange.cloneRange();
-      const span = document.createElement("span");
-      span.style.color = value;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
-      selection?.removeAllRanges();
-      const selectedSpanRange = document.createRange();
-      selectedSpanRange.selectNodeContents(span);
-      selection?.addRange(selectedSpanRange);
-      updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
-      selectedTextRange.current = selectedSpanRange.cloneRange();
-      return;
-    }
-    if (command === "foreColor" && value) {
-      updateTextBlock(selectedBlock.id, { color: value });
-      return;
+      selection.addRange(range);
     }
     window.document.execCommand(command, false, value);
     updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
@@ -730,25 +794,7 @@ export function CrmTemplateManager({
     if (selectedBlock?.type !== "text") return;
     const editor = window.document.querySelector<HTMLElement>(`[data-template-block-id="${selectedBlock.id}"] [contenteditable="true"]`);
     if (!editor) return;
-    const selection = window.getSelection();
-    const savedRange = selectedTextRange.current;
-    editor.focus();
-    if (selection && savedRange && !savedRange.collapsed && editor.contains(savedRange.commonAncestorContainer)) {
-      selection.removeAllRanges();
-      selection.addRange(savedRange);
-      const range = savedRange.cloneRange();
-      const span = document.createElement("span");
-      span.style.fontSize = `${fontSize}px`;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
-      const formattedRange = document.createRange();
-      formattedRange.selectNodeContents(span);
-      selection.removeAllRanges();
-      selection.addRange(formattedRange);
-      selectedTextRange.current = formattedRange.cloneRange();
-      updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
-      return;
-    }
+    if (applyInlineStyle({ fontSize: `${fontSize}px` })) return;
     updateTextBlock(selectedBlock.id, { fontSize });
   };
 
@@ -760,30 +806,8 @@ export function CrmTemplateManager({
     );
     if (!editor) return;
 
-    const selection = window.getSelection();
-    const savedRange = selectedTextRange.current;
-    editor.focus();
-    if (selection && savedRange && editor.contains(savedRange.commonAncestorContainer)) {
-      selection.removeAllRanges();
-      selection.addRange(savedRange);
-    }
-    const hasSelection = Boolean(selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed && editor.contains(selection.anchorNode));
-
-    if (hasSelection && savedRange) {
-      const range = savedRange.cloneRange();
-      const span = document.createElement("span");
-      span.style.fontFamily = fontFamily;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
-      const formattedRange = document.createRange();
-      formattedRange.selectNodeContents(span);
-      selection?.removeAllRanges();
-      selection?.addRange(formattedRange);
-      selectedTextRange.current = formattedRange.cloneRange();
-      updateTextBlock(selectedBlock.id, { html: editor.innerHTML });
-    } else {
-      updateTextBlock(selectedBlock.id, { fontFamily });
-    }
+    if (applyInlineStyle({ fontFamily })) return;
+    updateTextBlock(selectedBlock.id, { fontFamily });
   };
 
   const insertVariable = (field: "subject" | "body", token: string) => {
