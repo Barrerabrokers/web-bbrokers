@@ -8,7 +8,7 @@ import {
 } from "@/lib/db";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 
-const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v20.0";
+const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
 const META_GRAPH_BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 const DEFAULT_PABLO_EMAIL = "pablo@barrerabrokers.com";
 
@@ -199,7 +199,7 @@ async function matchDevelopmentId(lead: MetaLeadResponse, fields: Map<string, st
 
 export function verifyMetaSignature(rawBody: string, signatureHeader: string | null) {
   const appSecret = process.env.META_APP_SECRET;
-  if (!appSecret) return true;
+  if (!appSecret) return false;
   if (!signatureHeader?.startsWith("sha256=")) return false;
 
   const expected = createHmac("sha256", appSecret)
@@ -278,7 +278,7 @@ export async function importMetaLeadgenId(
     metaPageId: lead.page_id || options?.webhookValue?.page_id,
     metaProperties: metaProperties(lead, fields),
     createdBy: options?.createdBy || assignedAgentId,
-  });
+  }, { preserveExistingValues: true, preservePopulatedFields: true });
 
   if (!result.lead) {
     throw new Error(result.error || "No se pudo guardar el contacto de Meta.");
@@ -296,6 +296,8 @@ export async function importMetaLeadgenId(
       .filter(Boolean)
       .join("\n"),
     createdBy: options?.createdBy || assignedAgentId,
+    externalSource: "meta_lead_ads",
+    externalId: lead.id,
   });
 
   return {

@@ -2056,7 +2056,7 @@ export async function upsertCrmLead(
 
 export async function upsertCrmLeadByEmail(
   data: CrmLeadInput,
-  options?: { preserveExistingValues?: boolean }
+  options?: { preserveExistingValues?: boolean; preservePopulatedFields?: boolean }
 ): Promise<{ lead: CrmLead | null; created: boolean; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
@@ -2080,8 +2080,11 @@ export async function upsertCrmLeadByEmail(
         })
       : null;
     const keep = options?.preserveExistingValues && existingLead;
+    const preservePopulated = options?.preservePopulatedFields && existingLead;
     const valueOrExisting = (value: string | undefined, current: string | undefined) =>
-      keep && (!value || !value.trim()) ? current || "" : value || "";
+      preservePopulated && current?.trim()
+        ? current
+        : keep && (!value || !value.trim()) ? current || "" : value || "";
     const result = await upsertCrmLead({
       ...data,
       id: existingId,
@@ -2089,16 +2092,20 @@ export async function upsertCrmLeadByEmail(
       lastName: valueOrExisting(data.lastName, existingLead?.lastName) || "-",
       countryCode: valueOrExisting(data.countryCode, existingLead?.countryCode) || "+54",
       phone: valueOrExisting(data.phone, existingLead?.phone),
-      status: (keep && !data.status ? existingLead.status : data.status) || "Nuevo",
+      status: (preservePopulated ? existingLead.status : keep && !data.status ? existingLead.status : data.status) || "Nuevo",
       temperature: valueOrExisting(data.temperature, existingLead?.temperature) as CrmLeadTemperature,
       source: valueOrExisting(data.source, existingLead?.source),
-      assignedAgentId: keep && !data.assignedAgentId
+      assignedAgentId: preservePopulated && existingLead.assignedAgentId
+        ? existingLead.assignedAgentId
+        : keep && !data.assignedAgentId
         ? existingLead.assignedAgentId
         : data.assignedAgentId || (!existingId ? data.createdBy || undefined : undefined),
       notes: valueOrExisting(data.notes, existingLead?.notes),
       createdBy: keep ? existingLead.createdBy || data.createdBy : data.createdBy,
       createdAt: keep ? existingLead.createdAt : data.createdAt,
-      developmentId: data.developmentId === undefined ? existingDevelopmentId : data.developmentId,
+      developmentId: preservePopulated && existingDevelopmentId
+        ? existingDevelopmentId
+        : data.developmentId === undefined ? existingDevelopmentId : data.developmentId,
       developmentNameText:
         data.developmentNameText === undefined ? existingDevelopmentNameText : data.developmentNameText,
       email,

@@ -66,25 +66,23 @@ export async function POST(request: NextRequest) {
   }
 
   const changes = leadgenChanges(payload);
-  const results = [];
-
-  for (const change of changes) {
+  const results = await Promise.all(changes.map(async (change) => {
     const leadgenId = change.value?.leadgen_id;
-    if (!leadgenId) continue;
+    if (!leadgenId) return { skipped: true };
 
     try {
       const result = await importMetaLeadgenId(leadgenId, {
         webhookValue: change.value,
       });
-      results.push({ leadgenId, ...result });
+      return { leadgenId, ...result };
     } catch (error) {
       console.error("Error importing Meta lead:", error);
-      results.push({
+      return {
         leadgenId,
         error: error instanceof Error ? error.message : "No se pudo importar el lead",
-      });
+      };
     }
-  }
+  }));
 
   return NextResponse.json({
     received: true,
