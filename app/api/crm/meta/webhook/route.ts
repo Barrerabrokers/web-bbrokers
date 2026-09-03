@@ -84,6 +84,18 @@ export async function POST(request: NextRequest) {
     }
   }));
 
+  const failed = results.filter((result) => "error" in result);
+  if (failed.length > 0) {
+    // A non-2xx response is intentional: Meta will retry the delivery. Imports are
+    // idempotent because leads and activities are keyed by their Meta lead ID.
+    return NextResponse.json({
+      received: true,
+      processed: results.length - failed.length,
+      failed: failed.length,
+      results,
+    }, { status: 503 });
+  }
+
   return NextResponse.json({
     received: true,
     processed: results.length,
