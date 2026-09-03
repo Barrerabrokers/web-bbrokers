@@ -279,22 +279,24 @@ export function CrmLeadFieldsEditor({
           <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Propietario del contacto
           </span>
-          <select
-            value={assignedAgentId}
-            disabled={!canAssignOwner}
-            onChange={(event) => {
-              const nextAgentId = event.target.value;
-              setAssignedAgentId(nextAgentId);
-            }}
-            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15 disabled:cursor-not-allowed disabled:bg-cream-100 disabled:text-ink/50"
-          >
-            <option value="">Sin asignar</option>
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name || agent.email}
-              </option>
-            ))}
-          </select>
+          {canAssignOwner ? (
+            <select
+              value={assignedAgentId}
+              onChange={(event) => setAssignedAgentId(event.target.value)}
+              className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+            >
+              <option value="">Sin asignar</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name || agent.email}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex h-9 w-full items-center rounded-lg border border-ink/12 bg-cream-100 px-3 text-sm font-medium text-ink">
+              {lead.assignedAgentName || "Sin asignar"}
+            </div>
+          )}
         </label>
       </div>
 

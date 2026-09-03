@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
   const result = await getCrmLeadsPage({
     agentId: session.user.id,
     includeAll,
-    ownerId: includeAll ? params.get("owner") || "all" : session.user.id,
+    ownerId: includeAll ? params.get("owner") || session.user.id : session.user.id,
     status: params.get("status") || "all",
     query: params.get("query") || "",
     page,

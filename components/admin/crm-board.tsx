@@ -543,7 +543,7 @@ export function CrmBoard({
   const [emailComposerLeadId, setEmailComposerLeadId] = useState("");
   const [whatsAppComposerLeadId, setWhatsAppComposerLeadId] = useState("");
   const [callSessionLeadId, setCallSessionLeadId] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState(canAssignTeam ? "all" : currentUserId);
+  const [ownerFilter, setOwnerFilter] = useState(currentUserId);
   const [statusFilter, setStatusFilter] = useState<CrmLeadStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -3394,19 +3394,25 @@ function ContactDetail({
           </Field>
 
           <Field label="Propietario del contacto">
-            <select
-              value={contactFields.assignedAgentId}
-              disabled={isSavingFields || !canAssignTeam}
-              onChange={updateContactField("assignedAgentId")}
-              className="form-input disabled:cursor-not-allowed disabled:bg-cream-100 disabled:text-ink/50"
-            >
-              <option value="">Sin asignar</option>
-              {activeAgents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name || agent.email}
-                </option>
-              ))}
-            </select>
+            {canAssignTeam ? (
+              <select
+                value={contactFields.assignedAgentId}
+                disabled={isSavingFields}
+                onChange={updateContactField("assignedAgentId")}
+                className="form-input disabled:cursor-not-allowed disabled:bg-cream-100 disabled:text-ink/50"
+              >
+                <option value="">Sin asignar</option>
+                {activeAgents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name || agent.email}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="form-input flex items-center bg-cream-100 font-medium text-ink">
+                {lead.assignedAgentName || "Sin asignar"}
+              </div>
+            )}
           </Field>
         </div>
 

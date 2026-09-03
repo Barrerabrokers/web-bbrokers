@@ -23,6 +23,7 @@ export default async function AdminCrmPage() {
     getCrmLeadsPage({
       agentId: session.user.id,
       includeAll: canAssignTeam,
+      ownerId: session.user.id,
       page: 1,
       pageSize: 50,
       sortColumn: "createdAt",
