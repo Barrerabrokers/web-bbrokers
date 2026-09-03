@@ -130,7 +130,6 @@ async function metaFetchLead(leadgenId: string) {
     "created_time",
     "field_data",
     "form_id",
-    "page_id",
     "ad_id",
     "ad_name",
     "campaign_id",
