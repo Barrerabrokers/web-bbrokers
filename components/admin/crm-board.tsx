@@ -21,9 +21,6 @@ import {
   FileSpreadsheet,
   FileText,
   GripVertical,
-  Home,
-  LayoutGrid,
-  ListChecks,
   Loader2,
   Mail,
   MessageCircle,
@@ -1632,6 +1629,38 @@ export function CrmBoard({
                 </div>
               </div>
             </dl>
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-ink/10 pt-3">
+              <button
+                type="button"
+                onClick={() => openLeadWhatsAppComposer(lead)}
+                disabled={!lead.phone}
+                className="inline-flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg bg-[#e8f5f3] px-2 text-xs font-semibold text-[#005c5c] transition-colors active:bg-[#d7ece9] disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Enviar WhatsApp a ${name}`}
+              >
+                <MessageCircle className="h-5 w-5" />
+                WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => openLeadCallSession(lead)}
+                disabled={!lead.phone}
+                className="inline-flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg bg-[#e8f5f3] px-2 text-xs font-semibold text-[#005c5c] transition-colors active:bg-[#d7ece9] disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Llamar a ${name}`}
+              >
+                <Phone className="h-5 w-5" />
+                Llamar
+              </button>
+              <button
+                type="button"
+                onClick={() => openLeadEmailComposer(lead)}
+                disabled={!lead.email}
+                className="inline-flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg bg-[#e8f5f3] px-2 text-xs font-semibold text-[#005c5c] transition-colors active:bg-[#d7ece9] disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Enviar correo a ${name}`}
+              >
+                <Mail className="h-5 w-5" />
+                Correo
+              </button>
+            </div>
           </div>
           <button
             type="button"
@@ -2119,15 +2148,8 @@ export function CrmBoard({
           )}
         </section>
 
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-[#f4efe7]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 text-ink shadow-[0_-16px_40px_rgba(58,29,23,0.08)] backdrop-blur lg:hidden">
-          <div className="grid grid-cols-5 gap-1">
-            <a
-              href="/admin"
-              className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/48 transition-colors hover:bg-white hover:text-ink"
-            >
-              <Home className="h-6 w-6" />
-              <span className="text-xs font-semibold">Inicio</span>
-            </a>
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/12 bg-[#f4efe7] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 text-ink shadow-[0_-4px_8px_rgba(58,29,23,0.08)] lg:hidden" aria-label="Navegación móvil de contactos">
+          <div className="mx-auto grid max-w-md grid-cols-3 gap-2">
             <button
               type="button"
               className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl bg-white text-[#005c5c] shadow-sm"
@@ -2137,32 +2159,19 @@ export function CrmBoard({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (selectedLead) {
-                  setActivityType("tarea");
-                } else {
-                  setNotice("Abrí un contacto para crear una tarea.");
-                }
-              }}
-              className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/48 transition-colors hover:bg-white hover:text-ink"
-            >
-              <ListChecks className="h-6 w-6" />
-              <span className="text-xs font-semibold">Tareas</span>
-            </button>
-            <a
-              href="/admin/crm/operaciones"
-              className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/48 transition-colors hover:bg-white hover:text-ink"
-            >
-              <LayoutGrid className="h-6 w-6" />
-              <span className="text-xs font-semibold">Paneles</span>
-            </a>
-            <button
-              type="button"
               onClick={() => document.getElementById("crm-mobile-search")?.focus()}
               className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/48 transition-colors hover:bg-white hover:text-ink"
             >
               <Search className="h-6 w-6" />
               <span className="text-xs font-semibold">Buscar</span>
+            </button>
+            <button
+              type="button"
+              onClick={startCreate}
+              className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/60 transition-colors hover:bg-white hover:text-ink"
+            >
+              <Plus className="h-6 w-6" />
+              <span className="text-xs font-semibold">Agregar</span>
             </button>
           </div>
         </nav>
