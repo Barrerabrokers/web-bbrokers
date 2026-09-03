@@ -30,6 +30,11 @@ type MetaLeadResponse = {
   platform?: string;
 };
 
+type MetaDevelopmentMatch = {
+  id?: string;
+  name: string;
+};
+
 export type MetaLeadWebhookValue = {
   leadgen_id?: string;
   form_id?: string;
@@ -99,7 +104,11 @@ function splitPhone(rawPhone: string) {
   return splitInternationalPhone(rawPhone);
 }
 
-function metaProperties(lead: MetaLeadResponse, fields: Map<string, string>): CrmHubSpotProperties {
+function metaProperties(
+  lead: MetaLeadResponse,
+  fields: Map<string, string>,
+  formName = ""
+): CrmHubSpotProperties {
   const properties: CrmHubSpotProperties = {
     meta_lead_id: lead.id,
     meta_form_id: lead.form_id || null,
@@ -110,6 +119,7 @@ function metaProperties(lead: MetaLeadResponse, fields: Map<string, string>): Cr
     meta_campaign_name: lead.campaign_name || null,
     meta_platform: lead.platform || null,
     meta_created_time: lead.created_time || null,
+    meta_form_name: formName || null,
   };
 
   for (const [key, value] of Array.from(fields.entries())) {
@@ -117,6 +127,23 @@ function metaProperties(lead: MetaLeadResponse, fields: Map<string, string>): Cr
   }
 
   return properties;
+}
+
+async function metaFetchFormName(formId?: string) {
+  const token = process.env.META_ACCESS_TOKEN;
+  if (!token || !formId) return "";
+
+  try {
+    const response = await fetch(
+      `${META_GRAPH_BASE_URL}/${encodeURIComponent(formId)}?fields=id,name&access_token=${encodeURIComponent(token)}`,
+      { cache: "no-store" }
+    );
+    if (!response.ok) return "";
+    const form = (await response.json()) as { name?: string };
+    return form.name?.trim() || "";
+  } catch {
+    return "";
+  }
 }
 
 async function metaFetchLead(leadgenId: string) {
@@ -171,7 +198,20 @@ async function defaultAssignedAgentId() {
   return agent.id;
 }
 
-async function matchDevelopmentId(lead: MetaLeadResponse, fields: Map<string, string>) {
+function inferredDevelopmentText(fields: Map<string, string>) {
+  for (const [key, value] of Array.from(fields.entries())) {
+    if (/desarrollo|emprendimiento|proyecto|interesa_invertir/.test(key) && value.trim()) {
+      return value.replaceAll("_", " ").replace(/\s+/g, " ").trim();
+    }
+  }
+  return "";
+}
+
+async function matchDevelopment(
+  lead: MetaLeadResponse,
+  fields: Map<string, string>,
+  formName = ""
+): Promise<MetaDevelopmentMatch | undefined> {
   const developments = await getDevelopments();
   if (developments.length === 0) return undefined;
 
@@ -179,6 +219,7 @@ async function matchDevelopmentId(lead: MetaLeadResponse, fields: Map<string, st
     [
       lead.ad_name,
       lead.campaign_name,
+      formName,
       lead.form_id,
       lead.page_id,
       ...Array.from(fields.values()),
@@ -187,13 +228,27 @@ async function matchDevelopmentId(lead: MetaLeadResponse, fields: Map<string, st
       .join(" ")
   );
 
-  const match = developments.find((development) => {
+  const exactMatch = developments.find((development) => {
     const name = normalizeSearch(development.name);
     const slug = normalizeSearch(development.slug);
     return haystack.includes(name) || haystack.includes(slug);
   });
+  if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
 
-  return match?.id;
+  const genericWords = new Set(["alpha", "place", "feel", "point", "estudios"]);
+  const partialMatches = developments.filter((development) => {
+    const distinctiveWords = normalizeSearch(`${development.name} ${development.slug}`)
+      .split(" ")
+      .filter((word) => word.length >= 5 && !genericWords.has(word));
+    return distinctiveWords.some((word) => haystack.includes(word));
+  });
+
+  if (partialMatches.length === 1) {
+    return { id: partialMatches[0].id, name: partialMatches[0].name };
+  }
+
+  const inferred = inferredDevelopmentText(fields);
+  return inferred ? { name: inferred } : undefined;
 }
 
 export function verifyMetaSignature(rawBody: string, signatureHeader: string | null) {
@@ -259,7 +314,8 @@ export async function importMetaLeadgenId(
   const name = splitName(rawFullName, email);
   const phone = splitPhone(rawPhone);
   const assignedAgentId = await defaultAssignedAgentId();
-  const developmentId = await matchDevelopmentId(lead, fields);
+  const formName = await metaFetchFormName(lead.form_id || options?.webhookValue?.form_id);
+  const development = await matchDevelopment(lead, fields, formName);
 
   const result = await upsertCrmLeadByEmail({
     firstName: firstNameField || name.firstName,
@@ -269,13 +325,14 @@ export async function importMetaLeadgenId(
     phone: phone.phone || rawPhone || "-",
     status: "NEW",
     source: "Meta Lead Ads",
-    developmentId,
+    developmentId: development?.id,
+    developmentNameText: development?.name || "",
     assignedAgentId,
     notes: "",
     metaLeadId: lead.id,
     metaFormId: lead.form_id || options?.webhookValue?.form_id,
     metaPageId: lead.page_id || options?.webhookValue?.page_id,
-    metaProperties: metaProperties(lead, fields),
+    metaProperties: metaProperties(lead, fields, formName),
     createdBy: options?.createdBy || assignedAgentId,
   }, { preserveExistingValues: true, preservePopulatedFields: true });
 

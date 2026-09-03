@@ -45,6 +45,7 @@ import {
 } from "@/lib/crm-statuses";
 import { shouldShowHubSpotContactField } from "@/lib/hubspot-fields";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
+import { getCrmMetaFormFields, getCrmMetaFormName } from "@/lib/crm-meta-fields";
 import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
 
 type CrmAgent = {
@@ -2305,6 +2306,8 @@ function ContactDetail({
     .filter(([, value]) => value)
     .filter(([key]) => shouldShowHubSpotContactField(key))
     .slice(0, 28);
+  const metaFormFields = getCrmMetaFormFields(lead.metaProperties);
+  const metaFormName = getCrmMetaFormName(lead.metaProperties);
 
   useEffect(() => {
     setContactFields({
@@ -3411,6 +3414,24 @@ function ContactDetail({
           </p>
         )}
       </form>
+
+      {metaFormFields.length > 0 && (
+        <section className="rounded-xl border border-ink/12 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">Formulario completado en Meta</h3>
+            {metaFormName && (
+              <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
+                {metaFormName}
+              </span>
+            )}
+          </div>
+          <dl className="mt-4 grid gap-3">
+            {metaFormFields.map((field) => (
+              <InfoRow key={field.key} label={field.label} value={field.value} />
+            ))}
+          </dl>
+        </section>
+      )}
 
       {hubspotFields.length > 0 && (
         <section className="rounded-xl border border-ink/12 bg-white p-5">

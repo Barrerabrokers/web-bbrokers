@@ -17,6 +17,7 @@ import { CrmContactHeader } from "@/components/admin/crm-contact-header";
 import { CrmCallActivityAction } from "@/components/admin/crm-call-activity-action";
 import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
 import { listWhatsAppMessagesForLead, type WhatsAppMessage } from "@/lib/whatsapp-inbox";
+import { getCrmMetaFormFields, getCrmMetaFormName } from "@/lib/crm-meta-fields";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -80,6 +81,8 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
     });
   const meetingHistory = activities.filter((activity) => activity.type === "reunion").sort((a, b) => new Date(b.scheduledAt || b.createdAt).getTime() - new Date(a.scheduledAt || a.createdAt).getTime());
   const hubspotFields = usefulHubSpotFields(lead);
+  const metaFormFields = getCrmMetaFormFields(lead.metaProperties);
+  const metaFormName = getCrmMetaFormName(lead.metaProperties);
   const activityFilter = searchParams?.activity || "all";
   const activityQuery = (searchParams?.q || "").trim().toLocaleLowerCase("es-AR");
   const visibleActivities = activities.filter((activity) => {
@@ -111,7 +114,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
         <main className="min-w-0 bg-[#f3f4f4]">
           <nav className="sticky top-0 z-10 flex overflow-x-auto border-b border-ink/10 bg-white" aria-label="Secciones del contacto">
             <a href="#contact-information" className="inline-flex min-h-14 shrink-0 items-center px-5 text-sm font-medium text-ink/62 hover:bg-[#e7f4f2]">Información destacada</a>
-            <a href="#hubspot-information" className="inline-flex min-h-14 shrink-0 items-center px-5 text-sm font-medium text-ink/62 hover:bg-[#e7f4f2]">Información</a>
+            <a href={metaFormFields.length > 0 ? "#meta-form-information" : "#hubspot-information"} className="inline-flex min-h-14 shrink-0 items-center px-5 text-sm font-medium text-ink/62 hover:bg-[#e7f4f2]">Información</a>
             <a href="#activities" className="inline-flex min-h-14 shrink-0 items-center border-b-2 border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b]">Actividades</a>
           </nav>
           <div className="space-y-5 p-4 lg:p-6">
@@ -132,6 +135,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
                 {visibleActivities.length === 0 && <div className="relative rounded-lg border border-dashed border-ink/15 px-5 py-10 text-center"><NotebookPen className="mx-auto h-8 w-8 text-ink/28" /><p className="mt-3 text-sm font-medium text-ink">No encontramos actividades</p><p className="mt-1 text-sm text-ink/55">Probá otro filtro o una búsqueda diferente.</p></div>}
               </div>
             </section>
+            {metaFormFields.length > 0 && <section id="meta-form-information" className="rounded-xl bg-white p-5 ring-1 ring-ink/10 lg:p-6"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold tracking-tight text-ink">Formulario completado en Meta</h2>{metaFormName && <span className="rounded-full bg-[#e7f4f2] px-3 py-1 text-xs font-semibold text-[#006b6b]">{metaFormName}</span>}</div><dl className="mt-5 grid gap-x-8 gap-y-4 md:grid-cols-2">{metaFormFields.map((field) => <InfoRow key={field.key} label={field.label} value={field.value} />)}</dl></section>}
             {hubspotFields.length > 0 && <section id="hubspot-information" className="rounded-xl bg-white p-5 ring-1 ring-ink/10 lg:p-6"><h2 className="text-lg font-semibold tracking-tight text-ink">Información importada de HubSpot</h2><dl className="mt-5 grid gap-x-8 gap-y-4 md:grid-cols-2">{hubspotFields.map(([key, value]) => <InfoRow key={key} label={key.replaceAll("_", " ")} value={value} />)}</dl></section>}
           </div>
         </main>
