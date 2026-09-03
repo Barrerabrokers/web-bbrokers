@@ -2140,7 +2140,9 @@ export async function upsertCrmLeadByEmail(
         ? existingDevelopmentId
         : data.developmentId === undefined ? existingDevelopmentId : data.developmentId,
       developmentNameText:
-        data.developmentNameText === undefined ? existingDevelopmentNameText : data.developmentNameText,
+        preservePopulated && (existingDevelopmentId || existingDevelopmentNameText?.trim())
+          ? existingDevelopmentNameText
+          : data.developmentNameText === undefined ? existingDevelopmentNameText : data.developmentNameText,
       metaProperties: mergeMetaProperties(existingLead?.metaProperties, data.metaProperties),
       email,
     });
