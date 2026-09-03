@@ -11,6 +11,7 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
+  Building2,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -1601,26 +1602,34 @@ export function CrmBoard({
             >
               {name || "Sin nombre"}
             </Link>
-            <dl className="mt-2 space-y-1 text-[15px] leading-snug text-ink/72">
-              <div className="min-w-0 truncate">
-                <dt className="inline text-ink/48">Correo: </dt>
-                <dd className="inline">{lead.email || "--"}</dd>
+            <dl className="mt-3 divide-y divide-ink/8 border-t border-ink/8 text-[15px] leading-snug text-ink">
+              <div className="flex min-w-0 gap-3 py-2.5">
+                <Mail className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium text-ink/62">Correo</dt>
+                  <dd className="mt-0.5 break-all font-medium">{lead.email || "Sin correo"}</dd>
+                </div>
               </div>
-              <div className="min-w-0 truncate">
-                <dt className="inline text-ink/48">Número de teléfono: </dt>
-                <dd className="inline">{phone || "--"}</dd>
+              <div className="flex min-w-0 gap-3 py-2.5">
+                <Phone className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium text-ink/62">Teléfono</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{phone || "Sin teléfono"}</dd>
+                </div>
               </div>
-              <div className="min-w-0 truncate">
-                <dt className="inline text-ink/48">Estado del lead: </dt>
-                <dd className="inline">{leadStatusLabel(lead.status)}</dd>
+              <div className="flex min-w-0 gap-3 py-2.5">
+                <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium text-ink/62">WhatsApp</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{phone || "Sin WhatsApp"}</dd>
+                </div>
               </div>
-              <div className="min-w-0 truncate">
-                <dt className="inline text-ink/48">Desarrollo: </dt>
-                <dd className="inline">{developmentName}</dd>
-              </div>
-              <div className="min-w-0 truncate">
-                <dt className="inline text-ink/48">Fecha de creación: </dt>
-                <dd className="inline">{formatInteractionDateTime(lead.createdAt)}</dd>
+              <div className="flex min-w-0 gap-3 py-2.5">
+                <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium text-ink/62">Desarrollo consultado</dt>
+                  <dd className="mt-0.5 break-words font-medium">{developmentName}</dd>
+                </div>
               </div>
             </dl>
           </div>

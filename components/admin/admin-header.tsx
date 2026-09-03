@@ -7,14 +7,14 @@ import Image from "next/image";
 import { useSiteSettings } from "@/lib/use-site-settings";
 import { PwaInstaller } from "@/components/pwa-installer";
 
-export function AdminHeader() {
+export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
   const { data: session } = useSession();
   const settings = useSiteSettings();
 
   return (
     <header className="bg-cream-200/85 backdrop-blur-xl border-b border-ink/15 sticky top-0 z-30">
       <div className="flex items-center justify-between px-6 md:px-8 h-14">
-        <Link href="/admin" className="flex items-center gap-2.5">
+        <Link href={crmOnly ? "/admin/crm" : "/admin"} className="flex items-center gap-2.5">
           <div className="relative h-7 w-7">
             <Image
               src={settings.logoUrl}
@@ -35,12 +35,12 @@ export function AdminHeader() {
         </Link>
 
         <div className="flex items-center gap-2">
-          <PwaInstaller compact />
+          {!crmOnly && <PwaInstaller compact />}
 
           <Link
             href="/"
             target="_blank"
-            className="btn-ghost text-xs hidden sm:inline-flex"
+            className={`btn-ghost text-xs hidden sm:inline-flex ${crmOnly ? "sm:!hidden" : ""}`}
           >
             Ver sitio
             <ExternalLink className="h-3 w-3" />
