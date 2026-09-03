@@ -38,7 +38,7 @@ const crmSubmenuItems = [
   { href: "/admin/crm/reuniones", label: "Link de reuniones", icon: CalendarPlus },
   { href: "/admin/crm/correo", label: "Correo de CRM", icon: Mail },
   { href: "/admin/crm/plantillas", label: "Plantillas", icon: PanelsTopLeft },
-  { href: "/admin/crm/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/admin/crm/marketing", label: "Marketing", icon: Megaphone, strictAdminOnly: true },
   { href: "/admin/crm/workflows", label: "Workflows", icon: Workflow },
   { href: "/admin/crm/operaciones", label: "Operaciones", icon: Settings2 },
   { href: "/admin/agentes", label: "Agentes", icon: UserCog, adminOnly: true },
@@ -96,7 +96,9 @@ export function AdminSidebar({
             : pathname === item.href;
           const Icon = item.icon;
           const visibleCrmSubmenuItems = crmSubmenuItems.filter(
-            (subItem) => !subItem.adminOnly || canManageAdminPanel(role)
+            (subItem) =>
+              (!subItem.adminOnly || canManageAdminPanel(role)) &&
+              (!("strictAdminOnly" in subItem) || !subItem.strictAdminOnly || role === "admin")
           );
 
           return (
