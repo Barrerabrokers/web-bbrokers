@@ -13,7 +13,7 @@ export const HUBSPOT_LEAD_STATUS_OPTIONS = [
   { value: "Contactado", label: "Contactado" },
   { value: "IN_PROGRESS", label: "In Progress" },
   { value: "OPEN_DEAL", label: "Open Deal" },
-  { value: "ATTEMPTED_TO_CONTACT", label: "Attempted to Contact" },
+  { value: "ATTEMPTED_TO_CONTACT", label: "Intento de contacto" },
   { value: "CONNECTED", label: "Connected" },
   { value: "BAD_TIMING", label: "Bad Timing" },
   { value: "-10000", label: "-10000" },
