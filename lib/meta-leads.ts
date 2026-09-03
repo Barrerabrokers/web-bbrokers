@@ -109,6 +109,14 @@ function metaProperties(
   fields: Map<string, string>,
   formName = ""
 ): CrmHubSpotProperties {
+  const answers = Object.fromEntries(Array.from(fields.entries()));
+  const submission = {
+    leadId: lead.id,
+    formId: lead.form_id || null,
+    formName: formName || "",
+    createdTime: lead.created_time || null,
+    fields: answers,
+  };
   const properties: CrmHubSpotProperties = {
     meta_lead_id: lead.id,
     meta_form_id: lead.form_id || null,
@@ -120,6 +128,7 @@ function metaProperties(
     meta_platform: lead.platform || null,
     meta_created_time: lead.created_time || null,
     meta_form_name: formName || null,
+    meta_submissions: JSON.stringify([submission]),
   };
 
   for (const [key, value] of Array.from(fields.entries())) {

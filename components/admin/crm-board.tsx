@@ -45,7 +45,7 @@ import {
 } from "@/lib/crm-statuses";
 import { shouldShowHubSpotContactField } from "@/lib/hubspot-fields";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
-import { getCrmMetaFormFields, getCrmMetaFormName } from "@/lib/crm-meta-fields";
+import { getCrmMetaFormSubmissions } from "@/lib/crm-meta-fields";
 import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
 
 type CrmAgent = {
@@ -2306,8 +2306,7 @@ function ContactDetail({
     .filter(([, value]) => value)
     .filter(([key]) => shouldShowHubSpotContactField(key))
     .slice(0, 28);
-  const metaFormFields = getCrmMetaFormFields(lead.metaProperties);
-  const metaFormName = getCrmMetaFormName(lead.metaProperties);
+  const metaFormSubmissions = getCrmMetaFormSubmissions(lead.metaProperties);
 
   useEffect(() => {
     setContactFields({
@@ -3415,21 +3414,29 @@ function ContactDetail({
         )}
       </form>
 
-      {metaFormFields.length > 0 && (
+      {metaFormSubmissions.length > 0 && (
         <section className="rounded-xl border border-ink/12 bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">Formulario completado en Meta</h3>
-            {metaFormName && (
-              <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
-                {metaFormName}
-              </span>
-            )}
+            <h3 className="text-sm font-semibold text-ink">Formularios completados en Meta</h3>
+            <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
+              {metaFormSubmissions.length}
+            </span>
           </div>
-          <dl className="mt-4 grid gap-3">
-            {metaFormFields.map((field) => (
-              <InfoRow key={field.key} label={field.label} value={field.value} />
+          <div className="mt-4 space-y-3">
+            {metaFormSubmissions.map((submission, index) => (
+              <article key={submission.leadId || `${submission.formId}-${index}`} className="rounded-lg border border-ink/10 bg-[#fafafa] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold text-ink">{submission.formName || `Formulario ${index + 1}`}</h4>
+                  {submission.createdTime && <time className="text-[10px] font-medium text-ink/45">{formatInteractionDateTime(submission.createdTime)}</time>}
+                </div>
+                <dl className="mt-3 grid gap-3">
+                  {submission.fields.map((field) => (
+                    <InfoRow key={field.key} label={field.label} value={field.value} />
+                  ))}
+                </dl>
+              </article>
             ))}
-          </dl>
+          </div>
         </section>
       )}
 

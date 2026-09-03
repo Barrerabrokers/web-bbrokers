@@ -948,6 +948,39 @@ export type CrmLeadInput = {
   createdAt?: string | null;
 };
 
+function metaSubmissions(value: unknown): Array<Record<string, unknown>> {
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function mergeMetaProperties(
+  existing: CrmHubSpotProperties | undefined,
+  incoming: CrmHubSpotProperties | undefined
+) {
+  if (!incoming) return existing;
+  const submissions = [
+    ...metaSubmissions(existing?.meta_submissions),
+    ...metaSubmissions(incoming.meta_submissions),
+  ];
+  const byLeadId = new Map<string, Record<string, unknown>>();
+  for (const submission of submissions) {
+    const key = String(submission.leadId || submission.metaLeadId || "").trim();
+    if (key) byLeadId.set(key, submission);
+  }
+  return {
+    ...(existing || {}),
+    ...incoming,
+    ...(byLeadId.size > 0 ? { meta_submissions: JSON.stringify(Array.from(byLeadId.values())) } : {}),
+  } satisfies CrmHubSpotProperties;
+}
+
 export type CrmExtensionContactTab = {
   id: string;
   name: string;
@@ -2108,6 +2141,7 @@ export async function upsertCrmLeadByEmail(
         : data.developmentId === undefined ? existingDevelopmentId : data.developmentId,
       developmentNameText:
         data.developmentNameText === undefined ? existingDevelopmentNameText : data.developmentNameText,
+      metaProperties: mergeMetaProperties(existingLead?.metaProperties, data.metaProperties),
       email,
     });
 
