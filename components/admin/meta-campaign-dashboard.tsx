@@ -19,6 +19,15 @@ function money(value: number | null, currency: string) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
 }
 
+async function readPayload(response: Response) {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(response.ok ? "Meta devolvió una respuesta inválida." : "No se pudo completar la consulta con Meta.");
+  }
+}
+
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0 border-b border-ink/10 py-4 lg:border-b-0 lg:border-r lg:px-5 first:lg:pl-0 last:border-0">
@@ -41,7 +50,7 @@ export function MetaCampaignDashboard() {
     setError("");
     try {
       const response = await fetch(`/api/crm/meta/campaigns?days=${days}`, { cache: "no-store" });
-      const payload = await response.json();
+      const payload = await readPayload(response);
       if (!response.ok) throw new Error(payload.error || "No se pudieron cargar las campañas.");
       setData(payload);
     } catch (cause) {
@@ -66,7 +75,7 @@ export function MetaCampaignDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ campaignId: campaign.id, status: nextStatus }),
       });
-      const payload = await response.json();
+      const payload = await readPayload(response);
       if (!response.ok) throw new Error(payload.error || "No se pudo cambiar la campaña.");
       await load();
     } catch (cause) {
