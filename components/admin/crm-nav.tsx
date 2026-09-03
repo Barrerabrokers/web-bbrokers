@@ -43,6 +43,7 @@ const crmNavItems = [
     label: "Marketing",
     description: "Campañas y audiencias",
     icon: Megaphone,
+    adminOnly: true,
   },
   {
     href: "/admin/crm/workflows",
