@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { getMetaLeadsLastSyncAt } from "@/lib/meta-sync-state";
 
 const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
 const META_GRAPH_BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -59,6 +60,7 @@ export type MetaMarketingDashboard = {
   totals: Omit<MetaCampaignPerformance, "id" | "name" | "status" | "effectiveStatus" | "objective" | "dailyBudget" | "lifetimeBudget">;
   warnings: string[];
   updatedAt: string;
+  lastLeadSyncAt: string | null;
 };
 
 function databaseUrl() {
@@ -159,7 +161,10 @@ export async function getMetaMarketingDashboard(days: number): Promise<MetaMarke
   const response = await metaJson<{ data?: MetaCampaignResponse[] }>(
     `${account.id}/campaigns?fields=${encodeURIComponent(fields)}&limit=200`
   );
-  const crm = await getCrmCampaignMetrics(`${since}T00:00:00.000Z`);
+  const [crm, lastLeadSyncAt] = await Promise.all([
+    getCrmCampaignMetrics(`${since}T00:00:00.000Z`),
+    getMetaLeadsLastSyncAt(),
+  ]);
 
   const campaigns = (response.data || []).map((campaign): MetaCampaignPerformance => {
     const insight = campaign.insights?.data?.[0];
@@ -226,6 +231,7 @@ export async function getMetaMarketingDashboard(days: number): Promise<MetaMarke
     totals,
     warnings,
     updatedAt: new Date().toISOString(),
+    lastLeadSyncAt,
   };
 }
 

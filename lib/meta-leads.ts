@@ -7,6 +7,7 @@ import {
   type CrmHubSpotProperties,
 } from "@/lib/db";
 import { splitInternationalPhone } from "@/lib/phone-countries";
+import { recordMetaLeadsSync } from "@/lib/meta-sync-state";
 
 const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
 const META_GRAPH_BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -439,5 +440,10 @@ export async function backfillRecentMetaLeads(days = 3, createdBy?: string | nul
       errors.push({ leadId, error: error instanceof Error ? error.message : "No se pudo importar" });
     }
   }
-  return { forms: formIds.length, found: leadIds.size, created, updated, skipped, errors };
+  const summary = { forms: formIds.length, found: leadIds.size, created, updated, skipped, errors };
+  const lastLeadSyncAt = await recordMetaLeadsSync({
+    ...summary,
+    errors: errors.length,
+  });
+  return { ...summary, lastLeadSyncAt };
 }

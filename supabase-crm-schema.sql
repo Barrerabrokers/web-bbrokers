@@ -53,3 +53,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_activities_external_unique ON crm_acti
 CREATE INDEX IF NOT EXISTS idx_crm_activities_lead_id ON crm_activities(lead_id);
 CREATE INDEX IF NOT EXISTS idx_crm_activities_created_at ON crm_activities(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_crm_activities_lead_created_at ON crm_activities(lead_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS crm_integration_sync_state (
+  integration TEXT PRIMARY KEY,
+  last_success_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

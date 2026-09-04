@@ -19,6 +19,18 @@ function money(value: number | null, currency: string) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
 }
 
+function syncDateTime(value: string | null | undefined) {
+  if (!value) return "Todavía sin actualizaciones";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Todavía sin actualizaciones";
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 async function readPayload(response: Response) {
   const text = await response.text();
   try {
@@ -126,9 +138,14 @@ export function MetaCampaignDashboard() {
             <button onClick={() => void load()} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink/18 px-3 text-sm font-semibold text-ink hover:bg-cream-50 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </button>
-            <button onClick={() => void recoverLeads()} disabled={recovering} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">
-              <RefreshCw className={`h-4 w-4 ${recovering ? "animate-spin" : ""}`} /> {recovering ? "Recuperando…" : "Recuperar leads de Meta"}
-            </button>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="text-xs font-medium text-ink/58">
+                Última actualización: <time className="text-ink/78" dateTime={data?.lastLeadSyncAt || undefined}>{syncDateTime(data?.lastLeadSyncAt)}</time>
+              </p>
+              <button onClick={() => void recoverLeads()} disabled={recovering} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">
+                <RefreshCw className={`h-4 w-4 ${recovering ? "animate-spin" : ""}`} /> {recovering ? "Recuperando…" : "Recuperar leads de Meta"}
+              </button>
+            </div>
           </div>
         </div>
       </section>
