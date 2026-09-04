@@ -237,6 +237,22 @@ async function matchDevelopment(
       .join(" ")
   );
 
+  const campaignAliases: Array<{ patterns: string[]; names: string[] }> = [
+    { patterns: ["alpha place libertador", "formulario libertador"], names: ["Alpha Place Libertador"] },
+    { patterns: ["alpha place belgrano"], names: ["Alpha Place Belgrano", "Alpha Place Belgrano German"] },
+    { patterns: ["juan b justo", "juan b. justo"], names: ["Juan B Justo"] },
+    { patterns: ["feel recoleta"], names: ["Feel Recoleta"] },
+    { patterns: ["feel palermo"], names: ["Feel Palermo", "Feel Palermo G&D"] },
+    { patterns: ["obelisco"], names: ["Obelisco"] },
+  ];
+  for (const alias of campaignAliases) {
+    if (!alias.patterns.some((pattern) => haystack.includes(normalizeSearch(pattern)))) continue;
+    const matched = developments.find((development) =>
+      alias.names.some((name) => normalizeSearch(development.name) === normalizeSearch(name))
+    );
+    if (matched) return { id: matched.id, name: matched.name };
+  }
+
   const exactMatch = developments.find((development) => {
     const name = normalizeSearch(development.name);
     const slug = normalizeSearch(development.slug);
@@ -322,7 +338,7 @@ export async function importMetaLeadgenId(
   const lastNameField = getMappedValue(fields, ["last_name", "lastname", "apellido"]);
   const name = splitName(rawFullName, email);
   const phone = splitPhone(rawPhone);
-  const assignedAgentId = await defaultAssignedAgentId();
+  const auditAgentId = await defaultAssignedAgentId();
   const formName = await metaFetchFormName(lead.form_id || options?.webhookValue?.form_id);
   const development = await matchDevelopment(lead, fields, formName);
 
@@ -336,14 +352,14 @@ export async function importMetaLeadgenId(
     source: "Meta Lead Ads",
     developmentId: development?.id,
     developmentNameText: development?.name || "",
-    assignedAgentId,
+    assignedAgentId: undefined,
     notes: "",
     metaLeadId: lead.id,
     metaFormId: lead.form_id || options?.webhookValue?.form_id,
     metaPageId: lead.page_id || options?.webhookValue?.page_id,
     metaProperties: metaProperties(lead, fields, formName),
-    createdBy: options?.createdBy || assignedAgentId,
-  }, { preserveExistingValues: true, preservePopulatedFields: true });
+    createdBy: options?.createdBy || auditAgentId,
+  }, { preserveExistingValues: true, preservePopulatedFields: true, leaveUnassignedOnCreate: true });
 
   if (!result.lead) {
     throw new Error(result.error || "No se pudo guardar el contacto de Meta.");
@@ -360,7 +376,7 @@ export async function importMetaLeadgenId(
     ]
       .filter(Boolean)
       .join("\n"),
-    createdBy: options?.createdBy || assignedAgentId,
+    createdBy: options?.createdBy || auditAgentId,
     externalSource: "meta_lead_ads",
     externalId: lead.id,
   });

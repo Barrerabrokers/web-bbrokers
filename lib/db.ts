@@ -2089,7 +2089,7 @@ export async function upsertCrmLead(
 
 export async function upsertCrmLeadByEmail(
   data: CrmLeadInput,
-  options?: { preserveExistingValues?: boolean; preservePopulatedFields?: boolean }
+  options?: { preserveExistingValues?: boolean; preservePopulatedFields?: boolean; leaveUnassignedOnCreate?: boolean }
 ): Promise<{ lead: CrmLead | null; created: boolean; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
@@ -2132,6 +2132,8 @@ export async function upsertCrmLeadByEmail(
         ? existingLead.assignedAgentId
         : keep && !data.assignedAgentId
         ? existingLead.assignedAgentId
+        : options?.leaveUnassignedOnCreate && !existingId
+        ? undefined
         : data.assignedAgentId || (!existingId ? data.createdBy || undefined : undefined),
       notes: valueOrExisting(data.notes, existingLead?.notes),
       createdBy: keep ? existingLead.createdBy || data.createdBy : data.createdBy,
