@@ -23,10 +23,39 @@ async function callCrm(path, options = {}) {
   }
 }
 
+async function loadAllAccessibleLeads() {
+  const pageSize = 500;
+  const collected = [];
+  let page = 1;
+  let pageCount = 1;
+
+  do {
+    const result = await callCrm(
+      `/api/crm/leads?owner=all&page=${page}&pageSize=${pageSize}&sort=createdAt&direction=desc`
+    );
+    if (result?.__error) throw new Error(result.__error);
+    if (!Array.isArray(result?.leads)) {
+      throw new Error("El CRM no devolvió una lista de contactos válida.");
+    }
+
+    collected.push(...result.leads);
+    pageCount = Math.max(1, Number(result.pageCount) || 1);
+    page += 1;
+  } while (page <= pageCount);
+
+  return {
+    leads: collected,
+    total: collected.length,
+    page: 1,
+    pageSize: collected.length,
+    pageCount: 1,
+  };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "BB_LOAD_CONTEXT") {
     Promise.all([
-      callCrm("/api/crm/leads"),
+      loadAllAccessibleLeads(),
       callCrm("/api/crm/templates"),
     ])
       .then(([leads, templates]) => sendResponse({ ok: true, leads, templates }))

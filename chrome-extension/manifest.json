@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Barrera Brokers CRM para WhatsApp",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Consulta clientes y usa plantillas del CRM desde WhatsApp Web.",
   "permissions": ["tabs", "storage", "unlimitedStorage", "clipboardWrite"],
   "host_permissions": [
