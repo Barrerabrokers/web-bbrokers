@@ -5,6 +5,7 @@ const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
 const META_GRAPH_BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 
 type MetaErrorPayload = { error?: { message?: string; code?: number } };
+let datasetIdPromise: Promise<string> | null = null;
 
 export type MetaQualifiedLeadResult = {
   sent: boolean;
@@ -50,7 +51,7 @@ async function resolveAdAccountId() {
   return id;
 }
 
-async function resolveDatasetId() {
+async function findDatasetId() {
   const configured = (process.env.META_DATASET_ID || process.env.META_PIXEL_ID)?.trim();
   if (configured) return configured;
 
@@ -64,6 +65,16 @@ async function resolveDatasetId() {
     throw new Error("No encontré un conjunto de datos de Meta habilitado para Conversions API.");
   }
   return preferred.id;
+}
+
+async function resolveDatasetId() {
+  if (!datasetIdPromise) {
+    datasetIdPromise = findDatasetId().catch((error) => {
+      datasetIdPromise = null;
+      throw error;
+    });
+  }
+  return datasetIdPromise;
 }
 
 export function isInterestedLeadStatus(status?: string) {
