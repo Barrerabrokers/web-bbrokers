@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, Mail, Search, X } from "lucide-react";
+import { CheckCircle2, FilePlus2, Loader2, Mail, Plus, Save, Search, X } from "lucide-react";
 import type { CrmEmailTemplate, CrmEmailTemplateContentBlock } from "@/lib/db";
 import { CrmRichEmailEditor } from "@/components/admin/crm-rich-email-editor";
 
@@ -36,7 +36,8 @@ type LeadForEmail = {
 
 export function CrmEmailComposer({ lead, templates, history = [] }: { lead: LeadForEmail; templates: CrmEmailTemplate[]; history?: EmailHistoryItem[] }) {
   const router = useRouter();
-  const emailTemplates = useMemo(() => templates.filter((template) => template.channel === "email"), [templates]);
+  const initialEmailTemplates = useMemo(() => templates.filter((template) => template.channel === "email"), [templates]);
+  const [emailTemplates, setEmailTemplates] = useState(initialEmailTemplates);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -45,14 +46,34 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [contentBlocks, setContentBlocks] = useState<CrmEmailTemplateContentBlock[]>([{ id: "crm-draft-text", type: "text", text: `Hola ${lead.firstName},\n\n`, html: `Hola ${lead.firstName},<br><br>`, color: "#1c1a17", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 16, align: "left" }]);
   const [sending, setSending] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [showTemplateSave, setShowTemplateSave] = useState(false);
+  const [templateName, setTemplateName] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  useEffect(() => setEmailTemplates(initialEmailTemplates), [initialEmailTemplates]);
+
+  const newEmail = () => {
+    const greeting = `Hola ${lead.firstName},\n\n`;
+    setSelectedTemplateId("");
+    setSubject("Barrera Brokers");
+    setBody(greeting);
+    setImageUrls([]);
+    setContentBlocks([{ id: crypto.randomUUID(), type: "text", text: greeting, html: `Hola ${lead.firstName},<br><br>`, color: "#1c1a17", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 16, align: "left" }]);
+    setShowTemplateSave(false);
+    setTemplateName("");
+    setNotice("Nuevo correo listo para redactar.");
+    setError("");
+  };
+
   useEffect(() => {
-    const openComposer = () => setOpen(true);
+    const openComposer = () => { newEmail(); setOpen(true); };
     window.addEventListener("crm:open-email-composer", openComposer);
     return () => window.removeEventListener("crm:open-email-composer", openComposer);
-  }, []);
+  // `lead` is stable for the lifetime of this contact page.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id]);
 
   const variables: Record<string, string> = {
     "{{cliente_nombre}}": lead.firstName,
@@ -106,6 +127,47 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
     finally { setSending(false); }
   };
 
+  const saveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      setError("Escribí un nombre para guardar la plantilla.");
+      return;
+    }
+    if (!subject.trim() || !body.trim()) {
+      setError("Completá el asunto y el contenido antes de guardar la plantilla.");
+      return;
+    }
+
+    setSavingTemplate(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/crm/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel: "email",
+          name: templateName.trim(),
+          category: "General",
+          subject,
+          body,
+          imageUrls,
+          contentBlocks,
+        }),
+      });
+      const data = await response.json().catch(() => null) as { template?: CrmEmailTemplate; error?: string } | null;
+      if (!response.ok || !data?.template) throw new Error(data?.error || "No se pudo guardar la plantilla.");
+      setEmailTemplates((current) => [data.template!, ...current.filter((item) => item.id !== data.template!.id)]);
+      setSelectedTemplateId(data.template.id);
+      setShowTemplateSave(false);
+      setTemplateName("");
+      setNotice(`Plantilla guardada: ${data.template.name}. El correo todavía no fue enviado.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar la plantilla.");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   return <>
     <section id="correo-crm" className="rounded-xl bg-white p-5 ring-1 ring-ink/10">
       <div className="flex items-center justify-between gap-3 border-b border-ink/10 pb-4"><span className="flex items-center gap-3 text-[#006b6b]"><Mail className="h-5 w-5" /><h2 className="text-base font-semibold text-ink">Correos enviados</h2></span><span className="text-xs font-medium text-ink/50">{history.length}</span></div>
@@ -113,7 +175,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
         const content = emailHistoryContent(item.body || "");
         return <li key={item.id} className="py-3"><div className="flex items-start justify-between gap-3"><p className="line-clamp-2 text-sm font-semibold leading-snug text-ink">{item.title.replace(/^Correo enviado:\s*/i, "")}</p>{typeof item.openCount === "number" && <span className="shrink-0 rounded-full bg-[#e7f4f2] px-2 py-1 text-[10px] font-semibold text-[#006b6b]">{item.openCount} {item.openCount === 1 ? "apertura" : "aperturas"}</span>}</div>{content.images.length > 0 && <div className="mt-2 space-y-2">{content.images.map((url) => <div key={url} className="overflow-hidden rounded-lg bg-[#f3f4f4]"><img src={url} alt="Imagen enviada en el correo" className="block h-auto max-h-48 w-full object-contain" loading="lazy" /></div>)}</div>}{content.text && <p className="mt-2 line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-ink/60">{content.text}</p>}<time className="mt-1.5 block text-[11px] font-medium text-ink/45">{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(item.createdAt))}</time></li>;
       })}</ol> : <p className="mt-4 text-sm leading-relaxed text-ink/60">Todavía no se enviaron correos a este contacto.</p>}
-      <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[#006b6b] px-4 text-sm font-medium text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] focus-visible:ring-offset-2">Redactar correo</button>
+      <button type="button" onClick={() => { newEmail(); setOpen(true); }} className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[#006b6b] px-4 text-sm font-medium text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] focus-visible:ring-offset-2">Redactar correo</button>
     </section>
 
     {open && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
@@ -124,7 +186,11 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
         </header>
         <form onSubmit={send} className="grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)]">
           <aside className="min-h-0 border-b border-ink/10 bg-[#f3f4f4] p-4 lg:border-b-0 lg:border-r">
-            <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-ink">Plantillas de correo</h3><span className="text-xs text-ink/55">{emailTemplates.length}</span></div>
+            <button type="button" onClick={newEmail} className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${selectedTemplateId === "" ? "bg-[#006b6b] text-white" : "bg-white text-ink ring-1 ring-ink/10 hover:bg-[#e7f4f2]"}`}>
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selectedTemplateId === "" ? "bg-white/15" : "bg-[#e7f4f2] text-[#006b6b]"}`}><FilePlus2 className="h-4 w-4" /></span>
+              <span><strong className="block text-sm">Nuevo correo</strong><span className={`mt-0.5 block text-xs ${selectedTemplateId === "" ? "text-white/75" : "text-ink/55"}`}>Redactar desde cero y agregar imágenes</span></span>
+            </button>
+            <div className="mt-5 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-ink">Elegir una plantilla</h3><span className="text-xs text-ink/55">{emailTemplates.length}</span></div>
             <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/45" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar plantillas" className="h-10 w-full rounded-lg border border-ink/15 bg-white pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink/50 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></div>
             <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1 lg:max-h-[58vh]">
               {visibleTemplates.map((template) => <button key={template.id} type="button" onClick={() => chooseTemplate(template)} className={`w-full rounded-lg p-3 text-left transition-colors ${selectedTemplateId === template.id ? "bg-[#006b6b] text-white" : "bg-white text-ink ring-1 ring-ink/10 hover:bg-[#e7f4f2]"}`}><span className="block text-sm font-semibold">{template.name}</span><span className={`mt-1 block text-xs ${selectedTemplateId === template.id ? "text-white/75" : "text-ink/55"}`}>{template.category} · {template.subject || "Sin asunto"}</span></button>)}
@@ -139,7 +205,8 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
             </div>
             {notice && <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#006b6b]"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
             {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button disabled={sending} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar correo"}</button></div>
+            {showTemplateSave && <div className="mt-4 rounded-lg bg-[#f3f4f4] p-3 ring-1 ring-ink/10"><label className="block text-xs font-semibold text-ink">Nombre de la nueva plantilla<input autoFocus value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej.: Presentación del desarrollo" className="mt-2 h-11 w-full rounded-lg border border-ink/15 bg-white px-3 text-sm font-normal text-ink outline-none placeholder:text-ink/45 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => { setShowTemplateSave(false); setTemplateName(""); }} className="min-h-10 rounded-lg px-3 text-sm font-medium text-ink/65 hover:bg-white">Cancelar</button><button type="button" onClick={() => void saveAsTemplate()} disabled={savingTemplate} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#006b6b] bg-white px-4 text-sm font-semibold text-[#006b6b] disabled:opacity-50">{savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savingTemplate ? "Guardando…" : "Guardar plantilla"}</button></div></div>}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button type="button" onClick={() => setShowTemplateSave(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b] hover:bg-[#e7f4f2]"><Plus className="h-4 w-4" />Guardar como plantilla</button><button disabled={sending || savingTemplate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar solamente"}</button></div>
           </div>
         </form>
       </section>
