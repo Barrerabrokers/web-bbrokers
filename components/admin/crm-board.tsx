@@ -357,11 +357,20 @@ function formatLeadDate(value: string) {
 }
 
 function formatLeadCreationDate(value: string) {
-  return new Intl.DateTimeFormat("es-AR", {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const parts = new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value || "";
+
+  return `${part("day")}/${part("month")} ${part("hour")}:${part("minute")}`;
 }
 
 function isMobilePhoneDevice() {
