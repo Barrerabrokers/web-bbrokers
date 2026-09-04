@@ -4,6 +4,12 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/meta-leads",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "functions": {
     "app/api/upload/route.ts": {
       "maxDuration": 60,
