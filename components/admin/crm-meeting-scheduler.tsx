@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, CheckCircle2, Loader2, MapPin, Video, X } from "lucide-react";
 import type { MeetingLink } from "@/lib/meeting-scheduler";
+import { argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
 type MeetingLead = { id: string; firstName: string; lastName: string; email: string; countryCode: string; phone: string; developmentName?: string; developmentNameText?: string };
 type MeetingHistoryItem = { id: string; title: string; body: string; scheduledAt?: string; createdAt: string };
@@ -35,7 +36,7 @@ export function CrmMeetingScheduler({ lead, link, meetings = [] }: { lead: Meeti
     if (!link || !date) return [];
     const values: string[] = [];
     for (let value = link.startTime; addMinutes(value, duration) <= link.endTime; value = addMinutes(value, link.slotInterval)) {
-      const start = new Date(`${date}T${value}:00-03:00`);
+      const start = new Date(argentinaLocalDateTimeToIso(date, value));
       const end = new Date(start.getTime() + duration * 60_000);
       if (start.getTime() > Date.now() + 5 * 60_000 && !busy.some((range) => start < new Date(range.end) && end > new Date(range.start))) values.push(value);
     }
@@ -65,7 +66,7 @@ export function CrmMeetingScheduler({ lead, link, meetings = [] }: { lead: Meeti
   const confirm = async () => {
     if (!link || !date || !time) return;
     setSaving(true); setError(""); setNotice("");
-    const startsAt = new Date(`${date}T${time}:00-03:00`).toISOString();
+    const startsAt = argentinaLocalDateTimeToIso(date, time);
     const name = `${lead.firstName} ${lead.lastName}`.trim();
     try {
       const response = await fetch(`/api/meetings/${link.slug}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email: lead.email, phone: `${lead.countryCode}${lead.phone}`, notes: [notes, lead.developmentName || lead.developmentNameText ? `Desarrollo: ${lead.developmentName || lead.developmentNameText}` : ""].filter(Boolean).join("\n"), startsAt, duration, meetingMode: mode }) });

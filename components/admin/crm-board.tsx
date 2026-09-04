@@ -45,6 +45,7 @@ import { shouldShowHubSpotContactField } from "@/lib/hubspot-fields";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
 import { getCrmMetaFormSubmissions } from "@/lib/crm-meta-fields";
 import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
+import { ARGENTINA_TIME_ZONE, argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
 type CrmAgent = {
   id: string;
@@ -349,6 +350,7 @@ function initials(name: string) {
 
 function formatLeadDate(value: string) {
   return new Intl.DateTimeFormat("es-AR", {
+    timeZone: ARGENTINA_TIME_ZONE,
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -361,6 +363,7 @@ function formatLeadCreationDate(value: string) {
   if (Number.isNaN(date.getTime())) return "—";
 
   const parts = new Intl.DateTimeFormat("es-AR", {
+    timeZone: ARGENTINA_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -400,6 +403,7 @@ function phoneCallUrl(lead: Pick<CrmLead, "countryCode" | "phone">) {
 
 function formatInteractionDateTime(value: string) {
   return new Intl.DateTimeFormat("es-AR", {
+    timeZone: ARGENTINA_TIME_ZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -1003,7 +1007,7 @@ export function CrmBoard({
         leadId: selectedLead.id,
         ...activityForm,
         scheduledAt: activityForm.scheduledAt
-          ? new Date(activityForm.scheduledAt).toISOString()
+          ? argentinaLocalDateTimeToIso(activityForm.scheduledAt)
           : activityForm.scheduledAt,
       };
       const response = await fetch(shouldCreateGoogleEvent ? "/api/crm/calendar/events" : "/api/crm/activities", {

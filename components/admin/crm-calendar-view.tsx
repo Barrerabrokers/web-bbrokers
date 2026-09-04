@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import type { CrmActivity, CrmActivityType, CrmLead } from "@/lib/db";
+import { ARGENTINA_TIME_ZONE, argentinaDateKey, argentinaHour, argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
 type CalendarLeadOption = Pick<
   CrmLead,
@@ -144,6 +145,7 @@ function formatDayLabel(date: Date) {
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("es-AR", {
+    timeZone: ARGENTINA_TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
@@ -226,7 +228,7 @@ export function CrmCalendarView({
   const activitiesByDate = useMemo(() => {
     return scheduledActivities.reduce<Record<string, CalendarActivity[]>>((groups, activity) => {
       if (!activity.scheduledAt) return groups;
-      const key = dateKey(new Date(activity.scheduledAt));
+      const key = argentinaDateKey(activity.scheduledAt);
       groups[key] = [...(groups[key] || []), activity];
       return groups;
     }, {});
@@ -284,7 +286,7 @@ export function CrmCalendarView({
           type: draft.type,
           title,
           body: draft.body,
-          scheduledAt: new Date(`${draft.date}T${draft.time}:00`).toISOString(),
+          scheduledAt: argentinaLocalDateTimeToIso(draft.date, draft.time),
         }),
       });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -488,7 +490,7 @@ function DayView({
             key={hour}
             date={date}
             hour={hour}
-            events={(activitiesByDate[key] || []).filter((activity) => new Date(activity.scheduledAt || "").getHours() === hour)}
+            events={(activitiesByDate[key] || []).filter((activity) => argentinaHour(activity.scheduledAt || activity.createdAt) === hour)}
             openDraft={openDraft}
             deleteEvent={deleteEvent}
             isDeletingId={isDeletingId}
@@ -540,7 +542,7 @@ function WeekView({ date, activitiesByDate, openDraft, deleteEvent, isDeletingId
             </div>
             {weekDays.map((day) => {
               const events = (activitiesByDate[dateKey(day)] || []).filter(
-                (activity) => new Date(activity.scheduledAt || "").getHours() === hour
+                (activity) => argentinaHour(activity.scheduledAt || activity.createdAt) === hour
               );
               return (
                 <div

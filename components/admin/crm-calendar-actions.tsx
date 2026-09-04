@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarPlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import type { CrmActivityType, CrmLead } from "@/lib/db";
+import { argentinaDateKey, argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
 type CalendarLeadOption = Pick<
   CrmLead,
@@ -22,11 +23,7 @@ function leadName(lead?: CalendarLeadOption) {
 }
 
 function todayValue() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return argentinaDateKey(new Date());
 }
 
 export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
@@ -58,7 +55,7 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
 
     const eventLabel = eventTypes.find((item) => item.value === type)?.label || "Evento";
     const eventTitle = title.trim() || `${eventLabel} con ${leadName(selectedLead)}`;
-    const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
+    const scheduledAt = argentinaLocalDateTimeToIso(date, time);
 
     try {
       const response = await fetch("/api/crm/calendar/events", {

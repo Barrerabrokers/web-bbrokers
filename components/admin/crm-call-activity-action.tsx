@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Check, ClipboardList, Loader2, Mail, MessageCircle, NotebookPen, Phone } from "lucide-react";
+import { argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
 type ActivityType = "all" | "nota" | "correo" | "whatsapp" | "llamada" | "tarea" | "reunion";
 const MODULES = {
@@ -34,7 +35,7 @@ export function CrmCallActivityAction({ activityType, leadId, whatsappUrl }: { a
     if (!body.trim() && activityType !== "tarea") return;
     setSaving(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId, type: activityType, title: finalTitle, body: body.trim(), scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : "" }) });
+      const response = await fetch("/api/crm/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId, type: activityType, title: finalTitle, body: body.trim(), scheduledAt: scheduledAt ? argentinaLocalDateTimeToIso(scheduledAt) : "" }) });
       const data = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(data?.error || "No se pudo guardar la actividad.");
       setTitle(""); setBody(""); setScheduledAt(""); setNotice("Registro guardado en actividades."); router.refresh();

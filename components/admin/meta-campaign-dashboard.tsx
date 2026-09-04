@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarRange, CheckCircle2, Loader2, Pause, Play, RefreshCw, Target, UsersRound } from "lucide-react";
 import type { MetaMarketingDashboard } from "@/lib/meta-ads";
+import { ARGENTINA_TIME_ZONE } from "@/lib/argentina-time";
 
 const periods = [7, 30, 90] as const;
 
@@ -24,6 +25,7 @@ function syncDateTime(value: string | null | undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Todavía sin actualizaciones";
   return new Intl.DateTimeFormat("es-AR", {
+    timeZone: ARGENTINA_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",

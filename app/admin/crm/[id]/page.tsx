@@ -19,6 +19,7 @@ import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
 import { listWhatsAppMessagesForLead, type WhatsAppMessage } from "@/lib/whatsapp-inbox";
 import { getCrmMetaFormSubmissions } from "@/lib/crm-meta-fields";
 import { CrmMetaFormsSync } from "@/components/admin/crm-meta-forms-sync";
+import { ARGENTINA_TIME_ZONE } from "@/lib/argentina-time";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,7 +31,7 @@ const ACTIVITY_TABS = [
   { value: "reunion", label: "Reuniones" },
 ];
 
-function formatDate(value: string) { return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
+function formatDate(value: string) { return new Intl.DateTimeFormat("es-AR", { timeZone: ARGENTINA_TIME_ZONE, dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 function whatsappUrl(lead: CrmLead) {
   const digits = `${lead.countryCode}${lead.phone}`.replace(/\D/g, "");
   return digits ? `https://wa.me/${digits}` : "";
