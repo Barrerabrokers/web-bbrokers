@@ -7,6 +7,7 @@ import { isCrmLeadStatus, type CrmLeadStatus } from "@/lib/crm-statuses";
 import { runLeadStatusWorkflows } from "@/lib/crm-workflow-runner";
 import { canManageAdminPanel, canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 import { normalizeDialCode } from "@/lib/phone-countries";
+import { isInterestedLeadStatus, sendMetaQualifiedLead, type MetaQualifiedLeadResult } from "@/lib/meta-conversions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,11 +122,10 @@ export async function POST(request: NextRequest) {
   }
 
   const canAssignTeam = canViewAllCrmContacts(session.user.role);
+  const currentLead = parsed.data.id
+    ? await getCrmLeadById(parsed.data.id, { agentId: session.user.id, includeAll: canAssignTeam })
+    : null;
   if (parsed.data.id && !canAssignTeam) {
-    const currentLead = await getCrmLeadById(parsed.data.id, {
-      agentId: session.user.id,
-      includeAll: false,
-    });
     if (!currentLead) {
       return NextResponse.json({ error: "No podés editar este lead" }, { status: 403 });
     }
@@ -154,7 +154,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ lead });
+  let metaQualification: MetaQualifiedLeadResult | undefined;
+  if (isInterestedLeadStatus(lead.status) && !isInterestedLeadStatus(currentLead?.status)) {
+    try {
+      metaQualification = await sendMetaQualifiedLead(lead);
+    } catch (metaError) {
+      console.error("Meta qualified lead event error:", metaError);
+      metaQualification = { sent: false, reason: metaError instanceof Error ? metaError.message : "No se pudo avisar a Meta." };
+    }
+  }
+
+  return NextResponse.json({ lead, metaQualification });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -238,7 +248,17 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ lead, workflowResults });
+  let metaQualification: MetaQualifiedLeadResult | undefined;
+  if (parsed.data.status !== undefined && isInterestedLeadStatus(lead.status) && !isInterestedLeadStatus(currentLead.status)) {
+    try {
+      metaQualification = await sendMetaQualifiedLead(lead);
+    } catch (metaError) {
+      console.error("Meta qualified lead event error:", metaError);
+      metaQualification = { sent: false, reason: metaError instanceof Error ? metaError.message : "No se pudo avisar a Meta." };
+    }
+  }
+
+  return NextResponse.json({ lead, workflowResults, metaQualification });
 }
 
 export async function DELETE(request: NextRequest) {
