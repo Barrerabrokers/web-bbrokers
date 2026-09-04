@@ -48,6 +48,7 @@ export function CrmLeadFieldsEditor({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const save = async (payload: {
@@ -82,9 +83,22 @@ export function CrmLeadFieldsEditor({
       setNotice("Guardado");
       startTransition(() => router.refresh());
       window.setTimeout(() => setNotice(""), 1800);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar el cambio");
+      return false;
     }
+  };
+
+  const saveStatus = async (nextStatus: CrmLeadStatus) => {
+    if (nextStatus === status || isSavingStatus) return;
+
+    const previousStatus = status;
+    setStatus(nextStatus);
+    setIsSavingStatus(true);
+    const saved = await save({ status: nextStatus });
+    if (!saved) setStatus(previousStatus);
+    setIsSavingStatus(false);
   };
 
   const deleteLead = async () => {
@@ -150,10 +164,10 @@ export function CrmLeadFieldsEditor({
         <div>
           <h2 className="text-sm font-semibold text-ink">Información del cliente</h2>
         </div>
-        {(notice || isPending) && (
+        {(notice || isPending || isSavingStatus) && (
           <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-800">
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-            {notice || "Actualizando"}
+            {isPending || isSavingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            {isSavingStatus ? "Guardando estado" : notice || "Actualizando"}
           </span>
         )}
       </div>
@@ -234,10 +248,8 @@ export function CrmLeadFieldsEditor({
           </span>
           <select
             value={status}
-            onChange={(event) => {
-              const nextStatus = event.target.value as CrmLeadStatus;
-              setStatus(nextStatus);
-            }}
+            disabled={isSavingStatus}
+            onChange={(event) => void saveStatus(event.target.value as CrmLeadStatus)}
             className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
           >
             {leadStatusOptionsForValue(status).map((item) => (
