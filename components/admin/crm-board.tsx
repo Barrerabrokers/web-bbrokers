@@ -1864,7 +1864,20 @@ export function CrmBoard({
                   : "border-transparent text-ink/55 hover:text-ink"
               }`}
             >
-              Todos contactos
+              Todos los contactos
+            </button>
+          )}
+          {canAssignTeam && (
+            <button
+              type="button"
+              onClick={() => setOwnerFilter("unassigned")}
+              className={`flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-medium ${
+                ownerFilter === "unassigned"
+                  ? "border-ink text-ink"
+                  : "border-transparent text-ink/55 hover:text-ink"
+              }`}
+            >
+              Contactos sin asignar
             </button>
           )}
           {activeAgents.map((agent) => (
@@ -1905,7 +1918,8 @@ export function CrmBoard({
                   className="h-11 min-w-[238px] shrink-0 rounded-full border border-ink/18 bg-white px-4 text-sm font-semibold text-ink outline-none focus:border-[#005c5c]"
                   aria-label="Filtrar por propietario del contacto"
                 >
-                  <option value="all">Propietario del contacto</option>
+                  <option value="all">Todos los contactos</option>
+                  <option value="unassigned">Contactos sin asignar</option>
                   {activeAgents.map((agent) => (
                     <option key={agent.id} value={agent.id}>
                       {agent.name}

@@ -1866,6 +1866,8 @@ export async function getCrmLeadsPage(
 
     if (!options.includeAll) {
       conditions.push(`l.assigned_agent_id = ${addValue(options.agentId || "")}::uuid`);
+    } else if (options.ownerId === "unassigned") {
+      conditions.push("l.assigned_agent_id IS NULL");
     } else if (options.ownerId && options.ownerId !== "all") {
       conditions.push(`l.assigned_agent_id = ${addValue(options.ownerId)}::uuid`);
     }
