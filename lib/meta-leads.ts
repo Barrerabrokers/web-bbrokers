@@ -371,3 +371,57 @@ export async function importMetaLeadgenId(
     email,
   };
 }
+
+const DEFAULT_META_FORM_IDS = [
+  "858044513215666",
+  "1456527069869122",
+  "1108265682151952",
+];
+
+export async function backfillRecentMetaLeads(days = 3, createdBy?: string | null) {
+  const token = process.env.META_ACCESS_TOKEN;
+  if (!token) throw new Error("Falta META_ACCESS_TOKEN en las variables de entorno.");
+  const configured = (process.env.META_LEAD_FORM_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const formIds = configured.length > 0 ? configured : DEFAULT_META_FORM_IDS;
+  const since = Date.now() - Math.max(1, Math.min(days, 30)) * 24 * 60 * 60 * 1000;
+  const leadIds = new Set<string>();
+
+  for (const formId of formIds) {
+    let url = `${META_GRAPH_BASE_URL}/${formId}/leads?fields=id,created_time&limit=100&access_token=${encodeURIComponent(token)}`;
+    for (let page = 0; page < 20 && url; page += 1) {
+      const response = await fetch(url, { cache: "no-store" });
+      const payload = await response.json() as {
+        data?: Array<{ id?: string; created_time?: string }>;
+        paging?: { next?: string };
+        error?: { message?: string };
+      };
+      if (!response.ok || payload.error) throw new Error(payload.error?.message || `Meta respondió ${response.status}`);
+      const entries = payload.data || [];
+      for (const entry of entries) {
+        if (entry.id && (!entry.created_time || new Date(entry.created_time).getTime() >= since)) leadIds.add(entry.id);
+      }
+      const oldest = entries.at(-1)?.created_time;
+      if (!payload.paging?.next || (oldest && new Date(oldest).getTime() < since)) break;
+      url = payload.paging.next;
+    }
+  }
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors: Array<{ leadId: string; error: string }> = [];
+  for (const leadId of Array.from(leadIds)) {
+    try {
+      const result = await importMetaLeadgenId(leadId, { createdBy });
+      if (result.skipped) skipped += 1;
+      else if (result.created) created += 1;
+      else updated += 1;
+    } catch (error) {
+      errors.push({ leadId, error: error instanceof Error ? error.message : "No se pudo importar" });
+    }
+  }
+  return { forms: formIds.length, found: leadIds.size, created, updated, skipped, errors };
+}

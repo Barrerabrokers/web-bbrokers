@@ -44,6 +44,8 @@ export function MetaCampaignDashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +87,23 @@ export function MetaCampaignDashboard() {
     }
   }
 
+  async function recoverLeads() {
+    setRecovering(true);
+    setError("");
+    setRecoveryNotice("");
+    try {
+      const response = await fetch("/api/crm/meta/backfill", { method: "POST" });
+      const payload = await readPayload(response);
+      if (!response.ok) throw new Error(payload.error || "No se pudieron recuperar los leads.");
+      setRecoveryNotice(`Recuperación completa: ${payload.created} nuevos, ${payload.updated} actualizados y ${payload.errors?.length || 0} errores.`);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudieron recuperar los leads.");
+    } finally {
+      setRecovering(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <section className="border-y border-ink/12 bg-white px-5 py-5 sm:px-6">
@@ -107,6 +126,9 @@ export function MetaCampaignDashboard() {
             <button onClick={() => void load()} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink/18 px-3 text-sm font-semibold text-ink hover:bg-cream-50 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </button>
+            <button onClick={() => void recoverLeads()} disabled={recovering} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">
+              <RefreshCw className={`h-4 w-4 ${recovering ? "animate-spin" : ""}`} /> {recovering ? "Recuperando…" : "Recuperar leads de Meta"}
+            </button>
           </div>
         </div>
       </section>
@@ -117,6 +139,8 @@ export function MetaCampaignDashboard() {
           <div><p className="font-semibold">Meta necesita atención</p><p>{error}</p><p className="mt-1 text-red-800">Verificá que el token tenga los permisos <strong>ads_read</strong> y <strong>ads_management</strong>.</p></div>
         </div>
       )}
+
+      {recoveryNotice && <div role="status" className="rounded-md bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">{recoveryNotice}</div>}
 
       {loading && !data ? (
         <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-ink/58"><Loader2 className="h-5 w-5 animate-spin" /> Consultando Meta y el CRM…</div>
