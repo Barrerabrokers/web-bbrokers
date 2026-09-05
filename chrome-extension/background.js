@@ -95,6 +95,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "BB_SET_FEATURED") {
+    callCrm("/api/crm/extension-preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId: message.leadId, featured: message.featured }),
+    })
+      .then((result) => {
+        if (result?.__error) throw new Error(result.__error);
+        sendResponse({ ok: true, preferences: result?.preferences });
+      })
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   if (message?.type === "BB_REGISTER_ACTIVITY") {
     callCrm("/api/crm/activities", {
       method: "POST",

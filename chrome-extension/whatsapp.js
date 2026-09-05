@@ -1100,13 +1100,26 @@
     if (!button || !state.lead) return;
     const id = String(state.lead.id);
     const isFeatured = state.featuredLeadIds.includes(id);
+    const previous = [...state.featuredLeadIds];
     state.featuredLeadIds = isFeatured
       ? state.featuredLeadIds.filter((leadId) => leadId !== id)
       : [...state.featuredLeadIds, id];
+    renderContactTabs();
+    renderLead(state.lead);
     try {
-      await savePreferences();
+      const response = await chrome.runtime.sendMessage({
+        type: "BB_SET_FEATURED",
+        leadId: id,
+        featured: !isFeatured,
+      });
+      if (!response?.ok) throw new Error(response?.error || "No se pudo actualizar el destacado.");
+      state.featuredLeadIds = Array.isArray(response.preferences?.featuredLeadIds)
+        ? response.preferences.featuredLeadIds.map(String)
+        : state.featuredLeadIds;
+      await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
     } catch (error) {
-      setStatus(`${error.message} Se conservó una copia en este navegador.`, "error");
+      state.featuredLeadIds = previous;
+      setStatus(error.message, "error");
     }
     renderContactTabs();
     renderLead(state.lead);

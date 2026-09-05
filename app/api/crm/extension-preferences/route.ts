@@ -4,9 +4,11 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import {
   getCrmExtensionPreferences,
+  getCrmLeadById,
+  setCrmFeaturedLead,
   upsertCrmExtensionPreferences,
 } from "@/lib/db";
-import { canManageListings } from "@/lib/roles";
+import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +21,11 @@ const preferencesSchema = z.object({
     kind: z.string().trim().max(30).optional(),
   })).max(30),
   featuredLeadIds: z.array(z.string().uuid()).max(1000),
+});
+
+const featuredSchema = z.object({
+  leadId: z.string().uuid(),
+  featured: z.boolean(),
 });
 
 async function requireApprovedAgent() {
@@ -45,5 +52,30 @@ export async function PUT(request: NextRequest) {
   }
 
   const preferences = await upsertCrmExtensionPreferences(session.user.id, parsed.data);
+  return NextResponse.json({ preferences });
+}
+
+export async function PATCH(request: NextRequest) {
+  const session = await requireApprovedAgent();
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const parsed = featuredSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "El contacto destacado no es válido" }, { status: 400 });
+  }
+
+  const lead = await getCrmLeadById(parsed.data.leadId, {
+    agentId: session.user.id,
+    includeAll: canViewAllCrmContacts(session.user.role),
+  });
+  if (!lead) {
+    return NextResponse.json({ error: "No podés acceder a este contacto" }, { status: 403 });
+  }
+
+  const preferences = await setCrmFeaturedLead(
+    session.user.id,
+    parsed.data.leadId,
+    parsed.data.featured
+  );
   return NextResponse.json({ preferences });
 }

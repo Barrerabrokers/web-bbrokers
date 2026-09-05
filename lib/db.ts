@@ -1581,6 +1581,47 @@ export async function upsertCrmExtensionPreferences(
   }
 }
 
+export async function setCrmFeaturedLead(
+  agentId: string,
+  leadId: string,
+  featured: boolean
+): Promise<CrmExtensionPreferences> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    await ensureCrmExtensionPreferencesSchema();
+    sql = getPgConnection();
+    const rows = await sql`
+      INSERT INTO crm_extension_preferences (agent_id, contact_tabs, featured_lead_ids)
+      VALUES (
+        ${agentId},
+        '[]'::jsonb,
+        CASE WHEN ${featured} THEN jsonb_build_array(${leadId}::text) ELSE '[]'::jsonb END
+      )
+      ON CONFLICT (agent_id) DO UPDATE SET
+        featured_lead_ids = CASE
+          WHEN ${featured} THEN CASE
+            WHEN crm_extension_preferences.featured_lead_ids @> jsonb_build_array(${leadId}::text)
+              THEN crm_extension_preferences.featured_lead_ids
+            ELSE crm_extension_preferences.featured_lead_ids || jsonb_build_array(${leadId}::text)
+          END
+          ELSE crm_extension_preferences.featured_lead_ids - ${leadId}::text
+        END,
+        updated_at = NOW()
+      RETURNING contact_tabs, featured_lead_ids
+    `;
+    return {
+      contactTabs: Array.isArray(rows[0]?.contact_tabs) ? rows[0].contact_tabs : [],
+      featuredLeadIds: Array.isArray(rows[0]?.featured_lead_ids)
+        ? rows[0].featured_lead_ids.map(String)
+        : [],
+    };
+  } finally {
+    try {
+      await sql?.end();
+    } catch {}
+  }
+}
+
 async function ensureCrmDataPropertiesTable(sql: ReturnType<typeof getPgConnection>) {
   await sql.unsafe(`
     CREATE TABLE IF NOT EXISTS crm_data_properties (

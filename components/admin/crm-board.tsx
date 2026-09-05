@@ -589,7 +589,6 @@ export function CrmBoard({
   const [draggedColumn, setDraggedColumn] = useState<CrmColumnKey | null>(null);
   const [viewNotice, setViewNotice] = useState("");
   const [featuredLeadIds, setFeaturedLeadIds] = useState<string[]>([]);
-  const extensionContactTabs = useRef<Array<{ id: string; name: string; status: string; kind?: string }>>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [activityForm, setActivityForm] = useState<ActivityFormState>(EMPTY_ACTIVITY);
@@ -620,9 +619,6 @@ export function CrmBoard({
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "No se pudieron cargar los destacados");
         if (cancelled) return;
-        extensionContactTabs.current = Array.isArray(data.preferences?.contactTabs)
-          ? data.preferences.contactTabs
-          : [];
         setFeaturedLeadIds(Array.isArray(data.preferences?.featuredLeadIds) ? data.preferences.featuredLeadIds : []);
       })
       .catch(() => {});
@@ -631,15 +627,14 @@ export function CrmBoard({
 
   const toggleFeaturedLead = async (leadId: string) => {
     const previous = featuredLeadIds;
-    const next = previous.includes(leadId)
-      ? previous.filter((id) => id !== leadId)
-      : [...previous, leadId];
+    const featured = !previous.includes(leadId);
+    const next = featured ? [...previous, leadId] : previous.filter((id) => id !== leadId);
     setFeaturedLeadIds(next);
     try {
       const response = await fetch("/api/crm/extension-preferences", {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactTabs: extensionContactTabs.current, featuredLeadIds: next }),
+        body: JSON.stringify({ leadId, featured }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo actualizar el destacado");
