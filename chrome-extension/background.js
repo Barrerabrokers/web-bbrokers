@@ -57,8 +57,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     Promise.all([
       loadAllAccessibleLeads(),
       callCrm("/api/crm/templates"),
+      callCrm("/api/crm/extension-preferences"),
     ])
-      .then(([leads, templates]) => sendResponse({ ok: true, leads, templates }))
+      .then(([leads, templates, preferences]) => sendResponse({ ok: true, leads, templates, preferences: preferences?.preferences }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }

@@ -424,6 +424,12 @@
       }
       state.leads = response.leads?.leads || [];
       state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
+      if (Array.isArray(response.preferences?.featuredLeadIds)) {
+        state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
+      }
+      if (Array.isArray(response.preferences?.contactTabs) && response.preferences.contactTabs.length) {
+        state.contactTabs = response.preferences.contactTabs;
+      }
       state.contextLoadedAt = Date.now();
       await chrome.storage.local.set({
         bbCrmContextCache: {

@@ -29,6 +29,7 @@ import {
   Plus,
   Save,
   Search,
+  Star,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -587,6 +588,8 @@ export function CrmBoard({
   const [sortState, setSortState] = useState<CrmSortState>(CRM_DEFAULT_SORT);
   const [draggedColumn, setDraggedColumn] = useState<CrmColumnKey | null>(null);
   const [viewNotice, setViewNotice] = useState("");
+  const [featuredLeadIds, setFeaturedLeadIds] = useState<string[]>([]);
+  const extensionContactTabs = useRef<Array<{ id: string; name: string; status: string; kind?: string }>>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [activityForm, setActivityForm] = useState<ActivityFormState>(EMPTY_ACTIVITY);
@@ -609,6 +612,43 @@ export function CrmBoard({
   const selectedActivities = selectedLead
     ? activities.filter((activity) => activity.leadId === selectedLead.id)
     : [];
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/crm/extension-preferences", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "No se pudieron cargar los destacados");
+        if (cancelled) return;
+        extensionContactTabs.current = Array.isArray(data.preferences?.contactTabs)
+          ? data.preferences.contactTabs
+          : [];
+        setFeaturedLeadIds(Array.isArray(data.preferences?.featuredLeadIds) ? data.preferences.featuredLeadIds : []);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggleFeaturedLead = async (leadId: string) => {
+    const previous = featuredLeadIds;
+    const next = previous.includes(leadId)
+      ? previous.filter((id) => id !== leadId)
+      : [...previous, leadId];
+    setFeaturedLeadIds(next);
+    try {
+      const response = await fetch("/api/crm/extension-preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactTabs: extensionContactTabs.current, featuredLeadIds: next }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo actualizar el destacado");
+      setFeaturedLeadIds(Array.isArray(data.preferences?.featuredLeadIds) ? data.preferences.featuredLeadIds : next);
+    } catch (saveError) {
+      setFeaturedLeadIds(previous);
+      setError(saveError instanceof Error ? saveError.message : "No se pudo actualizar el destacado");
+    }
+  };
 
   useEffect(() => {
     if (!selectedLeadId || loadedActivityLeadIds.current.has(selectedLeadId)) return;
@@ -1388,6 +1428,7 @@ export function CrmBoard({
           </td>
         );
       case "name":
+        const isFeatured = featuredLeadIds.includes(lead.id);
         return (
           <td key={column} className={`${borderClass} px-2 py-3 align-middle`}>
             <div className="flex min-w-0 items-center gap-1.5">
@@ -1401,6 +1442,16 @@ export function CrmBoard({
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/8 text-[10px] font-semibold text-ink/68">
                 {initials(name)}
               </span>
+              <button
+                type="button"
+                onClick={() => void toggleFeaturedLead(lead.id)}
+                className={`shrink-0 rounded-full p-1 transition-colors hover:bg-amber-50 ${isFeatured ? "text-amber-500" : "text-ink/28 hover:text-amber-500"}`}
+                aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`}
+                aria-pressed={isFeatured}
+                title={isFeatured ? "Quitar de destacados" : "Agregar a destacados"}
+              >
+                <Star className="h-4 w-4" fill={isFeatured ? "currentColor" : "none"} />
+              </button>
               <Link
                 href={`/admin/crm/${lead.id}`}
                 className="inline-flex min-w-0 items-center gap-1 truncate text-left font-semibold text-[#006b6b] underline-offset-4 transition-colors hover:text-[#004f4f] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]/35"
@@ -1582,6 +1633,7 @@ export function CrmBoard({
       crmDevelopments.find((development) => development.id === lead.developmentId)?.name ||
       lead.developmentNameText ||
       "Sin definir";
+    const isFeatured = featuredLeadIds.includes(lead.id);
 
     return (
       <article
@@ -1606,12 +1658,17 @@ export function CrmBoard({
             {initials(name)}
           </Link>
           <div className="min-w-0 flex-1">
-            <Link
-              href={`/admin/crm/${lead.id}`}
-              className="block max-w-full truncate text-left text-[22px] font-semibold leading-tight text-[#005c5c] underline-offset-4 hover:underline"
-            >
-              {name || "Sin nombre"}
-            </Link>
+            <div className="flex min-w-0 items-center gap-2">
+              <Link
+                href={`/admin/crm/${lead.id}`}
+                className="block min-w-0 flex-1 truncate text-left text-[22px] font-semibold leading-tight text-[#005c5c] underline-offset-4 hover:underline"
+              >
+                {name || "Sin nombre"}
+              </Link>
+              <button type="button" onClick={() => void toggleFeaturedLead(lead.id)} className={`shrink-0 rounded-full p-2 ${isFeatured ? "text-amber-500" : "text-ink/30"}`} aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`} aria-pressed={isFeatured}>
+                <Star className="h-5 w-5" fill={isFeatured ? "currentColor" : "none"} />
+              </button>
+            </div>
             <dl className="mt-3 divide-y divide-ink/8 border-t border-ink/8 text-[15px] leading-snug text-ink">
               <div className="flex min-w-0 gap-3 py-2.5">
                 <Mail className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
