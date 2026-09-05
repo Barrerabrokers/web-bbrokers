@@ -16,5 +16,10 @@ export default async function WhatsAppInboxPage() {
     listWhatsAppConversations({ agentId: session.user.id, includeAll: isAdmin }),
     isAdmin ? getAllAgents() : Promise.resolve([]),
   ]);
-  return <WhatsAppInbox initialConversations={conversations} agents={allAgents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name }))} isAdmin={isAdmin} configured={Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.OPENAI_API_KEY)} />;
+  return <WhatsAppInbox initialConversations={conversations} agents={allAgents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name }))} isAdmin={isAdmin} configured={{
+    whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+    instagram: Boolean((process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN) && process.env.META_PAGE_ID),
+    facebook: Boolean((process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN) && process.env.META_PAGE_ID),
+    ai: Boolean(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY),
+  }} />;
 }

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
-import { getWhatsAppConversation, listWhatsAppMessages, saveWhatsAppMessage, sendWhatsAppText, updateWhatsAppConversation } from "@/lib/whatsapp-inbox";
+import { getWhatsAppConversation, listWhatsAppMessages, saveWhatsAppMessage, sendMetaSocialText, sendWhatsAppText, updateWhatsAppConversation } from "@/lib/whatsapp-inbox";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,9 @@ export async function POST(request: NextRequest) {
   if (!canViewAllCrmContacts(session.user.role) && conversation.assignedAgentId && conversation.assignedAgentId !== session.user.id) return NextResponse.json({ error: "Este chat pertenece a otro agente" }, { status: 403 });
   try {
     conversation = await updateWhatsAppConversation(conversation.id, { lockAgentId: session.user.id, markRead: true });
-    const messageId = await sendWhatsAppText(conversation!.phone, parsed.data.content);
+    const messageId = conversation!.channel === "whatsapp"
+      ? await sendWhatsAppText(conversation!.phone, parsed.data.content)
+      : await sendMetaSocialText(conversation!.channel, conversation!.externalContactId || "", parsed.data.content);
     await saveWhatsAppMessage({ conversationId: conversation!.id, whatsappMessageId: messageId, direction: "outbound", senderType: "agent", senderAgentId: session.user.id, content: parsed.data.content });
     return NextResponse.json({ messages: await listWhatsAppMessages(conversation!.id), conversation });
   } catch (error) {

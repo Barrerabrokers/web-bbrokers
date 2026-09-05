@@ -60,3 +60,41 @@ CREATE TABLE IF NOT EXISTS crm_integration_sync_state (
   details JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS crm_whatsapp_conversations (
+  id UUID PRIMARY KEY,
+  phone TEXT NOT NULL UNIQUE,
+  contact_name TEXT NOT NULL DEFAULT '',
+  lead_id UUID NULL REFERENCES crm_leads(id) ON DELETE SET NULL,
+  assigned_agent_id UUID NULL REFERENCES agents(id) ON DELETE SET NULL,
+  ai_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  status TEXT NOT NULL DEFAULT 'open',
+  unread_count INTEGER NOT NULL DEFAULT 0,
+  last_message TEXT NOT NULL DEFAULT '',
+  last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  locked_by UUID NULL REFERENCES agents(id) ON DELETE SET NULL,
+  locked_until TIMESTAMPTZ NULL,
+  channel TEXT NOT NULL DEFAULT 'whatsapp',
+  external_contact_id TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp';
+ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS external_contact_id TEXT NULL;
+
+CREATE TABLE IF NOT EXISTS crm_whatsapp_messages (
+  id UUID PRIMARY KEY,
+  conversation_id UUID NOT NULL REFERENCES crm_whatsapp_conversations(id) ON DELETE CASCADE,
+  whatsapp_message_id TEXT NULL UNIQUE,
+  direction TEXT NOT NULL,
+  sender_type TEXT NOT NULL,
+  sender_agent_id UUID NULL REFERENCES agents(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'sent',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_conversations_owner ON crm_whatsapp_conversations(assigned_agent_id, last_message_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_conversations_channel_contact ON crm_whatsapp_conversations(channel, external_contact_id) WHERE external_contact_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_wa_messages_conversation ON crm_whatsapp_messages(conversation_id, created_at);

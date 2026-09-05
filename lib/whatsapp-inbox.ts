@@ -18,6 +18,8 @@ export type WhatsAppConversation = {
   lockedBy?: string;
   lockedByName?: string;
   lockedUntil?: string;
+  channel: "whatsapp" | "instagram" | "facebook";
+  externalContactId?: string;
 };
 
 export type WhatsAppMessage = {
@@ -62,6 +64,8 @@ export async function ensureWhatsAppInboxSchema() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp';
+        ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS external_contact_id TEXT NULL;
         CREATE TABLE IF NOT EXISTS crm_whatsapp_messages (
           id UUID PRIMARY KEY,
           conversation_id UUID NOT NULL REFERENCES crm_whatsapp_conversations(id) ON DELETE CASCADE,
@@ -74,6 +78,7 @@ export async function ensureWhatsAppInboxSchema() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_wa_conversations_owner ON crm_whatsapp_conversations(assigned_agent_id, last_message_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_conversations_channel_contact ON crm_whatsapp_conversations(channel, external_contact_id) WHERE external_contact_id IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_wa_messages_conversation ON crm_whatsapp_messages(conversation_id, created_at);
       `);
     } finally {
@@ -102,6 +107,8 @@ function mapConversation(row: any): WhatsAppConversation {
     lockedBy: row.locked_by || undefined,
     lockedByName: row.locked_by_name || undefined,
     lockedUntil: row.locked_until ? new Date(row.locked_until).toISOString() : undefined,
+    channel: row.channel === "instagram" || row.channel === "facebook" ? row.channel : "whatsapp",
+    externalContactId: row.external_contact_id || undefined,
   };
 }
 
@@ -168,6 +175,23 @@ export async function ensureWhatsAppContact(phoneValue: string, contactName = ""
       ON CONFLICT (phone) DO UPDATE SET
         contact_name = COALESCE(NULLIF(EXCLUDED.contact_name, ''), crm_whatsapp_conversations.contact_name),
         lead_id = COALESCE(crm_whatsapp_conversations.lead_id, EXCLUDED.lead_id),
+        updated_at = NOW()
+      RETURNING id
+    `;
+    return getWhatsAppConversation(rows[0].id);
+  } finally { await sql.end(); }
+}
+
+export async function ensureSocialContact(channel: "instagram" | "facebook", externalContactId: string, contactName = "") {
+  await ensureWhatsAppInboxSchema();
+  const sql = connection();
+  try {
+    const syntheticPhone = `${channel}:${externalContactId}`;
+    const rows = await sql`
+      INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, channel, external_contact_id)
+      VALUES (${crypto.randomUUID()}, ${syntheticPhone}, ${contactName.trim() || (channel === "instagram" ? "Consulta de Instagram" : "Consulta de Facebook")}, ${channel}, ${externalContactId})
+      ON CONFLICT (channel, external_contact_id) WHERE external_contact_id IS NOT NULL DO UPDATE SET
+        contact_name = COALESCE(NULLIF(EXCLUDED.contact_name, ''), crm_whatsapp_conversations.contact_name),
         updated_at = NOW()
       RETURNING id
     `;
@@ -290,13 +314,50 @@ export async function sendWhatsAppText(phone: string, text: string) {
   return result?.messages?.[0]?.id as string | undefined;
 }
 
+export async function sendMetaSocialText(channel: "instagram" | "facebook", recipientId: string, text: string) {
+  const token = process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
+  const pageId = process.env.META_PAGE_ID;
+  if (!token || !pageId) throw new Error(`Faltan las credenciales de ${channel === "instagram" ? "Instagram" : "Facebook"}.`);
+  const version = process.env.META_GRAPH_VERSION || "v23.0";
+  const response = await fetch(`https://graph.facebook.com/${version}/${pageId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient: { id: recipientId }, messaging_type: "RESPONSE", message: { text } }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.error?.message || `Meta rechazó el mensaje de ${channel}.`);
+  return String(result?.message_id || "") || undefined;
+}
+
+export function shouldEscalateConversation(text: string) {
+  return /\b(asesor|agente|persona|humano|hablar con|llamar|llamada|visita|reuni[oó]n|reservar|se[ñn]ar)\b/i.test(text);
+}
+
 export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]) {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("Falta OPENAI_API_KEY.");
   const input = messages.slice(-20).map((message) => ({
     role: message.direction === "inbound" ? "user" : "assistant",
     content: message.content,
   }));
+  const instructions = process.env.WHATSAPP_AI_INSTRUCTIONS || `Sos el asistente comercial de Barrera Brokers. Respondé en español rioplatense, con mensajes breves y amables. Tu objetivo es entender si busca comprar, vender o invertir; zona, presupuesto, ambientes y plazo. No inventes propiedades, precios, disponibilidad, rentabilidad ni condiciones. Si falta información real, decí que un asesor lo confirmará. Pedí nombre y email si aún no figuran. Cuando solicite una persona, visita, negociación o información sensible, indicá que lo derivás al equipo. Nunca brindes asesoramiento legal o financiero definitivo.`;
+  if (!apiKey && process.env.GROQ_API_KEY) {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: process.env.GROQ_CRM_MODEL || "openai/gpt-oss-120b",
+        temperature: 0.3,
+        max_completion_tokens: 350,
+        messages: [{ role: "system", content: instructions }, ...input],
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result?.error?.message || "No se pudo generar la respuesta con Groq.");
+    const text = result?.choices?.[0]?.message?.content;
+    if (!text) throw new Error("Groq no devolvió una respuesta.");
+    return String(text).trim();
+  }
+  if (!apiKey) throw new Error("Falta configurar OPENAI_API_KEY o GROQ_API_KEY.");
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -304,7 +365,7 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]) {
       model: process.env.OPENAI_WHATSAPP_MODEL || "gpt-5.4",
       store: false,
       max_output_tokens: 350,
-      instructions: process.env.WHATSAPP_AI_INSTRUCTIONS || `Sos el asistente comercial de Barrera Brokers. Respondé en español rioplatense, con mensajes breves y amables. Tu objetivo es entender si busca comprar, vender o invertir; zona, presupuesto, ambientes y plazo. No inventes propiedades, precios, disponibilidad, rentabilidad ni condiciones. Si falta información real, decí que un asesor lo confirmará. Pedí nombre y email si aún no figuran. Cuando solicite una persona, visita, negociación o información sensible, indicá que lo derivás al equipo. Nunca brindes asesoramiento legal o financiero definitivo.`,
+      instructions,
       input,
     }),
   });

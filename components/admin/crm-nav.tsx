@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { CalendarDays, CalendarPlus, Mail, Megaphone, PanelsTopLeft, Settings2, UserCog, UsersRound, Workflow } from "lucide-react";
+import { CalendarDays, CalendarPlus, Inbox, Mail, Megaphone, PanelsTopLeft, Settings2, UserCog, UsersRound, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canManageAdminPanel } from "@/lib/roles";
 
 const crmNavItems = [
+  {
+    href: "/admin/crm/marketing/whatsapp",
+    label: "Conversaciones",
+    description: "WhatsApp, Instagram y Facebook",
+    icon: Inbox,
+  },
   {
     href: "/admin/crm",
     label: "Contactos",

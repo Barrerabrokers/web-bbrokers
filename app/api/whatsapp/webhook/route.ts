@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureWhatsAppContact, generateWhatsAppAiReply, listWhatsAppMessages, saveWhatsAppMessage, sendWhatsAppText, verifyWhatsAppSignature } from "@/lib/whatsapp-inbox";
+import { ensureWhatsAppContact, generateWhatsAppAiReply, listWhatsAppMessages, saveWhatsAppMessage, sendWhatsAppText, shouldEscalateConversation, updateWhatsAppConversation, verifyWhatsAppSignature } from "@/lib/whatsapp-inbox";
 import { createCrmActivity } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -32,10 +32,14 @@ export async function POST(request: NextRequest) {
         if (inserted && conversation.leadId) await createCrmActivity({ leadId: conversation.leadId, type: "whatsapp", title: `Respuesta por WhatsApp de ${conversation.contactName || conversation.phone}`, body: message.text.body, scheduledAt: new Date(Number(message.timestamp || 0) * 1000 || Date.now()).toISOString(), externalSource: "whatsapp_inbound", externalId: message.id });
         if (!inserted || !conversation.aiEnabled || conversation.status === "closed" || conversation.assignedAgentId) continue;
         try {
+          const escalate = shouldEscalateConversation(message.text.body);
           const history = await listWhatsAppMessages(conversation.id, 30);
-          const reply = await generateWhatsAppAiReply(history);
+          const reply = escalate
+            ? "Perfecto. Te derivo con un asesor de Barrera Brokers para que continúe con toda la información de esta conversación."
+            : await generateWhatsAppAiReply(history);
           const outboundId = await sendWhatsAppText(conversation.phone, reply);
           await saveWhatsAppMessage({ conversationId: conversation.id, whatsappMessageId: outboundId, direction: "outbound", senderType: "ai", content: reply });
+          if (escalate) await updateWhatsAppConversation(conversation.id, { aiEnabled: false });
         } catch (error) {
           console.error("WhatsApp AI reply error", error);
         }
