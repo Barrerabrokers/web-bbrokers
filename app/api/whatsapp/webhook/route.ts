@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get("hub.mode");
   const token = request.nextUrl.searchParams.get("hub.verify_token");
   const challenge = request.nextUrl.searchParams.get("hub.challenge");
-  if (mode === "subscribe" && token && token === process.env.WHATSAPP_VERIFY_TOKEN) return new NextResponse(challenge || "", { status: 200 });
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || process.env.META_VERIFY_TOKEN;
+  if (mode === "subscribe" && token && token === verifyToken) return new NextResponse(challenge || "", { status: 200 });
   return NextResponse.json({ error: "Verificación rechazada" }, { status: 403 });
 }
 

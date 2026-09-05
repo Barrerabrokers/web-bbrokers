@@ -301,7 +301,7 @@ export function verifyWhatsAppSignature(rawBody: string, signature: string | nul
 }
 
 export async function sendWhatsAppText(phone: string, text: string) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   if (!token || !phoneNumberId) throw new Error("Faltan las credenciales oficiales de WhatsApp.");
   const version = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
