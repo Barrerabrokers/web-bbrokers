@@ -139,8 +139,6 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
       setMessage("Meta aprobó el acceso. Esperando la confirmación del número…");
     }, {
       config_id: CONFIG_ID,
-      scope: "whatsapp_business_management,whatsapp_business_messaging",
-      auth_type: "rerequest",
       response_type: "code",
       override_default_response_type: true,
       extras: {
