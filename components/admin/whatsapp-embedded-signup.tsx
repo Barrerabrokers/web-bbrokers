@@ -125,7 +125,12 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
       const code = response.authResponse?.code;
       if (!code) {
         setState("idle");
-        setMessage("La ventana se cerró sin completar la vinculación.");
+        const status = response.status === "not_authorized"
+          ? "Meta abrió la cuenta, pero no autorizó la aplicación."
+          : response.status === "unknown"
+            ? "Meta no reconoció la sesión de Facebook en esta ventana."
+            : "La ventana de Meta se cerró antes de confirmar el acceso.";
+        setMessage(`${status} Volvé a intentar y completá todos los pasos de la ventana.`);
         return;
       }
       authCode.current = code;
@@ -135,6 +140,7 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
     }, {
       config_id: CONFIG_ID,
       scope: "whatsapp_business_management,whatsapp_business_messaging",
+      auth_type: "rerequest",
       response_type: "code",
       override_default_response_type: true,
       extras: {
