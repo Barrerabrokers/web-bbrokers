@@ -2,6 +2,7 @@ import crypto from "crypto";
 import postgres from "postgres";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { upsertCrmLead } from "@/lib/db";
+import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 
 export type WhatsAppConversation = {
   id: string;
@@ -301,8 +302,9 @@ export function verifyWhatsAppSignature(rawBody: string, signature: string | nul
 }
 
 export async function sendWhatsAppText(phone: string, text: string) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const saved = await getWhatsAppChannelCredentials();
+  const token = process.env.WHATSAPP_ACCESS_TOKEN || saved?.accessToken || process.env.META_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || saved?.phoneNumberId;
   if (!token || !phoneNumberId) throw new Error("Faltan las credenciales oficiales de WhatsApp.");
   const version = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
   const response = await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`, {

@@ -22,11 +22,14 @@ declare global {
 const APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || "1735228224390278";
 const CONFIG_ID = process.env.NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1991012558271468";
 
-export function WhatsAppEmbeddedSignup() {
+export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnection?: { displayPhoneNumber: string } }) {
   const [sdkReady, setSdkReady] = useState(false);
-  const [state, setState] = useState<SignupState>("idle");
-  const [message, setMessage] = useState("");
+  const [state, setState] = useState<SignupState>(initialConnection ? "connected" : "idle");
+  const [message, setMessage] = useState(initialConnection ? `WhatsApp quedó conectado al CRM${initialConnection.displayPhoneNumber ? `: ${initialConnection.displayPhoneNumber}` : ""}.` : "");
+  const [signupSignal, setSignupSignal] = useState(0);
   const signupResult = useRef<SignupResult>({});
+  const authCode = useRef("");
+  const completing = useRef(false);
 
   useEffect(() => {
     function initialize() {
@@ -61,6 +64,7 @@ export function WhatsAppEmbeddedSignup() {
           wabaId: payload.data?.waba_id,
           phoneNumberId: payload.data?.phone_number_id,
         };
+        setSignupSignal((value) => value + 1);
         setState("finishing");
         setMessage("Meta autorizó el número. Estamos terminando la conexión con el CRM…");
       } else if (payload.event === "CANCEL") {
@@ -77,18 +81,39 @@ export function WhatsAppEmbeddedSignup() {
   }, []);
 
   const finishSignup = useCallback(async (code: string) => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 35_000);
     const response = await fetch("/api/crm/whatsapp/embedded-signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, ...signupResult.current }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "No se pudo completar la conexión.");
+      signal: controller.signal,
+    }).finally(() => window.clearTimeout(timer));
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.error || "No se pudo completar la conexión.");
     setState("connected");
     setMessage(`WhatsApp quedó conectado al CRM${data.displayPhoneNumber ? `: ${data.displayPhoneNumber}` : ""}.`);
   }, []);
 
+  useEffect(() => {
+    if (!authCode.current || !signupResult.current.wabaId || !signupResult.current.phoneNumberId || completing.current) return;
+    completing.current = true;
+    const code = authCode.current;
+    setState("finishing");
+    setMessage("Validando la autorización y guardando el número en el CRM…");
+    void finishSignup(code).catch((error) => {
+      setState("error");
+      setMessage(error instanceof Error && error.name === "AbortError" ? "Meta tardó demasiado en responder. Volvé a intentar la conexión." : error instanceof Error ? error.message : "No se pudo completar la conexión.");
+    }).finally(() => {
+      authCode.current = "";
+      completing.current = false;
+    });
+  }, [finishSignup, signupSignal]);
+
   function connect() {
+    authCode.current = "";
+    signupResult.current = {};
+    completing.current = false;
     setMessage("");
     setState("opening");
     if (!window.FB) {
@@ -103,12 +128,10 @@ export function WhatsAppEmbeddedSignup() {
         setMessage("La ventana se cerró sin completar la vinculación.");
         return;
       }
+      authCode.current = code;
+      setSignupSignal((value) => value + 1);
       setState("finishing");
-      setMessage("Validando la autorización con Meta…");
-      void finishSignup(code).catch((error) => {
-        setState("error");
-        setMessage(error instanceof Error ? error.message : "No se pudo completar la conexión.");
-      });
+      setMessage("Meta aprobó el acceso. Esperando la confirmación del número…");
     }, {
       config_id: CONFIG_ID,
       scope: "whatsapp_business_management,whatsapp_business_messaging",

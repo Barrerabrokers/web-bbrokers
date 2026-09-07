@@ -3,14 +3,29 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { canViewAllCrmContacts } from "@/lib/roles";
+import { getWhatsAppChannelCredentials, saveWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 
 export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
   code: z.string().min(1),
-  wabaId: z.string().regex(/^\d+$/).optional(),
-  phoneNumberId: z.string().regex(/^\d+$/).optional(),
+  wabaId: z.string().regex(/^\d+$/),
+  phoneNumberId: z.string().regex(/^\d+$/),
 });
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session || !canViewAllCrmContacts(session.user.role)) {
+    return NextResponse.json({ error: "Solo los administradores pueden consultar canales." }, { status: 403 });
+  }
+  const credentials = await getWhatsAppChannelCredentials();
+  return NextResponse.json({
+    connected: Boolean(credentials),
+    displayPhoneNumber: credentials?.displayPhoneNumber || "",
+    wabaId: credentials?.wabaId || "",
+    phoneNumberId: credentials?.phoneNumberId || "",
+  }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+}
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -29,7 +44,7 @@ export async function POST(request: Request) {
   tokenUrl.searchParams.set("client_id", appId);
   tokenUrl.searchParams.set("client_secret", appSecret);
   tokenUrl.searchParams.set("code", parsed.data.code);
-  const tokenResponse = await fetch(tokenUrl, { cache: "no-store" });
+  const tokenResponse = await fetch(tokenUrl, { cache: "no-store", signal: AbortSignal.timeout(25_000) });
   const tokenData = await tokenResponse.json();
   if (!tokenResponse.ok || !tokenData.access_token) {
     return NextResponse.json({ error: tokenData?.error?.message || "Meta rechazó la autorización." }, { status: 502 });
@@ -43,6 +58,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(25_000),
     });
     if (!subscription.ok) {
       const error = await subscription.json().catch(() => null);
@@ -55,12 +71,15 @@ export async function POST(request: Request) {
     const phoneResponse = await fetch(`https://graph.facebook.com/v23.0/${phoneNumberId}?fields=display_phone_number,verified_name,status`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(25_000),
     });
     if (phoneResponse.ok) {
       const phone = await phoneResponse.json();
       displayPhoneNumber = phone.display_phone_number || "";
     }
   }
+
+  await saveWhatsAppChannelCredentials({ accessToken, wabaId, phoneNumberId, displayPhoneNumber });
 
   return NextResponse.json({ connected: true, wabaId, phoneNumberId, displayPhoneNumber });
 }
