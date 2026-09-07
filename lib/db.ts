@@ -927,6 +927,20 @@ export type CrmEmailAttachmentTracking = {
   updatedAt: string;
 };
 
+export type CrmNotification = {
+  id: string;
+  recipientAgentId?: string;
+  recipientAgentName?: string;
+  leadId: string;
+  leadName: string;
+  type: "email_open";
+  title: string;
+  body: string;
+  href: string;
+  unread: boolean;
+  createdAt: string;
+};
+
 export type CrmLeadInput = {
   id?: string;
   firstName: string;
@@ -2537,6 +2551,21 @@ async function ensureCrmEmailTrackingTable(sql: ReturnType<typeof getPgConnectio
   `);
   await sql.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_email_attachment_trackings_tracking_id ON crm_email_attachment_trackings(tracking_id);`);
   await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_crm_email_attachment_trackings_lead_id ON crm_email_attachment_trackings(lead_id);`);
+  await sql.unsafe(`
+    CREATE TABLE IF NOT EXISTS crm_notifications (
+      id UUID PRIMARY KEY,
+      recipient_agent_id UUID NULL REFERENCES agents(id) ON DELETE CASCADE,
+      lead_id UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+      event_key TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      href TEXT NOT NULL DEFAULT '',
+      read_by UUID[] NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_crm_notifications_recipient_created ON crm_notifications(recipient_agent_id, created_at DESC);`);
 }
 
 async function ensureCrmEmailTrackingSchema() {
@@ -2749,6 +2778,31 @@ export async function registerCrmEmailOpen(
       createdBy: tracking.agentId || null,
     });
 
+    if (tracking.openCount === 1 && tracking.agentId) {
+      const leadRows = await sql`
+        SELECT first_name, last_name
+        FROM crm_leads
+        WHERE id = ${tracking.leadId}
+        LIMIT 1
+      `;
+      const leadName = `${leadRows[0]?.first_name || ""} ${leadRows[0]?.last_name || ""}`.trim() || "Un cliente";
+      await sql`
+        INSERT INTO crm_notifications (
+          id, recipient_agent_id, lead_id, event_key, type, title, body, href
+        ) VALUES (
+          ${crypto.randomUUID()},
+          ${tracking.agentId},
+          ${tracking.leadId},
+          ${`email-open:${tracking.id}`},
+          'email_open',
+          ${`${leadName} abrió tu mensaje`},
+          ${tracking.subject ? `Asunto: ${tracking.subject}` : "El cliente abrió el correo que enviaste."},
+          ${`/admin/crm/${tracking.leadId}?activity=correo`}
+        )
+        ON CONFLICT (event_key) DO NOTHING
+      `;
+    }
+
     return { tracking, activity, error: null };
   } catch (error) {
     console.error("Error registering CRM email open:", error);
@@ -2810,6 +2864,86 @@ export async function registerCrmEmailAttachmentOpen(
     try {
       await sql?.end();
     } catch {}
+  }
+}
+
+export async function getCrmNotifications(options: {
+  agentId: string;
+  includeAll?: boolean;
+}): Promise<CrmNotification[]> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    await ensureCrmEmailTrackingSchema();
+    sql = getPgConnection();
+    const rows = options.includeAll
+      ? await sql`
+          SELECT n.*, TRIM(CONCAT(l.first_name, ' ', l.last_name)) AS lead_name, a.name AS recipient_agent_name,
+            NOT (${options.agentId}::uuid = ANY(n.read_by)) AS unread
+          FROM crm_notifications n
+          JOIN crm_leads l ON l.id = n.lead_id
+          LEFT JOIN agents a ON a.id = n.recipient_agent_id
+          ORDER BY n.created_at DESC
+          LIMIT 50
+        `
+      : await sql`
+          SELECT n.*, TRIM(CONCAT(l.first_name, ' ', l.last_name)) AS lead_name, a.name AS recipient_agent_name,
+            NOT (${options.agentId}::uuid = ANY(n.read_by)) AS unread
+          FROM crm_notifications n
+          JOIN crm_leads l ON l.id = n.lead_id
+          LEFT JOIN agents a ON a.id = n.recipient_agent_id
+          WHERE n.recipient_agent_id = ${options.agentId}
+          ORDER BY n.created_at DESC
+          LIMIT 50
+        `;
+    return rows.map((row) => ({
+      id: String(row.id),
+      recipientAgentId: row.recipient_agent_id ? String(row.recipient_agent_id) : undefined,
+      recipientAgentName: row.recipient_agent_name ? String(row.recipient_agent_name) : undefined,
+      leadId: String(row.lead_id),
+      leadName: String(row.lead_name || "Cliente"),
+      type: "email_open" as const,
+      title: String(row.title || "El cliente abrió tu mensaje"),
+      body: String(row.body || ""),
+      href: String(row.href || `/admin/crm/${row.lead_id}`),
+      unread: Boolean(row.unread),
+      createdAt: String(row.created_at),
+    }));
+  } catch (error) {
+    console.error("Error loading CRM notifications:", error);
+    return [];
+  } finally {
+    try { await sql?.end(); } catch {}
+  }
+}
+
+export async function markCrmNotificationRead(options: {
+  notificationId: string;
+  agentId: string;
+  includeAll?: boolean;
+}): Promise<boolean> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    await ensureCrmEmailTrackingSchema();
+    sql = getPgConnection();
+    const rows = options.includeAll
+      ? await sql`
+          UPDATE crm_notifications
+          SET read_by = CASE WHEN ${options.agentId}::uuid = ANY(read_by) THEN read_by ELSE array_append(read_by, ${options.agentId}::uuid) END
+          WHERE id = ${options.notificationId}
+          RETURNING id
+        `
+      : await sql`
+          UPDATE crm_notifications
+          SET read_by = CASE WHEN ${options.agentId}::uuid = ANY(read_by) THEN read_by ELSE array_append(read_by, ${options.agentId}::uuid) END
+          WHERE id = ${options.notificationId} AND recipient_agent_id = ${options.agentId}
+          RETURNING id
+        `;
+    return rows.length > 0;
+  } catch (error) {
+    console.error("Error marking CRM notification as read:", error);
+    return false;
+  } finally {
+    try { await sql?.end(); } catch {}
   }
 }
 

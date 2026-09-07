@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSiteSettings } from "@/lib/use-site-settings";
 import { PwaInstaller } from "@/components/pwa-installer";
+import { CrmNotifications } from "@/components/admin/crm-notifications";
 
 export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
   const { data: session } = useSession();
@@ -35,6 +36,7 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
         </Link>
 
         <div className="flex items-center gap-2">
+          <CrmNotifications />
           {!crmOnly && <PwaInstaller compact />}
 
           <Link
