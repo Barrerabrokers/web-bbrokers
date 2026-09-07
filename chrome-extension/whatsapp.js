@@ -15,7 +15,10 @@
     contextLoadPromise: null,
     contextLoadedAt: 0,
     featuredSavingIds: new Set(),
+    draftSaveTimer: null,
   };
+
+  const DRAFT_KEY = "bbWhatsAppComposerDraft";
 
   const DEFAULT_CONTACT_TABS = [
     { id: "all", name: "Todos", status: "" },
@@ -507,6 +510,7 @@
       </div>
     `;
     renderTemplates();
+    void restoreDraft(lead);
   }
 
   function renderSearchResults(matches) {
@@ -606,6 +610,7 @@
     preview.hidden = false;
     saveTemplateForm.hidden = true;
     messageInput.value = applyVariables(template.body, state.lead);
+    scheduleDraftSave();
     const imageUrls = template.imageUrls || [];
     attachments.innerHTML = imageUrls.map((url, index) => `
       <a href="${url}" target="_blank" rel="noreferrer">Imagen guardada ${index + 1}</a>
@@ -631,6 +636,41 @@
     attachments.innerHTML = "";
     clearSelectedImage();
     messageInput.focus();
+    scheduleDraftSave();
+  }
+
+  function scheduleDraftSave() {
+    clearTimeout(state.draftSaveTimer);
+    state.draftSaveTimer = setTimeout(async () => {
+      if (!state.lead || preview.hidden) return;
+      await chrome.storage.local.set({
+        [DRAFT_KEY]: {
+          leadId: String(state.lead.id),
+          message: messageInput.value,
+          templateId: state.selectedTemplate?.id ? String(state.selectedTemplate.id) : "",
+          savedAt: Date.now(),
+        },
+      });
+    }, 180);
+  }
+
+  async function restoreDraft(lead) {
+    const stored = await chrome.storage.local.get(DRAFT_KEY);
+    const draft = stored?.[DRAFT_KEY];
+    if (!draft || String(draft.leadId) !== String(lead.id) || Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) return;
+    state.selectedTemplate = state.templates.find((template) => String(template.id) === String(draft.templateId)) || null;
+    templatesSection.hidden = true;
+    preview.hidden = false;
+    messageInput.value = String(draft.message || "");
+    attachments.innerHTML = "";
+    setStatus("Recuperamos tu borrador guardado automáticamente.", "success");
+  }
+
+  async function clearDraft(leadId) {
+    const stored = await chrome.storage.local.get(DRAFT_KEY);
+    if (!stored?.[DRAFT_KEY] || String(stored[DRAFT_KEY].leadId) === String(leadId)) {
+      await chrome.storage.local.remove(DRAFT_KEY);
+    }
   }
 
   function clearSelectedImage() {
@@ -659,17 +699,56 @@
     `;
   }
 
+  function isVisible(element) {
+    if (!element || root.contains(element)) return false;
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return rect.width > 40 && rect.height > 10 && rect.bottom > 0 && rect.top < window.innerHeight
+      && style.display !== "none" && style.visibility !== "hidden" && !element.closest('[aria-hidden="true"]');
+  }
+
+  function findWhatsAppComposer() {
+    const candidates = Array.from(document.querySelectorAll([
+      '#main footer [contenteditable="true"][role="textbox"]',
+      '#main footer [data-lexical-editor="true"]',
+      '#main [contenteditable="true"][role="textbox"]',
+      '#main [contenteditable="true"]',
+    ].join(","))).filter(isVisible);
+    return candidates.map((element) => {
+      const descriptor = [
+        element.getAttribute("aria-label"),
+        element.getAttribute("aria-placeholder"),
+        element.getAttribute("data-placeholder"),
+        element.parentElement?.getAttribute("data-placeholder"),
+      ].filter(Boolean).join(" ").toLowerCase();
+      const rect = element.getBoundingClientRect();
+      let score = 0;
+      if (element.closest("#main footer")) score += 500;
+      if (element.getAttribute("role") === "textbox") score += 120;
+      if (element.hasAttribute("data-lexical-editor")) score += 80;
+      if (/mensaje|message|escribe|type a message/.test(descriptor)) score += 180;
+      if (element.closest('[role="dialog"], [aria-modal="true"]')) score -= 500;
+      score += Math.max(0, rect.top / 10);
+      return { element, score };
+    }).sort((a, b) => b.score - a.score)[0]?.element || null;
+  }
+
   function insertIntoWhatsApp(text) {
-    const composer = document.querySelector('#main footer div[contenteditable="true"][role="textbox"]')
-      || document.querySelector('#main footer div[contenteditable="true"]');
+    const composer = findWhatsAppComposer();
     if (!composer) throw new Error("No encontramos el campo de mensaje. Abrí una conversación e intentá nuevamente.");
-    replaceEditorText(composer, text);
+    if (!replaceEditorText(composer, text)) {
+      throw new Error("WhatsApp no aceptó el texto. Tu borrador sigue guardado; actualizá la página e intentá nuevamente.");
+    }
   }
 
   function replaceEditorText(editor, text) {
     const value = String(text || "").replace(/\r\n?/g, "\n");
     editor.focus();
-    document.execCommand("selectAll", false);
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection.removeAllRanges();
+    selection.addRange(range);
     document.execCommand("delete", false);
     // WhatsApp mantiene su propio modelo del editor. Si insertamos cada línea
     // por separado, registra las palabras pero puede ignorar los párrafos. Un
@@ -684,9 +763,21 @@
     editor.dispatchEvent(pasteEvent);
 
     // Respaldo para editores donde el evento de pegado no tiene manejador.
-    if (!pasteEvent.defaultPrevented) {
+    const readValue = () => String(editor.innerText || editor.textContent || "").replace(/\r\n?/g, "\n").trim();
+    if (readValue() !== value.trim()) {
+      editor.focus();
+      const retryRange = document.createRange();
+      retryRange.selectNodeContents(editor);
+      selection.removeAllRanges();
+      selection.addRange(retryRange);
+      document.execCommand("delete", false);
       document.execCommand("insertText", false, value);
     }
+    if (readValue() !== value.trim()) {
+      editor.textContent = value;
+      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+    }
+    return readValue() === value.trim();
   }
 
   const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -861,12 +952,47 @@
       } : null,
     };
     await chrome.storage.local.set({ bbPendingWhatsAppSend: pending });
+    const identity = visibleConversationIdentity();
+    const openPhone = comparablePhone(identity.phone);
+    const leadPhone = comparablePhone(`${state.lead.countryCode || ""}${state.lead.phone || ""}`);
+    const openName = normalizeText(identity.name);
+    const sameConversation = (openPhone.length >= 8 && leadPhone.endsWith(openPhone))
+      || (openName.length >= 3 && openName === normalizeText(fullName(state.lead)));
+    if (sameConversation && document.querySelector("#main")) {
+      await completePendingSend(pending);
+      return;
+    }
     window.location.assign(`https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}`);
+  }
+
+  async function completePendingSend(pending) {
+    if (pending.image) {
+      const file = dataUrlToFile(pending.image.dataUrl, pending.image.name, pending.image.type);
+      await attachImageToWhatsApp(file, pending.message || "");
+    } else {
+      insertIntoWhatsApp(pending.message || "");
+    }
+
+    await chrome.storage.local.remove("bbPendingWhatsAppSend");
+    await clearDraft(pending.leadId);
+    panel.hidden = false;
+    launcher.setAttribute("aria-expanded", "true");
+    setStatus("Mensaje preparado en WhatsApp. Revisalo y presioná Enviar.", "success");
+    await chrome.runtime.sendMessage({
+      type: "BB_REGISTER_ACTIVITY",
+      activity: {
+        leadId: pending.leadId,
+        type: "whatsapp",
+        title: `WhatsApp con ${pending.leadName}`,
+        body: [pending.message, pending.image ? `Imagen adjunta: ${pending.image.name}` : ""].filter(Boolean).join("\n\n"),
+        scheduledAt: new Date().toISOString(),
+      },
+    });
   }
 
   async function resumePendingSend() {
     const { bbPendingWhatsAppSend: pending } = await chrome.storage.local.get("bbPendingWhatsAppSend");
-    if (!pending || Date.now() - pending.createdAt > 2 * 60 * 1000) {
+    if (!pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
       if (pending) await chrome.storage.local.remove("bbPendingWhatsAppSend");
       return;
     }
@@ -875,7 +1001,6 @@
     const currentPhone = digits(new URL(window.location.href).searchParams.get("phone") || "");
     if (currentPhone && currentPhone !== expectedPhone) return;
 
-    await chrome.storage.local.remove("bbPendingWhatsAppSend");
     try {
       // Espera a que WhatsApp termine de abrir la conversación indicada.
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -883,23 +1008,7 @@
         await wait(250);
       }
 
-      if (pending.image) {
-        const file = dataUrlToFile(pending.image.dataUrl, pending.image.name, pending.image.type);
-        await attachImageToWhatsApp(file, pending.message || "");
-      } else {
-        insertIntoWhatsApp(pending.message || "");
-      }
-
-      await chrome.runtime.sendMessage({
-        type: "BB_REGISTER_ACTIVITY",
-        activity: {
-          leadId: pending.leadId,
-          type: "whatsapp",
-          title: `WhatsApp con ${pending.leadName}`,
-          body: [pending.message, pending.image ? `Imagen adjunta: ${pending.image.name}` : ""].filter(Boolean).join("\n\n"),
-          scheduledAt: new Date().toISOString(),
-        },
-      });
+      await completePendingSend(pending);
     } catch (error) {
       panel.hidden = false;
       launcher.setAttribute("aria-expanded", "true");
@@ -1269,7 +1378,10 @@
     const end = messageInput.selectionEnd ?? start;
     messageInput.setRangeText(variable, start, end, "end");
     messageInput.focus();
+    scheduleDraftSave();
   });
+
+  messageInput.addEventListener("input", scheduleDraftSave);
 
   $(".bb-show-save-template").addEventListener("click", () => {
     saveTemplateForm.hidden = !saveTemplateForm.hidden;

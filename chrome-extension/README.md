@@ -17,6 +17,8 @@ Extensión Manifest V3 para consultar contactos y usar las plantillas de WhatsAp
 - Hacé doble clic en una conversación para abrir automáticamente el cliente completo del CRM.
 - Si el contacto todavía no existe, el formulario de alta se abre con nombre y teléfono autocompletados.
 - Elegí una plantilla, revisá el texto y presioná **Continuar a WhatsApp**.
+- Los borradores se guardan automáticamente y se recuperan si WhatsApp se recarga.
+- Si ya estás en el chat correcto, el mensaje se prepara sin recargar ni cerrar el panel.
 - También podés escribir o editar el texto y elegir una imagen local de hasta 5 MB.
 - Con una imagen seleccionada, WhatsApp abre su vista previa nativa con el texto como descripción.
 - La actividad se registra en el historial del cliente al insertar el mensaje.
