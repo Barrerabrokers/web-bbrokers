@@ -132,7 +132,9 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
       setError("Escribí un nombre para guardar la plantilla.");
       return;
     }
-    if (!subject.trim() || !body.trim()) {
+    const currentBody = contentBlocks.flatMap((block) => block.type === "text" ? [block.text] : block.type === "columns" ? block.columns.flatMap((column) => column.type === "text" ? [column.text] : []) : []).filter(Boolean).join("\n\n");
+    const hasVisualContent = contentBlocks.some((block) => block.type !== "text" || block.text.trim());
+    if (!subject.trim() || !hasVisualContent) {
       setError("Completá el asunto y el contenido antes de guardar la plantilla.");
       return;
     }
@@ -149,7 +151,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
           name: templateName.trim(),
           category: "General",
           subject,
-          body,
+          body: currentBody,
           imageUrls,
           contentBlocks,
         }),

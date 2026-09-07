@@ -8,7 +8,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   ReactNode,
 } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Building2,
@@ -589,6 +589,8 @@ export function CrmBoard({
   const [draggedColumn, setDraggedColumn] = useState<CrmColumnKey | null>(null);
   const [viewNotice, setViewNotice] = useState("");
   const [featuredLeadIds, setFeaturedLeadIds] = useState<string[]>([]);
+  const [savingFeaturedLeadIds, setSavingFeaturedLeadIds] = useState<string[]>([]);
+  const featuredMutations = useRef(new Set<string>());
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [activityForm, setActivityForm] = useState<ActivityFormState>(EMPTY_ACTIVITY);
@@ -612,24 +614,37 @@ export function CrmBoard({
     ? activities.filter((activity) => activity.leadId === selectedLead.id)
     : [];
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/crm/extension-preferences", { cache: "no-store" })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "No se pudieron cargar los destacados");
-        if (cancelled) return;
-        setFeaturedLeadIds(Array.isArray(data.preferences?.featuredLeadIds) ? data.preferences.featuredLeadIds : []);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
+  const refreshFeaturedLeads = useCallback(async () => {
+    if (featuredMutations.current.size) return;
+    const response = await fetch("/api/crm/extension-preferences", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudieron cargar los destacados");
+    if (!featuredMutations.current.size) {
+      setFeaturedLeadIds(Array.isArray(data.preferences?.featuredLeadIds) ? data.preferences.featuredLeadIds : []);
+    }
   }, []);
 
+  useEffect(() => {
+    void refreshFeaturedLeads().catch(() => {});
+    const sync = () => { if (!document.hidden) void refreshFeaturedLeads().catch(() => {}); };
+    const timer = window.setInterval(sync, 15_000);
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [refreshFeaturedLeads]);
+
   const toggleFeaturedLead = async (leadId: string) => {
+    if (featuredMutations.current.has(leadId)) return;
     const previous = featuredLeadIds;
     const featured = !previous.includes(leadId);
     const next = featured ? [...previous, leadId] : previous.filter((id) => id !== leadId);
     setFeaturedLeadIds(next);
+    featuredMutations.current.add(leadId);
+    setSavingFeaturedLeadIds((current) => [...current, leadId]);
     try {
       const response = await fetch("/api/crm/extension-preferences", {
         method: "PATCH",
@@ -639,9 +654,13 @@ export function CrmBoard({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo actualizar el destacado");
       setFeaturedLeadIds(Array.isArray(data.preferences?.featuredLeadIds) ? data.preferences.featuredLeadIds : next);
+      setNotice(featured ? "Contacto guardado en destacados." : "Contacto quitado de destacados.");
     } catch (saveError) {
       setFeaturedLeadIds(previous);
       setError(saveError instanceof Error ? saveError.message : "No se pudo actualizar el destacado");
+    } finally {
+      featuredMutations.current.delete(leadId);
+      setSavingFeaturedLeadIds((current) => current.filter((id) => id !== leadId));
     }
   };
 
@@ -1440,7 +1459,8 @@ export function CrmBoard({
               <button
                 type="button"
                 onClick={() => void toggleFeaturedLead(lead.id)}
-                className={`shrink-0 rounded-full p-1 transition-colors hover:bg-amber-50 ${isFeatured ? "text-amber-500" : "text-ink/28 hover:text-amber-500"}`}
+                disabled={savingFeaturedLeadIds.includes(lead.id)}
+                className={`shrink-0 rounded-full p-1 transition-colors hover:bg-amber-50 disabled:cursor-wait disabled:opacity-55 ${isFeatured ? "text-amber-500" : "text-ink/28 hover:text-amber-500"}`}
                 aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`}
                 aria-pressed={isFeatured}
                 title={isFeatured ? "Quitar de destacados" : "Agregar a destacados"}
@@ -1660,7 +1680,7 @@ export function CrmBoard({
               >
                 {name || "Sin nombre"}
               </Link>
-              <button type="button" onClick={() => void toggleFeaturedLead(lead.id)} className={`shrink-0 rounded-full p-2 ${isFeatured ? "text-amber-500" : "text-ink/30"}`} aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`} aria-pressed={isFeatured}>
+              <button type="button" onClick={() => void toggleFeaturedLead(lead.id)} disabled={savingFeaturedLeadIds.includes(lead.id)} className={`shrink-0 rounded-full p-2 disabled:cursor-wait disabled:opacity-55 ${isFeatured ? "text-amber-500" : "text-ink/30"}`} aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`} aria-pressed={isFeatured}>
                 <Star className="h-5 w-5" fill={isFeatured ? "currentColor" : "none"} />
               </button>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent } from "react";
 import { AlignCenter, AlignLeft, AlignRight, Bold, ImagePlus, Italic, Link, List, ListOrdered, Loader2, Palette, Trash2, Underline } from "lucide-react";
 import type { CrmEmailTemplateContentBlock } from "@/lib/db";
 
@@ -23,18 +23,50 @@ function rangeAt(editor: HTMLElement, start: number, end: number) {
 function plain(html: string) { const node = document.createElement("div"); node.innerHTML = html; return node.innerText.trim(); }
 function domKey(key: string) { return key.replace(/[^a-zA-Z0-9_-]/g, "_"); }
 
+function StableRichText({ editorKey, html, style, onUpdate, onActivate, onRemember }: {
+  editorKey: string;
+  html: string;
+  style: CSSProperties;
+  onUpdate: (key: string, html: string) => void;
+  onActivate: (key: string) => void;
+  onRemember: () => void;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || document.activeElement === editor || editor.innerHTML === html) return;
+    editor.innerHTML = html;
+  }, [html]);
+
+  return <div
+    ref={editorRef}
+    data-editor-id={domKey(editorKey)}
+    data-email-key={editorKey}
+    contentEditable
+    suppressContentEditableWarning
+    onFocus={() => onActivate(editorKey)}
+    onInput={(event) => onUpdate(editorKey, event.currentTarget.innerHTML)}
+    onBlur={(event) => onUpdate(editorKey, event.currentTarget.innerHTML)}
+    onMouseUp={onRemember}
+    onKeyUp={onRemember}
+    className="min-h-10 break-words rounded-md px-2 py-1.5 leading-relaxed outline-none hover:bg-[#f8faf9] focus:bg-white focus:ring-2 focus:ring-[#006b6b]/35"
+    style={style}
+  />;
+}
+
 export function CrmRichEmailEditor({ blocks, onChange, onNotice }: { blocks: Blocks; onChange: (blocks: Blocks) => void; onNotice: (message: string) => void }) {
   const saved = useRef<Bookmark | null>(null); const palette = useRef<HTMLDetailsElement>(null); const fileInput = useRef<HTMLInputElement>(null);
   const [activeKey, setActiveKey] = useState(""); const [uploading, setUploading] = useState(false);
-  const remember = () => { const selection = window.getSelection(); if (!selection?.rangeCount) return; const range = selection.getRangeAt(0); const origin = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? range.commonAncestorContainer as HTMLElement : range.commonAncestorContainer.parentElement; const editor = origin?.closest<HTMLElement>("[data-email-key]"); const key = editor?.dataset.emailKey; if (editor && key) { setActiveKey(key); saved.current = { key, ...offsets(editor, range) }; } };
-  useEffect(() => { document.addEventListener("selectionchange", remember); return () => document.removeEventListener("selectionchange", remember); });
+  const remember = useCallback(() => { const selection = window.getSelection(); if (!selection?.rangeCount) return; const range = selection.getRangeAt(0); const origin = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? range.commonAncestorContainer as HTMLElement : range.commonAncestorContainer.parentElement; const editor = origin?.closest<HTMLElement>("[data-email-key]"); const key = editor?.dataset.emailKey; if (editor && key) { setActiveKey(key); saved.current = { key, ...offsets(editor, range) }; } }, []);
+  useEffect(() => { document.addEventListener("selectionchange", remember); return () => document.removeEventListener("selectionchange", remember); }, [remember]);
   const updateText = (key: string, html: string) => { const [id, column] = key.split("::"); onChange(blocks.map((block) => { if (block.id !== id) return block; if (block.type === "text" && column === undefined) return { ...block, html, text: plain(html) }; if (block.type === "columns" && column !== undefined) return { ...block, columns: block.columns.map((item, index) => index === Number(column) && item.type === "text" ? { ...item, html, text: plain(html) } : item) }; return block; })); };
   const restore = () => { if (!saved.current) return null; const editor = document.querySelector<HTMLElement>(`[data-editor-id="${domKey(saved.current.key)}"]`); if (!editor) return null; const range = rangeAt(editor, saved.current.start, saved.current.end); if (!range) return null; const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range); editor.focus(); return editor; };
   const command = (name: string, value?: string) => { const editor = restore(); if (!editor || !saved.current) return onNotice("Seleccioná el texto que querés modificar."); document.execCommand(name, false, value); updateText(saved.current.key, editor.innerHTML); remember(); };
   const styleSelection = (property: string, value: string) => { const editor = restore(), bookmark = saved.current, selection = window.getSelection(), range = selection?.rangeCount ? selection.getRangeAt(0) : null; if (!editor || !bookmark || !range || range.collapsed) return onNotice("Marcá una palabra o frase para aplicarle el formato."); const span = document.createElement("span"); span.style.setProperty(property, value); try { range.surroundContents(span); } catch { const fragment = range.extractContents(); span.append(fragment); range.insertNode(span); } updateText(bookmark.key, editor.innerHTML); const next = document.createRange(); next.selectNodeContents(span); selection?.removeAllRanges(); selection?.addRange(next); remember(); };
   const keepSelection = (event: MouseEvent) => event.preventDefault();
   const upload = async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; setUploading(true); try { const form = new FormData(); form.append("file", file); form.append("folder", "crm-email"); const response = await fetch("/api/upload", { method: "POST", body: form }); const data = await response.json().catch(() => null) as { url?: string; error?: string } | null; if (!response.ok || !data?.url) throw new Error(data?.error || "No se pudo cargar la imagen."); const image: CrmEmailTemplateContentBlock = { id: crypto.randomUUID(), type: "image", url: data.url, alt: file.name, width: 100, align: "center", borderRadius: 8 }; const index = blocks.findIndex((block) => block.id === activeKey.split("::")[0]); const next = [...blocks]; next.splice(index < 0 ? next.length : index + 1, 0, image); onChange(next); onNotice("Imagen agregada en el lugar elegido."); } catch (error) { onNotice(error instanceof Error ? error.message : "No se pudo cargar la imagen."); } finally { setUploading(false); } };
-  const editable = (key: string, html: string, style: CSSProperties) => <div data-editor-id={domKey(key)} data-email-key={key} contentEditable suppressContentEditableWarning onFocus={() => setActiveKey(key)} onInput={(event) => updateText(key, event.currentTarget.innerHTML)} onMouseUp={remember} onKeyUp={remember} className="min-h-10 break-words rounded-md px-2 py-1.5 leading-relaxed outline-none hover:bg-[#f8faf9] focus:bg-white focus:ring-2 focus:ring-[#006b6b]/35" style={style} dangerouslySetInnerHTML={{ __html: html }} />;
+  const editable = (key: string, html: string, style: CSSProperties) => <StableRichText editorKey={key} html={html} style={style} onUpdate={updateText} onActivate={setActiveKey} onRemember={remember} />;
   const tool = "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ink/15 bg-white text-ink/70 hover:bg-[#e7f4f2] hover:text-[#006b6b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] [&_svg]:h-4 [&_svg]:w-4";
   return <section className="mt-2 overflow-hidden rounded-xl border border-ink/15 bg-[#f3f4f4]">
     <div className="sticky top-0 z-20 border-b border-ink/10 bg-white px-3 py-2 shadow-sm"><div className="flex flex-wrap items-center gap-1.5">

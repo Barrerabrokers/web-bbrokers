@@ -1581,6 +1581,36 @@ export async function upsertCrmExtensionPreferences(
   }
 }
 
+export async function setCrmExtensionContactTabs(
+  agentId: string,
+  contactTabsValue: CrmExtensionPreferences["contactTabs"]
+): Promise<CrmExtensionPreferences> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    await ensureCrmExtensionPreferencesSchema();
+    sql = getPgConnection();
+    const contactTabs = JSON.stringify(contactTabsValue);
+    const rows = await sql`
+      INSERT INTO crm_extension_preferences (agent_id, contact_tabs, featured_lead_ids)
+      VALUES (${agentId}, ${contactTabs}::jsonb, '[]'::jsonb)
+      ON CONFLICT (agent_id) DO UPDATE SET
+        contact_tabs = EXCLUDED.contact_tabs,
+        updated_at = NOW()
+      RETURNING contact_tabs, featured_lead_ids
+    `;
+    return {
+      contactTabs: Array.isArray(rows[0]?.contact_tabs) ? rows[0].contact_tabs : [],
+      featuredLeadIds: Array.isArray(rows[0]?.featured_lead_ids)
+        ? rows[0].featured_lead_ids.map(String)
+        : [],
+    };
+  } finally {
+    try {
+      await sql?.end();
+    } catch {}
+  }
+}
+
 export async function setCrmFeaturedLead(
   agentId: string,
   leadId: string,

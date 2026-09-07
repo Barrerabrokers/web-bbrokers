@@ -5,8 +5,8 @@ import { authOptions } from "@/lib/auth";
 import {
   getCrmExtensionPreferences,
   getCrmLeadById,
+  setCrmExtensionContactTabs,
   setCrmFeaturedLead,
-  upsertCrmExtensionPreferences,
 } from "@/lib/db";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 
@@ -20,7 +20,6 @@ const preferencesSchema = z.object({
     status: z.string().trim().max(80).default(""),
     kind: z.string().trim().max(30).optional(),
   })).max(30),
-  featuredLeadIds: z.array(z.string().uuid()).max(1000),
 });
 
 const featuredSchema = z.object({
@@ -39,7 +38,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const preferences = await getCrmExtensionPreferences(session.user.id);
-  return NextResponse.json({ preferences });
+  return NextResponse.json({ preferences }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }
 
 export async function PUT(request: NextRequest) {
@@ -51,7 +50,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "La configuración de la extensión no es válida" }, { status: 400 });
   }
 
-  const preferences = await upsertCrmExtensionPreferences(session.user.id, parsed.data);
+  // Updating the tab layout must never overwrite favorites. Stars are changed
+  // independently through PATCH so concurrent CRM/extension updates stay safe.
+  const preferences = await setCrmExtensionContactTabs(session.user.id, parsed.data.contactTabs);
   return NextResponse.json({ preferences });
 }
 

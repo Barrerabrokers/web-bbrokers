@@ -14,6 +14,7 @@
     featuredLeadIds: [],
     contextLoadPromise: null,
     contextLoadedAt: 0,
+    featuredSavingIds: new Set(),
   };
 
   const DEFAULT_CONTACT_TABS = [
@@ -262,13 +263,9 @@
   }
 
   async function savePreferences() {
-    const preferences = {
-      contactTabs: state.contactTabs,
-      featuredLeadIds: state.featuredLeadIds,
-    };
+    const preferences = { contactTabs: state.contactTabs };
     await chrome.storage.local.set({
       bbContactTabs: preferences.contactTabs,
-      bbFeaturedLeadIds: preferences.featuredLeadIds,
     });
     const response = await chrome.runtime.sendMessage({ type: "BB_SAVE_PREFERENCES", preferences });
     if (!response?.ok) throw new Error(response?.error || "No se pudo guardar la configuración en el CRM.");
@@ -282,9 +279,10 @@
       if (response?.ok) remotePreferences = response.preferences;
     } catch {}
 
-    const remoteHasData = Array.isArray(remotePreferences?.contactTabs)
+    const hasRemotePreferences = remotePreferences !== null;
+    const remoteHasTabs = Array.isArray(remotePreferences?.contactTabs)
       && remotePreferences.contactTabs.length > 0;
-    const savedTabs = remoteHasData
+    const savedTabs = remoteHasTabs
       ? remotePreferences.contactTabs
       : Array.isArray(stored.bbContactTabs) && stored.bbContactTabs.length
         ? stored.bbContactTabs
@@ -292,17 +290,24 @@
     state.contactTabs = savedTabs.some((tab) => tab.kind === "featured" || tab.id === "featured")
       ? savedTabs.map((tab) => tab.id === "featured" ? { ...tab, kind: "featured" } : tab)
       : [savedTabs[0], { ...DEFAULT_CONTACT_TABS[1] }, ...savedTabs.slice(1)];
-    state.featuredLeadIds = remoteHasData && Array.isArray(remotePreferences.featuredLeadIds)
+    state.featuredLeadIds = hasRemotePreferences && Array.isArray(remotePreferences?.featuredLeadIds)
       ? remotePreferences.featuredLeadIds.map(String)
       : Array.isArray(stored.bbFeaturedLeadIds)
         ? stored.bbFeaturedLeadIds.map(String)
       : [];
     renderContactTabs();
 
-    if (!remoteHasData && (stored.bbContactTabs?.length || stored.bbFeaturedLeadIds?.length)) {
+    if (!remoteHasTabs && stored.bbContactTabs?.length) {
       try {
         await savePreferences();
       } catch {}
+    }
+    if (!hasRemotePreferences && Array.isArray(stored.bbFeaturedLeadIds)) {
+      for (const leadId of stored.bbFeaturedLeadIds) {
+        try {
+          await chrome.runtime.sendMessage({ type: "BB_SET_FEATURED", leadId: String(leadId), featured: true });
+        } catch {}
+      }
     }
   }
 
@@ -448,11 +453,12 @@
   }
 
   async function hydrateCachedContext() {
-    const { bbCrmContextCache } = await chrome.storage.local.get("bbCrmContextCache");
-    if (Array.isArray(bbCrmContextCache?.leads)) state.leads = bbCrmContextCache.leads;
-    if (Array.isArray(bbCrmContextCache?.templates)) state.templates = bbCrmContextCache.templates;
-    state.contextLoadedAt = Number(bbCrmContextCache?.cachedAt) || 0;
-    if (state.leads.length) renderContactTabs();
+    // Never hydrate contacts from a previous browser session: the authenticated
+    // CRM response is the authority for agent/admin visibility.
+    state.leads = [];
+    state.templates = [];
+    state.contextLoadedAt = 0;
+    await chrome.storage.local.remove("bbCrmContextCache");
     void loadContext({ silent: true, force: true });
   }
 
@@ -480,7 +486,7 @@
       <div class="bb-client-copy">
         <div class="bb-client-name-row">
           <strong>${escapeHtml(fullName(lead))}</strong>
-          <button class="bb-feature-toggle" type="button" aria-label="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}" aria-pressed="${isFeatured}" title="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}">${isFeatured ? "★" : "☆"}</button>
+          <button class="bb-feature-toggle" type="button" ${state.featuredSavingIds.has(String(lead.id)) ? "disabled" : ""} aria-label="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}" aria-pressed="${isFeatured}" title="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}">${isFeatured ? "★" : "☆"}</button>
         </div>
         <span class="bb-client-email">${escapeHtml(lead.email || "Sin email")}</span>
         <small>${escapeHtml(contactPhone)}</small>
@@ -1097,13 +1103,14 @@
 
   client.addEventListener("click", async (event) => {
     const button = event.target.closest(".bb-feature-toggle");
-    if (!button || !state.lead) return;
+    if (!button || !state.lead || button.disabled) return;
     const id = String(state.lead.id);
     const isFeatured = state.featuredLeadIds.includes(id);
     const previous = [...state.featuredLeadIds];
     state.featuredLeadIds = isFeatured
       ? state.featuredLeadIds.filter((leadId) => leadId !== id)
       : [...state.featuredLeadIds, id];
+    state.featuredSavingIds.add(id);
     renderContactTabs();
     renderLead(state.lead);
     try {
@@ -1117,9 +1124,12 @@
         ? response.preferences.featuredLeadIds.map(String)
         : state.featuredLeadIds;
       await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
+      setStatus(!isFeatured ? "Contacto guardado en destacados." : "Contacto quitado de destacados.", "success");
     } catch (error) {
       state.featuredLeadIds = previous;
       setStatus(error.message, "error");
+    } finally {
+      state.featuredSavingIds.delete(id);
     }
     renderContactTabs();
     renderLead(state.lead);
@@ -1345,5 +1355,19 @@
 
   loadContactTabs();
   hydrateCachedContext();
+  const syncFeatured = async () => {
+    if (document.hidden || state.featuredSavingIds.size) return;
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "BB_LOAD_PREFERENCES" });
+      if (!response?.ok || !Array.isArray(response.preferences?.featuredLeadIds)) return;
+      state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
+      await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
+      renderContactTabs();
+      if (state.lead) renderLead(state.lead);
+    } catch {}
+  };
+  window.setInterval(syncFeatured, 15_000);
+  window.addEventListener("focus", syncFeatured);
+  document.addEventListener("visibilitychange", syncFeatured);
   resumePendingSend();
 })();
