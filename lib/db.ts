@@ -291,11 +291,14 @@ export async function deleteProperty(id: string): Promise<boolean> {
 
 export async function getAgentByEmail(email: string): Promise<Agent | null> {
   const supabase = getServerSupabase();
+  const normalizedEmail = email.trim().toLowerCase();
 
   const { data, error } = await supabase
     .from("agents")
     .select("*")
-    .eq("email", email)
+    // Email addresses are case-insensitive. Some existing agents were saved
+    // with capital letters and could receive a reset email but not sign in.
+    .ilike("email", normalizedEmail)
     .single();
 
   if (error || !data) return null;
