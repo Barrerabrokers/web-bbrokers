@@ -85,6 +85,20 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
     "{{propietario_contacto}}": lead.assignedAgentName || "Barrera Brokers",
   };
   const applyVariables = (value: string) => Object.entries(variables).reduce((text, [token, replacement]) => text.replaceAll(token, replacement), value || "");
+  const editorVariables = [
+    { token: "{{cliente_nombre}}", label: "Nombre" },
+    { token: "{{cliente_apellido}}", label: "Apellido" },
+    { token: "{{cliente_nombre_completo}}", label: "Nombre completo" },
+    { token: "{{cliente_email}}", label: "Correo" },
+    { token: "{{cliente_telefono}}", label: "Teléfono" },
+    { token: "{{desarrollo}}", label: "Desarrollo" },
+    { token: "{{propietario_contacto}}", label: "Agente responsable" },
+  ];
+  const resolveBlocks = (items: CrmEmailTemplateContentBlock[]) => items.map((block) => block.type === "text"
+    ? { ...block, text: applyVariables(block.text), html: block.html ? applyVariables(block.html) : block.html }
+    : block.type === "button" ? { ...block, label: applyVariables(block.label), url: applyVariables(block.url) }
+      : block.type === "columns" ? { ...block, columns: block.columns.map((column) => column.type === "text" ? { ...column, text: applyVariables(column.text), html: column.html ? applyVariables(column.html) : column.html } : column) }
+        : block);
   const visibleTemplates = emailTemplates.filter((template) => `${template.name} ${template.category} ${template.subject}`.toLocaleLowerCase("es-AR").includes(query.trim().toLocaleLowerCase("es-AR")));
 
   const chooseTemplate = (template: CrmEmailTemplate) => {
@@ -117,7 +131,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
     event.preventDefault();
     setSending(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/crm/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, subject, body, imageUrls, contentBlocks }) });
+      const response = await fetch("/api/crm/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, subject: applyVariables(subject), body: applyVariables(body), imageUrls, contentBlocks: resolveBlocks(contentBlocks) }) });
       const data = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(data?.error || "No se pudo enviar el correo.");
       setNotice("Correo enviado y registrado en las actividades.");
@@ -203,7 +217,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
             <label className="block text-sm font-semibold text-ink">Asunto<input required value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-ink/15 px-3 text-sm font-normal text-ink outline-none focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label>
             <div className="mt-4">
               <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-ink">Mensaje</h3><span className="text-xs text-ink/50">Vista final · 640 px</span></div>
-              <CrmRichEmailEditor blocks={contentBlocks} onChange={updateBlocks} onNotice={setNotice} />
+              <CrmRichEmailEditor blocks={contentBlocks} onChange={updateBlocks} onNotice={setNotice} variables={editorVariables} />
             </div>
             {notice && <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#006b6b]"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
             {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}
