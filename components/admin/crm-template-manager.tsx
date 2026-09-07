@@ -15,10 +15,12 @@ import {
   Bold,
   CheckCircle2,
   BadgePercent,
+  Braces,
   Columns2,
   Copy,
   FileText,
   GripVertical,
+  Highlighter,
   Image as ImageIcon,
   FileImage,
   Italic,
@@ -40,6 +42,7 @@ import {
   Underline,
   Undo2,
   Redo2,
+  RemoveFormatting,
   Wand2,
 } from "lucide-react";
 import type { CrmEmailTemplate, CrmEmailTemplateContentBlock } from "@/lib/db";
@@ -66,6 +69,8 @@ const DEFAULT_WHATSAPP_BODY =
 
 const VARIABLES = [
   { token: "{{cliente_nombre}}", label: "Nombre del cliente" },
+  { token: "{{cliente_apellido}}", label: "Apellido" },
+  { token: "{{cliente_nombre_completo}}", label: "Nombre completo" },
   { token: "{{cliente_email}}", label: "Mail del cliente" },
   { token: "{{cliente_telefono}}", label: "Teléfono" },
   { token: "{{desarrollo}}", label: "Desarrollo" },
@@ -181,6 +186,8 @@ function rangeFromOffsets(editor: HTMLElement, start: number, end: number) {
 function variablePreview(value: string) {
   return value
     .replaceAll("{{cliente_nombre}}", "Federico")
+    .replaceAll("{{cliente_apellido}}", "García")
+    .replaceAll("{{cliente_nombre_completo}}", "Federico García")
     .replaceAll("{{cliente_email}}", "cliente@email.com")
     .replaceAll("{{cliente_telefono}}", "+54 11 5555-5555")
     .replaceAll("{{desarrollo}}", "Alpha Place Belgrano")
@@ -416,7 +423,7 @@ export function CrmTemplateManager({
   useEffect(() => {
     const rememberSelection = () => {
       const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      if (!selection || selection.rangeCount === 0) return;
       const range = selection.getRangeAt(0);
       const element = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
         ? range.commonAncestorContainer as Element
@@ -432,7 +439,7 @@ export function CrmTemplateManager({
           };
         }
         const rect = range.getBoundingClientRect();
-        if (block?.dataset.templateBlockId && rect.width > 0) {
+        if (!selection.isCollapsed && block?.dataset.templateBlockId && rect.width > 0) {
           const toolbarWidth = Math.min(390, window.innerWidth - 24);
           setSelectedBlockId(block.dataset.templateBlockId);
           setSelectionToolbar({
@@ -768,6 +775,7 @@ export function CrmTemplateManager({
   const applyTextCommand = (command: string, value?: string) => {
     if (selectedBlock?.type !== "text") return;
     if (command === "foreColor" && value && applyInlineStyle({ color: value })) return;
+    if ((command === "backColor" || command === "hiliteColor") && value && applyInlineStyle({ backgroundColor: value })) return;
     if (command === "bold" && applyInlineStyle({ fontWeight: "700" })) return;
     if (command === "italic" && applyInlineStyle({ fontStyle: "italic" })) return;
     if (command === "underline" && applyInlineStyle({ textDecoration: "underline" })) return;
@@ -819,6 +827,26 @@ export function CrmTemplateManager({
       return;
     }
 
+    const bookmark = selectedTextBookmark.current;
+    if (bookmark) {
+      const editor = window.document.querySelector<HTMLElement>(
+        `[data-template-block-id="${bookmark.blockId}"] [contenteditable="true"]`
+      );
+      const range = editor ? rangeFromOffsets(editor, bookmark.start, bookmark.end) : null;
+      if (editor && range) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        editor.focus({ preventScroll: true });
+        window.document.execCommand("insertText", false, token);
+        updateTextBlock(bookmark.blockId, { html: editor.innerHTML });
+        const nextRange = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0) : null;
+        if (nextRange) selectedTextBookmark.current = { blockId: bookmark.blockId, ...selectionOffsets(editor, nextRange) };
+        setNotice(`Variable agregada: ${token}`);
+        return;
+      }
+    }
+
     setForm((current) => {
       const selectedIndex =
         selectedBlockId !== null
@@ -843,6 +871,7 @@ export function CrmTemplateManager({
 
       return { ...current, ...syncBlocks(blocks) };
     });
+    setNotice(`Variable agregada: ${token}`);
   };
 
   const removeBlock = (id: string) => {
@@ -1213,11 +1242,6 @@ export function CrmTemplateManager({
                   <div className="hidden items-center rounded-lg border border-ink/15 bg-[#f7f8f8] p-0.5 xl:flex">
                     <button type="button" onClick={() => setPreviewDevice("desktop")} className={`rounded-md p-2 ${previewDevice === "desktop" ? "bg-white text-[#005c5c] shadow-sm" : "text-ink/45"}`} aria-label="Vista de escritorio" aria-pressed={previewDevice === "desktop"}><Monitor className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setPreviewDevice("mobile")} className={`rounded-md p-2 ${previewDevice === "mobile" ? "bg-white text-[#005c5c] shadow-sm" : "text-ink/45"}`} aria-label="Vista móvil" aria-pressed={previewDevice === "mobile"}><Smartphone className="h-4 w-4" /></button>
-                  </div>
-
-                  <div className="hidden items-center gap-1 text-ink/35 2xl:flex">
-                    <button type="button" disabled className="rounded-lg p-2" aria-label="Deshacer"><Undo2 className="h-4 w-4" /></button>
-                    <button type="button" disabled className="rounded-lg p-2" aria-label="Rehacer"><Redo2 className="h-4 w-4" /></button>
                   </div>
 
                   <button
@@ -2168,7 +2192,7 @@ function EditorToolbar({
   onPickVariable: (token: string) => void;
 }) {
   return (
-    <div className="sticky top-[72px] z-10 mb-2 rounded-xl border border-ink/12 bg-white/95 p-2 shadow-sm backdrop-blur">
+    <div className="sticky top-[72px] z-40 mb-2 rounded-xl border border-ink/12 bg-white/95 p-2 shadow-[0_3px_12px_rgba(21,20,21,0.10)] backdrop-blur">
       <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
         <div className="hidden 2xl:block">
           <p className="text-xs font-semibold text-ink">Herramientas de edición</p>
@@ -2178,6 +2202,9 @@ function EditorToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <ToolbarButton label="Deshacer" disabled={disabled} onClick={() => onCommand("undo")}><Undo2 className="h-4 w-4" /></ToolbarButton>
+          <ToolbarButton label="Rehacer" disabled={disabled} onClick={() => onCommand("redo")}><Redo2 className="h-4 w-4" /></ToolbarButton>
+          <span className="mx-0.5 h-6 w-px bg-ink/10" aria-hidden="true" />
           <select
             disabled={disabled}
             defaultValue=""
@@ -2233,6 +2260,11 @@ function EditorToolbar({
           <ToolbarButton label="Derecha" disabled={disabled} onClick={() => onCommand("justifyRight")}>
             <AlignRight className="h-4 w-4" />
           </ToolbarButton>
+          <label title="Resaltar texto" className={`relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ink/12 bg-white text-ink/70 transition-colors hover:bg-cream-100 ${disabled ? "pointer-events-none opacity-40" : "cursor-pointer"}`}>
+            <Highlighter className="h-4 w-4" />
+            <input type="color" defaultValue="#fff2cc" onChange={(event) => onCommand("backColor", event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Color de resaltado" />
+          </label>
+          <ToolbarButton label="Quitar formato" disabled={disabled} onClick={() => onCommand("removeFormat")}><RemoveFormatting className="h-4 w-4" /></ToolbarButton>
           <button
             type="button"
             onMouseDown={(event) => event.preventDefault()}
@@ -2248,7 +2280,7 @@ function EditorToolbar({
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-ink/10 pt-2">
-        <span className="text-xs font-semibold text-ink/55">Variables rápidas</span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink/55"><Braces className="h-3.5 w-3.5" />Variables rápidas</span>
         {VARIABLES.map((variable) => (
           <button
             key={`toolbar-${variable.token}`}
