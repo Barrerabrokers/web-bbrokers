@@ -5,6 +5,8 @@ import postgres from "postgres";
 import type { CrmLeadStatus } from "@/lib/crm-statuses";
 import { normalizeSmtpPassword } from "@/lib/crm-email-errors";
 import { splitInternationalPhone } from "@/lib/phone-countries";
+import { getCrmActivityEditDetails } from "@/lib/crm-activity-edit";
+import { whatsAppMessageDate } from "@/lib/crm-whatsapp-history";
 export type { CrmLeadStatus } from "@/lib/crm-statuses";
 
 // Helper: get raw postgres connection
@@ -885,6 +887,11 @@ export type CrmActivityType =
   | "tarea";
 
 export type CrmActivity = {
+  editVersion?: string;
+  meetingOutcome?: string;
+  meetingEndsAt?: string;
+  editedAt?: string;
+  editedByName?: string;
   id: string;
   leadId: string;
   type: CrmActivityType;
@@ -1926,6 +1933,8 @@ export async function getCrmLeads(options?: {
 }
 
 export type CrmLeadPageOptions = {
+  metaOnly?: boolean;
+  development?: string;
   agentId?: string;
   includeAll?: boolean;
   ownerId?: string;
@@ -1962,10 +1971,26 @@ export async function getCrmLeadsPage(
     if (options.status && options.status !== "all") {
       conditions.push(`l.status = ${addValue(options.status)}`);
     }
+    if (options.development === "__none") {
+      conditions.push("l.development_id IS NULL AND NULLIF(trim(l.development_name_text), '') IS NULL");
+    } else if (options.development?.trim()) {
+      const development = addValue(options.development.trim());
+      conditions.push(`(lower(trim(d.name)) = lower(${development}) OR lower(trim(l.development_name_text)) = lower(${development}))`);
+    }
+    if (options.metaOnly) {
+      conditions.push(`(l.meta_lead_id IS NOT NULL OR lower(l.source) IN ('meta lead ads', 'instagram', 'facebook') OR EXISTS (SELECT 1 FROM crm_activities ma WHERE ma.lead_id = l.id AND ma.external_source = 'meta_lead_ads'))`);
+    }
     const needle = options.query?.trim();
     if (needle) {
       const search = addValue(`%${needle}%`);
-      conditions.push(`concat_ws(' ', l.first_name, l.last_name, l.email, l.country_code, l.phone, l.status, l.source, l.development_name_text, d.name, a.name) ILIKE ${search}`);
+      const contactMatch = `concat_ws(' ', l.first_name, l.last_name, l.email, l.country_code, l.phone) ILIKE ${search}`;
+      const phoneDigits = needle.replace(/\D/g, "");
+      if (phoneDigits && /^[+()\d\s.-]+$/.test(needle)) {
+        const phoneSearch = addValue(`%${phoneDigits}%`);
+        conditions.push(`(${contactMatch} OR regexp_replace(concat_ws('', l.country_code, l.phone), '[^0-9]', '', 'g') LIKE ${phoneSearch})`);
+      } else {
+        conditions.push(contactMatch);
+      }
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -2359,9 +2384,10 @@ export async function getCrmActivities(leadIds: string[]): Promise<CrmActivity[]
       LEFT JOIN agents ON agents.id = act.created_by
       WHERE act.lead_id = ANY(${leadIds})
       ORDER BY act.created_at DESC
-      LIMIT 600
+      LIMIT ${leadIds.length === 1 ? null : 600}
     `;
-    return (rows as unknown as CrmActivityRow[]).map(mapCrmActivity);
+    const editDetails = await getCrmActivityEditDetails(rows.map(row => row.id));
+    return (rows as unknown as CrmActivityRow[]).map(row => ({ ...mapCrmActivity(row), ...editDetails.find(item => item.id === row.id) }));
   } catch (error) {
     console.error("Error fetching CRM activities:", error);
     return [];
@@ -3288,8 +3314,13 @@ export async function upsertCrmEmailTemplate(
         crm_email_templates.*,
         NULL::text AS created_by_name
     `;
+    const row = rows[0];
+    if (row?.created_by) {
+      const authors = await sql`SELECT name FROM agents WHERE id = ${row.created_by} LIMIT 1`;
+      row.created_by_name = authors[0]?.name || null;
+    }
     return {
-      template: rows[0] ? mapCrmEmailTemplate(rows[0] as unknown as CrmEmailTemplateRow) : null,
+      template: row ? mapCrmEmailTemplate(row as unknown as CrmEmailTemplateRow) : null,
       error: null,
     };
   } catch (error) {
@@ -4889,3 +4920,60 @@ export const DEFAULT_INVESTMENT_SETTINGS: InvestmentSettings = {
 // Mergear los defaults de investment al singleton DEFAULT_FULL_SETTINGS
 // (forward declaration arriba; se completa acá ahora que ya cargó todo).
 Object.assign(DEFAULT_FULL_SETTINGS, DEFAULT_INVESTMENT_SETTINGS);
+
+/** Locks the whole selection before checking ownership: a transfer cannot leave a partial batch. */
+export async function updateCrmLeadSelection(input: {
+  ids: string[]; actorId: string; includeAll: boolean;
+  status?: CrmLeadStatus; assignedAgentId?: string;
+}) {
+  const sql = getPgConnection();
+  try {
+    return await sql.begin(async (tx) => {
+      const ids = Array.from(new Set(input.ids)).sort();
+      const before = await tx`SELECT * FROM crm_leads WHERE id IN ${tx(ids)} ORDER BY id FOR UPDATE`;
+      if (before.length !== ids.length || (!input.includeAll && before.some((row) => row.assigned_agent_id !== input.actorId))) {
+        throw new Error("No se aplicaron cambios: uno de los contactos ya no te pertenece o no está disponible.");
+      }
+      if (input.assignedAgentId !== undefined) {
+        if (!input.assignedAgentId && !input.includeAll) throw new Error("Elegí un agente para transferir los contactos.");
+        if (input.assignedAgentId) {
+          const [agent] = await tx`SELECT id FROM agents WHERE id=${input.assignedAgentId} AND active=true AND role IN ('admin','agent','marketing') FOR SHARE`;
+          if (!agent) throw new Error("El agente seleccionado no está activo.");
+        }
+      }
+      const patch: { updated_at: Date; status?: string; assigned_agent_id?: string | null } = { updated_at: new Date() };
+      if (input.status !== undefined) patch.status = input.status;
+      if (input.assignedAgentId !== undefined) patch.assigned_agent_id = input.assignedAgentId || null;
+      await tx`UPDATE crm_leads SET ${tx(patch)} WHERE id IN ${tx(ids)}`;
+      const after = await tx`SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id WHERE l.id IN ${tx(ids)}`;
+      return after.map((row) => ({ lead: mapCrmLead(row as unknown as CrmLeadRow), previousStatus: before.find((old) => old.id === row.id)!.status as CrmLeadStatus }));
+    });
+  } finally { await sql.end(); }
+}
+
+export async function syncExtensionWhatsAppMessages(input: {
+  leadId: string; actorId: string; includeAll: boolean;
+  messages: { id: string; direction: "inbound" | "outbound"; text: string; timestamp: string }[];
+}) {
+  const sql = getPgConnection();
+  try {
+    return await sql.begin(async tx => {
+      const [lead] = await tx`SELECT assigned_agent_id FROM crm_leads WHERE id=${input.leadId} FOR UPDATE`;
+      if (!lead || (!input.includeAll && lead.assigned_agent_id !== input.actorId)) throw new Error("Forbidden contact");
+      const records = Array.from(new Map(input.messages.map(message => [message.id, message])).values()).map(message => ({
+        id: crypto.randomUUID(), lead_id: input.leadId, type: "whatsapp",
+        title: message.direction === "inbound" ? "WhatsApp recibido del cliente" : "WhatsApp enviado al cliente",
+        body: `${message.timestamp ? `Fecha en WhatsApp: ${message.timestamp}\n\n` : ""}${message.text}`,
+        created_by: input.actorId, external_source: "whatsapp-web",
+        scheduled_at: whatsAppMessageDate(message.timestamp),
+        external_id: createHash("sha256").update(`${input.leadId}:${message.id}`).digest("hex"),
+      }));
+      const rows = await tx`INSERT INTO crm_activities ${tx(records)}
+        ON CONFLICT (external_source, external_id) WHERE external_source IS NOT NULL AND external_id IS NOT NULL
+        DO UPDATE SET body=EXCLUDED.body, title=EXCLUDED.title,
+          scheduled_at=COALESCE(EXCLUDED.scheduled_at,crm_activities.scheduled_at)
+        RETURNING id`;
+      return rows.length;
+    });
+  } finally { await sql.end(); }
+}

@@ -1,4 +1,6 @@
 "use client";
+import { CrmTemplateAuthorFilter } from "@/components/admin/crm-template-author-filter";
+import { templateMatchesAuthor } from "@/lib/crm-template-filters";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -34,12 +36,14 @@ type LeadForEmail = {
   assignedAgentName?: string;
 };
 
-export function CrmEmailComposer({ lead, templates, history = [] }: { lead: LeadForEmail; templates: CrmEmailTemplate[]; history?: EmailHistoryItem[] }) {
+export function CrmEmailComposer({ lead, templates, history = [], currentAgentId }: { lead: LeadForEmail; templates: CrmEmailTemplate[]; history?: EmailHistoryItem[]; currentAgentId: string }) {
   const router = useRouter();
   const initialEmailTemplates = useMemo(() => templates.filter((template) => template.channel === "email"), [templates]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [emailTemplates, setEmailTemplates] = useState(initialEmailTemplates);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [authorFilter, setAuthorFilter] = useState("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [subject, setSubject] = useState("Barrera Brokers");
   const [body, setBody] = useState(`Hola ${lead.firstName},\n\n`);
@@ -99,7 +103,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
     : block.type === "button" ? { ...block, label: applyVariables(block.label), url: applyVariables(block.url) }
       : block.type === "columns" ? { ...block, columns: block.columns.map((column) => column.type === "text" ? { ...column, text: applyVariables(column.text), html: column.html ? applyVariables(column.html) : column.html } : column) }
         : block);
-  const visibleTemplates = emailTemplates.filter((template) => `${template.name} ${template.category} ${template.subject}`.toLocaleLowerCase("es-AR").includes(query.trim().toLocaleLowerCase("es-AR")));
+  const visibleTemplates = emailTemplates.filter((template) => templateMatchesAuthor(template, authorFilter, currentAgentId) && `${template.name} ${template.category} ${template.subject} ${template.createdByName || ""}`.toLocaleLowerCase("es-AR").includes(query.trim().toLocaleLowerCase("es-AR")));
 
   const chooseTemplate = (template: CrmEmailTemplate) => {
     const blocks = template.contentBlocks.map((block) => block.type === "text"
@@ -129,6 +133,7 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
 
   const send = async (event: FormEvent) => {
     event.preventDefault();
+    if (uploadingAttachments) return;
     setSending(true); setError(""); setNotice("");
     try {
       const response = await fetch("/api/crm/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, subject: applyVariables(subject), body: applyVariables(body), imageUrls, contentBlocks: resolveBlocks(contentBlocks) }) });
@@ -209,7 +214,8 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
             <div className="mt-5 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-ink">Elegir una plantilla</h3><span className="text-xs text-ink/55">{emailTemplates.length}</span></div>
             <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/45" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar plantillas" className="h-10 w-full rounded-lg border border-ink/15 bg-white pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink/50 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></div>
             <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1 lg:max-h-[58vh]">
-              {visibleTemplates.map((template) => <button key={template.id} type="button" onClick={() => chooseTemplate(template)} className={`w-full rounded-lg p-3 text-left transition-colors ${selectedTemplateId === template.id ? "bg-[#006b6b] text-white" : "bg-white text-ink ring-1 ring-ink/10 hover:bg-[#e7f4f2]"}`}><span className="block text-sm font-semibold">{template.name}</span><span className={`mt-1 block text-xs ${selectedTemplateId === template.id ? "text-white/75" : "text-ink/55"}`}>{template.category} · {template.subject || "Sin asunto"}</span></button>)}
+              <CrmTemplateAuthorFilter templates={emailTemplates} value={authorFilter} onChange={setAuthorFilter} />
+              {visibleTemplates.map((template) => <button key={template.id} type="button" onClick={() => chooseTemplate(template)} className={`w-full rounded-lg p-3 text-left transition-colors ${selectedTemplateId === template.id ? "bg-[#006b6b] text-white" : "bg-white text-ink ring-1 ring-ink/10 hover:bg-[#e7f4f2]"}`}><span className="block text-sm font-semibold">{template.name}</span><span className={`mt-1 block text-xs ${selectedTemplateId === template.id ? "text-white/75" : "text-ink/55"}`}>{template.category} · {template.subject || "Sin asunto"}</span><span className="mt-1 block text-xs">Creada por {template.createdByName || "autor no registrado"}</span></button>)}
               {visibleTemplates.length === 0 && <p className="rounded-lg border border-dashed border-ink/15 px-3 py-6 text-center text-sm text-ink/55">No hay plantillas que coincidan.</p>}
             </div>
           </aside>
@@ -217,12 +223,12 @@ export function CrmEmailComposer({ lead, templates, history = [] }: { lead: Lead
             <label className="block text-sm font-semibold text-ink">Asunto<input required value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-ink/15 px-3 text-sm font-normal text-ink outline-none focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label>
             <div className="mt-4">
               <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-ink">Mensaje</h3><span className="text-xs text-ink/50">Vista final · 640 px</span></div>
-              <CrmRichEmailEditor blocks={contentBlocks} onChange={updateBlocks} onNotice={setNotice} variables={editorVariables} />
+              <CrmRichEmailEditor blocks={contentBlocks} onChange={updateBlocks} onNotice={setNotice} variables={editorVariables} onUploadingChange={setUploadingAttachments} />
             </div>
             {notice && <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#006b6b]"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
             {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}
-            {showTemplateSave && <div className="mt-4 rounded-lg bg-[#f3f4f4] p-3 ring-1 ring-ink/10"><label className="block text-xs font-semibold text-ink">Nombre de la nueva plantilla<input autoFocus value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej.: Presentación del desarrollo" className="mt-2 h-11 w-full rounded-lg border border-ink/15 bg-white px-3 text-sm font-normal text-ink outline-none placeholder:text-ink/45 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => { setShowTemplateSave(false); setTemplateName(""); }} className="min-h-10 rounded-lg px-3 text-sm font-medium text-ink/65 hover:bg-white">Cancelar</button><button type="button" onClick={() => void saveAsTemplate()} disabled={savingTemplate} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#006b6b] bg-white px-4 text-sm font-semibold text-[#006b6b] disabled:opacity-50">{savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savingTemplate ? "Guardando…" : "Guardar plantilla"}</button></div></div>}
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button type="button" onClick={() => setShowTemplateSave(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b] hover:bg-[#e7f4f2]"><Plus className="h-4 w-4" />Guardar como plantilla</button><button disabled={sending || savingTemplate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar solamente"}</button></div>
+            {showTemplateSave && <div className="mt-4 rounded-lg bg-[#f3f4f4] p-3 ring-1 ring-ink/10"><label className="block text-xs font-semibold text-ink">Nombre de la nueva plantilla<input autoFocus value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej.: Presentación del desarrollo" className="mt-2 h-11 w-full rounded-lg border border-ink/15 bg-white px-3 text-sm font-normal text-ink outline-none placeholder:text-ink/45 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => { setShowTemplateSave(false); setTemplateName(""); }} className="min-h-10 rounded-lg px-3 text-sm font-medium text-ink/65 hover:bg-white">Cancelar</button><button type="button" onClick={() => void saveAsTemplate()} disabled={savingTemplate || uploadingAttachments} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#006b6b] bg-white px-4 text-sm font-semibold text-[#006b6b] disabled:opacity-50">{savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savingTemplate ? "Guardando…" : "Guardar plantilla"}</button></div></div>}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button type="button" onClick={() => setShowTemplateSave(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b] hover:bg-[#e7f4f2]"><Plus className="h-4 w-4" />Guardar como plantilla</button><button disabled={sending || savingTemplate || uploadingAttachments} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar solamente"}</button></div>
           </div>
         </form>
       </section>

@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest) {
   const current = await getWhatsAppConversation(parsed.data.id);
   if (!current) return NextResponse.json({ error: "Conversación inexistente" }, { status: 404 });
   const isAdmin = canViewAllCrmContacts(session.user.role);
-  if (!isAdmin && current.assignedAgentId && current.assignedAgentId !== session.user.id) return NextResponse.json({ error: "No podés acceder a este chat" }, { status: 403 });
+  if (!isAdmin && current.assignedAgentId !== session.user.id) return NextResponse.json({ error: "No podés acceder a este chat" }, { status: 403 });
   try {
     let conversation;
     switch (parsed.data.action) {

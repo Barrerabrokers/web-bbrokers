@@ -16,5 +16,5 @@ export default async function AdminCrmTemplatesPage() {
   }
 
   const templates = await getCrmEmailTemplates();
-  return <CrmTemplateManager initialTemplates={templates} />;
+  return <CrmTemplateManager initialTemplates={templates} currentAgentId={session.user.id} currentAgentName={session.user.name || "Agente"} />;
 }

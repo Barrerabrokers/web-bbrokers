@@ -10,7 +10,7 @@ import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 
 export const dynamic = "force-dynamic";
 
-export default async function WhatsAppInboxPage() {
+export default async function WhatsAppInboxPage({ searchParams = {} }: { searchParams?: { channel?: string; lead?: string; embedded?: string } }) {
   const session = await getServerSession(authOptions);
   if (!session || !canManageListings(session.user.role)) redirect("/login?from=/admin/crm/marketing/whatsapp");
   const isAdmin = canViewAllCrmContacts(session.user.role);
@@ -19,7 +19,7 @@ export default async function WhatsAppInboxPage() {
     isAdmin ? getAllAgents() : Promise.resolve([]),
     isAdmin ? getWhatsAppChannelCredentials() : Promise.resolve(null),
   ]);
-  return <>{isAdmin && <WhatsAppEmbeddedSignup initialConnection={savedWhatsApp ? { displayPhoneNumber: savedWhatsApp.displayPhoneNumber } : undefined} />}<WhatsAppInbox initialConversations={conversations} agents={allAgents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name }))} isAdmin={isAdmin} configured={{
+  return <>{isAdmin && !searchParams.embedded && <WhatsAppEmbeddedSignup initialConnection={savedWhatsApp ? { displayPhoneNumber: savedWhatsApp.displayPhoneNumber } : undefined} />}<WhatsAppInbox initialChannel={searchParams.channel === "instagram" || searchParams.channel === "facebook" ? searchParams.channel : "all"} initialSelectedId={conversations.find(c => c.leadId === searchParams.lead)?.id} initialConversations={conversations} agents={allAgents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name }))} isAdmin={isAdmin} configured={{
     whatsapp: Boolean((process.env.WHATSAPP_ACCESS_TOKEN || savedWhatsApp?.accessToken || process.env.META_ACCESS_TOKEN) && (process.env.WHATSAPP_PHONE_NUMBER_ID || savedWhatsApp?.phoneNumberId)),
     instagram: Boolean((process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN) && process.env.META_PAGE_ID),
     facebook: Boolean((process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN) && process.env.META_PAGE_ID),

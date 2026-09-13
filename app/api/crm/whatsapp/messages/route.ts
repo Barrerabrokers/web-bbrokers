@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Mensaje inválido" }, { status: 400 });
   let conversation = await getWhatsAppConversation(parsed.data.conversationId);
   if (!conversation) return NextResponse.json({ error: "Conversación inexistente" }, { status: 404 });
-  if (!canViewAllCrmContacts(session.user.role) && conversation.assignedAgentId && conversation.assignedAgentId !== session.user.id) return NextResponse.json({ error: "Este chat pertenece a otro agente" }, { status: 403 });
+  if (!canViewAllCrmContacts(session.user.role) && conversation.assignedAgentId !== session.user.id) return NextResponse.json({ error: "Este chat pertenece a otro agente" }, { status: 403 });
   try {
     conversation = await updateWhatsAppConversation(conversation.id, { lockAgentId: session.user.id, markRead: true });
     const messageId = conversation!.channel === "whatsapp"

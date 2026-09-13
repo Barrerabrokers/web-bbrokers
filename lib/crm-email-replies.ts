@@ -27,14 +27,14 @@ function header(message: GmailMessage, name: string) {
   return message.payload?.headers?.find((item) => item.name?.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
-export async function syncLeadEmailReplies({ lead, agentId, origin }: { lead: CrmLead; agentId: string; origin: string }) {
+export async function syncLeadEmailReplies({ lead, agentId, origin, since }: { lead: CrmLead; agentId: string; origin: string; since?: Date }) {
   const account = await getCrmEmailAccountWithSecret(agentId);
   if (!account || account.provider !== "google-oauth") return { imported: 0, available: false, error: "La cuenta del propietario debe estar conectada con Google." };
   if (!account.googleScopes?.includes("gmail.readonly")) return { imported: 0, available: false, error: "Reconectá Google para habilitar la lectura de respuestas." };
 
   const accessToken = await getAccessTokenForGoogleAccount({ origin, account });
-  const query = encodeURIComponent(`from:${lead.email} newer_than:1y`);
-  const listResponse = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=40`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  const query = encodeURIComponent(`from:${lead.email} ${since ? `after:${Math.floor(since.getTime() / 1000)}` : "newer_than:1y"}`);
+  const listResponse = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=40`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
   const list = await listResponse.json().catch(() => null) as { messages?: { id: string }[]; error?: { message?: string } } | null;
   if (!listResponse.ok) throw new Error(list?.error?.message || "No se pudieron consultar las respuestas de Gmail.");
 
@@ -42,7 +42,7 @@ export async function syncLeadEmailReplies({ lead, agentId, origin }: { lead: Cr
   const existingIds = new Set((await getCrmActivities([lead.id])).filter((activity) => activity.externalSource === "gmail_inbound").map((activity) => activity.externalId));
   for (const item of list?.messages || []) {
     if (existingIds.has(item.id)) continue;
-    const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+    const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const message = await response.json().catch(() => null) as GmailMessage | null;
     if (!response.ok || !message?.id) continue;
     const subject = header(message, "Subject") || "Sin asunto";

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { canManageAdminPanel } from "@/lib/roles";
 
 const crmNavItems = [
+  { href: "/admin/crm/panel-agentes", label: "Panel de agentes", description: "Actividad y comunicaciones", icon: UsersRound },
   {
     href: "/admin/crm/marketing/whatsapp",
     label: "Conversaciones",

@@ -58,8 +58,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       loadAllAccessibleLeads(),
       callCrm("/api/crm/templates"),
       callCrm("/api/crm/extension-preferences"),
+      callCrm("/api/auth/session"),
     ])
-      .then(([leads, templates, preferences]) => sendResponse({ ok: true, leads, templates, preferences: preferences?.preferences }))
+      .then(([leads, templates, preferences, session]) => {
+        if (!session?.user?.id) throw new Error("Iniciá sesión con tu usuario del CRM.");
+        sendResponse({ ok: true, leads, templates, preferences: preferences?.preferences, actorId: session.user.id, actorName: session.user.name });
+      })
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -109,13 +113,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "BB_SYNC_CONVERSATION") {
+    callCrm("/api/crm/whatsapp/extension-sync", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId: message.leadId, expectedActorId: message.actorId, messages: message.messages }),
+    }).then(result => {
+      if (result?.__error) throw new Error(result.__error);
+      sendResponse({ ok: true, saved: result.saved });
+    }).catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   if (message?.type === "BB_REGISTER_ACTIVITY") {
     callCrm("/api/crm/activities", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(message.activity),
     })
-      .then((result) => sendResponse({ ok: true, result }))
+      .then((result) => { if (result?.__error) throw new Error(result.__error); sendResponse({ ok: true, result }); })
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -125,6 +140,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...message.lead, source: "WhatsApp" }),
+    })
+      .then((result) => {
+        if (result?.__error) throw new Error(result.__error);
+        sendResponse({ ok: true, result });
+      })
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === "BB_UPDATE_LEAD") {
+    callCrm("/api/crm/leads", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message.lead),
     })
       .then((result) => {
         if (result?.__error) throw new Error(result.__error);

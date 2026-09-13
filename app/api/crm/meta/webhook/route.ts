@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { processMetaMessages } from "@/lib/meta-message-webhook";
 import {
   importMetaLeadgenId,
   verifyMetaSignature,
@@ -61,6 +62,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
   }
 
+  try { await processMetaMessages(payload); } catch {
+    return NextResponse.json({ error: "No se pudo registrar el mensaje; reintentar entrega." }, { status: 503 });
+  }
   if (payload.object !== "page") {
     return NextResponse.json({ received: true, ignored: true });
   }

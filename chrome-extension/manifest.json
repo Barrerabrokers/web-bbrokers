@@ -1,9 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Barrera Brokers CRM para WhatsApp",
-  "version": "0.6.7",
+  "version": "0.6.16",
   "description": "Consulta clientes y usa plantillas del CRM desde WhatsApp Web.",
-  "permissions": ["tabs", "storage", "unlimitedStorage", "clipboardWrite"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "unlimitedStorage",
+    "clipboardWrite"
+  ],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://barrerabrokers.com/*",
@@ -17,21 +22,36 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://web.whatsapp.com/*"],
-      "js": ["whatsapp.js"],
-      "css": ["whatsapp.css"],
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "featured-bridge.js",
+        "whatsapp.js"
+      ],
+      "css": [
+        "whatsapp.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://barrerabrokers.com/*"],
-      "js": ["crm-bridge.js"],
+      "matches": [
+        "https://barrerabrokers.com/*"
+      ],
+      "js": [
+        "crm-bridge.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["bb-logo.jpg"],
-      "matches": ["https://web.whatsapp.com/*"]
+      "resources": [
+        "bb-logo.jpg"
+      ],
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ]
     }
   ]
 }

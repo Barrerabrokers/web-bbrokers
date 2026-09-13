@@ -33,6 +33,7 @@ const baseMenuItems = [
 ];
 
 const crmSubmenuItems = [
+  { href: "/admin/crm/panel-agentes", label: "Panel de agentes", icon: LayoutDashboard },
   { href: "/admin/crm", label: "Contactos", icon: Users },
   { href: "/admin/crm/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/admin/crm/reuniones", label: "Link de reuniones", icon: CalendarPlus },

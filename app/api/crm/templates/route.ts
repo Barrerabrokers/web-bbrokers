@@ -59,7 +59,7 @@ const templateSchema = z.object({
           align: z.enum(["left", "center", "right"]).optional(),
           backgroundColor: z.string().optional(),
           textColor: z.string().optional(),
-          borderRadius: z.number().min(0).max(40).optional(),
+          borderRadius: z.number().min(0).max(999).transform((value) => Math.min(value, 40)).optional(),
         }),
         z.object({
           id: z.string().trim().min(1),

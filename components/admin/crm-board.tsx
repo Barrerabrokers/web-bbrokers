@@ -1,5 +1,12 @@
 "use client";
 
+import { CrmBulkActions } from "@/components/admin/crm-bulk-actions";
+import { CrmTemplateAuthorFilter } from "@/components/admin/crm-template-author-filter";
+import { templateMatchesAuthor } from "@/lib/crm-template-filters";
+
+import { CrmCallOutcomeChecklist } from "@/components/admin/crm-call-outcome-checklist";
+import { formatCallOutcomes, type CallOutcome } from "@/lib/crm-call-outcomes";
+
 import Link from "next/link";
 import type {
   ChangeEvent,
@@ -79,6 +86,8 @@ type HubSpotImportOptions = {
 };
 
 type CrmEmailTemplateOption = {
+  createdBy?: string;
+  createdByName?: string;
   id: string;
   channel?: "email" | "whatsapp";
   name: string;
@@ -168,6 +177,7 @@ type LeadFormState = {
 };
 
 type ActivityFormState = {
+  callOutcomes?: CallOutcome[];
   type: CrmActivityType;
   title: string;
   body: string;
@@ -195,6 +205,7 @@ type PhoneInlineEditorState = {
 };
 
 type CallSessionState = {
+  outcomes?: CallOutcome[];
   startedAt: string;
   endedAt: string;
   notes: string;
@@ -557,9 +568,11 @@ export function CrmBoard({
   const [emailComposerLeadId, setEmailComposerLeadId] = useState("");
   const [whatsAppComposerLeadId, setWhatsAppComposerLeadId] = useState("");
   const [callSessionLeadId, setCallSessionLeadId] = useState("");
+  const [developmentFilter, setDevelopmentFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState(currentUserId);
   const [statusFilter, setStatusFilter] = useState<CrmLeadStatus | "all">("all");
   const [query, setQuery] = useState("");
+  const [filtersReady, setFiltersReady] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof CRM_PAGE_SIZE_OPTIONS)[number]>(50);
   const [isCreating, setIsCreating] = useState(false);
@@ -600,6 +613,11 @@ export function CrmBoard({
     assignedAgentId: canAssignTeam ? agents[0]?.id || currentUserId : currentUserId,
   });
 
+  const developmentFilterOptions = useMemo(() => Array.from(new Map(crmDevelopments.map(item => [item.name.trim().toLocaleLowerCase("es-AR"), item.name.trim()])).entries()).filter(([key]) => key).sort((a,b) => a[1].localeCompare(b[1],"es-AR")), [crmDevelopments]);
+  const developmentFilterControl = <select aria-label="Filtrar contactos por desarrollo" value={developmentFilter} onChange={event => { setDevelopmentFilter(event.target.value); setCurrentPage(1); setSelectedLeadIds([]); }} className="h-10 min-w-0 max-w-[240px] rounded-full border border-ink/20 bg-white px-3 text-sm text-ink outline-none focus:border-[#005c5c]">
+    <option value="">Todos los desarrollos</option><option value="__none">Sin desarrollo</option>
+    {developmentFilterOptions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+  </select>;
   const activeAgents = useMemo(() => agents.filter((agent) => agent.active), [agents]);
   const effectiveLeadStatusOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -696,14 +714,45 @@ export function CrmBoard({
   );
 
   useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(`crm-contact-filters:${currentUserId}`) || "null");
+      if (saved && typeof saved === "object") {
+        if (typeof saved.query === "string") setQuery(saved.query);
+        if (typeof saved.development === "string") setDevelopmentFilter(saved.development);
+        if (typeof saved.status === "string") setStatusFilter(saved.status as CrmLeadStatus | "all");
+        if (canAssignTeam && typeof saved.owner === "string" && (["all", "unassigned", currentUserId].includes(saved.owner) || agents.some(agent => agent.id === saved.owner))) setOwnerFilter(saved.owner);
+        if (CRM_PAGE_SIZE_OPTIONS.includes(saved.pageSize)) setPageSize(saved.pageSize);
+      }
+    } catch { /* Unavailable or invalid browser storage must not block contacts. */ }
+    setFiltersReady(true);
+  }, [currentUserId, canAssignTeam, agents]);
+
+  useEffect(() => {
+    if (!filtersReady) return;
+    try {
+      window.localStorage.setItem(`crm-contact-filters:${currentUserId}`, JSON.stringify({ query, development: developmentFilter, status: statusFilter, owner: ownerFilter, pageSize }));
+    } catch { /* Contacts remain usable when browser storage is unavailable. */ }
+  }, [filtersReady, currentUserId, query, developmentFilter, statusFilter, ownerFilter, pageSize]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setDevelopmentFilter("");
+    setStatusFilter("all");
+    setOwnerFilter(canAssignTeam ? "all" : currentUserId);
+    setCurrentPage(1);
+    setSelectedLeadIds([]);
+  };
+
+  useEffect(() => {
     if (currentPage > pageCount) setCurrentPage(pageCount);
   }, [currentPage, pageCount]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [ownerFilter, pageSize, query, statusFilter]);
+  }, [developmentFilter, ownerFilter, pageSize, query, statusFilter]);
 
   useEffect(() => {
+    if (!filtersReady) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       const params = new URLSearchParams({
@@ -711,6 +760,7 @@ export function CrmBoard({
         pageSize: String(pageSize),
         owner: ownerFilter,
         status: statusFilter,
+        development: developmentFilter,
         query: query.trim(),
         sort: sortState.column,
         direction: sortState.direction,
@@ -741,7 +791,7 @@ export function CrmBoard({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [ownerFilter, pageSize, query, safeCurrentPage, sortState, statusFilter]);
+  }, [filtersReady, developmentFilter, ownerFilter, pageSize, query, safeCurrentPage, sortState, statusFilter]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(pointer: coarse), (max-width: 1023px)");
@@ -806,10 +856,13 @@ export function CrmBoard({
   }, []);
 
   useEffect(() => {
-    setCrmDevelopments(mergeDevelopmentOptions(initialDevelopments, leads));
+    setCrmDevelopments(current => mergeDevelopmentOptions([...initialDevelopments, ...current], leads));
   }, [initialDevelopments, leads]);
 
   const visiblePageLeadIds = useMemo(() => paginatedLeads.map((lead) => lead.id), [paginatedLeads]);
+  useEffect(() => {
+    setSelectedLeadIds(current => current.filter(id => visiblePageLeadIds.includes(id)));
+  }, [visiblePageLeadIds]);
   const selectedVisibleLeadIds = useMemo(
     () => selectedLeadIds.filter((leadId) => visiblePageLeadIds.includes(leadId)),
     [selectedLeadIds, visiblePageLeadIds]
@@ -930,6 +983,7 @@ export function CrmBoard({
       pageSize: String(pageSize),
       owner: ownerFilter,
       status: statusFilter,
+        development: developmentFilter,
       query: query.trim(),
       sort: sortState.column,
       direction: sortState.direction,
@@ -953,11 +1007,11 @@ export function CrmBoard({
     setNotice("");
 
     try {
-      const response = await fetch("/api/crm/leads", {
+      const response = await fetch(payload.assignedAgentId !== undefined ? "/api/crm/leads/bulk" : "/api/crm/leads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: leadId,
+          ...(payload.assignedAgentId !== undefined ? { ids: [leadId] } : { id: leadId }),
           ...payload,
         }),
       });
@@ -1060,6 +1114,7 @@ export function CrmBoard({
       const payload = {
         leadId: selectedLead.id,
         ...activityForm,
+        body: activityForm.type === "llamada" ? [formatCallOutcomes(activityForm.callOutcomes), activityForm.body].filter(Boolean).join("\n\n") : activityForm.body,
         scheduledAt: activityForm.scheduledAt
           ? argentinaLocalDateTimeToIso(activityForm.scheduledAt)
           : activityForm.scheduledAt,
@@ -1408,7 +1463,7 @@ export function CrmBoard({
       onSort={() => toggleColumnSort(column)}
       onResizeStart={startColumnResize}
     >
-      {column === "select" && canAssignTeam && (
+      {column === "select" && (
         <input
           type="checkbox"
           checked={allVisibleSelected}
@@ -1429,7 +1484,7 @@ export function CrmBoard({
       case "select":
         return (
           <td key={column} className={`${borderClass} px-4 py-3 align-middle`}>
-            {canAssignTeam && (
+            {(
               <input
                 type="checkbox"
                 checked={selectedLeadIds.includes(lead.id)}
@@ -1621,9 +1676,9 @@ export function CrmBoard({
           <td key={column} className={`${borderClass} px-3 py-2 align-middle`}>
             <InlineTableSelect
               value={lead.assignedAgentId || ""}
-              disabled={!canAssignTeam || updatingLeadFieldId === `${lead.id}:owner`}
+              disabled={updatingLeadFieldId === `${lead.id}:owner`}
               options={[
-                { value: "", label: "Sin asignar" },
+                ...(canAssignTeam ? [{ value: "", label: "Sin asignar" }] : []),
                 ...activeAgents.map((agent) => ({
                   value: agent.id,
                   label: agent.name || agent.email,
@@ -1656,7 +1711,7 @@ export function CrmBoard({
         className="relative border-b border-ink/10 bg-white px-4 py-4 text-ink last:border-b-0"
       >
         <div className="flex items-start gap-3">
-          {canAssignTeam && (
+          {(
             <input
               type="checkbox"
               checked={selectedLeadIds.includes(lead.id)}
@@ -1929,45 +1984,48 @@ export function CrmBoard({
       )}
 
       <div className="hidden border-b border-ink/12 bg-white px-5 lg:block">
-        <div className="flex gap-5 overflow-x-auto">
+        <div className="flex items-stretch gap-1 overflow-x-auto">
           {canAssignTeam && (
             <button
               type="button"
               onClick={() => setOwnerFilter("all")}
-              className={`flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-medium ${
+              className={`flex min-h-11 flex-1 items-center justify-center whitespace-nowrap border-b-2 px-2 text-xs font-medium ${
                 ownerFilter === "all"
                   ? "border-ink text-ink"
-                  : "border-transparent text-ink/55 hover:text-ink"
+                  : "border-transparent text-ink/70 hover:text-ink"
               }`}
             >
-              Todos los contactos
+              Todos
             </button>
           )}
           {canAssignTeam && (
             <button
               type="button"
               onClick={() => setOwnerFilter("unassigned")}
-              className={`flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-medium ${
+              className={`flex min-h-11 flex-1 items-center justify-center whitespace-nowrap border-b-2 px-2 text-xs font-medium ${
                 ownerFilter === "unassigned"
                   ? "border-ink text-ink"
-                  : "border-transparent text-ink/55 hover:text-ink"
+                  : "border-transparent text-ink/70 hover:text-ink"
               }`}
             >
-              Contactos sin asignar
+              Sin asignar
             </button>
           )}
-          {activeAgents.map((agent) => (
+          {activeAgents.filter(agent => canAssignTeam || agent.id === currentUserId).map((agent) => (
             <button
               key={agent.id}
+              title={agent.name}
+              aria-label={agent.name}
+              aria-pressed={ownerFilter === agent.id}
               type="button"
               onClick={() => setOwnerFilter(agent.id)}
-              className={`flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-medium ${
+              className={`flex min-h-11 flex-1 items-center justify-center whitespace-nowrap border-b-2 px-2 text-xs font-medium ${
                 ownerFilter === agent.id
                   ? "border-ink text-ink"
-                  : "border-transparent text-ink/55 hover:text-ink"
+                  : "border-transparent text-ink/70 hover:text-ink"
               }`}
             >
-              {agent.name}
+              {agent.name.trim().split(/\s+/)[0]}{agent.name.trim().split(/\s+/).length > 1 ? ` ${agent.name.trim().split(/\s+/).at(-1)?.charAt(0)}.` : ""}
             </button>
           ))}
         </div>
@@ -1983,7 +2041,7 @@ export function CrmBoard({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 className="h-14 w-full rounded-lg border border-ink/12 bg-white pl-12 pr-4 text-xl font-semibold text-ink shadow-sm outline-none transition-colors placeholder:text-ink/42 focus:border-[#005c5c]"
-                placeholder="Buscar"
+                placeholder="Nombre, teléfono o email"
               />
             </label>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
@@ -1994,8 +2052,8 @@ export function CrmBoard({
                   className="h-11 min-w-[238px] shrink-0 rounded-full border border-ink/18 bg-white px-4 text-sm font-semibold text-ink outline-none focus:border-[#005c5c]"
                   aria-label="Filtrar por propietario del contacto"
                 >
-                  <option value="all">Todos los contactos</option>
-                  <option value="unassigned">Contactos sin asignar</option>
+                  <option value="all">Todos</option>
+                  <option value="unassigned">Sin asignar</option>
                   {activeAgents.map((agent) => (
                     <option key={agent.id} value={agent.id}>
                       {agent.name}
@@ -2020,6 +2078,7 @@ export function CrmBoard({
                   <ArrowDown className="h-4 w-4" />
                 )}
               </button>
+              {developmentFilterControl}
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as CrmLeadStatus | "all")}
@@ -2036,24 +2095,30 @@ export function CrmBoard({
             </div>
           </div>
 
-          <div className="hidden flex-col gap-3 border-b border-ink/12 p-3 sm:p-4 lg:flex lg:flex-row lg:items-center lg:justify-between">
-            <label className="relative block w-full lg:max-w-xs">
+          <div className="px-4 pb-3 lg:hidden"><button type="button" onClick={clearFilters} className="min-h-11 rounded-full border border-ink/20 bg-white px-4 text-sm font-medium">Borrar filtros</button></div>
+          <CrmBulkActions ids={selectedLeadIds} agents={activeAgents} statuses={effectiveLeadStatusOptions} canUnassign={canAssignTeam} onClear={() => setSelectedLeadIds([])} onUpdated={refreshLeads} />
+          <label className="flex min-h-11 items-center gap-3 px-4 py-2 text-sm lg:hidden">
+            <input type="checkbox" checked={allVisibleSelected} aria-checked={someVisibleSelected ? "mixed" : allVisibleSelected} onChange={e => toggleVisibleSelection(e.target.checked)} className="h-5 w-5 accent-[#005c5c]" />
+            Seleccionar esta página
+          </label>
+          <div className="hidden items-center gap-2 overflow-x-auto border-b border-ink/12 px-3 py-3 lg:flex">
+            <label className="relative block min-w-[140px] flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/45" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                className="h-11 w-full rounded-full border border-ink/20 bg-white pl-9 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink/45 focus:border-[#005c5c]"
-                placeholder="Buscar contacto"
+                className="h-10 w-full rounded-full border border-ink/20 bg-white pl-9 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink/45 focus:border-[#005c5c]"
+                placeholder="Nombre, teléfono o email"
               />
             </label>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               {canAssignTeam && selectedLeadIds.length > 0 && (
                 <button
                   type="button"
                   onClick={deleteSelectedLeads}
                   disabled={isDeletingSelected}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isDeletingSelected ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -2063,10 +2128,11 @@ export function CrmBoard({
                   Eliminar {selectedLeadIds.length}
                 </button>
               )}
+              {developmentFilterControl}
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as CrmLeadStatus | "all")}
-                className="h-11 rounded-full border border-ink/20 bg-white px-4 text-sm text-ink outline-none focus:border-[#005c5c]"
+                aria-label="Filtrar por estado del lead" className="h-10 w-[150px] min-w-0 rounded-full border border-ink/20 bg-white px-3 text-sm text-ink outline-none focus:border-[#005c5c]"
               >
                 <option value="all">Estado del lead</option>
                 {effectiveLeadStatusOptions.map((status) => (
@@ -2075,11 +2141,11 @@ export function CrmBoard({
                   </option>
                 ))}
               </select>
-              <span className="inline-flex min-h-11 items-center rounded-full border border-ink/12 bg-cream-100 px-4 text-sm text-ink/62">
+              <span className="inline-flex min-h-10 shrink-0 items-center whitespace-nowrap px-1 text-xs text-ink/75">
                 {totalLeads} contacto{totalLeads !== 1 ? "s" : ""}
               </span>
-              <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/12 bg-white px-4 text-sm text-ink/65">
-                <span>Por página</span>
+              <label className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-ink/12 bg-white px-2 text-xs text-ink/75">
+                <span>Pág.</span>
                 <select
                   value={pageSize}
                   onChange={(event) =>
@@ -2098,18 +2164,21 @@ export function CrmBoard({
               <button
                 type="button"
                 onClick={saveTableView}
-                className="hidden min-h-11 items-center justify-center gap-2 rounded-full border border-[#005c5c]/20 bg-[#005c5c] px-4 text-sm font-medium text-white transition-colors hover:bg-[#004949] lg:inline-flex"
+                title="Guardar vista" aria-label="Guardar vista"
+                className="hidden h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#005c5c]/20 bg-[#005c5c] px-3 text-sm font-medium text-white transition-colors hover:bg-[#004949] lg:inline-flex"
               >
                 <Save className="h-4 w-4" />
-                Guardar vista
+                <span className="sr-only">Guardar vista</span>
               </button>
               <button
                 type="button"
                 onClick={resetTableView}
-                className="hidden min-h-11 items-center justify-center rounded-full border border-ink/15 bg-white px-4 text-sm font-medium text-ink transition-colors hover:bg-cream-100 lg:inline-flex"
+                title="Restaurar vista" aria-label="Restaurar vista"
+                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white px-3 text-sm font-medium text-ink transition-colors hover:bg-cream-100 lg:inline-flex"
               >
-                Restaurar vista
+                <span aria-hidden="true">↺</span><span className="sr-only">Restaurar vista</span>
               </button>
+              <button type="button" onClick={clearFilters} className="h-10 shrink-0 whitespace-nowrap rounded-full border border-ink/20 px-3 text-xs font-medium text-ink hover:bg-cream-100">Borrar filtros</button>
             </div>
           </div>
 
@@ -2292,6 +2361,7 @@ export function CrmBoard({
             />
           ) : selectedLead ? (
             <ContactDetail
+              currentAgentId={currentUserId}
               lead={selectedLead}
               activities={selectedActivities}
               activeAgents={activeAgents}
@@ -2304,6 +2374,7 @@ export function CrmBoard({
               onClose={() => setSelectedLeadId("")}
               onRefreshLeads={refreshLeads}
               onActivityCreated={(activity) => setActivities((current) => [activity, ...current])}
+              onCallOutcomesChange={(callOutcomes) => setActivityForm((current) => ({ ...current, callOutcomes }))}
               onActivityType={setActivityType}
               startEmailComposer={emailComposerLeadId === selectedLead.id}
               onEmailComposerStarted={() => setEmailComposerLeadId("")}
@@ -2324,6 +2395,7 @@ export function CrmBoard({
 }
 
 function ContactDetail({
+  currentAgentId,
   lead,
   activities,
   activeAgents,
@@ -2337,6 +2409,7 @@ function ContactDetail({
   onRefreshLeads,
   onActivityCreated,
   onActivityType,
+  onCallOutcomesChange,
   startEmailComposer,
   onEmailComposerStarted,
   startWhatsAppComposer,
@@ -2346,6 +2419,7 @@ function ContactDetail({
   updateActivity,
   onSaveActivity,
 }: {
+  currentAgentId: string;
   lead: CrmLead;
   activities: CrmActivity[];
   activeAgents: CrmAgent[];
@@ -2359,6 +2433,7 @@ function ContactDetail({
   onRefreshLeads: () => Promise<void>;
   onActivityCreated: (activity: CrmActivity) => void;
   onActivityType: (type: CrmActivityType) => void;
+  onCallOutcomesChange: (outcomes: CallOutcome[]) => void;
   startEmailComposer: boolean;
   onEmailComposerStarted: () => void;
   startWhatsAppComposer: boolean;
@@ -2391,6 +2466,7 @@ function ContactDetail({
   const [callSessionNotice, setCallSessionNotice] = useState("");
   const [templates, setTemplates] = useState<CrmEmailTemplateOption[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateAuthorFilter, setTemplateAuthorFilter] = useState("all");
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
@@ -2719,8 +2795,8 @@ function ContactDetail({
     setEmailNotice(`Plantilla aplicada: ${template.name}`);
   };
 
-  const emailTemplates = templates.filter((template) => (template.channel || "email") === "email");
-  const whatsappTemplates = templates.filter((template) => template.channel === "whatsapp");
+  const emailTemplates = templates.filter((template) => templateMatchesAuthor(template, templateAuthorFilter, currentAgentId) && (template.channel || "email") === "email");
+  const whatsappTemplates = templates.filter((template) => templateMatchesAuthor(template, templateAuthorFilter, currentAgentId) && template.channel === "whatsapp");
 
   const applyWhatsAppTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId);
@@ -2823,11 +2899,12 @@ function ContactDetail({
     const duration = formatInteractionDuration(callSession.startedAt, endedAt);
     const notes = callSession.notes.trim();
     const body = [
+      formatCallOutcomes(callSession.outcomes),
       `Inicio: ${formatInteractionDateTime(callSession.startedAt)}`,
       `Finalización: ${formatInteractionDateTime(endedAt)}`,
       `Duración aproximada: ${duration}`,
-      notes ? `Resumen:\n${notes}` : "Resumen: sin notas cargadas.",
-    ].join("\n\n");
+      notes ? `Resultado de la llamada:\n${notes}` : "Resultado de la llamada: sin observaciones.",
+    ].filter(Boolean).join("\n\n");
 
     setIsSavingCallSession(true);
     setCallSessionError("");
@@ -2940,7 +3017,9 @@ function ContactDetail({
             <InfoRow label="Contacto" value={formattedLeadPhone(lead)} />
           </div>
 
-          <Field label="Conversación con el cliente">
+          <CrmCallOutcomeChecklist value={callSession.outcomes} onChange={(outcomes) => setCallSession((current) => current ? { ...current, outcomes } : current)} disabled={isSavingCallSession} />
+
+          <Field label="Resultado de la llamada">
             <textarea
               value={callSession.notes}
               onChange={(event) =>
@@ -3027,6 +3106,7 @@ function ContactDetail({
                 </a>
               </div>
 
+              <div className="mt-3"><CrmTemplateAuthorFilter templates={templates} value={templateAuthorFilter} onChange={setTemplateAuthorFilter} /></div>
               {isLoadingTemplates ? (
                 <div className="mt-3 h-16 animate-pulse rounded-lg border border-ink/10 bg-white" />
               ) : whatsappTemplates.length > 0 ? (
@@ -3186,6 +3266,7 @@ function ContactDetail({
                 </a>
               </div>
 
+              <div className="mt-3"><CrmTemplateAuthorFilter templates={templates} value={templateAuthorFilter} onChange={setTemplateAuthorFilter} /></div>
               {isLoadingTemplates ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {Array.from({ length: 2 }).map((_, index) => (
@@ -3532,7 +3613,7 @@ function ContactDetail({
 
         {!canAssignTeam && (
           <p className="mt-3 text-xs leading-relaxed text-ink/45">
-            El propietario del contacto solo puede cambiarlo administración.
+            Podés transferir este contacto desde la lista de contactos, con la acción Cambiar propietario.
           </p>
         )}
       </form>
@@ -3602,6 +3683,7 @@ function ContactDetail({
         </div>
 
         <form onSubmit={onSaveActivity} className="mt-4 space-y-3">
+          {activityForm.type === "llamada" && <CrmCallOutcomeChecklist value={activityForm.callOutcomes} onChange={onCallOutcomesChange} disabled={isSavingActivity} />}
           <input
             value={activityForm.title}
             onChange={updateActivity("title")}
@@ -3617,12 +3699,15 @@ function ContactDetail({
               type="datetime-local"
             />
           )}
+          <label className="block text-sm font-medium text-ink">
+            {activityForm.type === "llamada" ? "Resultado de la llamada" : "Detalle de la actividad"}
           <textarea
             value={activityForm.body}
             onChange={updateActivity("body")}
             className="form-input min-h-24"
             placeholder="Detalle, próximos pasos, resumen de la conversación..."
           />
+          </label>
           <button
             type="submit"
             disabled={isSavingActivity}

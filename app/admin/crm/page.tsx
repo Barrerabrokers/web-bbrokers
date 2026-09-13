@@ -30,7 +30,7 @@ export default async function AdminCrmPage() {
       sortDirection: "desc",
     }),
     getDevelopmentOptions(),
-    canAssignTeam ? getAllAgents() : Promise.resolve([]),
+    getAllAgents(),
     getCrmDataProperties(),
   ]);
 
@@ -50,25 +50,9 @@ export default async function AdminCrmPage() {
       })),
   ];
 
-  const safeAgents = canAssignTeam
-    ? agents
-        .filter((agent) => agent.active)
-        .map((agent) => ({
-          id: agent.id,
-          name: agent.name,
-          email: agent.email,
-          role: agent.role,
-          active: agent.active,
-        }))
-    : [
-        {
-          id: session.user.id,
-          name: session.user.name || "Mi usuario",
-          email: session.user.email || "",
-          role: session.user.role,
-          active: true,
-        },
-      ];
+  const safeAgents = agents.filter(agent => agent.active && canManageListings(agent.role)).map(agent => ({
+    id: agent.id, name: agent.name, email: agent.email, role: agent.role, active: agent.active,
+  }));
 
   return (
     <>

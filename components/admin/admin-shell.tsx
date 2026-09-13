@@ -13,6 +13,7 @@ export function AdminShell({ children, session }: { children: React.ReactNode; s
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [isStandaloneCrm, setIsStandaloneCrm] = useState(false);
   const [editorMode, setEditorMode] = useState(false);
+  const isAgentPanel = pathname === "/admin/crm/panel-agentes";
   const isContactDetail = /^\/admin\/crm\/[0-9a-f-]{36}$/i.test(pathname);
   useEffect(() => {
     if (isContactDetail) setNavigationCollapsed(true);
@@ -25,7 +26,7 @@ export function AdminShell({ children, session }: { children: React.ReactNode; s
     if (!isStandaloneCrm) return;
 
     const isContactRoute = pathname === "/admin/crm" || /^\/admin\/crm\/[0-9a-f-]{36}$/i.test(pathname);
-    if (!isContactRoute) router.replace("/admin/crm");
+    if (!isContactRoute && pathname !== "/admin/crm/panel-agentes") router.replace("/admin/crm");
   }, [isStandaloneCrm, pathname, router]);
   useEffect(() => {
     const handleEditorMode = (event: Event) => {
@@ -39,7 +40,7 @@ export function AdminShell({ children, session }: { children: React.ReactNode; s
   return <SessionProvider session={session} refetchInterval={0} refetchOnWindowFocus={false}>
     <div className="admin-area min-h-screen bg-cream-200 text-ink"><AdminHeader crmOnly={isStandaloneCrm}/><div className="flex">
       {!isStandaloneCrm && <AdminSidebar collapsed={navigationCollapsed} onToggle={() => setNavigationCollapsed(value => !value)}/>} 
-      <main className={`min-w-0 flex-1 ${isContactDetail || editorMode ? "p-0" : isStandaloneCrm ? "p-3 sm:p-4" : "p-6 md:p-10"}`}>{children}</main>
+      <main className={`min-w-0 flex-1 ${isContactDetail || isAgentPanel || editorMode ? "p-0" : isStandaloneCrm ? "p-3 sm:p-4" : "p-6 md:p-10"}`}>{children}</main>
     </div></div>
   </SessionProvider>;
 }

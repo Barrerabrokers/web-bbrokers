@@ -3,11 +3,17 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "crons": [
     {
       "path": "/api/cron/meta-leads",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/crm-email-notifications",
+      "schedule": "*/5 * * * *"
     }
   ],
   "functions": {

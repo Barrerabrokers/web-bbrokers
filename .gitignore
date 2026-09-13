@@ -38,6 +38,10 @@ yarn-error.log*
 PRODUCT.md
 skills-lock.json
 
+# local backups
+chrome-extension [0-9]*/
+/*.zip
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

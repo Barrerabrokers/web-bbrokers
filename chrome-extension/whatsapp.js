@@ -107,6 +107,36 @@
             <button class="bb-primary bb-create-submit" type="submit">Guardar cliente en el CRM</button>
           </form>
         </section>
+        <section class="bb-edit-client" hidden>
+          <div class="bb-section-heading">
+            <h2>Editar cliente</h2>
+            <button class="bb-text-button bb-cancel-edit-lead" type="button">Cancelar</button>
+          </div>
+          <form class="bb-edit-lead-form">
+            <input type="hidden" name="id" />
+            <div class="bb-form-grid">
+              <label><span>Nombre</span><input name="firstName" autocomplete="given-name" required /></label>
+              <label><span>Apellido</span><input name="lastName" autocomplete="family-name" required /></label>
+            </div>
+            <label><span>Email</span><input name="email" type="email" autocomplete="email" placeholder="cliente@email.com" /></label>
+            <div class="bb-phone-grid">
+              <label><span>País</span><input name="countryCode" value="+54" required /></label>
+              <label><span>Teléfono</span><input name="phone" inputmode="tel" autocomplete="tel" required /></label>
+            </div>
+            <label><span>Emprendimiento consultado</span><input name="developmentNameText" placeholder="Ej. Alpha Place Libertador" /></label>
+            <div class="bb-form-grid">
+              <label><span>Estado</span><select name="status"></select></label>
+              <label><span>Temperatura</span><select name="temperature">
+                <option value="">Sin definir</option>
+                <option value="frio">❄ Frío</option>
+                <option value="tibio">⚡ Tibio</option>
+                <option value="caliente">🔥 Caliente</option>
+              </select></label>
+            </div>
+            <label><span>Notas / Requerimientos</span><textarea name="notes" rows="3" placeholder="Presupuesto, zona, notas sobre el cliente…"></textarea></label>
+            <button class="bb-primary bb-edit-lead-submit" type="submit">Guardar cambios en el CRM</button>
+          </form>
+        </section>
         <section class="bb-template-manager" hidden>
           <div class="bb-section-heading">
             <div><h2>Editor de plantillas</h2><p>Creá y organizá los mensajes disponibles para el equipo.</p></div>
@@ -195,6 +225,9 @@
   const createToggle = $(".bb-create-toggle");
   const createClient = $(".bb-create-client");
   const createForm = $(".bb-create-form");
+  const editClient = $(".bb-edit-client");
+  const editLeadForm = $(".bb-edit-lead-form");
+  const editLeadStatusSelect = editLeadForm ? editLeadForm.querySelector("select[name='status']") : null;
   const templatesSection = $(".bb-templates");
   const templateList = $(".bb-template-list");
   const templateManager = $(".bb-template-manager");
@@ -207,6 +240,30 @@
   const imageInput = $(".bb-image-input");
   const imagePreview = $(".bb-image-preview");
 
+  const LEAD_STATUS_OPTIONS = [
+    { value: "NEW", label: "Nuevo" },
+    { value: "Contactado", label: "Contactado" },
+    { value: "Interesado", label: "Interesado" },
+    { value: "En curso", label: "En curso" },
+    { value: "Reunion", label: "Reunión" },
+    { value: "Reservado", label: "Reservado" },
+    { value: "Vendido", label: "Vendido" },
+    { value: "No Interesado", label: "No Interesado" },
+    { value: "No Contesta", label: "No Contesta" },
+    { value: "Reflote", label: "Reflote" },
+    { value: "UNQUALIFIED", label: "No calificado" },
+  ];
+
+  function statusOptionsHtml(currentStatus = "NEW") {
+    const hasCurrent = LEAD_STATUS_OPTIONS.some((opt) => opt.value === currentStatus);
+    const extraOption = (!hasCurrent && currentStatus && currentStatus !== "Sin estado")
+      ? `<option value="${escapeHtml(currentStatus)}" selected>${escapeHtml(currentStatus)}</option>`
+      : "";
+    return extraOption + LEAD_STATUS_OPTIONS.map(
+      (opt) => `<option value="${escapeHtml(opt.value)}"${opt.value === currentStatus ? " selected" : ""}>${escapeHtml(opt.label)}</option>`
+    ).join("");
+  }
+
   const digits = (value = "") => String(value).replace(/\D/g, "");
   const comparablePhone = (value = "") => digits(value).replace(/^549/, "54").slice(-10);
   const fullName = (lead) => `${lead.firstName || ""} ${lead.lastName || ""}`.trim();
@@ -216,7 +273,9 @@
   })[character]);
 
   function whatsAppPhone(lead) {
-    let phone = digits(`${lead.countryCode || ""}${lead.phone || ""}`);
+    let phone = digits(lead.phone || "");
+    const country = digits(lead.countryCode || "");
+    if (!String(lead.phone || "").trim().startsWith("+") && country && (!phone.startsWith(country) || phone.length <= 10)) phone = `${country}${phone}`;
     // WhatsApp exige el 9 entre el código de Argentina y el número móvil.
     if (phone.startsWith("54") && !phone.startsWith("549")) phone = `549${phone.slice(2)}`;
     return phone;
@@ -247,7 +306,7 @@
   }
 
   function leadsForTab(tab) {
-    if (tab?.kind === "featured") {
+    if (tab?.kind === "featured" || tab?.id === "featured") {
       return state.leads.filter((lead) => state.featuredLeadIds.includes(String(lead.id)));
     }
     if (!tab?.status) return state.leads;
@@ -431,6 +490,8 @@
         return false;
       }
       state.leads = response.leads?.leads || [];
+      state.actorId = response.actorId;
+      state.actorName = response.actorName || "tu usuario";
       state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
       if (Array.isArray(response.preferences?.featuredLeadIds)) {
         state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
@@ -472,6 +533,7 @@
     createToggle.hidden = false;
     results.hidden = true;
     createClient.hidden = true;
+    if (editClient) editClient.hidden = true;
     templateManager.hidden = true;
     client.hidden = false;
     leadContext.hidden = false;
@@ -489,7 +551,10 @@
       <div class="bb-client-copy">
         <div class="bb-client-name-row">
           <strong>${escapeHtml(fullName(lead))}</strong>
-          <button class="bb-feature-toggle" type="button" ${state.featuredSavingIds.has(String(lead.id)) ? "disabled" : ""} aria-label="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}" aria-pressed="${isFeatured}" title="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}">${isFeatured ? "★" : "☆"}</button>
+          <div class="bb-client-actions">
+            <button class="bb-edit-lead-btn" type="button" aria-label="Editar datos del cliente" title="Editar datos del cliente">✎</button>
+            <button class="bb-feature-toggle" type="button" ${state.featuredSavingIds.has(String(lead.id)) ? "disabled" : ""} aria-label="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}" aria-pressed="${isFeatured}" title="${isFeatured ? "Quitar de destacados" : "Agregar a destacados"}">${isFeatured ? "★" : "☆"}</button>
+          </div>
         </div>
         <span class="bb-client-email">${escapeHtml(lead.email || "Sin email")}</span>
         <small>${escapeHtml(contactPhone)}</small>
@@ -502,12 +567,26 @@
       </div>
       <div class="bb-context-item">
         <span>Estado del lead</span>
-        <strong class="bb-status-badge">${escapeHtml(leadStatus)}</strong>
+        <select class="bb-quick-status" data-lead-id="${escapeHtml(lead.id)}" aria-label="Cambiar estado del lead">
+          ${statusOptionsHtml(leadStatus)}
+        </select>
       </div>
       <div class="bb-context-item bb-context-owner">
         <span>Propietario del contacto</span>
         <strong>${escapeHtml(owner)}</strong>
       </div>
+      ${lead.temperature ? `
+        <div class="bb-context-item">
+          <span>Temperatura</span>
+          <strong class="bb-temp-badge" data-temp="${escapeHtml(lead.temperature)}">${lead.temperature === "caliente" ? "🔥 Caliente" : lead.temperature === "tibio" ? "⚡ Tibio" : "❄ Frío"}</strong>
+        </div>
+      ` : ""}
+      ${lead.notes ? `
+        <div class="bb-context-item bb-context-notes">
+          <span>Notas</span>
+          <p class="bb-lead-notes-preview">${escapeHtml(lead.notes)}</p>
+        </div>
+      ` : ""}
     `;
     renderTemplates();
     void restoreDraft(lead);
@@ -520,11 +599,12 @@
     templatesSection.hidden = true;
     preview.hidden = true;
     createClient.hidden = true;
+    if (editClient) editClient.hidden = true;
     templateManager.hidden = true;
     results.hidden = false;
     results.innerHTML = `
       <div class="bb-results-heading">${matches.length} clientes encontrados</div>
-      ${matches.slice(0, 20).map((lead) => `
+      ${matches.map((lead) => `
         <button type="button" class="bb-result" data-lead-id="${escapeHtml(lead.id)}">
           <strong>${escapeHtml(fullName(lead) || "Cliente sin nombre")}${state.featuredLeadIds.includes(String(lead.id)) ? '<i class="bb-result-star">★</i>' : ""}</strong>
           <span>${escapeHtml(lead.email || `${lead.countryCode || ""} ${lead.phone || ""}`.trim())}</span>
@@ -551,9 +631,44 @@
     templatesSection.hidden = true;
     preview.hidden = true;
     templateManager.hidden = true;
+    if (editClient) editClient.hidden = true;
     createClient.hidden = false;
     status.hidden = true;
     createForm.elements.firstName.focus();
+  }
+
+  function openEditLead(lead) {
+    if (!lead || !editLeadForm) return;
+    editLeadForm.reset();
+    editLeadForm.elements.id.value = lead.id || "";
+    editLeadForm.elements.firstName.value = lead.firstName || "";
+    editLeadForm.elements.lastName.value = lead.lastName && lead.lastName !== "-" ? lead.lastName : "";
+    editLeadForm.elements.email.value = lead.email || "";
+    editLeadForm.elements.countryCode.value = lead.countryCode || "+54";
+    editLeadForm.elements.phone.value = lead.phone || "";
+    editLeadForm.elements.developmentNameText.value = lead.developmentNameText || lead.developmentName || "";
+    if (editLeadStatusSelect) {
+      editLeadStatusSelect.innerHTML = statusOptionsHtml(lead.status || "NEW");
+    }
+    if (editLeadForm.elements.temperature) {
+      editLeadForm.elements.temperature.value = lead.temperature || "";
+    }
+    if (editLeadForm.elements.notes) {
+      editLeadForm.elements.notes.value = lead.notes || "";
+    }
+
+    searchForm.hidden = false;
+    createToggle.hidden = false;
+    results.hidden = true;
+    client.hidden = true;
+    leadContext.hidden = true;
+    templatesSection.hidden = true;
+    preview.hidden = true;
+    templateManager.hidden = true;
+    createClient.hidden = true;
+    editClient.hidden = false;
+    status.hidden = true;
+    editLeadForm.elements.firstName.focus();
   }
 
   function renderTemplates() {
@@ -733,15 +848,15 @@
     }).sort((a, b) => b.score - a.score)[0]?.element || null;
   }
 
-  function insertIntoWhatsApp(text) {
+  async function insertIntoWhatsApp(text) {
     const composer = findWhatsAppComposer();
     if (!composer) throw new Error("No encontramos el campo de mensaje. Abrí una conversación e intentá nuevamente.");
-    if (!replaceEditorText(composer, text)) {
+    if (!await replaceEditorText(composer, text)) {
       throw new Error("WhatsApp no aceptó el texto. Tu borrador sigue guardado; actualizá la página e intentá nuevamente.");
     }
   }
 
-  function replaceEditorText(editor, text) {
+  async function replaceEditorText(editor, text) {
     const value = String(text || "").replace(/\r\n?/g, "\n");
     editor.focus();
     const selection = window.getSelection();
@@ -762,22 +877,23 @@
     });
     editor.dispatchEvent(pasteEvent);
 
-    // Respaldo para editores donde el evento de pegado no tiene manejador.
-    const readValue = () => String(editor.innerText || editor.textContent || "").replace(/\r\n?/g, "\n").trim();
-    if (readValue() !== value.trim()) {
+    // El pegado puede actualizar Lexical de forma asíncrona. Nunca insertar
+    // otra copia mientras WhatsApp todavía está procesando ese mismo evento.
+    const readValue = () => String(editor.innerText || editor.textContent || "")
+      .replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ").trim();
+    const expected = value.replace(/\u00a0/g, " ").trim();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await wait(50);
+      if (readValue() === expected) return true;
+    }
+    // Un editor sin manejador de paste no realiza el pegado sintético.
+    // Solo en ese caso, y estando vacío, usamos una única inserción nativa.
+    if (!pasteEvent.defaultPrevented && readValue() === "") {
       editor.focus();
-      const retryRange = document.createRange();
-      retryRange.selectNodeContents(editor);
-      selection.removeAllRanges();
-      selection.addRange(retryRange);
-      document.execCommand("delete", false);
       document.execCommand("insertText", false, value);
+      await wait(100);
     }
-    if (readValue() !== value.trim()) {
-      editor.textContent = value;
-      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
-    }
-    return readValue() === value.trim();
+    return readValue() === expected;
   }
 
   const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -912,7 +1028,9 @@
       await wait(100);
       const captionBox = findCaptionBox();
       if (captionBox) {
-        replaceEditorText(captionBox, caption);
+        if (!await replaceEditorText(captionBox, caption)) {
+          throw new Error("La imagen está adjunta. Revisá su descripción antes de enviarla; no repetimos el pegado para evitar duplicados.");
+        }
         return;
       }
     }
@@ -965,29 +1083,33 @@
     window.location.assign(`https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}`);
   }
 
-  async function completePendingSend(pending) {
-    if (pending.image) {
-      const file = dataUrlToFile(pending.image.dataUrl, pending.image.name, pending.image.type);
-      await attachImageToWhatsApp(file, pending.message || "");
-    } else {
-      insertIntoWhatsApp(pending.message || "");
-    }
+  let preparingPendingSend = false;
+  const preparedPendingSends = new Set();
 
-    await chrome.storage.local.remove("bbPendingWhatsAppSend");
-    await clearDraft(pending.leadId);
-    panel.hidden = false;
-    launcher.setAttribute("aria-expanded", "true");
-    setStatus("Mensaje preparado en WhatsApp. Revisalo y presioná Enviar.", "success");
-    await chrome.runtime.sendMessage({
-      type: "BB_REGISTER_ACTIVITY",
-      activity: {
-        leadId: pending.leadId,
-        type: "whatsapp",
-        title: `WhatsApp con ${pending.leadName}`,
-        body: [pending.message, pending.image ? `Imagen adjunta: ${pending.image.name}` : ""].filter(Boolean).join("\n\n"),
-        scheduledAt: new Date().toISOString(),
-      },
-    });
+  async function completePendingSend(pending) {
+    const pendingId = `${pending.createdAt}:${pending.leadId}:${pending.phone}`;
+    if (preparingPendingSend || preparedPendingSends.has(pendingId)) return;
+    preparingPendingSend = true;
+    preparedPendingSends.add(pendingId);
+    try {
+      // Consumir antes de tocar WhatsApp: una recarga no debe volver a adjuntar.
+      // El borrador se conserva hasta que la preparación termine correctamente.
+      await chrome.storage.local.remove("bbPendingWhatsAppSend");
+      if (pending.image) {
+        const file = dataUrlToFile(pending.image.dataUrl, pending.image.name, pending.image.type);
+        await attachImageToWhatsApp(file, pending.message || "");
+      } else {
+        await insertIntoWhatsApp(pending.message || "");
+      }
+
+      await clearDraft(pending.leadId);
+      panel.hidden = false;
+      launcher.setAttribute("aria-expanded", "true");
+      setStatus("Mensaje preparado en WhatsApp. Revisalo y presioná Enviar.", "success");
+
+    } finally {
+      preparingPendingSend = false;
+    }
   }
 
   async function resumePendingSend() {
@@ -1057,6 +1179,7 @@
     client.hidden = true;
     leadContext.hidden = true;
     createClient.hidden = true;
+    if (editClient) editClient.hidden = true;
     templatesSection.hidden = true;
     preview.hidden = true;
     status.hidden = true;
@@ -1087,15 +1210,13 @@
   contactTabs.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-tab-id]");
     if (!button) return;
-    if (!state.leads.length && !(await loadContext())) return;
     const tab = state.contactTabs.find((item) => item.id === button.dataset.tabId);
     if (!tab) return;
-    state.activeTabId = tab.id;
-    renderContactTabs();
-    panel.hidden = false;
-    launcher.setAttribute("aria-expanded", "true");
+    // Opening an existing WhatsApp list must not wait for CRM requests or trigger a sync.
+    panel.hidden = true;
+    launcher.setAttribute("aria-expanded", "false");
     status.hidden = true;
-    renderSearchResults(leadsForTab(tab));
+    await selectNativeTab(tab);
   });
 
   $(".bb-edit-tabs").addEventListener("click", async () => {
@@ -1195,6 +1316,7 @@
       leadContext.hidden = true;
       templatesSection.hidden = true;
       preview.hidden = true;
+      if (editClient) editClient.hidden = true;
       setStatus("No encontramos clientes con ese nombre, teléfono o email.", "error");
       return;
     }
@@ -1211,6 +1333,11 @@
   });
 
   client.addEventListener("click", async (event) => {
+    const editBtn = event.target.closest(".bb-edit-lead-btn");
+    if (editBtn && state.lead) {
+      openEditLead(state.lead);
+      return;
+    }
     const button = event.target.closest(".bb-feature-toggle");
     if (!button || !state.lead || button.disabled) return;
     const id = String(state.lead.id);
@@ -1242,6 +1369,80 @@
     }
     renderContactTabs();
     renderLead(state.lead);
+  });
+
+  leadContext.addEventListener("change", async (event) => {
+    const select = event.target.closest(".bb-quick-status");
+    if (!select || !state.lead) return;
+    const newStatus = select.value;
+    const leadId = select.dataset.leadId || state.lead.id;
+    const previousStatus = state.lead.status;
+    select.disabled = true;
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "BB_UPDATE_LEAD",
+        lead: { id: leadId, status: newStatus },
+      });
+      if (!response?.ok) throw new Error(response?.error || "No se pudo cambiar el estado en el CRM.");
+      const updated = response.result?.lead || { ...state.lead, status: newStatus };
+      state.lead = { ...state.lead, ...updated, status: newStatus };
+      state.leads = state.leads.map((item) => (String(item.id) === String(leadId) ? { ...item, ...updated, status: newStatus } : item));
+      renderContactTabs();
+      setStatus(`Estado actualizado a "${newStatus}" en el CRM.`, "success");
+    } catch (error) {
+      select.value = previousStatus;
+      setStatus(error.message, "error");
+    } finally {
+      select.disabled = false;
+    }
+  });
+
+  $(".bb-cancel-edit-lead")?.addEventListener("click", () => {
+    if (editClient) editClient.hidden = true;
+    if (state.lead) {
+      renderLead(state.lead);
+    } else {
+      setStatus("Buscá un cliente o seleccioná una conversación de WhatsApp.");
+    }
+  });
+
+  editLeadForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $(".bb-edit-lead-submit");
+    const formData = new FormData(editLeadForm);
+    const id = formData.get("id");
+    if (!id) return;
+    const payload = {
+      id: String(id),
+      firstName: formData.get("firstName")?.toString().trim() || "",
+      lastName: formData.get("lastName")?.toString().trim() || "-",
+      email: formData.get("email")?.toString().trim().toLowerCase() || "",
+      countryCode: formData.get("countryCode")?.toString().trim() || "+54",
+      phone: formData.get("phone")?.toString().trim() || "",
+      developmentNameText: formData.get("developmentNameText")?.toString().trim() || "",
+      status: formData.get("status")?.toString() || "NEW",
+      temperature: formData.get("temperature")?.toString() || "",
+      notes: formData.get("notes")?.toString().trim() || "",
+    };
+
+    try {
+      button.disabled = true;
+      button.textContent = "Guardando en CRM…";
+      const response = await chrome.runtime.sendMessage({ type: "BB_UPDATE_LEAD", lead: payload });
+      if (!response?.ok) throw new Error(response?.error || "No se pudo actualizar el cliente en el CRM.");
+      const updatedLead = response.result?.lead || { ...state.lead, ...payload };
+      state.lead = { ...state.lead, ...updatedLead };
+      state.leads = state.leads.map((item) => (String(item.id) === String(updatedLead.id) ? { ...item, ...updatedLead } : item));
+      if (editClient) editClient.hidden = true;
+      renderContactTabs();
+      renderLead(state.lead);
+      setStatus("Datos del cliente actualizados en el CRM.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Guardar cambios en el CRM";
+    }
   });
 
   templateList.addEventListener("click", (event) => {
@@ -1449,6 +1650,7 @@
 
   $(".bb-insert").addEventListener("click", async () => {
     const button = $(".bb-insert");
+    if (button.disabled || preparingPendingSend) return;
     try {
       button.disabled = true;
       button.textContent = "Abriendo chat del cliente…";
@@ -1465,7 +1667,195 @@
     }
   });
 
-  loadContactTabs();
+  // Synchronize only messages actually rendered by WhatsApp, never the compose box.
+  const chatSyncLabel = document.createElement("button");
+  chatSyncLabel.type = "button";
+  chatSyncLabel.className = "bb-topbar-action";
+  chatSyncLabel.textContent = "Sincronizar historial";
+  $(".bb-topbar-actions").prepend(chatSyncLabel);
+  const syncInfo = document.createElement("span");
+  syncInfo.className = "bb-sync-info";
+  syncInfo.setAttribute("role", "status");
+  $(".bb-topbar-actions").prepend(syncInfo);
+  let syncBusy = false;
+  let syncingHistory = false;
+  const acknowledged = new Map();
+  let queue = {};
+  let chatLinks = {};
+  chrome.storage.local.get("bbChatLinks").then(saved => { chatLinks = saved.bbChatLinks || {}; });
+  function chatKey() {
+    const main=document.querySelector("#main");
+    if(!main || main.querySelector('[data-id*="@g.us"]'))return "";
+    const raw=main.querySelector('[data-id]')?.getAttribute('data-id') || '';
+    return raw.match(/(?:true|false)_([^_]+)_/)?.[1] || normalizeText(visibleConversationIdentity().name);
+  }
+  const linkChatButton=document.createElement('button');
+  linkChatButton.type='button';linkChatButton.className='bb-history-sync';linkChatButton.textContent='Vincular chat al contacto seleccionado';
+  $(".bb-topbar-actions").prepend(linkChatButton);
+  linkChatButton.addEventListener('click',async()=>{
+    if(!state.lead || !chatKey() || !state.actorId){syncInfo.textContent='Seleccioná el cliente correcto en la extensión y abrí su chat.';return;}
+    chatLinks[state.actorId+':'+chatKey()]=state.lead.id;
+    await chrome.storage.local.set({bbChatLinks:chatLinks});
+    await syncChat();
+  });
+  const queueReady = chrome.storage.local.get("bbConversationQueue").then(saved => { queue = saved.bbConversationQueue || {}; });
+
+  function currentChatLead() {
+    const main = document.querySelector("#main");
+    if (!main || main.querySelector('[data-id*="@g.us"]')) return null;
+    const linked=chatLinks[state.actorId+':'+chatKey()];
+    if(linked){const lead=state.leads.find(item=>item.id===linked);if(lead)return lead;}
+    const identity = visibleConversationIdentity();
+    const messageId = main.querySelector('[data-id*="@c.us"]')?.getAttribute("data-id") || "";
+    const jidPhone = messageId.match(/(?:true|false)_(\d+)@c\.us_/)?.[1];
+    const phone = comparablePhone(jidPhone || identity.phone);
+    const name = normalizeText(identity.name);
+    const matches = state.leads.filter(lead => phone.length >= 8
+      ? comparablePhone(`${lead.countryCode || ""}${lead.phone || ""}`) === phone
+      : name.length >= 3 && normalizeText(fullName(lead)) === name);
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function renderedMessages() {
+    return Array.from(document.querySelectorAll("#main .message-in, #main .message-out")).flatMap(row => {
+      const id = row.getAttribute("data-id") || row.closest("[data-id]")?.getAttribute("data-id") || row.querySelector("[data-id]")?.getAttribute("data-id");
+      if (!id || row.querySelector('[data-icon="msg-time"], [data-icon="msg-error"]')) return [];
+      const content = row.querySelector("[data-pre-plain-text]");
+      const text = Array.from((content || row).querySelectorAll(".selectable-text")).map(el => el.innerText || el.textContent || "").join("\n").trim();
+      const media = row.querySelector('img[src^="blob:"], video') ? "[Imagen o video: archivo no copiado desde WhatsApp Web]" : row.querySelector('audio, [data-icon*="audio"], [data-icon*="ptt"]') ? "[Audio: archivo no copiado desde WhatsApp Web]" : row.querySelector('[data-icon*="document"]') ? "[Documento adjunto: archivo no copiado desde WhatsApp Web]" : "";
+      const body = [text, media].filter(Boolean).join("\n");
+      if (!body) return [];
+      return [{ id, direction: row.classList.contains("message-out") ? "outbound" : "inbound", text: body.slice(0, 20000), timestamp: (content?.getAttribute("data-pre-plain-text") || "").slice(0, 200) }];
+    });
+  }
+
+  async function syncChat() {
+    if (syncBusy) return;
+    syncBusy = true;
+    try {
+      await queueReady;
+      if ((!state.actorId || Date.now()-state.contextLoadedAt>30000) && !(await loadContext({ silent: true, force:true }))) {
+        syncInfo.textContent='Iniciá sesión en el CRM con tu usuario para registrar los mensajes.';return;
+      }
+      linkChatButton.textContent=state.lead ? `Vincular chat a ${fullName(state.lead)}` : 'Seleccioná un contacto para vincular el chat';
+      const lead = currentChatLead();
+      if (lead) {
+        for (const message of renderedMessages()) {
+          const key = `${state.actorId}:${lead.id}:${message.id}`;
+          const hash = JSON.stringify(message);
+          if (acknowledged.get(key) !== hash) queue[key] = { actorId:state.actorId, leadId: lead.id, message, hash };
+        }
+        await chrome.storage.local.set({ bbConversationQueue: queue });
+      }
+      const pending = Object.entries(queue).filter(([, item]) => item.actorId===state.actorId && state.leads.some(lead => lead.id === item.leadId));
+      const leadId = pending[0]?.[1]?.leadId;
+      if (!leadId) {
+        syncInfo.textContent = lead ? `Chat registrado · ${state.actorName}` : "Chat sin vincular: buscá el cliente y vinculalo para registrar la conversación";
+        return;
+      }
+      const batch = pending.filter(([, item]) => item.leadId === leadId).slice(0, 100);
+      const response = await chrome.runtime.sendMessage({ type: "BB_SYNC_CONVERSATION", actorId:state.actorId, leadId, messages: batch.map(([, item]) => item.message) });
+      if (!response?.ok) throw new Error(response?.error || "No se pudo registrar el chat.");
+      if(response.saved!==batch.length)throw new Error('El CRM no confirmó todos los mensajes. Se volverá a intentar.');
+      for (const [key, item] of batch) { acknowledged.set(key, item.hash); delete queue[key]; }
+      await chrome.storage.local.set({ bbConversationQueue: queue });
+      syncInfo.textContent = Object.keys(queue).length ? "Guardando conversación…" : "Chat registrado en CRM";
+    } catch (error) {
+      syncInfo.textContent = "Sincronización pendiente";
+      syncInfo.title = error.message;
+    } finally { syncBusy = false; }
+  }
+
+  chatSyncLabel.addEventListener("click", async () => {
+    if (syncingHistory) { syncingHistory = false; return; }
+    await loadContext({ silent: true, force: true });
+    const lead = currentChatLead();
+    if (!lead) { syncInfo.textContent = "Abrí un chat que coincida con un único contacto del CRM"; return; }
+    let scroller = document.querySelector("#main .message-in, #main .message-out")?.parentElement;
+    while (scroller && scroller.id !== "main" && !(scroller.scrollHeight > scroller.clientHeight + 20 && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
+    if (!scroller || scroller.id === "main") { await syncChat(); syncInfo.textContent = "Se registró lo cargado. Desplazate hacia arriba para cargar mensajes anteriores."; return; }
+    syncingHistory = true; chatSyncLabel.textContent = "Detener historial";
+    let unchanged = 0, previous = "";
+    try {
+      for (let step = 0; step < 300 && syncingHistory; step++) {
+        if (currentChatLead()?.id !== lead.id) break;
+        while (syncBusy && syncingHistory) await new Promise(resolve => setTimeout(resolve, 200));
+        if (!syncingHistory || currentChatLead()?.id !== lead.id) break;
+        await syncChat();
+        const first = renderedMessages()[0]?.id || "";
+        unchanged = first === previous ? unchanged + 1 : 0; previous = first;
+        if (unchanged >= 8) break;
+        scroller.scrollTop = Math.max(0, scroller.scrollTop - scroller.clientHeight * 0.7);
+        scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+      await syncChat();
+      syncInfo.textContent = Object.keys(queue).length ? "Hay mensajes pendientes de guardar; mantené el CRM abierto y con sesión iniciada" : "Historial cargado registrado; WhatsApp puede tener mensajes anteriores";
+    } finally { syncingHistory = false; chatSyncLabel.textContent = "Sincronizar historial"; }
+  });
+
+  // Only the existing Destacados list can be linked, and only via this explicit action.
+  const nativeInfo = document.createElement("span");
+  nativeInfo.className = "bb-native-list-info";
+  nativeInfo.setAttribute("role", "status");
+  nativeInfo.hidden = true;
+  root.append(nativeInfo);
+  function reportFeatured(text) {
+    nativeInfo.textContent = text; nativeInfo.hidden = false;
+    clearTimeout(nativeInfo.hideTimer);
+    nativeInfo.hideTimer = setTimeout(() => { if (!featuredBridge.busy) nativeInfo.hidden = true; }, 20000);
+  }
+  const featuredBridge = new BBWhatsAppFeaturedBridge({ report: reportFeatured });
+  const syncStarsButton = document.createElement("button");
+  syncStarsButton.className = "bb-topbar-action bb-sync-stars";
+  syncStarsButton.textContent = "Sincronizar destacados";
+  $(".bb-topbar-actions").prepend(syncStarsButton);
+  syncStarsButton.addEventListener("click", async () => {
+    if (featuredBridge.busy) { featuredBridge.cancel(); return; }
+    if (!(await loadContext({ silent: true, force: true }))) { reportFeatured("Abrí el CRM e iniciá sesión para vincular destacados."); return; }
+    panel.hidden = true;
+    launcher.setAttribute("aria-expanded", "false");
+    syncStarsButton.textContent = "Cancelar vinculación";
+    try {
+      const ok = await featuredBridge.syncFeatured({
+        leads: [...state.leads], featured: [...state.featuredLeadIds], phone: whatsAppPhone, fullName,
+        setFeatured: async leadId => {
+          const response = await chrome.runtime.sendMessage({ type: "BB_SET_FEATURED", leadId, featured: true });
+          if (!response?.ok) throw new Error(response?.error || "No se pudo guardar la estrella en el CRM.");
+          state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
+          await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
+          renderContactTabs();
+          if (state.lead) renderLead(state.lead);
+        },
+      });
+      if (ok) { state.activeTabId = state.contactTabs.find(tab => tab.id === "featured" || tab.kind === "featured")?.id || "all"; renderContactTabs(); }
+    } finally { syncStarsButton.textContent = "Sincronizar destacados"; }
+  });
+  let selectingNativeTab = false;
+  async function selectNativeTab(tab) {
+    if (selectingNativeTab) return;
+    if (featuredBridge.busy) { reportFeatured("Terminá o cancelá la vinculación antes de cambiar de pestaña."); return; }
+    selectingNativeTab = true;
+    try {
+      if (tab.id === "all") {
+        if (await featuredBridge.all()) { state.activeTabId = "all"; nativeInfo.hidden = true; renderContactTabs(); }
+      } else if (tab.id === "featured" || tab.kind === "featured") {
+        featuredBridge.cancelled = false;
+        await featuredBridge.openFeatured();
+        state.activeTabId = tab.id;
+        nativeInfo.hidden = true;
+        renderContactTabs();
+      } else reportFeatured("Esta pestaña no modifica las listas de WhatsApp. Solo Destacados está vinculado.");
+    } catch (error) { reportFeatured(error.message); }
+    finally { selectingNativeTab = false; }
+  }
+  function renderChatList() {
+    document.querySelectorAll("[data-bb-list-filtered]").forEach(node => node.removeAttribute("data-bb-list-filtered"));
+    document.querySelectorAll(".bb-chat-list").forEach(node => node.remove());
+  }
+  renderChatList();
+  window.setInterval(() => { if (!document.hidden) void syncChat(); }, 4000);
+  loadContactTabs().then(() => { state.activeTabId = "all"; renderContactTabs(); });
   hydrateCachedContext();
   const syncFeatured = async () => {
     if (document.hidden || state.featuredSavingIds.size) return;

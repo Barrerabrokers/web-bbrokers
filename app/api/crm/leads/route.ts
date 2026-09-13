@@ -1,3 +1,4 @@
+import { listWhatsAppConversations } from "@/lib/whatsapp-inbox";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -39,7 +40,7 @@ const leadPatchSchema = z.object({
   id: z.string().uuid(),
   firstName: z.string().trim().min(1).optional(),
   lastName: z.string().trim().min(1).optional(),
-  email: z.string().trim().toLowerCase().email().optional(),
+  email: z.string().trim().toLowerCase().email().or(z.literal("")).optional(),
   countryCode: z.string().trim().min(1).optional(),
   phone: z.string().trim().min(1).optional(),
   status: z
@@ -51,6 +52,7 @@ const leadPatchSchema = z.object({
   developmentId: z.string().uuid().or(z.literal("")).optional(),
   developmentNameText: z.string().trim().optional(),
   assignedAgentId: z.string().uuid().or(z.literal("")).optional(),
+  notes: z.string().trim().optional(),
 });
 
 async function requireApprovedAgent() {
@@ -97,13 +99,18 @@ export async function GET(request: NextRequest) {
     includeAll,
     ownerId: includeAll ? params.get("owner") || session.user.id : session.user.id,
     status: params.get("status") || "all",
+    metaOnly: params.get("source") === "meta",
+    development: (params.get("development") || "").slice(0, 300),
     query: params.get("query") || "",
     page,
     pageSize,
     sortColumn: (allowedSortColumns.has(sortColumn) ? sortColumn : "createdAt") as Parameters<typeof getCrmLeadsPage>[0]["sortColumn"],
     sortDirection: params.get("direction") === "asc" ? "asc" : "desc",
   });
-  return privateJson({ ...result, page, pageSize, pageCount: Math.max(1, Math.ceil(result.total / pageSize)) });
+  const conversations = params.get("source") === "meta"
+    ? Object.fromEntries((await listWhatsAppConversations({ agentId: session.user.id, includeAll })).filter(c => c.leadId && result.leads.some(l => l.id === c.leadId)).map(c => [c.leadId!, c.channel]))
+    : undefined;
+  return privateJson({ ...result, conversations, page, pageSize, pageCount: Math.max(1, Math.ceil(result.total / pageSize)) });
 }
 
 export async function POST(request: NextRequest) {
@@ -203,7 +210,7 @@ export async function PATCH(request: NextRequest) {
     id: currentLead.id,
     firstName: parsed.data.firstName || currentLead.firstName,
     lastName: parsed.data.lastName || currentLead.lastName,
-    email: parsed.data.email || currentLead.email,
+    email: parsed.data.email !== undefined ? parsed.data.email : currentLead.email,
     countryCode: normalizeDialCode(parsed.data.countryCode || currentLead.countryCode || "+54"),
     phone: parsed.data.phone || currentLead.phone,
     status: parsed.data.status || currentLead.status,
@@ -222,7 +229,8 @@ export async function PATCH(request: NextRequest) {
       parsed.data.assignedAgentId !== undefined
         ? parsed.data.assignedAgentId || undefined
         : currentLead.assignedAgentId,
-    notes: currentLead.notes || "",
+    notes:
+      parsed.data.notes !== undefined ? parsed.data.notes : (currentLead.notes || ""),
     createdBy: currentLead.createdBy || session.user.id,
   });
 

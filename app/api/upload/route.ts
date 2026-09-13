@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
 
       const isAllowed =
         allowedTypes.some((t) => file.type.startsWith(t)) ||
-        allowedExtensions.includes(ext);
+        allowedExtensions.includes(ext) ||
+        (safeFolder === "templates" && ["doc", "docx", "txt", "ppt", "pptx"].includes(ext));
       if (!isAllowed) {
         return NextResponse.json(
           { error: `Tipo de archivo no permitido: ${file.type}` },

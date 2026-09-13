@@ -1,7 +1,8 @@
 import crypto from "crypto";
+import { getMetaSocialCredentials, getMetaSocialContactName } from "@/lib/meta-social";
 import postgres from "postgres";
 import { splitInternationalPhone } from "@/lib/phone-countries";
-import { upsertCrmLead } from "@/lib/db";
+import { upsertCrmLead, upsertCrmLeadByEmail } from "@/lib/db";
 import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 
 export type WhatsAppConversation = {
@@ -187,16 +188,32 @@ export async function ensureSocialContact(channel: "instagram" | "facebook", ext
   await ensureWhatsAppInboxSchema();
   const sql = connection();
   try {
-    const syntheticPhone = `${channel}:${externalContactId}`;
-    const rows = await sql`
-      INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, channel, external_contact_id)
-      VALUES (${crypto.randomUUID()}, ${syntheticPhone}, ${contactName.trim() || (channel === "instagram" ? "Consulta de Instagram" : "Consulta de Facebook")}, ${channel}, ${externalContactId})
-      ON CONFLICT (channel, external_contact_id) WHERE external_contact_id IS NOT NULL DO UPDATE SET
-        contact_name = COALESCE(NULLIF(EXCLUDED.contact_name, ''), crm_whatsapp_conversations.contact_name),
-        updated_at = NOW()
-      RETURNING id
-    `;
-    return getWhatsAppConversation(rows[0].id);
+    const id = await sql.begin(async (tx) => {
+      const rows = await tx`
+        INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, channel, external_contact_id, ai_enabled)
+        VALUES (${crypto.randomUUID()}, ${`${channel}:${externalContactId}`}, ${contactName.trim() || (channel === "instagram" ? "Consulta de Instagram" : "Consulta de Facebook")}, ${channel}, ${externalContactId}, FALSE)
+        ON CONFLICT (channel, external_contact_id) WHERE external_contact_id IS NOT NULL DO UPDATE SET
+          contact_name = CASE WHEN ${contactName.trim()} <> '' THEN ${contactName.trim()} ELSE crm_whatsapp_conversations.contact_name END,
+          updated_at = NOW()
+        RETURNING id, lead_id, contact_name, assigned_agent_id
+      `;
+      const current = rows[0];
+      if (!current.lead_id) {
+        const profileName = contactName.trim() || await getMetaSocialContactName(channel, externalContactId);
+        if (profileName) await tx`UPDATE crm_whatsapp_conversations SET contact_name = ${profileName} WHERE id = ${current.id}`;
+        const result = await upsertCrmLeadByEmail({
+          firstName: profileName || current.contact_name, lastName: "-",
+          email: `${channel}-${externalContactId}@sin-email.barrerabrokers.local`,
+          countryCode: "+54", phone: "", status: "NEW", source: channel === "instagram" ? "Instagram" : "Facebook",
+          assignedAgentId: current.assigned_agent_id || undefined,
+          notes: `Contacto recibido por ${channel === "instagram" ? "Instagram" : "Facebook"}. Todavía no informó teléfono ni correo.`,
+        }, { preservePopulatedFields: true, leaveUnassignedOnCreate: true });
+        if (!result.lead) throw new Error("No se pudo registrar el contacto de Meta.");
+        await tx`UPDATE crm_whatsapp_conversations SET lead_id = ${result.lead.id}, assigned_agent_id = ${result.lead.assignedAgentId || current.assigned_agent_id || null} WHERE id = ${current.id}`;
+      }
+      return String(current.id);
+    });
+    return getWhatsAppConversation(id);
   } finally { await sql.end(); }
 }
 
@@ -219,7 +236,7 @@ export async function listWhatsAppMessages(conversationId: string, limit = 100) 
   } finally { await sql.end(); }
 }
 
-export async function listWhatsAppMessagesForLead(leadId: string, phoneValue: string, limit = 6) {
+export async function listWhatsAppMessagesForLead(leadId: string, phoneValue: string, limit: number | null = 6) {
   await ensureWhatsAppInboxSchema();
   const phone = phoneValue.replace(/\D/g, "");
   const sql = connection();
@@ -230,7 +247,7 @@ export async function listWhatsAppMessagesForLead(leadId: string, phoneValue: st
       LEFT JOIN agents a ON a.id = m.sender_agent_id
       WHERE c.lead_id = ${leadId}
         OR (${phone} <> '' AND RIGHT(REGEXP_REPLACE(c.phone, '\\D', '', 'g'), 10) = RIGHT(${phone}, 10))
-      ORDER BY m.created_at DESC LIMIT ${Math.min(Math.max(limit, 1), 30)}
+      ORDER BY m.created_at DESC LIMIT ${limit === null ? null : Math.min(Math.max(limit, 1), 30)}
     `;
     return rows.reverse().map((row: any): WhatsAppMessage => ({
       id: row.id, conversationId: row.conversation_id, whatsappMessageId: row.whatsapp_message_id || undefined,
@@ -278,7 +295,7 @@ export async function updateWhatsAppConversation(id: string, data: {
       `;
       if (!locked[0]) throw new Error("Otro agente está atendiendo esta conversación.");
       await sql`
-        UPDATE crm_leads SET assigned_agent_id = ${data.lockAgentId}, updated_at = NOW()
+        UPDATE crm_leads SET assigned_agent_id = (SELECT assigned_agent_id FROM crm_whatsapp_conversations WHERE id = ${id}), updated_at = NOW()
         WHERE id = (SELECT lead_id FROM crm_whatsapp_conversations WHERE id = ${id})
       `;
     }
@@ -317,9 +334,7 @@ export async function sendWhatsAppText(phone: string, text: string) {
 }
 
 export async function sendMetaSocialText(channel: "instagram" | "facebook", recipientId: string, text: string) {
-  const token = process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
-  const pageId = process.env.META_PAGE_ID;
-  if (!token || !pageId) throw new Error(`Faltan las credenciales de ${channel === "instagram" ? "Instagram" : "Facebook"}.`);
+  const { token, pageId } = await getMetaSocialCredentials();
   const version = process.env.META_GRAPH_VERSION || "v23.0";
   const response = await fetch(`https://graph.facebook.com/${version}/${pageId}/messages`, {
     method: "POST",

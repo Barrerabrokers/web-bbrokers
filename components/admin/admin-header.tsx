@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { LogOut, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -11,6 +12,7 @@ import { CrmNotifications } from "@/components/admin/crm-notifications";
 export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
   const { data: session } = useSession();
   const settings = useSiteSettings();
+  const pathname = usePathname();
 
   return (
     <header className="bg-cream-200/85 backdrop-blur-xl border-b border-ink/15 sticky top-0 z-30">
@@ -71,6 +73,9 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
           </button>
         </div>
       </div>
+      <nav aria-label="Accesos del CRM" className={`${crmOnly ? "flex" : "flex md:hidden"} gap-2 overflow-x-auto px-4 pb-2`}>
+        {[{ href: "/admin/crm", label: "Contactos" }, { href: "/admin/crm/panel-agentes", label: session?.user?.role === "admin" ? "Panel de agentes" : "Mi actividad" }].map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-3 text-sm font-medium ${pathname === item.href ? "bg-[#006b6b] text-white" : "text-ink hover:bg-white/60"}`}>{item.label}</Link>)}
+      </nav>
     </header>
   );
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { createCrmActivity, deleteCrmActivity, getCrmActivities, getCrmLeadById } from "@/lib/db";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
+import { editCrmActivity } from "@/lib/crm-activity-edit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,4 +99,26 @@ export async function DELETE(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+const editSchema = z.object({
+  id: z.string().uuid(), version: z.string().min(1),
+  title: z.string().trim().min(1).max(500).optional(),
+  body: z.string().trim().max(50000).optional(),
+  scheduledAt: z.union([z.string().datetime(),z.literal("")]).optional(),
+  outcome: z.string().trim().min(1).max(10000).optional(),
+}).strict();
+
+export async function PATCH(request: NextRequest) {
+  const session = await requireApprovedAgent();
+  if (!session) return NextResponse.json({error:"No autorizado"},{status:403});
+  const parsed = editSchema.safeParse(await request.json().catch(()=>null));
+  if (!parsed.success) return NextResponse.json({error:"Revisá los datos de la actividad."},{status:400});
+  try {
+    const result = await editCrmActivity(parsed.data,{id:session.user.id,includeAll:canViewAllCrmContacts(session.user.role)});
+    return NextResponse.json(result.error ? {error:result.error} : {success:true},{status:result.status});
+  } catch (error) {
+    console.error("Error editing CRM activity",error);
+    return NextResponse.json({error:"No se pudo guardar. Intentá nuevamente."},{status:500});
+  }
 }

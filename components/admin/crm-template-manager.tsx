@@ -1,4 +1,8 @@
 "use client";
+import { uploadCrmEmailAttachment } from "@/lib/crm-email-attachment-upload";
+import { CrmTemplateAuthorFilter } from "@/components/admin/crm-template-author-filter";
+import { CrmTemplateText } from "@/components/admin/crm-template-text";
+import { templateMatchesAuthor } from "@/lib/crm-template-filters";
 
 import type {
   ChangeEvent,
@@ -228,7 +232,7 @@ function newButtonBlock(): Extract<TemplateContentBlock, { type: "button" }> {
     align: "center",
     backgroundColor: "#005c5c",
     textColor: "#ffffff",
-    borderRadius: 999,
+    borderRadius: 12,
   };
 }
 
@@ -316,7 +320,7 @@ function normalizeBlock(block: TemplateContentBlock): TemplateContentBlock {
       align: block.align || "center",
       backgroundColor: block.backgroundColor || "#005c5c",
       textColor: block.textColor || "#ffffff",
-      borderRadius: block.borderRadius ?? 999,
+      borderRadius: Math.min(40, Math.max(0, block.borderRadius ?? 12)),
     };
   }
   if (block.type === "divider") {
@@ -398,13 +402,17 @@ function safeLinkUrl(value: string) {
 }
 
 export function CrmTemplateManager({
-  initialTemplates,
+  initialTemplates, currentAgentId, currentAgentName,
 }: {
   initialTemplates: CrmEmailTemplate[];
+  currentAgentId: string;
+  currentAgentName: string;
 }) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [form, setForm] = useState<TemplateForm>(() => newEmptyTemplate());
   const [query, setQuery] = useState("");
+  const [authorFilter, setAuthorFilter] = useState("all");
+  const [showTools, setShowTools] = useState(false);
   const [channelFilter, setChannelFilter] = useState<"all" | "email" | "whatsapp">("all");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [isEditing, setIsEditing] = useState(initialTemplates.length === 0);
@@ -480,11 +488,13 @@ export function CrmTemplateManager({
   const filteredTemplates = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return templates.filter((template) => {
+      if (!templateMatchesAuthor(template, authorFilter, currentAgentId)) return false;
       if (channelFilter !== "all" && (template.channel || "email") !== channelFilter) return false;
       if (categoryFilter !== "Todas" && template.category !== categoryFilter) return false;
       if (!needle) return true;
       return [
         template.name,
+        template.createdByName || "",
         template.category,
         template.subject,
         template.body,
@@ -502,7 +512,7 @@ export function CrmTemplateManager({
         .toLowerCase()
         .includes(needle);
     });
-  }, [categoryFilter, channelFilter, query, templates]);
+  }, [authorFilter, currentAgentId, categoryFilter, channelFilter, query, templates]);
 
   const syncBlocks = (blocks: TemplateContentBlock[]) => ({
     contentBlocks: blocks,
@@ -555,6 +565,7 @@ export function CrmTemplateManager({
     setForm(nextForm);
     setSelectedBlockId(nextForm.contentBlocks[0]?.id || null);
     setIsEditing(true);
+    setShowTools(false);
     setError("");
     setNotice("");
   };
@@ -564,6 +575,7 @@ export function CrmTemplateManager({
     setForm(nextForm);
     setSelectedBlockId(nextForm.contentBlocks[0]?.id || null);
     setIsEditing(true);
+    setShowTools(false);
     setError("");
     setNotice("");
   };
@@ -742,7 +754,7 @@ export function CrmTemplateManager({
     const bookmark = selectedTextBookmark.current;
     if (bookmark?.blockId === blockId) {
       const restored = rangeFromOffsets(editor, bookmark.start, bookmark.end);
-      if (restored && !restored.collapsed) return restored;
+      if (restored) return restored;
     }
     const saved = selectedTextRange.current;
     return saved && !saved.collapsed && editor.contains(saved.commonAncestorContainer) ? saved.cloneRange() : null;
@@ -755,7 +767,7 @@ export function CrmTemplateManager({
     );
     if (!editor) return false;
     const range = selectedEditorRange(editor, selectedBlock.id);
-    if (!range) return false;
+    if (!range || range.collapsed) return false;
     const span = document.createElement("span");
     Object.assign(span.style, style);
     span.appendChild(range.extractContents());
@@ -776,9 +788,6 @@ export function CrmTemplateManager({
     if (selectedBlock?.type !== "text") return;
     if (command === "foreColor" && value && applyInlineStyle({ color: value })) return;
     if ((command === "backColor" || command === "hiliteColor") && value && applyInlineStyle({ backgroundColor: value })) return;
-    if (command === "bold" && applyInlineStyle({ fontWeight: "700" })) return;
-    if (command === "italic" && applyInlineStyle({ fontStyle: "italic" })) return;
-    if (command === "underline" && applyInlineStyle({ textDecoration: "underline" })) return;
     if (command === "foreColor" && value) {
       updateTextBlock(selectedBlock.id, { color: value });
       return;
@@ -908,6 +917,23 @@ export function CrmTemplateManager({
     });
   };
 
+  const replaceSelectedImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || selectedBlock?.type !== "image") return;
+    const blockId = selectedBlock.id;
+    setIsUploading(true); setError("");
+    try {
+      const payload = new FormData(); payload.append("files", file); payload.append("folder", "templates");
+      const response = await fetch("/api/upload", { method: "POST", body: payload });
+      const data = await response.json() as { urls?: string[]; error?: string };
+      if (!response.ok || !data.urls?.[0]) throw new Error(data.error || "No se pudo reemplazar la imagen.");
+      updateImageBlock(blockId, { url: data.urls[0] });
+      setNotice("Imagen reemplazada.");
+    } catch (error) { setError(error instanceof Error ? error.message : "No se pudo reemplazar la imagen."); }
+    finally { setIsUploading(false); }
+  };
+
   const uploadImages = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -919,6 +945,7 @@ export function CrmTemplateManager({
     const files = Array.from(event.target.files || []);
     event.target.value = "";
     if (files.length === 0) return;
+    if (files.some(file => file.size > 10 * 1024 * 1024)) { setError("Cada adjunto puede pesar hasta 10 MB. Seleccioná una versión más liviana."); return; }
     await uploadFiles(files, "attachment");
   };
 
@@ -935,20 +962,14 @@ export function CrmTemplateManager({
     setNotice("");
 
     try {
-      const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-      formData.append("folder", "templates");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await response.json().catch(() => null)) as
-        | { urls?: string[]; error?: string }
-        | null;
-
-      if (!response.ok || !data?.urls) {
-        throw new Error(data?.error || "No se pudieron subir los archivos");
+      const data: { urls: string[] } = { urls: [] };
+      for (const file of files) {
+        if (kind === "attachment") { data.urls.push(await uploadCrmEmailAttachment(file)); continue; }
+        const formData = new FormData(); formData.append("files", file); formData.append("folder", "templates");
+        const response = await fetch("/api/upload", { method: "POST", body: formData });
+        const payload = await response.json().catch(() => null) as { urls?: string[]; error?: string } | null;
+        if (!response.ok || !payload?.urls?.[0]) throw new Error(payload?.error || `No se pudo subir ${file.name}.`);
+        data.urls.push(payload.urls[0]);
       }
 
       setForm((current) => {
@@ -1106,12 +1127,12 @@ export function CrmTemplateManager({
       {(error || notice) && (
         <div className="px-5 pt-4">
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}
             </p>
           )}
           {notice && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               {notice}
             </p>
           )}
@@ -1131,6 +1152,7 @@ export function CrmTemplateManager({
               />
             </label>
 
+            <div className="mt-4"><CrmTemplateAuthorFilter templates={templates} value={authorFilter} onChange={setAuthorFilter} /></div>
             <div className="mt-6 space-y-1">
               {[
                 { value: "all", label: "Todas", count: templates.length },
@@ -1187,7 +1209,7 @@ export function CrmTemplateManager({
               onSubmit={saveTemplate}
               className="min-h-[calc(100vh-3.5rem)] bg-[#f1f2f2]"
             >
-              <div className="sticky top-0 z-20 border-b border-ink/12 bg-white px-4 py-2.5 text-ink shadow-sm">
+              <div className="relative z-30 border-b border-ink/12 bg-white px-4 py-2.5 text-ink shadow-sm">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div className="flex items-center gap-3">
                     <button
@@ -1211,6 +1233,7 @@ export function CrmTemplateManager({
                       onChange={update("name")}
                       className="h-10 rounded-lg border border-ink/15 bg-white px-3 text-sm text-ink outline-none placeholder:text-ink/40 focus:border-[#005c5c]"
                       placeholder="Nombre de plantilla"
+                      aria-label="Nombre de plantilla"
                       required
                     />
                     {form.channel === "email" && (
@@ -1239,14 +1262,14 @@ export function CrmTemplateManager({
                     />
                   </div>
 
-                  <div className="hidden items-center rounded-lg border border-ink/15 bg-[#f7f8f8] p-0.5 xl:flex">
+                  <div className="flex items-center rounded-lg border border-ink/15 bg-[#f7f8f8] p-0.5">
                     <button type="button" onClick={() => setPreviewDevice("desktop")} className={`rounded-md p-2 ${previewDevice === "desktop" ? "bg-white text-[#005c5c] shadow-sm" : "text-ink/45"}`} aria-label="Vista de escritorio" aria-pressed={previewDevice === "desktop"}><Monitor className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setPreviewDevice("mobile")} className={`rounded-md p-2 ${previewDevice === "mobile" ? "bg-white text-[#005c5c] shadow-sm" : "text-ink/45"}`} aria-label="Vista móvil" aria-pressed={previewDevice === "mobile"}><Smartphone className="h-4 w-4" /></button>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSaving}
+                    disabled={isSaving || isUploading}
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#005c5c] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#004949] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -1254,6 +1277,18 @@ export function CrmTemplateManager({
                   </button>
                 </div>
               </div>
+
+              {form.channel === "email" && <div className="flex flex-wrap items-center gap-2 border-b border-ink/10 bg-white px-4 py-3">
+                <button type="button" onClick={addTextBlock} className="template-tool-button !w-auto"><Type className="h-4 w-4" />Texto</button>
+                <button type="button" onClick={addTitleBlock} className="template-tool-button !w-auto">Título</button>
+                <label className="template-tool-button !w-auto cursor-pointer"><ImageIcon className="h-4 w-4" />Agregar imagen<input type="file" accept="image/*" multiple disabled={isUploading} onChange={uploadImages} className="sr-only" /></label>
+                <label className="template-tool-button !w-auto cursor-pointer"><FileText className="h-4 w-4" />Adjuntar archivo · hasta 10 MB<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.gif" multiple disabled={isUploading} onChange={uploadAttachments} className="sr-only" /></label>
+                {selectedBlock?.type === "image" && <label className="template-tool-button !w-auto cursor-pointer">Reemplazar imagen<input type="file" accept="image/*" disabled={isUploading} onChange={replaceSelectedImage} className="sr-only" /></label>}
+                <button type="button" onClick={addButtonBlock} className="template-tool-button !w-auto"><LinkIcon className="h-4 w-4" />Botón / enlace</button>
+                <button type="button" onClick={addColumnsBlock} className="template-tool-button !w-auto"><Columns2 className="h-4 w-4" />Columnas</button>
+                <button type="button" onClick={() => setShowTools((value) => !value)} aria-expanded={showTools} className="template-tool-button !w-auto">{showTools ? "Ocultar ajustes" : "Más elementos y ajustes"}</button>
+                <span className="ml-auto text-xs text-ink/65">{isUploading ? "Subiendo archivo…" : `Creada por ${templates.find((template) => template.id === form.id)?.createdByName || (form.id ? "autor no registrado" : currentAgentName)}`}</span>
+              </div>}
 
               {form.channel === "whatsapp" ? (
                 <WhatsAppTemplateEditor
@@ -1264,7 +1299,87 @@ export function CrmTemplateManager({
                   }}
                 />
               ) : (
-              <div className="grid min-h-[calc(100vh-7.5rem)] lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(620px,1fr)_260px]">
+              <div className={`grid min-w-0 ${showTools ? "lg:grid-cols-[minmax(0,1fr)_280px]" : "grid-cols-1"}`}>
+                <section className="min-w-0 bg-[#f3f3f2] px-3 pb-8 pt-3 sm:px-8">
+                  <div className="mx-auto max-w-[960px]">
+                    <EditorToolbar
+                      disabled={selectedBlock?.type !== "text"}
+                      selectedBlock={selectedBlock}
+                      onCommand={applyTextCommand}
+                      onFontFamily={applyFontFamily}
+                      onFontSize={applyTextSize}
+                      onTextColor={(color) => {
+                        applyTextCommand("foreColor", color);
+                      }}
+                      onAddLink={() => {
+                        if (selectedBlock?.type === "text") addLinkToTextBlock(selectedBlock.id);
+                      }}
+                      onPickVariable={(token) => insertVariable("body", token)}
+                    />
+                    {selectionToolbar && selectedBlock?.type === "text" && selectionToolbar.blockId === selectedBlock.id && (
+                      <FloatingSelectionToolbar
+                        left={selectionToolbar.left}
+                        top={selectionToolbar.top}
+                        onCommand={applyTextCommand}
+                        onFontFamily={applyFontFamily}
+                        onFontSize={applyTextSize}
+                        onTextColor={(color) => applyTextCommand("foreColor", color)}
+                      />
+                    )}
+
+                    <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-ink/50">
+                      <span>{previewDevice === "desktop" ? "Escribí y editá directamente en el correo" : "Celular · 375 px"}</span>
+                      <span>{previewDevice === "desktop" ? "Vista de escritorio" : "Vista móvil"}</span>
+                    </div>
+                    <div
+                      data-email-preview={previewDevice}
+                      className="mx-auto min-h-[440px] overflow-visible bg-white shadow-[0_4px_8px_rgba(21,20,21,0.08)] transition-[width] duration-200"
+                      style={{ width: "100%", maxWidth: previewDevice === "desktop" ? "640px" : "375px", padding: previewDevice === "desktop" ? "16px 20px" : "14px 16px" }}
+                    >
+                      <style jsx global>{`
+                        [data-email-preview="mobile"] [data-email-columns] { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+                        [data-email-preview="mobile"] [data-email-column] { min-height: 0 !important; margin: 5px 0 !important; }
+                        [data-email-preview] p { margin-top: 0; margin-bottom: 14px; }
+                        [data-email-preview="mobile"] p { margin-bottom: 12px; }
+                      `}</style>
+                        {form.contentBlocks.map((block, index) => (
+                          <TemplateBlockEditor
+                            key={block.id}
+                            block={block}
+                            index={index}
+                            total={form.contentBlocks.length}
+                            draggedBlockId={draggedBlockId}
+                            selected={selectedBlock?.id === block.id}
+                            onSelect={() => setSelectedBlockId(block.id)}
+                            onDragStart={() => setDraggedBlockId(block.id)}
+                            onDragEnd={() => setDraggedBlockId(null)}
+                            onDrop={() => {
+                              if (draggedBlockId) moveBlock(draggedBlockId, block.id);
+                              setDraggedBlockId(null);
+                            }}
+                            onMove={(direction) => moveBlockByDirection(block.id, direction)}
+                            onDuplicate={() => duplicateBlock(block.id)}
+                            onRemove={() => removeBlock(block.id)}
+                            onTextChange={(html) => updateTextBlock(block.id, { html })}
+                            onColorChange={(color) => updateTextBlock(block.id, { color })}
+                            onAddLink={() => addLinkToTextBlock(block.id)}
+                            onImageChange={(patch) => updateImageBlock(block.id, patch)}
+                            onButtonChange={(patch) => updateButtonBlock(block.id, patch)}
+                            onDividerChange={(patch) => updateDividerBlock(block.id, patch)}
+                            onSpacerChange={(patch) => updateSpacerBlock(block.id, patch)}
+                            onColumnsChange={(patch) => updateColumnsBlock(block.id, patch)}
+                            onColumnImageUpload={(columnIndex, event) => uploadColumnImage(block.id, columnIndex, event)}
+                            onImageResizeStart={(event) => {
+                              if (block.type === "image") startImageResize(event, block);
+                            }}
+                          />
+                        ))}
+
+                    </div>
+                  </div>
+                </section>
+
+                {showTools && <div className="min-w-0 border-t border-ink/12 bg-white lg:border-l lg:border-t-0">
                 <aside className="border-b border-ink/12 bg-white lg:border-b-0 lg:border-r">
                   <div className="flex items-center justify-between border-b border-ink/12 px-4 py-4">
                     <h3 className="text-lg font-semibold text-ink">Agregar</h3>
@@ -1353,7 +1468,7 @@ export function CrmTemplateManager({
                         <span className="text-xs font-semibold text-ink">Adjunto</span>
                         <input
                           type="file"
-                          accept=".pdf,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.gif"
                           multiple
                           onChange={uploadAttachments}
                           className="sr-only"
@@ -1411,151 +1526,6 @@ export function CrmTemplateManager({
                   </div>
                 </aside>
 
-                <section className="overflow-auto bg-[#f3f3f2] px-3 pb-5 pt-2 lg:px-5">
-                  <div className="mx-auto max-w-[960px]">
-                    <EditorToolbar
-                      disabled={selectedBlock?.type !== "text"}
-                      selectedBlock={selectedBlock}
-                      onCommand={applyTextCommand}
-                      onFontFamily={applyFontFamily}
-                      onFontSize={applyTextSize}
-                      onTextColor={(color) => {
-                        applyTextCommand("foreColor", color);
-                      }}
-                      onAddLink={() => {
-                        if (selectedBlock?.type === "text") addLinkToTextBlock(selectedBlock.id);
-                      }}
-                      onPickVariable={(token) => insertVariable("body", token)}
-                    />
-                    {selectionToolbar && selectedBlock?.type === "text" && selectionToolbar.blockId === selectedBlock.id && (
-                      <FloatingSelectionToolbar
-                        left={selectionToolbar.left}
-                        top={selectionToolbar.top}
-                        onCommand={applyTextCommand}
-                        onFontFamily={applyFontFamily}
-                        onFontSize={applyTextSize}
-                        onTextColor={(color) => applyTextCommand("foreColor", color)}
-                      />
-                    )}
-
-                    <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-ink/50">
-                      <span>{previewDevice === "desktop" ? "Correo real · 640 px" : "Celular · 375 px"}</span>
-                      <span>{previewDevice === "desktop" ? "Margen interno 20 px" : "Margen interno 16 px"}</span>
-                    </div>
-                    <div
-                      data-email-preview={previewDevice}
-                      className="mx-auto min-h-[620px] overflow-visible bg-white shadow-[0_4px_8px_rgba(21,20,21,0.08)] transition-[width] duration-200"
-                      style={{ width: "100%", maxWidth: previewDevice === "desktop" ? "640px" : "375px", padding: previewDevice === "desktop" ? "16px 20px" : "14px 16px" }}
-                    >
-                      <style jsx global>{`
-                        [data-email-preview="mobile"] [data-email-columns] { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
-                        [data-email-preview="mobile"] [data-email-column] { min-height: 0 !important; margin: 5px 0 !important; }
-                        [data-email-preview] p { margin-top: 0; margin-bottom: 14px; }
-                        [data-email-preview="mobile"] p { margin-bottom: 12px; }
-                      `}</style>
-                        {form.contentBlocks.map((block, index) => (
-                          <TemplateBlockEditor
-                            key={block.id}
-                            block={block}
-                            index={index}
-                            total={form.contentBlocks.length}
-                            draggedBlockId={draggedBlockId}
-                            selected={selectedBlock?.id === block.id}
-                            onSelect={() => setSelectedBlockId(block.id)}
-                            onDragStart={() => setDraggedBlockId(block.id)}
-                            onDragEnd={() => setDraggedBlockId(null)}
-                            onDrop={() => {
-                              if (draggedBlockId) moveBlock(draggedBlockId, block.id);
-                              setDraggedBlockId(null);
-                            }}
-                            onMove={(direction) => moveBlockByDirection(block.id, direction)}
-                            onDuplicate={() => duplicateBlock(block.id)}
-                            onRemove={() => removeBlock(block.id)}
-                            onTextChange={(html) => updateTextBlock(block.id, { html })}
-                            onColorChange={(color) => updateTextBlock(block.id, { color })}
-                            onAddLink={() => addLinkToTextBlock(block.id)}
-                            onImageChange={(patch) => updateImageBlock(block.id, patch)}
-                            onButtonChange={(patch) => updateButtonBlock(block.id, patch)}
-                            onDividerChange={(patch) => updateDividerBlock(block.id, patch)}
-                            onSpacerChange={(patch) => updateSpacerBlock(block.id, patch)}
-                            onColumnsChange={(patch) => updateColumnsBlock(block.id, patch)}
-                            onColumnImageUpload={(columnIndex, event) => uploadColumnImage(block.id, columnIndex, event)}
-                            onImageResizeStart={(event) => {
-                              if (block.type === "image") startImageResize(event, block);
-                            }}
-                          />
-                        ))}
-                        <div className="mt-3 grid gap-2 border-t border-ink/10 bg-white pt-3 sm:grid-cols-2">
-                          <button type="button" onClick={addTitleBlock} className="template-tool-button justify-center">
-                            <Type className="h-4 w-4" />
-                            Título
-                          </button>
-                          <button type="button" onClick={addTextBlock} className="template-tool-button justify-center">
-                            <Type className="h-4 w-4" />
-                            Texto
-                          </button>
-                          <button type="button" onClick={addColumnsBlock} className="template-tool-button justify-center">
-                            <Columns2 className="h-4 w-4" />
-                            2 columnas
-                          </button>
-                          <button type="button" onClick={addButtonBlock} className="template-tool-button justify-center">
-                            <Mail className="h-4 w-4" />
-                            Botón
-                          </button>
-                          <label className="template-tool-button cursor-pointer justify-center">
-                            <ImageIcon className="h-4 w-4" />
-                            Imagen
-                            <input type="file" accept="image/*" multiple onChange={uploadImages} className="sr-only" />
-                          </label>
-                          <label className="template-tool-button cursor-pointer justify-center">
-                            <FileImage className="h-4 w-4" />
-                            Plano
-                            <input type="file" accept="image/*,.pdf" multiple onChange={uploadPlans} className="sr-only" />
-                          </label>
-                          <button type="button" onClick={addFinancingSection} className="template-tool-button justify-center">
-                            <BadgePercent className="h-4 w-4" />
-                            Financiación
-                          </button>
-                          <label className="template-tool-button cursor-pointer justify-center">
-                            <FileText className="h-4 w-4" />
-                            Adjunto
-                            <input
-                              type="file"
-                              accept=".pdf,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp"
-                              multiple
-                              onChange={uploadAttachments}
-                              className="sr-only"
-                            />
-                          </label>
-                        </div>
-                    </div>
-                  </div>
-                </section>
-
-                <div className="border-t border-ink/12 bg-white xl:border-l xl:border-t-0">
-                  <div className="border-b border-ink/10 p-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-ink">Más módulos</h3>
-                      <span className="text-[10px] font-medium text-ink/45">Agregar</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <label className="module-tile cursor-pointer" title="Subir imagen">
-                        <ImageIcon className="h-5 w-5 text-[#005c5c]" /><span className="text-[11px] font-semibold">Imagen</span>
-                        <input type="file" accept="image/*" multiple onChange={uploadImages} className="sr-only" />
-                      </label>
-                      <label className="module-tile cursor-pointer" title="Subir planos">
-                        <FileImage className="h-5 w-5 text-[#005c5c]" /><span className="text-[11px] font-semibold">Planos</span>
-                        <input type="file" accept="image/*,.pdf" multiple onChange={uploadPlans} className="sr-only" />
-                      </label>
-                      <ModuleTile icon={<BadgePercent className="h-5 w-5" />} title="Financiación" description="Anticipo y cuotas" onClick={addFinancingSection} />
-                      <label className="module-tile cursor-pointer" title="Adjuntar archivo">
-                        <FileText className="h-5 w-5 text-[#005c5c]" /><span className="text-[11px] font-semibold">Adjunto</span>
-                        <input type="file" accept=".pdf,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp" multiple onChange={uploadAttachments} className="sr-only" />
-                      </label>
-                      <ModuleTile icon={<Minus className="h-5 w-5" />} title="Separador" description="Línea divisoria" onClick={addDividerBlock} />
-                      <ModuleTile icon={<GripVertical className="h-5 w-5" />} title="Espacio" description="Separación" onClick={addSpacerBlock} />
-                    </div>
-                  </div>
                   <TemplatePreview
                   form={form}
                   selectedBlock={selectedBlock}
@@ -1581,7 +1551,7 @@ export function CrmTemplateManager({
                     if (selectedBlock?.type === "spacer") updateSpacerBlock(selectedBlock.id, patch);
                   }}
                   />
-                </div>
+                </div>}
               </div>
               )}
             </form>
@@ -1590,7 +1560,7 @@ export function CrmTemplateManager({
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight text-ink">
-                    Todas las plantillas
+                    {authorFilter === "mine" ? "Mis plantillas" : "Plantillas"}
                   </h2>
                   <p className="mt-1 text-sm text-ink/55">
                     {filteredTemplates.length} plantilla{filteredTemplates.length !== 1 ? "s" : ""} disponible{filteredTemplates.length !== 1 ? "s" : ""}.
@@ -1624,6 +1594,7 @@ export function CrmTemplateManager({
                         </span>
                       </div>
                       <h3 className="mt-2 text-base font-semibold text-ink">{template.name}</h3>
+                      <p className="mt-1 text-xs font-medium text-[#006b6b]">Creada por {template.createdByName || "autor no registrado"}</p>
                       <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink/58">
                         {template.channel === "whatsapp" ? template.body : template.subject}
                       </p>
@@ -1777,7 +1748,7 @@ function TemplateBlockEditor({
             : "border-transparent hover:border-ink/10"
       }`}
     >
-      <div className={`absolute right-2 top-2 z-30 items-center gap-1 rounded-xl border border-ink/12 bg-white p-1 shadow-[0_8px_24px_rgba(21,20,21,0.14)] lg:-right-10 lg:top-0 lg:flex-col lg:[&>div]:flex-col ${selected ? "flex" : "hidden group-hover:flex"}`}>
+      <div className={`mb-2 w-fit items-center gap-1 rounded-lg border border-ink/12 bg-white p-1 lg:absolute lg:-right-10 lg:top-0 lg:mb-0 lg:flex-col lg:[&>div]:flex-col ${selected ? "flex" : "hidden group-hover:flex group-focus-within:flex"}`}>
           <button
             type="button"
             draggable
@@ -1800,12 +1771,11 @@ function TemplateBlockEditor({
 
       {block.type === "text" && (
         <div className="py-1">
-          <div
-            contentEditable
-            suppressContentEditableWarning
+          <CrmTemplateText
+            aria-label="Texto del correo"
             onFocus={onSelect}
-            onBlur={(event) => onTextChange(event.currentTarget.innerHTML)}
-            className="min-h-12 px-1 py-1 pr-20 text-[15px] leading-7 text-ink outline-none"
+            onHtmlChange={onTextChange}
+            className="min-h-24 break-words px-1 py-2 text-base leading-7 text-ink outline-none"
             style={{
               color: block.color || "#1c1a17",
               fontFamily: block.fontFamily || EMAIL_FONTS[0].value,
@@ -1814,7 +1784,7 @@ function TemplateBlockEditor({
               backgroundColor: block.backgroundColor || "#ffffff",
               padding: `${block.padding || 0}px`,
             }}
-            dangerouslySetInnerHTML={{ __html: block.html || textToHtml(block.text) || "<p><br></p>" }}
+            html={block.html || textToHtml(block.text) || "<p><br></p>"}
           />
         </div>
       )}
@@ -1900,16 +1870,15 @@ function TemplateBlockEditor({
                       <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { if (!applyColumnInlineFormat(columnIndex, "bold")) replaceColumn({ ...column, bold: !column.bold }); }} className={`flex h-8 w-8 items-center justify-center rounded border border-ink/15 ${column.bold ? "bg-[#005c5c] text-white" : "text-ink/65"}`} title="Negrita"><Bold className="h-3.5 w-3.5" /></button>
                       {(["left", "center", "right"] as const).map((align) => <button key={align} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { if (!applyColumnInlineFormat(columnIndex, align === "left" ? "justifyLeft" : align === "center" ? "justifyCenter" : "justifyRight")) replaceColumn({ ...column, align }); }} className={`flex h-8 w-8 items-center justify-center rounded border border-ink/15 ${column.align === align ? "bg-[#005c5c] text-white" : "text-ink/65"}`} title={align === "left" ? "Izquierda" : align === "center" ? "Centrado" : "Derecha"}>{align === "left" ? <AlignLeft className="h-3.5 w-3.5" /> : align === "center" ? <AlignCenter className="h-3.5 w-3.5" /> : <AlignRight className="h-3.5 w-3.5" />}</button>)}
                     </div>
-                    <div
-                      contentEditable
+                    <CrmTemplateText
+                      aria-label={`Texto de columna ${columnIndex + 1}`}
                       data-column-index={columnIndex}
-                      suppressContentEditableWarning
                       onMouseUp={() => rememberColumnSelection(columnIndex)}
                       onKeyUp={() => rememberColumnSelection(columnIndex)}
-                      onBlur={(event) => replaceColumn({ ...column, html: event.currentTarget.innerHTML, text: stripHtml(event.currentTarget.innerHTML) })}
+                      onHtmlChange={(html) => replaceColumn({ ...column, html, text: stripHtml(html) })}
                       className="min-h-20 max-w-full overflow-hidden break-words px-1 py-1 text-sm leading-6 outline-none"
                       style={{ color: column.color || "#1c1a17", fontSize: `${column.fontSize || 16}px`, fontFamily: column.fontFamily || EMAIL_FONTS[0].value, textAlign: column.align || "left", fontWeight: column.bold ? 700 : 400 }}
-                      dangerouslySetInnerHTML={{ __html: column.html || textToHtml(column.text) || "<p><br></p>" }}
+                      html={column.html || textToHtml(column.text) || "<p><br></p>"}
                     />
                   </>
                 ) : (
@@ -1934,7 +1903,7 @@ function TemplateBlockEditor({
               style={{
                 backgroundColor: block.backgroundColor || "#005c5c",
                 color: block.textColor || "#ffffff",
-                borderRadius: `${block.borderRadius ?? 999}px`,
+                borderRadius: `${block.borderRadius ?? 12}px`,
               }}
             />
           </div>
@@ -2192,7 +2161,7 @@ function EditorToolbar({
   onPickVariable: (token: string) => void;
 }) {
   return (
-    <div className="sticky top-[72px] z-40 mb-2 rounded-xl border border-ink/12 bg-white/95 p-2 shadow-[0_3px_12px_rgba(21,20,21,0.10)] backdrop-blur">
+    <div className="sticky top-0 z-20 mb-4 rounded-lg border border-ink/12 bg-white p-2 sm:p-3">
       <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
         <div className="hidden 2xl:block">
           <p className="text-xs font-semibold text-ink">Herramientas de edición</p>
@@ -2473,7 +2442,7 @@ function TemplatePreview({
 }) {
   return (
     <aside className="border-t border-ink/12 bg-white xl:border-l xl:border-t-0">
-      <div className="sticky top-[74px] space-y-4 p-4">
+      <div className="space-y-4 p-4">
         <section className="rounded-xl border border-ink/12 bg-[#f7f7f5] p-4">
           <p className="text-xs font-semibold text-ink">Ajustes del bloque</p>
           {!selectedBlock && (
@@ -2689,89 +2658,7 @@ function TemplatePreview({
           )}
         </section>
 
-        <section className="rounded-xl border border-ink/12 bg-[#f7f7f5] p-4">
-          <p className="text-xs font-semibold text-ink/55">Vista previa rápida</p>
-          <h3 className="mt-1 text-sm font-semibold text-ink">
-            {variablePreview(form.subject || "Asunto")}
-          </h3>
-          <div className="mt-3 max-h-[42vh] space-y-3 overflow-auto rounded-lg bg-white p-3 text-xs leading-relaxed text-ink/70">
-            {form.contentBlocks.map((block) => {
-              if (block.type === "text") {
-                return (
-                  <div
-                    key={block.id}
-                    style={{ color: block.color || "#1c1a17" }}
-                    dangerouslySetInnerHTML={{
-                      __html: variablePreview(block.html || textToHtml(block.text) || "Texto de la plantilla"),
-                    }}
-                  />
-                );
-              }
-              if (block.type === "attachment") {
-                return (
-                  <p key={block.id} className="rounded-md border border-ink/12 bg-cream-50 px-3 py-2 font-medium text-[#005c5c]">
-                    {block.name}
-                  </p>
-                );
-              }
-              if (block.type === "button") {
-                return (
-                  <p key={block.id} className={block.align === "left" ? "text-left" : block.align === "right" ? "text-right" : "text-center"}>
-                    <span
-                      className="inline-flex rounded-full px-4 py-2 text-xs font-bold"
-                      style={{
-                        backgroundColor: block.backgroundColor || "#005c5c",
-                        color: block.textColor || "#ffffff",
-                        borderRadius: `${block.borderRadius ?? 999}px`,
-                      }}
-                    >
-                      {variablePreview(block.label)}
-                    </span>
-                  </p>
-                );
-              }
-              if (block.type === "divider") {
-                return (
-                  <hr
-                    key={block.id}
-                    className="mx-auto border-0"
-                    style={{
-                      borderTop: `${block.thickness || 1}px solid ${block.color || "#d8d1c6"}`,
-                      width: `${block.width || 100}%`,
-                    }}
-                  />
-                );
-              }
-              if (block.type === "spacer") {
-                return <div key={block.id} style={{ height: `${block.height}px` }} />;
-              }
-              if (block.type === "columns") {
-                return (
-                  <div key={block.id} className="grid items-start max-sm:!grid-cols-1" style={{ gap: `${block.gap ?? 12}px`, gridTemplateColumns: (block.widths || block.columns.map(() => 1)).map((width) => `${width}fr`).join(" ") }}>
-                    {block.columns.map((column, index) => column.type === "text" ? (
-                      <div key={index} className="max-w-full overflow-hidden break-words" style={{ color: column.color || "#1c1a17", fontSize: `${column.fontSize || 14}px`, fontFamily: column.fontFamily, textAlign: column.align || "left", fontWeight: column.bold ? 700 : 400, overflowWrap: "anywhere" }} dangerouslySetInnerHTML={{ __html: variablePreview(column.html || textToHtml(column.text)) }} />
-                    ) : (
-                      <div key={index} className="overflow-hidden" style={{ borderRadius: `${column.borderRadius ?? 8}px` }}><img src={column.url} alt={column.alt || ""} className="block h-auto w-full object-contain" /></div>
-                    ))}
-                  </div>
-                );
-              }
-              return (
-                <figure key={block.id}>
-                  <img
-                    src={block.url}
-                    alt={block.alt || ""}
-                    className={`max-h-40 rounded-lg object-contain ${
-                      block.align === "left" ? "mr-auto" : block.align === "right" ? "ml-auto" : "mx-auto"
-                    }`}
-                    style={{ width: `${block.width}%` }}
-                  />
-                  {block.caption && <figcaption className="mt-1 text-center text-[11px] text-ink/50">{variablePreview(block.caption)}</figcaption>}
-                </figure>
-              );
-            })}
-          </div>
-        </section>
+
       </div>
     </aside>
   );

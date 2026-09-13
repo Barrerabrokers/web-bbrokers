@@ -1,3 +1,7 @@
+import { isInboundWhatsApp } from "@/lib/crm-whatsapp-history";
+import { getCrmImportedInquiries } from "@/lib/crm-imported-inquiries";
+import { CRM_LEAD_STATUS_OPTIONS } from "@/lib/crm-statuses";
+import { CrmActivityEditor } from "@/components/admin/crm-activity-editor";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -57,7 +61,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
     getCrmActivities([lead.id]), getDevelopments(), includeAll ? getAllAgents() : Promise.resolve([]), getCrmDataProperties("development"),
     getCrmEmailTemplates(),
     getMeetingLinkByAgent(lead.assignedAgentId || session.user.id),
-    listWhatsAppMessagesForLead(lead.id, `${lead.countryCode}${lead.phone}`).catch(() => []),
+    listWhatsAppMessagesForLead(lead.id, `${lead.countryCode}${lead.phone}`, null).catch(() => []),
     getCrmEmailTrackingsForLead(lead.id),
   ]);
   const leadDevelopmentName = lead.developmentName || lead.developmentNameText || "";
@@ -84,6 +88,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
   const meetingHistory = activities.filter((activity) => activity.type === "reunion").sort((a, b) => new Date(b.scheduledAt || b.createdAt).getTime() - new Date(a.scheduledAt || a.createdAt).getTime());
   const hubspotFields = usefulHubSpotFields(lead);
   const metaFormSubmissions = getCrmMetaFormSubmissions(lead.metaProperties);
+  const importedInquiries = getCrmImportedInquiries(lead.metaProperties);
   const activityFilter = searchParams?.activity || "all";
   const activityQuery = (searchParams?.q || "").trim().toLocaleLowerCase("es-AR");
   const visibleActivities = activities.filter((activity) => {
@@ -115,7 +120,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
         <main className="min-w-0 bg-[#f3f4f4]">
           <nav className="sticky top-0 z-10 flex overflow-x-auto border-b border-ink/10 bg-white" aria-label="Secciones del contacto">
             <a href="#contact-information" className="inline-flex min-h-14 shrink-0 items-center px-5 text-sm font-medium text-ink/62 hover:bg-[#e7f4f2]">Información destacada</a>
-            <a href={metaFormSubmissions.length > 0 ? "#meta-form-information" : "#hubspot-information"} className="inline-flex min-h-14 shrink-0 items-center px-5 text-sm font-medium text-ink/62 hover:bg-[#e7f4f2]">Información</a>
+            <a href={importedInquiries.length ? "#imported-inquiries" : metaFormSubmissions.length > 0 ? "#meta-form-information" : "#hubspot-information"} className="inline-flex min-h-14 shrink-0 items-center px-5 text-sm font-medium text-ink/62 hover:bg-[#e7f4f2]">Información</a>
             <a href="#activities" className="inline-flex min-h-14 shrink-0 items-center border-b-2 border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b]">Actividades</a>
           </nav>
           <div className="space-y-5 p-4 lg:p-6">
@@ -136,6 +141,22 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
                 {visibleActivities.length === 0 && <div className="relative rounded-lg border border-dashed border-ink/15 px-5 py-10 text-center"><NotebookPen className="mx-auto h-8 w-8 text-ink/28" /><p className="mt-3 text-sm font-medium text-ink">No encontramos actividades</p><p className="mt-1 text-sm text-ink/55">Probá otro filtro o una búsqueda diferente.</p></div>}
               </div>
             </section>
+            {importedInquiries.length > 0 && <section id="imported-inquiries" className="scroll-mt-20 rounded-xl bg-white p-5 ring-1 ring-ink/10 lg:p-6">
+              <h2 className="text-lg font-semibold text-[#006b6b]">Información para calificar al cliente</h2>
+              <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                <InfoRow label="Propietario actual" value={lead.assignedAgentName || "Sin asignar"} />
+                <InfoRow label="Estado actual" value={CRM_LEAD_STATUS_OPTIONS.find(option=>option.value===lead.status)?.label || lead.status} />
+                <InfoRow label="Desarrollo consultado" value={leadDevelopmentName || "Sin desarrollo"} />
+              </dl>
+              {importedInquiries.map((inquiry,index)=><div key={`${inquiry.row}-${index}`} className="mt-5 border-t border-ink/10 pt-4">
+                {inquiry.section && <p className="mb-3 text-sm font-semibold text-ink">{inquiry.section}</p>}
+                <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                  <InfoRow label="Origen de la consulta" value={inquiry.origin} />
+                  {inquiry.fields.map(field=><InfoRow key={field.label} label={field.label} value={field.value}/>)}
+                </dl>
+                <p className="mt-3 text-xs text-ink/70">Fuente: {inquiry.file || "Excel importado"}{inquiry.importedAt && !Number.isNaN(Date.parse(inquiry.importedAt)) ? ` · Importado el ${formatDate(inquiry.importedAt)}` : ""}</p>
+              </div>)}
+            </section>}
             {metaFormSubmissions.length > 0 && <section id="meta-form-information" className="rounded-xl bg-white p-5 ring-1 ring-ink/10 lg:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold tracking-tight text-ink">Formularios completados en Meta</h2><span className="mt-2 inline-flex rounded-full bg-[#e7f4f2] px-3 py-1 text-xs font-semibold text-[#006b6b]">{metaFormSubmissions.length} {metaFormSubmissions.length === 1 ? "formulario" : "formularios"}</span></div><CrmMetaFormsSync leadId={lead.id} /></div><div className="mt-5 space-y-4">{metaFormSubmissions.map((submission, index) => <article key={submission.leadId || `${submission.formId}-${index}`} className="rounded-xl border border-ink/10 bg-[#fafafa] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-ink">{submission.formName || `Formulario ${index + 1}`}</h3>{submission.createdTime && <time className="text-xs font-medium text-ink/48">{formatDate(submission.createdTime)}</time>}</div><dl className="mt-4 grid gap-x-8 gap-y-4 md:grid-cols-2">{submission.fields.map((field) => <InfoRow key={field.key} label={field.label} value={field.value} />)}</dl></article>)}</div></section>}
             {hubspotFields.length > 0 && <section id="hubspot-information" className="rounded-xl bg-white p-5 ring-1 ring-ink/10 lg:p-6"><h2 className="text-lg font-semibold tracking-tight text-ink">Información importada de HubSpot</h2><dl className="mt-5 grid gap-x-8 gap-y-4 md:grid-cols-2">{hubspotFields.map(([key, value]) => <InfoRow key={key} label={key.replaceAll("_", " ")} value={value} />)}</dl></section>}
           </div>
@@ -143,7 +164,7 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
 
         <aside className="space-y-4 bg-[#f3f4f4] p-4 lg:p-5">
           <WhatsAppHistoryPanel messages={whatsappMessages} activities={whatsappHistory} href={waUrl} />
-          <CrmEmailComposer lead={lead} templates={templates} history={emailHistory} />
+          <CrmEmailComposer currentAgentId={session.user.id} lead={lead} templates={templates} history={emailHistory} />
           <CrmMeetingScheduler lead={lead} link={meetingLink} meetings={meetingHistory} />
           <ActionPanel icon={<GitBranch className="h-5 w-5" />} title="Workflows" description="Automatizá próximos pasos para este contacto." href="/admin/crm/workflows" action="Ver workflows" />
           <DevelopmentPanel name={lead.developmentName || lead.developmentNameText || "Todavía no se definió un desarrollo."} development={selectedDevelopment} />
@@ -154,15 +175,15 @@ export default async function CrmLeadDetailPage({ params, searchParams }: { para
 }
 
 function WhatsAppHistoryPanel({ messages, activities, href }: { messages: WhatsAppMessage[]; activities: CrmActivity[]; href: string }) {
-  const activityMessages = activities.filter((activity) => activity.body.trim()).filter((activity) => !messages.some((message) => message.content.trim() === activity.body.trim())).map((activity) => ({
+  const activityMessages = activities.filter((activity) => activity.body.trim()).filter((activity) => !messages.some((message) => Boolean(activity.externalId && message.whatsappMessageId === activity.externalId))).map((activity) => ({
     id: `activity-${activity.id}`,
     content: activity.body,
-    direction: activity.externalSource === "whatsapp_inbound" || /^respuesta por whatsapp/i.test(activity.title) ? "inbound" as const : "outbound" as const,
+    direction: isInboundWhatsApp(activity.title, activity.externalSource) ? "inbound" as const : "outbound" as const,
     createdAt: activity.scheduledAt || activity.createdAt,
   }));
   const history = [...messages.map((message) => ({ id: message.id, content: message.content, direction: message.direction, createdAt: message.createdAt })), ...activityMessages]
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  return <section className="rounded-xl bg-white p-5 ring-1 ring-ink/10"><div className="flex items-center justify-between gap-3 border-b border-ink/10 pb-4"><span className="flex items-center gap-3 text-[#006b6b]"><MessageCircle className="h-5 w-5" /><h2 className="text-base font-semibold text-ink">Conversación de WhatsApp</h2></span><span className="text-xs font-medium text-ink/50">{history.length}</span></div>{history.length ? <ol className="mt-3 space-y-2">{history.slice(-4).map((message) => <li key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-lg px-3 py-2 ${message.direction === "outbound" ? "bg-[#e7f4f2] text-[#064f4f]" : "bg-[#f3f4f4] text-ink"}`}><p className="line-clamp-3 break-words text-xs leading-relaxed">{message.content}</p><time className="mt-1 block text-[10px] font-medium opacity-55">{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt))}</time></div></li>)}</ol> : <p className="mt-4 text-sm leading-relaxed text-ink/60">Todavía no hay mensajes registrados con este contacto.</p>}{href && <a href={href} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[#006b6b] px-4 text-sm font-medium text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] focus-visible:ring-offset-2">Abrir WhatsApp</a>}</section>;
+  return <section className="rounded-xl bg-white p-5 ring-1 ring-ink/10"><div className="flex items-center justify-between gap-3 border-b border-ink/10 pb-4"><span className="flex items-center gap-3 text-[#006b6b]"><MessageCircle className="h-5 w-5" /><h2 className="text-base font-semibold text-ink">Conversación de WhatsApp</h2></span><span className="text-xs font-medium text-ink/50">{history.length}</span></div>{history.length ? <ol className="mt-3 max-h-[600px] space-y-2 overflow-y-auto" aria-label="Historial registrado de WhatsApp">{history.map((message) => <li key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-lg px-3 py-2 ${message.direction === "outbound" ? "bg-[#e7f4f2] text-[#064f4f]" : "bg-[#f3f4f4] text-ink"}`}><p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p><time className="mt-1 block text-[10px] font-medium opacity-55">{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt))}</time></div></li>)}</ol> : <p className="mt-4 text-sm leading-relaxed text-ink/60">Todavía no hay mensajes registrados con este contacto.</p>}{href && <a href={href} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[#006b6b] px-4 text-sm font-medium text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] focus-visible:ring-offset-2">Abrir WhatsApp</a>}</section>;
 }
 
 function ActionPanel({ icon, title, description, href, action, external }: { icon: ReactNode; title: string; description: string; href?: string; action: string; external?: boolean }) {
@@ -179,7 +200,7 @@ function ActivityIcon({ type }: { type: string }) {
   return <NotebookPen className="h-4 w-4" />;
 }
 function ActivityCard({ activity }: { activity: CrmActivity }) {
-  return <article className="rounded-xl bg-white p-4 ring-1 ring-ink/10"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><p className="text-sm font-semibold text-ink">{activity.title}</p><p className="mt-1 text-xs text-ink/50">{ACTIVITY_LABELS[activity.type] || activity.type}{activity.createdByName ? ` · ${activity.createdByName}` : ""}</p></div><span className="inline-flex items-center gap-1 text-xs text-ink/45"><Clock3 className="h-3.5 w-3.5" />{formatDate(activity.createdAt)}</span></div>{activity.scheduledAt && <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#006b6b]"><CalendarDays className="h-3.5 w-3.5" />Programado: {formatDate(activity.scheduledAt)}</p>}{activity.body && <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-ink/68">{activity.body}</p>}</article>;
+  return <article className="rounded-xl bg-white p-4 ring-1 ring-ink/10"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><p className="text-sm font-semibold text-ink">{activity.title}</p><p className="mt-1 text-xs text-ink/50">{ACTIVITY_LABELS[activity.type] || activity.type}{activity.createdByName ? ` · ${activity.createdByName}` : ""}</p></div><span className="inline-flex items-center gap-1 text-xs text-ink/45"><Clock3 className="h-3.5 w-3.5" />{formatDate(activity.createdAt)}</span></div>{activity.scheduledAt && <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#006b6b]"><CalendarDays className="h-3.5 w-3.5" />Programado: {formatDate(activity.scheduledAt)}</p>}{activity.body && <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-ink/68">{activity.body}</p>}<CrmActivityEditor activity={activity} /></article>;
 }
 function InfoRow({ label, value }: { label: string; value: string }) {
   return <div className="border-b border-ink/8 pb-3"><dt className="text-xs font-medium capitalize text-ink/48">{label}</dt><dd className="mt-1 break-words text-sm font-medium text-ink [overflow-wrap:anywhere]">{value}</dd></div>;
