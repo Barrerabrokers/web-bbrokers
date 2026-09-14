@@ -23,7 +23,7 @@ export default async function AdminCrmCalendarPage() {
     }),
     getCrmEmailAccount(session.user.id),
   ]);
-  const activities = await getCrmActivities(leads.map((lead) => lead.id));
+  const activities = await getCrmActivities(leads.map((lead) => lead.id), { calendarOnly: true });
   const leadById = new Map(leads.map((lead) => [lead.id, lead]));
   const calendarActivities = activities.map((activity) => ({
     ...activity,

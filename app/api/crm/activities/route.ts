@@ -5,9 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { createCrmActivity, deleteCrmActivity, getCrmActivities, getCrmLeadById } from "@/lib/db";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 import { editCrmActivity } from "@/lib/crm-activity-edit";
+import { processCrmTaskSchedules } from "@/lib/crm-task-schedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const activitySchema = z.object({
   leadId: z.string().uuid(),
@@ -15,6 +17,7 @@ const activitySchema = z.object({
   title: z.string().trim().min(1),
   body: z.string().trim().optional().default(""),
   scheduledAt: z.string().optional().or(z.literal("")),
+  reminderMinutes: z.coerce.number().refine(value => [60,720,1440].includes(value)).optional(),
 });
 
 async function requireApprovedAgent() {
@@ -51,6 +54,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (parsed.data.type === "tarea" && (!parsed.data.scheduledAt || !Number.isFinite(new Date(parsed.data.scheduledAt).getTime()))) {
+    return NextResponse.json({ error: "Elegí fecha y hora para agendar la tarea." }, { status: 400 });
+  }
+
   const lead = await getCrmLeadById(parsed.data.leadId, {
     agentId: session.user.id,
     includeAll: canViewAllCrmContacts(session.user.role),
@@ -72,7 +79,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ activity });
+  let warning: string | undefined;
+  if (activity.type === "tarea") {
+    const result = await processCrmTaskSchedules(activity.id).catch(() => ({ pending: true }));
+    if (result.pending) warning = "Tarea guardada en el calendario del CRM. La sincronización con Google o el aviso al agente están pendientes; se reintentarán automáticamente. Revisá la conexión de Google del agente si persiste.";
+  }
+  return NextResponse.json({ activity, warning });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -106,6 +118,7 @@ const editSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   body: z.string().trim().max(50000).optional(),
   scheduledAt: z.union([z.string().datetime(),z.literal("")]).optional(),
+  reminderMinutes: z.number().refine(value => [60,720,1440].includes(value)).optional(),
   outcome: z.string().trim().min(1).max(10000).optional(),
 }).strict();
 

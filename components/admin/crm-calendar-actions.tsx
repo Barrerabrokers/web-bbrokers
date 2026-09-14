@@ -37,6 +37,7 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
   const [time, setTime] = useState("10:00");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [reminderMinutes, setReminderMinutes] = useState("60");
 
   const selectedLead = useMemo(
     () => leads.find((lead) => lead.id === leadId),
@@ -67,9 +68,10 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
           title: eventTitle,
           body,
           scheduledAt,
+          reminderMinutes: Number(reminderMinutes),
         }),
       });
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      const data = (await response.json().catch(() => null)) as { error?: string; warning?: string } | null;
 
       if (!response.ok) {
         throw new Error(data?.error || "No se pudo guardar el evento");
@@ -78,6 +80,7 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
       setTitle("");
       setBody("");
       setIsOpen(false);
+      if (data?.warning) window.alert(data.warning);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar el evento");
@@ -197,6 +200,13 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
                 />
               </label>
 
+              {type === "tarea" && <label className="sm:col-span-2 text-sm font-medium text-ink">
+                Avisar al agente asignado al contacto
+                <select className="form-input" value={reminderMinutes} onChange={event => setReminderMinutes(event.target.value)}>
+                  <option value="1440">1 día antes</option><option value="720">12 horas antes</option><option value="60">1 hora antes</option>
+                </select>
+                <span className="text-xs font-normal text-ink/60">También recibirá un correo al agendar la tarea.</span>
+              </label>}
               <label className="sm:col-span-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/48">
                   Nota

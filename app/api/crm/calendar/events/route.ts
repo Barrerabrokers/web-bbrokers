@@ -10,9 +10,11 @@ import {
 } from "@/lib/db";
 import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
+import { POST as createActivity } from "@/app/api/crm/activities/route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const eventSchema = z.object({
   leadId: z.string().uuid(),
@@ -32,6 +34,9 @@ function leadName(lead?: { firstName?: string; lastName?: string; email?: string
 }
 
 export async function POST(request: NextRequest) {
+  const taskRequest = request.clone();
+  const taskBody = await taskRequest.json().catch(() => null);
+  if (taskBody?.type === "tarea") return createActivity(request);
   const session = await getServerSession(authOptions);
   if (!session || !canManageListings(session.user.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });

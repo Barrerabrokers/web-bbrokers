@@ -177,6 +177,7 @@ type LeadFormState = {
 };
 
 type ActivityFormState = {
+  reminderMinutes: string;
   callOutcomes?: CallOutcome[];
   type: CrmActivityType;
   title: string;
@@ -341,6 +342,7 @@ const EMPTY_FORM: LeadFormState = {
 };
 
 const EMPTY_ACTIVITY: ActivityFormState = {
+  reminderMinutes: "60",
   type: "nota",
   title: "",
   body: "",
@@ -1125,7 +1127,7 @@ export function CrmBoard({
         body: JSON.stringify(payload),
       });
       const data = (await response.json().catch(() => null)) as
-        | { activity?: CrmActivity; error?: string }
+        | { activity?: CrmActivity; error?: string; warning?: string }
         | null;
 
       if (!response.ok || !data?.activity) {
@@ -1134,7 +1136,7 @@ export function CrmBoard({
 
       setActivities((current) => [data.activity!, ...current]);
       setActivityForm({ ...EMPTY_ACTIVITY, type: activityForm.type });
-      setNotice(shouldCreateGoogleEvent ? "Actividad registrada en el CRM y Google Calendar." : "Actividad registrada.");
+      setNotice(data.warning || (shouldCreateGoogleEvent ? "Actividad registrada en el CRM y Google Calendar. El agente recibirá el aviso." : "Actividad registrada."));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la actividad");
     } finally {
@@ -1145,6 +1147,7 @@ export function CrmBoard({
   const setActivityType = (type: CrmActivityType) => {
     const label = ACTIVITY_TYPES.find((item) => item.value === type)?.label || "Actividad";
     setActivityForm({
+      reminderMinutes: "60",
       type,
       title: type === "nota" ? "Nueva nota" : `${label} con ${selectedLead?.firstName || "cliente"}`,
       body: "",
@@ -3697,8 +3700,16 @@ function ContactDetail({
               onChange={updateActivity("scheduledAt")}
               className="form-input"
               type="datetime-local"
+              required={activityForm.type === "tarea"}
             />
           )}
+          {activityForm.type === "tarea" && <label className="block text-sm font-medium text-ink">
+            Avisar al agente asignado al contacto
+            <select className="form-input" value={activityForm.reminderMinutes} onChange={updateActivity("reminderMinutes")}>
+              <option value="1440">1 día antes</option><option value="720">12 horas antes</option><option value="60">1 hora antes</option>
+            </select>
+            <span className="text-xs font-normal text-ink/60">También recibirá un correo al agendar la tarea.</span>
+          </label>}
           <label className="block text-sm font-medium text-ink">
             {activityForm.type === "llamada" ? "Resultado de la llamada" : "Detalle de la actividad"}
           <textarea

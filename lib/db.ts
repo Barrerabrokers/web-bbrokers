@@ -6,6 +6,7 @@ import type { CrmLeadStatus } from "@/lib/crm-statuses";
 import { normalizeSmtpPassword } from "@/lib/crm-email-errors";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { getCrmActivityEditDetails } from "@/lib/crm-activity-edit";
+import { ensureTaskSchedules } from "@/lib/crm-task-schedule";
 import { whatsAppMessageDate } from "@/lib/crm-whatsapp-history";
 export type { CrmLeadStatus } from "@/lib/crm-statuses";
 
@@ -887,6 +888,7 @@ export type CrmActivityType =
   | "tarea";
 
 export type CrmActivity = {
+  reminderMinutes?: number;
   editVersion?: string;
   meetingOutcome?: string;
   meetingEndsAt?: string;
@@ -2370,7 +2372,7 @@ function mapCrmActivity(row: CrmActivityRow): CrmActivity {
   };
 }
 
-export async function getCrmActivities(leadIds: string[]): Promise<CrmActivity[]> {
+export async function getCrmActivities(leadIds: string[], options: { calendarOnly?: boolean } = {}): Promise<CrmActivity[]> {
   if (leadIds.length === 0) return [];
 
   let sql: ReturnType<typeof getPgConnection> | null = null;
@@ -2383,8 +2385,9 @@ export async function getCrmActivities(leadIds: string[]): Promise<CrmActivity[]
       FROM crm_activities act
       LEFT JOIN agents ON agents.id = act.created_by
       WHERE act.lead_id = ANY(${leadIds})
+        AND (NOT ${Boolean(options.calendarOnly)} OR (act.scheduled_at IS NOT NULL AND act.type IN ('tarea','reunion','nota')))
       ORDER BY act.created_at DESC
-      LIMIT ${leadIds.length === 1 ? null : 600}
+      LIMIT ${options.calendarOnly || leadIds.length === 1 ? null : 600}
     `;
     const editDetails = await getCrmActivityEditDetails(rows.map(row => row.id));
     return (rows as unknown as CrmActivityRow[]).map(row => ({ ...mapCrmActivity(row), ...editDetails.find(item => item.id === row.id) }));
@@ -2407,10 +2410,22 @@ export async function createCrmActivity(data: {
   createdBy?: string | null;
   externalSource?: string | null;
   externalId?: string | null;
+  reminderMinutes?: number;
 }): Promise<{ activity: CrmActivity | null; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
     sql = getPgConnection();
+    if (data.type === "tarea") {
+      if (data.scheduledAt && !Number.isFinite(new Date(data.scheduledAt).getTime())) {
+        return { activity: null, error: "Elegí fecha y hora para agendar la tarea." };
+      }
+      if (data.reminderMinutes !== undefined && ![60,720,1440].includes(data.reminderMinutes)) {
+        return { activity: null, error: "Elegí un aviso de 1 hora, 12 horas o 1 día." };
+      }
+      await ensureTaskSchedules(sql);
+    }
+    return await sql.begin(async tx => {
+    const sql = tx;
     const rows = await sql`
       INSERT INTO crm_activities (
         id,
@@ -2447,6 +2462,13 @@ export async function createCrmActivity(data: {
     `;
 
     if (rows[0]) {
+      if (data.type === "tarea") {
+        await sql`INSERT INTO crm_task_schedules (id,activity_id,reminder_minutes,calendar_agent_id,calendar_event_id)
+          VALUES (${rows[0].id},${rows[0].id},${data.reminderMinutes ?? 60},
+            ${data.externalSource === 'google_calendar' ? data.createdBy || null : null},
+            ${data.externalSource === 'google_calendar' ? data.externalId || null : null})
+          ON CONFLICT (id) DO UPDATE SET reminder_minutes=EXCLUDED.reminder_minutes`;
+      }
       await sql`
         UPDATE crm_leads
         SET updated_at = NOW()
@@ -2458,6 +2480,7 @@ export async function createCrmActivity(data: {
       activity: rows[0] ? mapCrmActivity(rows[0] as unknown as CrmActivityRow) : null,
       error: null,
     };
+    });
   } catch (error) {
     console.error("Error creating CRM activity:", error);
     return {
