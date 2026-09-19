@@ -3040,7 +3040,6 @@ function mapCrmEmailAccount(row: CrmEmailAccountRow): CrmEmailAccount {
 export async function getCrmEmailAccount(agentId: string): Promise<CrmEmailAccount | null> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmEmailAccountsSchema();
     sql = getPgConnection();
     const rows = await sql`
       SELECT *
@@ -3064,7 +3063,6 @@ export async function getCrmEmailAccountWithSecret(
 ): Promise<CrmEmailAccountWithSecret | null> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
-    await ensureCrmEmailAccountsSchema();
     sql = getPgConnection();
     const rows = await sql`
       SELECT *
