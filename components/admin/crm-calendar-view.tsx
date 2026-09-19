@@ -190,13 +190,9 @@ function googleCalendarEmbedUrl(email?: string | null) {
 }
 
 export function CrmCalendarView({
-  activities,
-  leads,
   email,
   isGoogleConnected,
 }: {
-  activities: CalendarActivity[];
-  leads: CalendarLeadOption[];
   email?: string | null;
   isGoogleConnected?: boolean;
 }) {
@@ -204,40 +200,12 @@ export function CrmCalendarView({
   const [view, setView] = useState<CalendarView>("week");
   const [cursorDate, setCursorDate] = useState(() => new Date());
   const [draft, setDraft] = useState<DraftEvent | null>(null);
+  const [leads, setLeads] = useState<CalendarLeadOption[]>([]);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState("");
   const [error, setError] = useState("");
   const [calendarFrameKey, setCalendarFrameKey] = useState(0);
-
-  const scheduledActivities = useMemo(
-    () =>
-      activities
-        .filter(
-          (activity) =>
-            activity.scheduledAt &&
-            (activity.type === "reunion" || activity.type === "tarea" || activity.type === "nota")
-        )
-        .sort(
-          (a, b) =>
-            new Date(a.scheduledAt || a.createdAt).getTime() -
-            new Date(b.scheduledAt || b.createdAt).getTime()
-        ),
-    [activities]
-  );
-
-  const activitiesByDate = useMemo(() => {
-    return scheduledActivities.reduce<Record<string, CalendarActivity[]>>((groups, activity) => {
-      if (!activity.scheduledAt) return groups;
-      const key = argentinaDateKey(activity.scheduledAt);
-      groups[key] = [...(groups[key] || []), activity];
-      return groups;
-    }, {});
-  }, [scheduledActivities]);
-
-  const upcoming = scheduledActivities.filter((activity) => {
-    if (!activity.scheduledAt) return false;
-    return new Date(activity.scheduledAt).getTime() >= new Date().setHours(0, 0, 0, 0);
-  });
 
   const selectedLead = leads.find((lead) => lead.id === draft?.leadId);
   const googleEmbedUrl = isGoogleConnected ? googleCalendarEmbedUrl(email) : "";
@@ -260,9 +228,22 @@ export function CrmCalendarView({
     });
   };
 
-  const openDraft = (date: Date, hour = 10) => {
+  const openDraft = async (date: Date, hour = 10) => {
     setError("");
-    setDraft(createDraft(leads, date, hour));
+    setIsLoadingLeads(true);
+    try {
+      const response = await fetch("/api/crm/calendar/leads");
+      const data = (await response.json().catch(() => null)) as { leads?: CalendarLeadOption[]; error?: string } | null;
+      if (!response.ok || !data?.leads) {
+        throw new Error(data?.error || "No se pudieron cargar los contactos.");
+      }
+      setLeads(data.leads);
+      setDraft(createDraft(data.leads, date, hour));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudieron cargar los contactos.");
+    } finally {
+      setIsLoadingLeads(false);
+    }
   };
 
   const saveEvent = async (event: FormEvent<HTMLFormElement>) => {
@@ -366,11 +347,13 @@ export function CrmCalendarView({
               <button
                 type="button"
                 onClick={() => openDraft(cursorDate, 10)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-ink/85"
+                disabled={isLoadingLeads}
+                className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70"
               >
-                <Plus className="h-3.5 w-3.5" />
-                Evento
+                {isLoadingLeads ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                {isLoadingLeads ? "Cargando" : "Evento"}
               </button>
+              {error && !draft && <span role="alert" className="max-w-48 text-xs text-red-700">{error}</span>}
             </div>
           </div>
         </section>
