@@ -2,12 +2,12 @@ import {NextRequest,NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {z} from "zod";
 import {authOptions} from "@/lib/auth";
-import {findClientContacts,getClientEmailTemplates,getClientLeadStatuses,getClientListRecipients,getClientLists,getPrivateClients,importClientsByLeadStatus,saveClient} from "@/lib/crm-clients";
+import {findClientContacts,getClientEmailTemplates,getClientLeadStatuses,getClientListRecipients,getClientLists,getPrivateClients,importClientsByLeadStatus,markClientEmailInvalid,saveClient} from "@/lib/crm-clients";
 export const dynamic="force-dynamic";
 const schema=z.object({
   id:z.string().uuid().optional(),leadId:z.string().uuid().nullable().optional(),
   name:z.string().trim().min(1).max(200),email:z.union([z.string().trim().email(),z.literal("")]),
-  phone:z.string().trim().max(50),purchase:z.string().trim().max(500),notes:z.string().trim().max(5000),subscribed:z.boolean(),
+  phone:z.string().trim().max(50),purchase:z.string().trim().max(500),notes:z.string().trim().max(5000),subscribed:z.boolean(),emailStatus:z.enum(["active","invalid"]).optional(),
 }).strict().refine(d=>Boolean(d.email||d.phone),"Ingresá un correo o teléfono.");
 export async function GET(request:NextRequest) {
   const session=await getServerSession(authOptions);
@@ -32,6 +32,11 @@ export async function POST(request:NextRequest) {
   if(importParsed.success) {
     try {return NextResponse.json({ok:true,...await importClientsByLeadStatus(importParsed.data.status,session.user.id)});}
     catch{return NextResponse.json({error:"No se pudieron incorporar los contactos de ese estado."},{status:500});}
+  }
+  const invalidParsed=z.object({action:z.literal("mark-email-invalid"),id:z.string().uuid(),reason:z.string().trim().max(500).optional()}).strict().safeParse(raw);
+  if(invalidParsed.success) {
+    try {await markClientEmailInvalid(invalidParsed.data.id,session.user.id,invalidParsed.data.reason||undefined);return NextResponse.json({ok:true});}
+    catch{return NextResponse.json({error:"No se pudo excluir este correo de marketing."},{status:500});}
   }
   const parsed=schema.safeParse(raw);
   if(!parsed.success)return NextResponse.json({error:"Revisá nombre, correo y teléfono. Completá al menos un medio de contacto."},{status:400});

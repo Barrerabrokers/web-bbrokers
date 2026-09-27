@@ -21,7 +21,7 @@ export async function POST(request:NextRequest) {
     const recipients=await sql`INSERT INTO crm_client_mail_history(id,client_id,agent_id,recipient,subject,body,status,campaign_id,tracking_token,list_name,template_id,owner_agent_id,reply_to_email)
       SELECT gen_random_uuid(),c.id,${session.user.id},c.email,${template.subject},${template.body},'uncertain',${data.campaignId},gen_random_uuid(),${data.listName},${template.id},l.assigned_agent_id,COALESCE(a.email,${String(sender?.email||"")})
       FROM crm_private_clients c LEFT JOIN crm_leads l ON l.id=c.lead_id LEFT JOIN agents a ON a.id=l.assigned_agent_id
-      WHERE c.list_name=${data.listName} AND c.subscribed AND c.email<>''
+      WHERE c.list_name=${data.listName} AND c.subscribed AND c.email<>'' AND c.email_status='active'
       ON CONFLICT(campaign_id,client_id) WHERE campaign_id IS NOT NULL DO NOTHING RETURNING id`;
     if(!recipients.length)return NextResponse.json({error:"No hay destinatarios autorizados nuevos en esta lista, o esta campaña ya fue procesada."},{status:409});
     return NextResponse.json({ok:true,queued:recipients.length,campaignId:data.campaignId},{status:202});

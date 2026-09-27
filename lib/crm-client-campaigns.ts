@@ -20,6 +20,14 @@ export function resolveCampaignText(value:string,name:string,agentName:string,ag
   return resolve(value,name,agentName,agentPhone);
 }
 
+/** SMTP 5xx errors that mean the mailbox itself no longer accepts email. */
+export function isHardEmailBounce(error: unknown) {
+  const value = error as { responseCode?: number; message?: string; response?: string } | null;
+  const code = Number(value?.responseCode || 0);
+  const detail = `${value?.message || ""} ${value?.response || ""}`.toLowerCase();
+  return [550, 551, 553].includes(code) || /(?:5\.1\.1|user unknown|no such user|recipient address rejected|address not found|mailbox unavailable)/.test(detail);
+}
+
 export async function resumeClientCampaign(campaignId:string,limit=15) {
   const sql=clientDb();
   let sent=0,failed=0,failure="",locked=false;
@@ -35,7 +43,7 @@ export async function resumeClientCampaign(campaignId:string,limit=15) {
     const template=campaign.template_id?await getClientEmailTemplate(String(campaign.template_id)):null;
     if(!template)return {sent,failed,remaining:0,error:"La plantilla original ya no está disponible."};
     const [sender]=await sql`SELECT name,phone,email FROM agents WHERE id=${campaign.agent_id}`;
-    const recipients=await sql`SELECT h.id,h.recipient,h.tracking_token,h.reply_to_email,c.name,
+      const recipients=await sql`SELECT h.id,h.client_id,h.recipient,h.tracking_token,h.reply_to_email,c.name,
       COALESCE(a.name,${String(sender?.name||"Barrera Brokers")}) AS owner_name,COALESCE(a.phone,${String(sender?.phone||"")}) AS owner_phone
       FROM crm_client_mail_history h JOIN crm_private_clients c ON c.id=h.client_id LEFT JOIN agents a ON a.id=h.owner_agent_id
       WHERE h.campaign_id=${campaignId} AND h.status='uncertain' AND COALESCE(h.retry_count,0)<5
@@ -57,10 +65,15 @@ export async function resumeClientCampaign(campaignId:string,limit=15) {
         await new Promise(resolveDelay=>setTimeout(resolveDelay,650));
       } catch(error) {
         failure=(error instanceof Error?error.message:"No se pudo enviar el correo.").slice(0,500);
-        await sql`UPDATE crm_client_mail_history SET status='uncertain',last_error=${failure} WHERE id=${recipient.id}`;
+        if(isHardEmailBounce(error)) {
+          await sql.begin(async tx => {
+            await tx`UPDATE crm_client_mail_history SET status='bounced',last_error=${failure} WHERE id=${recipient.id}`;
+            await tx`UPDATE crm_private_clients SET subscribed=false,email_status='invalid',email_status_reason=${failure},email_invalid_at=NOW(),updated_at=NOW() WHERE id=${recipient.client_id}`;
+          });
+        } else await sql`UPDATE crm_client_mail_history SET status='uncertain',last_error=${failure} WHERE id=${recipient.id}`;
         failed++;
-        console.error("CRM campaign resume stopped:",failure);
-        break;
+        console.error("CRM campaign delivery failed:",failure);
+        if(!isHardEmailBounce(error)) break;
       }
     }
     const [{count}]=await sql`SELECT COUNT(*)::int AS count FROM crm_client_mail_history WHERE campaign_id=${campaignId} AND status='uncertain'`;
