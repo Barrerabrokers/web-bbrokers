@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFullSiteSettings, updateFullSiteSettings } from "@/lib/db";
 import { canManageSiteSettings } from "@/lib/roles";
+import { revalidatePath,revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,9 @@ export async function PUT(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    revalidateTag("site-settings");
+    revalidatePath("/");
 
     return NextResponse.json(settings);
   } catch (err: any) {

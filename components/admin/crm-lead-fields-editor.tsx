@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { CheckCircle2, Loader2, Trash2 } from "lucide-react";
 import type { CrmLead, CrmLeadStatus } from "@/lib/db";
-import { leadStatusOptionsForValue } from "@/lib/crm-statuses";
+import { isMeetingStatus, leadStatusOptionsForValue } from "@/lib/crm-statuses";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
 
 type DevelopmentOption = {
@@ -40,6 +40,7 @@ export function CrmLeadFieldsEditor({
   const [countryCode, setCountryCode] = useState(normalizeDialCode(lead.countryCode || "+54"));
   const [phone, setPhone] = useState(lead.phone);
   const [status, setStatus] = useState<CrmLeadStatus>(lead.status);
+  useEffect(() => setStatus(lead.status), [lead.status]);
   const [developmentId, setDevelopmentId] = useState(lead.developmentId || "");
   const [developmentNameText, setDevelopmentNameText] = useState(
     lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : "")
@@ -92,6 +93,11 @@ export function CrmLeadFieldsEditor({
 
   const saveStatus = async (nextStatus: CrmLeadStatus) => {
     if (nextStatus === status || isSavingStatus) return;
+    if (isMeetingStatus(nextStatus)) {
+      setNotice("Agendá día y horario. El estado cambia solo cuando la reunión queda confirmada.");
+      window.dispatchEvent(new CustomEvent("crm:open-meeting-scheduler", {detail:{moveToMeeting:true}}));
+      return;
+    }
 
     const previousStatus = status;
     setStatus(nextStatus);
@@ -262,7 +268,7 @@ export function CrmLeadFieldsEditor({
 
         <label className="block">
           <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
-            Desarrollo
+            Desarrollo / campaña de origen
           </span>
           <select
             value={developmentId}

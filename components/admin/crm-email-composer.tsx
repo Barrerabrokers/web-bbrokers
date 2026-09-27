@@ -34,6 +34,7 @@ type LeadForEmail = {
   developmentName?: string;
   developmentNameText?: string;
   assignedAgentName?: string;
+  assignedAgentPhone?: string;
 };
 
 export function CrmEmailComposer({ lead, templates, history = [], currentAgentId }: { lead: LeadForEmail; templates: CrmEmailTemplate[]; history?: EmailHistoryItem[]; currentAgentId: string }) {
@@ -54,9 +55,25 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [error, setError] = useState("");
+  const [reconnectGoogle, setReconnectGoogle] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => setEmailTemplates(initialEmailTemplates), [initialEmailTemplates]);
+
+  useEffect(() => {
+    const receiveDraft = (event: Event) => {
+      const detail = (event as CustomEvent<{leadId:string;text:string}>).detail;
+      if (!detail || detail.leadId !== lead.id || typeof detail.text !== "string") return;
+      const text = detail.text.slice(0, 3000);
+      const html = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+      if (open && !window.confirm("¿Reemplazar el borrador actual por la sugerencia del copiloto?")) return;
+      setSelectedTemplateId(""); setSubject("Barrera Brokers"); setBody(text); setImageUrls([]);
+      setContentBlocks([{id:crypto.randomUUID(),type:"text",text,html,color:"#1c1a17",fontFamily:"Arial, Helvetica, sans-serif",fontSize:16,align:"left"}]);
+      setNotice("Borrador del copiloto. Revisá destinatario, asunto y contenido antes de enviar."); setOpen(true);
+    };
+    window.addEventListener("crm:ai-email-draft", receiveDraft);
+    return () => window.removeEventListener("crm:ai-email-draft", receiveDraft);
+  }, [lead.id, open]);
 
   const newEmail = () => {
     const greeting = `Hola ${lead.firstName},\n\n`;
@@ -87,6 +104,7 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
     "{{cliente_telefono}}": `${lead.countryCode}${lead.phone}`,
     "{{desarrollo}}": lead.developmentName || lead.developmentNameText || "el desarrollo que consultaste",
     "{{propietario_contacto}}": lead.assignedAgentName || "Barrera Brokers",
+    "{{telefono_agente}}": lead.assignedAgentPhone || "",
   };
   const applyVariables = (value: string) => Object.entries(variables).reduce((text, [token, replacement]) => text.replaceAll(token, replacement), value || "");
   const editorVariables = [
@@ -97,6 +115,7 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
     { token: "{{cliente_telefono}}", label: "Teléfono" },
     { token: "{{desarrollo}}", label: "Desarrollo" },
     { token: "{{propietario_contacto}}", label: "Agente responsable" },
+    { token: "{{telefono_agente}}", label: "Teléfono del agente" },
   ];
   const resolveBlocks = (items: CrmEmailTemplateContentBlock[]) => items.map((block) => block.type === "text"
     ? { ...block, text: applyVariables(block.text), html: block.html ? applyVariables(block.html) : block.html }
@@ -134,10 +153,11 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
   const send = async (event: FormEvent) => {
     event.preventDefault();
     if (uploadingAttachments) return;
-    setSending(true); setError(""); setNotice("");
+    setSending(true); setError(""); setNotice(""); setReconnectGoogle(false);
     try {
       const response = await fetch("/api/crm/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, subject: applyVariables(subject), body: applyVariables(body), imageUrls, contentBlocks: resolveBlocks(contentBlocks) }) });
-      const data = await response.json().catch(() => null) as { error?: string } | null;
+      const data = await response.json().catch(() => null) as { error?: string; reconnectGoogle?: boolean } | null;
+      setReconnectGoogle(Boolean(data?.reconnectGoogle));
       if (!response.ok) throw new Error(data?.error || "No se pudo enviar el correo.");
       setNotice("Correo enviado y registrado en las actividades.");
       router.refresh();
@@ -226,7 +246,7 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
               <CrmRichEmailEditor blocks={contentBlocks} onChange={updateBlocks} onNotice={setNotice} variables={editorVariables} onUploadingChange={setUploadingAttachments} />
             </div>
             {notice && <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#006b6b]"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
-            {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}
+            {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}{reconnectGoogle && <a href="/api/crm/google/connect" target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-[#006b6b] px-4 text-sm font-semibold text-white">Reconectar Google para enviar correos</a>}
             {showTemplateSave && <div className="mt-4 rounded-lg bg-[#f3f4f4] p-3 ring-1 ring-ink/10"><label className="block text-xs font-semibold text-ink">Nombre de la nueva plantilla<input autoFocus value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej.: Presentación del desarrollo" className="mt-2 h-11 w-full rounded-lg border border-ink/15 bg-white px-3 text-sm font-normal text-ink outline-none placeholder:text-ink/45 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => { setShowTemplateSave(false); setTemplateName(""); }} className="min-h-10 rounded-lg px-3 text-sm font-medium text-ink/65 hover:bg-white">Cancelar</button><button type="button" onClick={() => void saveAsTemplate()} disabled={savingTemplate || uploadingAttachments} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#006b6b] bg-white px-4 text-sm font-semibold text-[#006b6b] disabled:opacity-50">{savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savingTemplate ? "Guardando…" : "Guardar plantilla"}</button></div></div>}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button type="button" onClick={() => setShowTemplateSave(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b] hover:bg-[#e7f4f2]"><Plus className="h-4 w-4" />Guardar como plantilla</button><button disabled={sending || savingTemplate || uploadingAttachments} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar solamente"}</button></div>
           </div>

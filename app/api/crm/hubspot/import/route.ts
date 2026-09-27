@@ -582,7 +582,11 @@ function matchDevelopmentAliasFromHubSpotProperties(
   for (const alias of aliases) {
     const candidates = [alias.value, alias.label, alias.hubspotValue || ""]
       .map(normalizeSearch)
-      .filter(Boolean);
+      // Single-character aliases (for example "A" for Alsina) match almost
+      // every campaign/source string. They are not reliable enough to assign
+      // a development automatically.
+      .filter((candidate) => candidate.length >= 3);
+    if (candidates.length === 0) continue;
     const matched = values.some((value) =>
       candidates.some((candidate) => value.includes(candidate) || candidate.includes(value))
     );

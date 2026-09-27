@@ -26,10 +26,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function generateMetadata({
-  params,
+  params: pendingparams,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const params = await pendingparams;
   const development = await getDevelopmentBySlug(params.slug);
   if (!development || development.visibility === "agents") {
     return {
@@ -81,12 +82,14 @@ export async function generateMetadata({
 }
 
 export default async function DevelopmentDetailPage({
-  params,
-  searchParams,
+  params: pendingparams,
+  searchParams: pendingsearchParams,
 }: {
-  params: { slug: string };
-  searchParams?: { share?: string };
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ share?: string }>;
 }) {
+  const params = await pendingparams;
+  const searchParams = await pendingsearchParams;
   const session = await getServerSession(authOptions);
   const development = await getDevelopmentBySlug(params.slug);
   const shareToken = development

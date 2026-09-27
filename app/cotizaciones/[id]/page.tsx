@@ -5,9 +5,9 @@ import { getQuoteForPublicShare } from "@/lib/db";
 import { absoluteUrl, SITE_NAME } from "@/lib/seo";
 
 type QuoteSharePageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -71,7 +71,8 @@ function quoteFallbackRows(quote: Awaited<ReturnType<typeof getQuoteForPublicSha
   ].filter(([, value]) => Boolean(value));
 }
 
-export async function generateMetadata({ params }: QuoteSharePageProps): Promise<Metadata> {
+export async function generateMetadata({ params: pendingParams }: QuoteSharePageProps): Promise<Metadata> {
+  const params = await pendingParams;
   const quote = await getQuoteForPublicShare(params.id);
   if (!quote) {
     return {
@@ -122,7 +123,8 @@ export async function generateMetadata({ params }: QuoteSharePageProps): Promise
   };
 }
 
-export default async function QuoteSharePage({ params }: QuoteSharePageProps) {
+export default async function QuoteSharePage({ params: pendingParams }: QuoteSharePageProps) {
+  const params = await pendingParams;
   const quote = await getQuoteForPublicShare(params.id);
   if (!quote) notFound();
 

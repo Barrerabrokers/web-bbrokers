@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createCrmActivity, getCrmActivities, getCrmEmailAccountWithSecret, type CrmLead } from "@/lib/db";
 import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
 
@@ -27,13 +28,26 @@ function header(message: GmailMessage, name: string) {
   return message.payload?.headers?.find((item) => item.name?.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
-export async function syncLeadEmailReplies({ lead, agentId, origin, since }: { lead: CrmLead; agentId: string; origin: string; since?: Date }) {
-  const account = await getCrmEmailAccountWithSecret(agentId);
-  if (!account || account.provider !== "google-oauth") return { imported: 0, available: false, error: "La cuenta del propietario debe estar conectada con Google." };
-  if (!account.googleScopes?.includes("gmail.readonly")) return { imported: 0, available: false, error: "Reconectá Google para habilitar la lectura de respuestas." };
+export function validReplyAddress(value: string) {
+  const parsed = z.string().email().safeParse(value.trim());
+  return parsed.success ? parsed.data.toLowerCase() : null;
+}
+export function replySenderAddress(value: string) {
+  const match=value.trim().match(/^[^<>]*<([^<>]+)>$/);
+  return validReplyAddress(match ? match[1] : value);
+}
 
-  const accessToken = await getAccessTokenForGoogleAccount({ origin, account });
-  const query = encodeURIComponent(`from:${lead.email} ${since ? `after:${Math.floor(since.getTime() / 1000)}` : "newer_than:1y"}`);
+export async function syncLeadEmailReplies({ lead, agentId, origin, since, accessToken: suppliedAccessToken }: { lead: CrmLead; agentId: string; origin: string; since?: Date; accessToken?: string }) {
+  const email = validReplyAddress(lead.email || "");
+  if (!email) return { imported: 0, available: false, error: "El contacto no tiene un correo válido. No se consultó Gmail." };
+  let accessToken=suppliedAccessToken;
+  if(!accessToken) {
+    const account = await getCrmEmailAccountWithSecret(agentId);
+    if (!account || account.provider !== "google-oauth") return { imported: 0, available: false, error: "La cuenta del propietario debe estar conectada con Google." };
+    if (!account.googleScopes?.includes("gmail.readonly")) return { imported: 0, available: false, error: "Reconectá Google para habilitar la lectura de respuestas." };
+    accessToken = await getAccessTokenForGoogleAccount({ origin, account });
+  }
+  const query = encodeURIComponent(`from:${email} ${since ? `after:${Math.floor(since.getTime() / 1000)}` : "newer_than:1y"}`);
   const listResponse = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=40`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
   const list = await listResponse.json().catch(() => null) as { messages?: { id: string }[]; error?: { message?: string } } | null;
   if (!listResponse.ok) throw new Error(list?.error?.message || "No se pudieron consultar las respuestas de Gmail.");
@@ -45,6 +59,12 @@ export async function syncLeadEmailReplies({ lead, agentId, origin, since }: { l
     const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const message = await response.json().catch(() => null) as GmailMessage | null;
     if (!response.ok || !message?.id) continue;
+    // Gmail search is not an identity check. Verify the actual sender before storing.
+    const sender = replySenderAddress(header(message, "From"));
+    if (sender !== email) continue;
+    if (sender === replySenderAddress(process.env.CONTACT_EMAIL_FROM || "")) continue;
+    const automated = header(message, "Auto-Submitted").toLowerCase();
+    if (automated && automated !== "no") continue;
     const subject = header(message, "Subject") || "Sin asunto";
     const body = findBody(message.payload).trim() || "El cliente respondió el correo. Abrí Gmail para consultar el contenido completo.";
     const { activity, error } = await createCrmActivity({

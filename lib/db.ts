@@ -2,11 +2,14 @@ import { Property, Agent } from "@/types";
 import { getServerSupabase } from "@/lib/supabase";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import postgres from "postgres";
-import type { CrmLeadStatus } from "@/lib/crm-statuses";
+import { leadStatusFilterValues, type CrmLeadStatus } from "@/lib/crm-statuses";
 import { normalizeSmtpPassword } from "@/lib/crm-email-errors";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { getCrmActivityEditDetails } from "@/lib/crm-activity-edit";
+import { ensureTaskSchedules } from "@/lib/crm-task-schedule";
 import { whatsAppMessageDate } from "@/lib/crm-whatsapp-history";
+import { ensureMeetingLifecycle } from "@/lib/crm-meeting-lifecycle";
+import { scheduleSalesAnalysis } from "@/lib/ai-sales/schedule";
 export type { CrmLeadStatus } from "@/lib/crm-statuses";
 
 // Helper: get raw postgres connection
@@ -866,6 +869,7 @@ export type CrmLead = {
   developmentNameText?: string;
   assignedAgentId?: string;
   assignedAgentName?: string;
+  assignedAgentPhone?: string;
   notes?: string;
   hubspotObjectId?: string;
   hubspotProperties?: CrmHubSpotProperties;
@@ -887,9 +891,12 @@ export type CrmActivityType =
   | "tarea";
 
 export type CrmActivity = {
+  reminderMinutes?: number;
   editVersion?: string;
   meetingOutcome?: string;
   meetingEndsAt?: string;
+  meetingCancelledAt?: string;
+  meetingOutcomeStatus?: "completed" | "cancelled";
   editedAt?: string;
   editedByName?: string;
   id: string;
@@ -940,7 +947,7 @@ export type CrmNotification = {
   recipientAgentName?: string;
   leadId: string;
   leadName: string;
-  type: "email_open";
+  type: "email_open" | "email_reply" | "meeting_outcome" | "campaign_recontact" | "ai_sales";
   title: string;
   body: string;
   href: string;
@@ -1032,6 +1039,7 @@ type CrmLeadRow = {
   development_name_text: string | null;
   assigned_agent_id: string | null;
   assigned_agent_name: string | null;
+  assigned_agent_phone: string | null;
   notes: string | null;
   hubspot_object_id: string | null;
   hubspot_properties: CrmHubSpotProperties | null;
@@ -1374,8 +1382,8 @@ function decryptCrmEmailSecret(value: string) {
   ]).toString("utf8");
 }
 
-function formatNamePart(value: string) {
-  return value
+function formatNamePart(value: string | null | undefined) {
+  return (value || "")
     .trim()
     .toLocaleLowerCase("es-AR")
     .replace(/(^|[\s'-])([a-záéíóúüñ])/gi, (_, prefix: string, letter: string) => {
@@ -1419,6 +1427,7 @@ async function ensureCrmLeadsTable(sql: ReturnType<typeof getPgConnection>) {
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS created_by UUID NULL REFERENCES agents(id) ON DELETE SET NULL;`);
   await sql.unsafe(`ALTER TABLE crm_leads ALTER COLUMN email DROP NOT NULL;`);
   await sql.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_leads_email_unique ON crm_leads (lower(email));`);
+  await sql.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_leads_email_normalized_unique ON crm_leads (lower(btrim(email))) WHERE NULLIF(btrim(email), '') IS NOT NULL;`);
   await sql.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_leads_hubspot_object_id ON crm_leads (hubspot_object_id) WHERE hubspot_object_id IS NOT NULL;`);
   await sql.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_leads_meta_lead_id ON crm_leads (meta_lead_id) WHERE meta_lead_id IS NOT NULL;`);
   await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_crm_leads_status ON crm_leads(status);`);
@@ -1464,7 +1473,7 @@ export async function upsertCrmLeadFromHubSpot(data: {
         source, development_id, development_name_text, assigned_agent_id, notes, hubspot_object_id, hubspot_properties,
         created_by, created_at, updated_at
       ) VALUES (
-        ${id}, ${props.firstname || ""}, ${props.lastname || ""}, ${rawEmail},
+        ${id}, ${formatNamePart(String(props.firstname || ""))}, ${formatNamePart(String(props.lastname || ""))}, ${rawEmail},
         ${normalizedPhone.countryCode}, ${normalizedPhone.phone},
         ${props.hs_lead_status || props.lifecyclestage || ""}, '',
         ${props.hs_analytics_source || props.hs_latest_source || ""},
@@ -1487,7 +1496,7 @@ export async function upsertCrmLeadFromHubSpot(data: {
         hubspot_object_id = EXCLUDED.hubspot_object_id,
         hubspot_properties = EXCLUDED.hubspot_properties,
         updated_at = EXCLUDED.updated_at
-      RETURNING crm_leads.*, NULL::text AS development_name, NULL::text AS assigned_agent_name
+      RETURNING crm_leads.*, NULL::text AS development_name, NULL::text AS assigned_agent_name, NULL::text AS assigned_agent_phone
     `;
     return { lead: rows[0] ? mapCrmLead(rows[0] as unknown as CrmLeadRow) : null, created, error: null };
   } catch (error) {
@@ -1863,9 +1872,9 @@ export async function deleteCrmDataProperty(id: string) {
 function mapCrmLead(row: CrmLeadRow): CrmLead {
   return {
     id: row.id,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    email: row.email,
+    firstName: row.first_name || "",
+    lastName: row.last_name || "",
+    email: row.email || "",
     countryCode: row.country_code || "+54",
     phone: row.phone || "",
     status: row.status,
@@ -1876,6 +1885,7 @@ function mapCrmLead(row: CrmLeadRow): CrmLead {
     developmentNameText: row.development_name_text || undefined,
     assignedAgentId: row.assigned_agent_id || undefined,
     assignedAgentName: row.assigned_agent_name || undefined,
+    assignedAgentPhone: row.assigned_agent_phone || undefined,
     notes: row.notes || undefined,
     hubspotObjectId: row.hubspot_object_id || undefined,
     hubspotProperties: row.hubspot_properties || undefined,
@@ -1901,7 +1911,8 @@ export async function getCrmLeads(options?: {
           SELECT
             l.*,
             d.name AS development_name,
-            a.name AS assigned_agent_name
+            a.name AS assigned_agent_name,
+            a.phone AS assigned_agent_phone
           FROM crm_leads l
           LEFT JOIN developments d ON d.id = l.development_id
           LEFT JOIN agents a ON a.id = l.assigned_agent_id
@@ -1912,7 +1923,8 @@ export async function getCrmLeads(options?: {
           SELECT
             l.*,
             d.name AS development_name,
-            a.name AS assigned_agent_name
+            a.name AS assigned_agent_name,
+            a.phone AS assigned_agent_phone
           FROM crm_leads l
           LEFT JOIN developments d ON d.id = l.development_id
           LEFT JOIN agents a ON a.id = l.assigned_agent_id
@@ -1969,7 +1981,8 @@ export async function getCrmLeadsPage(
       conditions.push(`l.assigned_agent_id = ${addValue(options.ownerId)}::uuid`);
     }
     if (options.status && options.status !== "all") {
-      conditions.push(`l.status = ${addValue(options.status)}`);
+      const statuses = leadStatusFilterValues(options.status).map(addValue);
+      conditions.push(`lower(btrim(l.status)) IN (${statuses.join(", ")})`);
     }
     if (options.development === "__none") {
       conditions.push("l.development_id IS NULL AND NULLIF(trim(l.development_name_text), '') IS NULL");
@@ -2019,7 +2032,7 @@ export async function getCrmLeadsPage(
     const total = Number(countRows[0]?.total || 0);
     const dataValues = [...values, pageSize, (page - 1) * pageSize];
     const rows = await sql.unsafe(
-      `SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name
+      `SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name, a.phone AS assigned_agent_phone
        FROM crm_leads l
        LEFT JOIN developments d ON d.id = l.development_id
        LEFT JOIN agents a ON a.id = l.assigned_agent_id
@@ -2053,7 +2066,8 @@ export async function getCrmLeadById(
           SELECT
             l.*,
             d.name AS development_name,
-            a.name AS assigned_agent_name
+            a.name AS assigned_agent_name,
+            a.phone AS assigned_agent_phone
           FROM crm_leads l
           LEFT JOIN developments d ON d.id = l.development_id
           LEFT JOIN agents a ON a.id = l.assigned_agent_id
@@ -2064,7 +2078,8 @@ export async function getCrmLeadById(
           SELECT
             l.*,
             d.name AS development_name,
-            a.name AS assigned_agent_name
+            a.name AS assigned_agent_name,
+            a.phone AS assigned_agent_phone
           FROM crm_leads l
           LEFT JOIN developments d ON d.id = l.development_id
           LEFT JOIN agents a ON a.id = l.assigned_agent_id
@@ -2090,11 +2105,12 @@ export async function upsertCrmLead(
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
     sql = getPgConnection();
+    await ensureMeetingLifecycle(sql);
 
     const id = data.id || crypto.randomUUID();
-    const email = data.email.trim().toLowerCase();
+    const email = data.email?.trim().toLowerCase() || null;
     const firstName = formatNamePart(data.firstName);
-    const lastName = data.lastName.trim() === "-" ? "-" : formatNamePart(data.lastName);
+    const lastName = data.lastName?.trim() === "-" ? "-" : formatNamePart(data.lastName);
     const importedCreatedAt =
       data.createdAt && !Number.isNaN(Date.parse(data.createdAt))
         ? new Date(data.createdAt).toISOString()
@@ -2128,8 +2144,8 @@ export async function upsertCrmLead(
         ${firstName},
         ${lastName},
         ${email},
-        ${data.countryCode.trim() || "+54"},
-        ${data.phone.trim()},
+        ${data.countryCode?.trim() || "+54"},
+        ${data.phone?.trim() || ""},
         ${data.status},
         ${data.temperature || ""},
         ${data.source?.trim() || ""},
@@ -2180,7 +2196,8 @@ export async function upsertCrmLead(
       RETURNING
         crm_leads.*,
         NULL::text AS development_name,
-        NULL::text AS assigned_agent_name
+        NULL::text AS assigned_agent_name,
+        NULL::text AS assigned_agent_phone
     `;
 
     return {
@@ -2210,11 +2227,15 @@ export async function upsertCrmLeadByEmail(
   try {
     sql = getPgConnection();
 
-    const email = data.email.trim().toLowerCase();
+    const email = data.email?.trim().toLowerCase() || "";
+    if (!email) return { lead: null, created: false, error: "El email es obligatorio" };
     const existing = await sql`
       SELECT *
       FROM crm_leads
-      WHERE lower(email) = ${email}
+      WHERE lower(btrim(email)) = ${email}
+      ORDER BY
+        CASE WHEN assigned_agent_id IS NULL THEN 1 ELSE 0 END,
+        created_at ASC
       LIMIT 1
     `;
     const existingId = (existing[0]?.id as string | undefined) || undefined;
@@ -2225,6 +2246,7 @@ export async function upsertCrmLeadByEmail(
           ...(existing[0] as unknown as CrmLeadRow),
           development_name: null,
           assigned_agent_name: null,
+          assigned_agent_phone: null,
         })
       : null;
     const keep = options?.preserveExistingValues && existingLead;
@@ -2370,7 +2392,7 @@ function mapCrmActivity(row: CrmActivityRow): CrmActivity {
   };
 }
 
-export async function getCrmActivities(leadIds: string[]): Promise<CrmActivity[]> {
+export async function getCrmActivities(leadIds: string[], options: { calendarOnly?: boolean } = {}): Promise<CrmActivity[]> {
   if (leadIds.length === 0) return [];
 
   let sql: ReturnType<typeof getPgConnection> | null = null;
@@ -2383,8 +2405,9 @@ export async function getCrmActivities(leadIds: string[]): Promise<CrmActivity[]
       FROM crm_activities act
       LEFT JOIN agents ON agents.id = act.created_by
       WHERE act.lead_id = ANY(${leadIds})
+        AND (NOT ${Boolean(options.calendarOnly)} OR (act.scheduled_at IS NOT NULL AND act.type IN ('tarea','reunion','nota')))
       ORDER BY act.created_at DESC
-      LIMIT ${leadIds.length === 1 ? null : 600}
+      LIMIT ${options.calendarOnly || leadIds.length === 1 ? null : 600}
     `;
     const editDetails = await getCrmActivityEditDetails(rows.map(row => row.id));
     return (rows as unknown as CrmActivityRow[]).map(row => ({ ...mapCrmActivity(row), ...editDetails.find(item => item.id === row.id) }));
@@ -2407,10 +2430,22 @@ export async function createCrmActivity(data: {
   createdBy?: string | null;
   externalSource?: string | null;
   externalId?: string | null;
+  reminderMinutes?: number;
 }): Promise<{ activity: CrmActivity | null; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
     sql = getPgConnection();
+    if (data.type === "tarea") {
+      if (data.scheduledAt && !Number.isFinite(new Date(data.scheduledAt).getTime())) {
+        return { activity: null, error: "Elegí fecha y hora para agendar la tarea." };
+      }
+      if (data.reminderMinutes !== undefined && ![60,720,1440].includes(data.reminderMinutes)) {
+        return { activity: null, error: "Elegí un aviso de 1 hora, 12 horas o 1 día." };
+      }
+      await ensureTaskSchedules(sql);
+    }
+    const result = await sql.begin(async tx => {
+    const sql = tx;
     const rows = await sql`
       INSERT INTO crm_activities (
         id,
@@ -2447,6 +2482,13 @@ export async function createCrmActivity(data: {
     `;
 
     if (rows[0]) {
+      if (data.type === "tarea") {
+        await sql`INSERT INTO crm_task_schedules (id,activity_id,reminder_minutes,calendar_agent_id,calendar_event_id)
+          VALUES (${rows[0].id},${rows[0].id},${data.reminderMinutes ?? 60},
+            ${data.externalSource === 'google_calendar' ? data.createdBy || null : null},
+            ${data.externalSource === 'google_calendar' ? data.externalId || null : null})
+          ON CONFLICT (id) DO UPDATE SET reminder_minutes=EXCLUDED.reminder_minutes`;
+      }
       await sql`
         UPDATE crm_leads
         SET updated_at = NOW()
@@ -2458,6 +2500,9 @@ export async function createCrmActivity(data: {
       activity: rows[0] ? mapCrmActivity(rows[0] as unknown as CrmActivityRow) : null,
       error: null,
     };
+    });
+    if(result.activity)scheduleSalesAnalysis();
+    return result;
   } catch (error) {
     console.error("Error creating CRM activity:", error);
     return {
@@ -2482,6 +2527,9 @@ export async function deleteCrmActivity(
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
     sql = getPgConnection();
+    const [meeting] = await sql`SELECT a.id FROM crm_activities a JOIN crm_leads l ON l.id=a.lead_id
+      WHERE a.id=${id} AND a.type='reunion' AND (${Boolean(options.includeAll)} OR l.assigned_agent_id=${options.agentId || null})`;
+    if (meeting) return {success:false,error:"Las reuniones no se eliminan: registrá la cancelación y su motivo para conservar el historial."};
     const rows = options.includeAll
       ? await sql`DELETE FROM crm_activities WHERE id = ${id} RETURNING id`
       : await sql`
@@ -2927,7 +2975,13 @@ export async function getCrmNotifications(options: {
       recipientAgentName: row.recipient_agent_name ? String(row.recipient_agent_name) : undefined,
       leadId: String(row.lead_id),
       leadName: String(row.lead_name || "Cliente"),
-      type: "email_open" as const,
+      type: row.type === "ai_sales" ? "ai_sales" as const : row.type === "campaign_recontact"
+        ? "campaign_recontact" as const
+        : row.type === "meeting_outcome"
+          ? "meeting_outcome" as const
+          : row.type === "email_reply"
+            ? "email_reply" as const
+            : "email_open" as const,
       title: String(row.title || "El cliente abrió tu mensaje"),
       body: String(row.body || ""),
       href: String(row.href || `/admin/crm/${row.lead_id}`),
@@ -2937,6 +2991,57 @@ export async function getCrmNotifications(options: {
   } catch (error) {
     console.error("Error loading CRM notifications:", error);
     return [];
+  } finally {
+    try { await sql?.end(); } catch {}
+  }
+}
+
+export async function notifyCrmCampaignRecontact(options: {
+  leadId: string;
+  campaignLeadId: string;
+  campaignName?: string;
+  formName?: string;
+}): Promise<{ notified: boolean; error: string | null }> {
+  let sql: ReturnType<typeof getPgConnection> | null = null;
+  try {
+    await ensureCrmEmailTrackingSchema();
+    sql = getPgConnection();
+    const [lead] = await sql`
+      SELECT first_name, last_name, assigned_agent_id
+      FROM crm_leads
+      WHERE id = ${options.leadId}
+      LIMIT 1
+    `;
+    if (!lead?.assigned_agent_id) return { notified: false, error: null };
+
+    const leadName = `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Un cliente";
+    const context = [
+      options.campaignName?.trim() ? `Campaña: ${options.campaignName.trim()}` : "",
+      options.formName?.trim() ? `Formulario: ${options.formName.trim()}` : "",
+    ].filter(Boolean).join(" · ");
+    const rows = await sql`
+      INSERT INTO crm_notifications (
+        id, recipient_agent_id, lead_id, event_key, type, title, body, href
+      ) VALUES (
+        ${crypto.randomUUID()},
+        ${String(lead.assigned_agent_id)},
+        ${options.leadId},
+        ${`campaign-recontact:${options.campaignLeadId}`},
+        'campaign_recontact',
+        ${`${leadName} volvió a contactarse`},
+        ${context || "El cliente volvió a consultar desde una campaña."},
+        ${`/admin/crm/${options.leadId}?activity=all`}
+      )
+      ON CONFLICT (event_key) DO NOTHING
+      RETURNING id
+    `;
+    return { notified: rows.length > 0, error: null };
+  } catch (error) {
+    console.error("Error notifying CRM campaign recontact:", error);
+    return {
+      notified: false,
+      error: error instanceof Error ? error.message : "No se pudo notificar la nueva consulta",
+    };
   } finally {
     try { await sql?.end(); } catch {}
   }
@@ -4365,6 +4470,7 @@ function mapAgentFromDb(data: any): Agent {
     title: data.title,
     role: data.role,
     active: data.active,
+    sessionVersion: Number(data.session_version || 0),
     sortOrder: data.sort_order,
     createdAt: data.created_at,
   };
@@ -4928,6 +5034,7 @@ export async function updateCrmLeadSelection(input: {
 }) {
   const sql = getPgConnection();
   try {
+    await ensureMeetingLifecycle(sql);
     return await sql.begin(async (tx) => {
       const ids = Array.from(new Set(input.ids)).sort();
       const before = await tx`SELECT * FROM crm_leads WHERE id IN ${tx(ids)} ORDER BY id FOR UPDATE`;
@@ -4945,7 +5052,7 @@ export async function updateCrmLeadSelection(input: {
       if (input.status !== undefined) patch.status = input.status;
       if (input.assignedAgentId !== undefined) patch.assigned_agent_id = input.assignedAgentId || null;
       await tx`UPDATE crm_leads SET ${tx(patch)} WHERE id IN ${tx(ids)}`;
-      const after = await tx`SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id WHERE l.id IN ${tx(ids)}`;
+      const after = await tx`SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name, a.phone AS assigned_agent_phone FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id WHERE l.id IN ${tx(ids)}`;
       return after.map((row) => ({ lead: mapCrmLead(row as unknown as CrmLeadRow), previousStatus: before.find((old) => old.id === row.id)!.status as CrmLeadStatus }));
     });
   } finally { await sql.end(); }
@@ -4968,6 +5075,22 @@ export async function syncExtensionWhatsAppMessages(input: {
         scheduled_at: whatsAppMessageDate(message.timestamp),
         external_id: createHash("sha256").update(`${input.leadId}:${message.id}`).digest("hex"),
       }));
+      // Replace a manually recovered record once the extension supplies its real message id.
+      const recovered = await tx`SELECT id, body, scheduled_at FROM crm_activities
+        WHERE lead_id=${input.leadId} AND external_source='whatsapp-web-recovered' FOR UPDATE`;
+      const normalizeRecoveredBody = (body: string) => body.replace(/^Fecha en WhatsApp: [^\n]+\n\n/, "").replace(/\s+/g, " ").trim();
+      for (const record of records) {
+        const matches = recovered.filter(item => item.scheduled_at && record.scheduled_at
+          && new Date(item.scheduled_at).getTime() === new Date(record.scheduled_at).getTime()
+          && normalizeRecoveredBody(item.body) === normalizeRecoveredBody(record.body));
+        if (matches.length === 1) {
+          const existing = await tx`SELECT id FROM crm_activities WHERE external_source='whatsapp-web' AND external_id=${record.external_id}`;
+          if (!existing.length) {
+            await tx`UPDATE crm_activities SET external_source='whatsapp-web', external_id=${record.external_id} WHERE id=${matches[0].id}`;
+            recovered.splice(recovered.indexOf(matches[0]), 1);
+          }
+        }
+      }
       const rows = await tx`INSERT INTO crm_activities ${tx(records)}
         ON CONFLICT (external_source, external_id) WHERE external_source IS NOT NULL AND external_id IS NOT NULL
         DO UPDATE SET body=EXCLUDED.body, title=EXCLUDED.title,

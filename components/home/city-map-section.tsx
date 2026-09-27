@@ -3,12 +3,10 @@ import {
   CityDevelopment,
 } from "@/components/city/buenos-aires-developments";
 import { getDevelopments } from "@/lib/developments-db";
-import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { getDevelopmentVideo } from "@/lib/development-media";
 
 export async function CityMapSection() {
-  const visibility = await getListingVisibilityFilter();
-  const developments = await getDevelopments({ visibility });
+  const developments = await getDevelopments({ visibility: "public" });
   const cityDevelopments: CityDevelopment[] = developments.map((dev) => ({
     id: dev.id,
     name: dev.name,

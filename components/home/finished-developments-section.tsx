@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, MapPin } from "lucide-react";
 import { getDevelopments } from "@/lib/developments-db";
-import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { formatPrice } from "@/lib/utils";
 import { DevelopmentCoverMedia } from "@/components/development/development-cover-media";
 import { getDevelopmentVideo } from "@/lib/development-media";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 
 export async function FinishedDevelopmentsSection() {
-  const visibility = await getListingVisibilityFilter();
-  const finishedDevelopments = (await getDevelopments({ visibility })).filter(
+  const finishedDevelopments = (await getDevelopments({ visibility: "public" })).filter(
     (development) =>
       development.status === "finalizado" || development.status === "entregado"
   );

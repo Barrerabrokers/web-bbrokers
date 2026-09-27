@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Video, Upload, X, Loader2, Film } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 import { removeAudioFromVideoFile } from "@/lib/video-utils";
 
 interface VideoUploaderProps {
@@ -67,9 +68,7 @@ export function VideoUploader({
       const ext = silentFile.name.split(".").pop() || "webm";
       const fileName = `video-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("properties")
-        .upload(fileName, silentFile, {
+      const { error: uploadError } = await uploadPublicFile(fileName, silentFile, {
           cacheControl: "3600",
           upsert: false,
           contentType: silentFile.type,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { inspectMetaSocialConnection } from "@/lib/meta-social";
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await getServerSession(authOptions);

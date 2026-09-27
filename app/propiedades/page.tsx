@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getProperties } from "@/lib/db";
@@ -28,10 +29,11 @@ export const metadata: Metadata = {
 };
 
 export default async function PropertiesPage({
-  searchParams,
+  searchParams: pendingsearchParams,
 }: {
-  searchParams: { categoria?: string };
+  searchParams: Promise<{ categoria?: string }>;
 }) {
+  const searchParams = await pendingsearchParams;
   const category = searchParams.categoria;
   const visibility = await getListingVisibilityFilter();
   const properties = await getProperties({
@@ -167,7 +169,7 @@ export default async function PropertiesPage({
             <span className="text-[10px] uppercase tracking-widest text-ink/50">
               Filtrar
             </span>
-            <a
+            <Link
               href="/propiedades"
               className={`text-sm tracking-tight transition-colors ${
                 !category
@@ -176,7 +178,7 @@ export default async function PropertiesPage({
               }`}
             >
               Todas
-            </a>
+            </Link>
             {PROPERTY_CATEGORIES.map((cat) => (
               <a
                 key={cat.value}

@@ -29,8 +29,9 @@ function getRequestOrigin(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   try {
     const session = await getServerSession(authOptions);
     if (!session || !canManageAdminPanel(session.user.role)) {

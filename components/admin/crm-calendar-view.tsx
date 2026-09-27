@@ -1,4 +1,5 @@
 "use client";
+import { MeetingClientInvitation } from "@/components/admin/meeting-client-invitation";
 
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
@@ -36,6 +37,10 @@ type CalendarView = "day" | "week" | "month" | "year";
 type CalendarEventType = Extract<CrmActivityType, "reunion" | "tarea" | "nota">;
 
 type DraftEvent = {
+  includePablo?: boolean;
+  includeLucas?: boolean;
+  sendClientInvitation?: boolean;
+  reminderMinutes: number;
   leadId: string;
   type: CalendarEventType;
   date: string;
@@ -167,6 +172,7 @@ function createDraft(leads: CalendarLeadOption[], date: Date, hour = 10): DraftE
     time: timeValue(hour),
     title: "",
     body: "",
+    reminderMinutes: 60,
   };
 }
 
@@ -284,16 +290,21 @@ export function CrmCalendarView({
         body: JSON.stringify({
           leadId: draft.leadId,
           type: draft.type,
+          includePablo: draft.type === "reunion" && Boolean(draft.includePablo),
+          includeLucas: draft.type === "reunion" && Boolean(draft.includeLucas),
+          sendClientInvitation: draft.type === "reunion" ? draft.sendClientInvitation : undefined,
           title,
           body: draft.body,
+          reminderMinutes: draft.reminderMinutes,
           scheduledAt: argentinaLocalDateTimeToIso(draft.date, draft.time),
         }),
       });
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      const data = (await response.json().catch(() => null)) as { error?: string; warning?: string } | null;
       if (!response.ok) {
         throw new Error(data?.error || "No se pudo crear el evento en Google Calendar");
       }
       setDraft(null);
+      if (data?.warning) window.alert(data.warning);
       setCalendarFrameKey((current) => current + 1);
       router.refresh();
     } catch (err) {
@@ -889,13 +900,23 @@ function EventDialog({
             />
           </label>
 
+          {draft.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={Boolean(draft.includePablo)} onChange={(event) => setDraft({ ...draft, includePablo: event.target.checked })} disabled={isSaving} />Invitar a Pablo Barrera</label>}
+          {draft.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={Boolean(draft.includeLucas)} onChange={(event) => setDraft({ ...draft, includeLucas: event.target.checked })} disabled={isSaving} />Invitar a Lucas Barrera</label>}
+          {draft.type === "reunion" && <MeetingClientInvitation value={draft.sendClientInvitation} onChange={event => setDraft({ ...draft, sendClientInvitation: event.target.value === "yes" })} email={selectedLead?.email} disabled={isSaving} />}
+          {draft.type === "tarea" && <label className="sm:col-span-2 text-sm font-medium text-ink">
+            Avisar al agente asignado al contacto
+            <select className="form-input" value={draft.reminderMinutes} onChange={event => setDraft({ ...draft, reminderMinutes: Number(event.target.value) })}>
+              <option value={1440}>1 día antes</option><option value={720}>12 horas antes</option><option value={60}>1 hora antes</option>
+            </select>
+            <span className="text-xs font-normal text-ink/60">También recibirá un correo al agendar la tarea.</span>
+          </label>}
           <label className="sm:col-span-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/48">Nota</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/48">Notas internas (no se envían al cliente)</span>
             <textarea
               value={draft.body}
               onChange={(event) => setDraft({ ...draft, body: event.target.value })}
               rows={4}
-              placeholder="Detalle del evento, dirección, recordatorio o próximos pasos."
+              placeholder="Información interna para el agente."
               className="mt-2 w-full resize-none rounded-md border border-ink/14 bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition-colors placeholder:text-ink/45 focus:border-accent"
             />
           </label>

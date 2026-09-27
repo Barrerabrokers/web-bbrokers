@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function BrochurePage({
-  params,
+  params: pendingparams,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
+  const params = await pendingparams;
   const development = await getDevelopmentBySlug(params.slug);
   if (!development) notFound();
   if (!development.brochureUrl) notFound();

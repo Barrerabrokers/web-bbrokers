@@ -10,13 +10,14 @@ export const dynamic = "force-dynamic";
 const bookingSchema = z.object({
   name: z.string().trim().min(2).max(120), email: z.string().trim().email(),
   phone: z.string().trim().max(50).optional().default(""), notes: z.string().trim().max(1000).optional().default(""),
-  startsAt: z.string().datetime(), duration: z.number().int().min(10).max(180),
+  startsAt: z.string().datetime(), duration: z.union([z.literal(30), z.literal(60)]).default(60),
   meetingMode: z.enum(["in_person", "google_meet"]),
 });
 
 function origin(request: NextRequest) { return process.env.NEXTAUTH_URL || new URL(request.url).origin; }
 
-export async function GET(request: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(request: NextRequest, { params: pendingparams }: { params: Promise<{ slug: string }> }) {
+  const params = await pendingparams;
   const link = await getMeetingLinkBySlug(params.slug);
   if (!link) return NextResponse.json({ error: "Enlace no disponible" }, { status: 404 });
   const fromValue = request.nextUrl.searchParams.get("from");
@@ -44,7 +45,8 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
   return NextResponse.json({ meetingLink: { ...link, agentEmail: undefined }, busy });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { slug: string } }) {
+export async function POST(request: NextRequest, { params: pendingparams }: { params: Promise<{ slug: string }> }) {
+  const params = await pendingparams;
   const parsed = bookingSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Completá nombre, email y horario." }, { status: 400 });
   const link = await getMeetingLinkBySlug(params.slug);

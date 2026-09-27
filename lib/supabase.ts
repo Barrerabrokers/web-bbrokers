@@ -37,7 +37,7 @@ export function getServerSupabase() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!serviceKey) {
-    return supabase;
+    throw new Error("Missing server-side Supabase service credentials");
   }
   
   return createClient(supabaseUrl!, serviceKey, {

@@ -1,4 +1,6 @@
-# Barrera Brokers CRM para WhatsApp — 0.6.15
+# Barrera Brokers CRM para WhatsApp — 0.6.18
+
+La barra de contactos queda libre de avisos de sincronización. Abrí «Sincronización» para consultar el estado y usar sus controles dentro del panel. El cliente seleccionado incluye «Ver en CRM» para abrir su ficha en otra pestaña.
 
 Extensión Manifest V3 para consultar contactos y usar las plantillas de WhatsApp del CRM dentro de WhatsApp Web.
 
@@ -61,3 +63,23 @@ Pulsar Destacados abre directamente la lista nativa Destacados💫, sin esperar 
 - Para recuperar mensajes anteriores, abrí el chat y pulsá Sincronizar historial. Repetí en los chats que necesites recuperar. La extensión no puede leer chats de otro perfil o computadora.
 - El panel cuenta envíos con su fecha de WhatsApp (formato español, hora argentina), no las respuestas entrantes como envíos.
 - Los adjuntos quedan indicados; la extensión no copia el archivo, audio o video.
+
+
+## Registro de conversaciones (0.6.17)
+
+Corrige la captura tras el cambio de WhatsApp Web a `conv-msg-*`: las clases antiguas `message-in` y `message-out` ya no aparecen en la versión actual. La versión anterior podía mostrar “Chat registrado” sin haber detectado ningún mensaje.
+
+- Detecta mensajes enviados y recibidos, con su fecha, incluidos los mensajes consecutivos sin indicador de cola.
+- No registra borradores ni envíos pendientes como enviados.
+- Conserva la cola local hasta que el CRM confirma el guardado y muestra el motivo de los errores.
+- Detecta cambios del chat y reintenta también cuando WhatsApp está en segundo plano (Chrome puede limitar la ejecución de pestañas suspendidas).
+- En la ficha del cliente, **Comunicaciones guardadas en CRM** permite consultar WhatsApp, correos, llamadas y reuniones existentes.
+- Solo registra mensajes cargados en chats que pueden vincularse a un contacto accesible al usuario conectado. Los chats sin coincidencia requieren **Vincular chat**; no se deben vincular a otra persona. No recorre automáticamente todos los chats.
+- Para recuperar mensajes de hoy, abrí cada chat y pulsá **Sincronizar historial**. Si WhatsApp pide obtener mensajes del teléfono, cargalos primero. La extensión no reenvía mensajes a los clientes.
+- Los adjuntos se describen como imagen, video, audio o documento; sus archivos no se copian al CRM.
+
+### Actualización necesaria
+
+Descomprimí el ZIP 0.6.17 y reemplazá los archivos de la carpeta que Chrome ya tiene cargada. Incluí el nuevo archivo `message-capture.js`. En `chrome://extensions`, recargá Barrera Brokers CRM y luego recargá WhatsApp Web. Mantené una sola versión activa y el CRM abierto con tu usuario en el mismo perfil.
+
+Validación: sintaxis y pruebas de captura con el DOM actual y el anterior, mensajes agrupados, dirección, fecha, audio y transición de pendiente a enviado. La validación del guardado real con esta versión requiere recargar la extensión instalada.

@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import postgres from "postgres";
-type Connection = { token: string; pageId: string; appId: string };
+type Connection = { token: string; pageId: string; appId: string; userToken?: string };
+let schemaReady: Promise<void> | undefined;
 function key() {
   const secret = process.env.CRM_EMAIL_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) throw new Error("Falta la clave de protección del CRM.");
@@ -9,10 +10,19 @@ function key() {
 export async function socialConnectionStore(value?: Connection): Promise<Connection | null> {
   const url = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
   if (!url) return null;
-  const sql = postgres(url, { ssl: "require", prepare: false, max: 1 });
+  const sql = postgres(url, { ssl: "require", prepare: false, max: 1, connect_timeout: 10, connection: { statement_timeout: 15000 }, onnotice() {} });
   try {
-    await sql`CREATE TABLE IF NOT EXISTS crm_meta_social_connection (id TEXT PRIMARY KEY, encrypted TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
-    await sql`ALTER TABLE crm_meta_social_connection ENABLE ROW LEVEL SECURITY`;
+    if (!schemaReady) schemaReady = (async () => {
+      // Ordinary reads must not take ALTER TABLE locks on every Meta request.
+      const existing = await sql`SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('public.crm_meta_social_connection')`;
+      if (!existing.length) {
+        await sql`CREATE TABLE IF NOT EXISTS crm_meta_social_connection (id TEXT PRIMARY KEY, encrypted TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+      }
+      if (!existing[0]?.relrowsecurity) {
+        await sql`ALTER TABLE crm_meta_social_connection ENABLE ROW LEVEL SECURITY`;
+      }
+    })().catch(error => { schemaReady = undefined; throw error; });
+    await schemaReady;
     if (value) {
       const iv = randomBytes(12); const cipher = createCipheriv("aes-256-gcm", key(), iv);
       const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);

@@ -21,8 +21,7 @@ import {
 import { getFullSiteSettings } from "@/lib/db";
 import { SOCIAL_SAME_AS } from "@/lib/social-links";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Inversiones en Real Estate en Buenos Aires",

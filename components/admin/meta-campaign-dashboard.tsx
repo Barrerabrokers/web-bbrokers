@@ -1,11 +1,66 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarRange, CheckCircle2, Loader2, Pause, Play, RefreshCw, Target, UsersRound } from "lucide-react";
 import type { MetaMarketingDashboard } from "@/lib/meta-ads";
 import { ARGENTINA_TIME_ZONE } from "@/lib/argentina-time";
 
 const periods = [7, 30, 90] as const;
+
+type MetaLeadRecovery = {
+  id: string;
+  status: "queued" | "running" | "complete" | "partial" | "failed";
+  phase: "discover" | "scan" | "import" | "done";
+  found: number;
+  processed: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  errors: number;
+  pending: number;
+  forms: number;
+  formsSucceeded: number;
+  warnings: string[];
+  updatedAt: string;
+  complete: boolean;
+};
+
+export function isMetaRecoveryActive(recovery: MetaLeadRecovery | null) {
+  return recovery?.status === "queued" || recovery?.status === "running";
+}
+
+export function hasMetaAccessWarning(messages: string[]) {
+  return messages.some((message) => /permis|acceso|autoriz|token|credential|credencial|oauth|permission|access denied|ads_read|ads_management|leads_retrieval|pages_show_list|pages_read_engagement|pages_manage_metadata/i.test(message));
+}
+
+export function metaRecoveryPresentation(recovery: MetaLeadRecovery) {
+  const accessWarning = hasMetaAccessWarning(recovery.warnings);
+  if (isMetaRecoveryActive(recovery)) {
+    const phase = recovery.status === "queued" ? "La solicitud está en cola." : {
+      discover: "Buscando los formularios disponibles en Meta.",
+      scan: "Consultando los contactos de los formularios. El total puede aumentar.",
+      import: "Guardando los contactos en el CRM.",
+      done: "Terminando la recuperación.",
+    }[recovery.phase];
+    return { tone: "active", title: "Recuperación en segundo plano", detail: `${phase} Podés cerrar esta página.`, accessWarning } as const;
+  }
+  if (recovery.status === "complete") {
+    return { tone: "success", title: "Recuperación completada", detail: "Se terminó de procesar la recuperación de contactos.", accessWarning } as const;
+  }
+  if (recovery.status === "partial") {
+    return {
+      tone: "warning", title: "Recuperación incompleta",
+      detail: accessWarning ? "Meta no permitió consultar todos los formularios. Revisá el acceso de Barrera Brokers CRM a las páginas y los leads." : "Se guardaron los avances, pero quedaron contactos o formularios sin procesar. Revisá los avisos antes de volver a intentar.",
+      accessWarning,
+    } as const;
+  }
+  return {
+    tone: "error", title: "No se pudo completar la recuperación",
+    detail: accessWarning ? "Revisá el acceso de Barrera Brokers CRM a las páginas y los leads." : "Los avances guardados se conservan. Revisá el detalle antes de volver a intentar.",
+    accessWarning,
+  } as const;
+}
 
 function compact(value: number) {
   return new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 }).format(value);
@@ -58,26 +113,111 @@ export function MetaCampaignDashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState<string | null>(null);
-  const [recovering, setRecovering] = useState(false);
-  const [recoveryNotice, setRecoveryNotice] = useState("");
+  const [startingRecovery, setStartingRecovery] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(true);
+  const [recovery, setRecovery] = useState<MetaLeadRecovery | null>(null);
+  const [recoveryError, setRecoveryError] = useState("");
+  const [recoveryStatusError, setRecoveryStatusError] = useState("");
+  const [recoveryCheck, setRecoveryCheck] = useState(0);
+  const recoveryRef = useRef<MetaLeadRecovery | null>(null);
+  const campaignRequest = useRef<AbortController | null>(null);
+  const recoveryStartRequest = useRef<AbortController | null>(null);
+  const recovering = isMetaRecoveryActive(recovery);
+  const recoveryPresentation = recovery ? metaRecoveryPresentation(recovery) : null;
 
   const load = useCallback(async () => {
+    campaignRequest.current?.abort();
+    const controller = new AbortController();
+    campaignRequest.current = controller;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/crm/meta/campaigns?days=${days}`, { cache: "no-store" });
+      const response = await fetch(`/api/crm/meta/campaigns?days=${days}`, { cache: "no-store", signal: controller.signal });
       const payload = await readPayload(response);
       if (!response.ok) throw new Error(payload.error || "No se pudieron cargar las campañas.");
-      setData(payload);
+      if (!controller.signal.aborted) setData(payload);
     } catch (cause) {
-      setData(null);
-      setError(cause instanceof Error ? cause.message : "No se pudieron cargar las campañas.");
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "No se pudieron cargar las campañas.");
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [days]);
 
-  useEffect(() => { void load(); }, [load]);
+  const latestLoad = useRef(load);
+  latestLoad.current = load;
+
+  useEffect(() => {
+    void load();
+    return () => campaignRequest.current?.abort();
+  }, [load]);
+
+  useEffect(() => () => recoveryStartRequest.current?.abort(), []);
+
+  // Status reads only: processing belongs to the server and continues with this page closed.
+  useEffect(() => {
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let request: AbortController | null = null;
+
+    function clearTimer() {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    }
+
+    async function checkStatus() {
+      if (disposed || document.hidden) return;
+      clearTimer();
+      request?.abort();
+      const controller = new AbortController();
+      request = controller;
+      try {
+        const response = await fetch("/api/crm/meta/backfill", { cache: "no-store", signal: controller.signal });
+        const payload = await readPayload(response);
+        if (!response.ok) throw new Error(payload.error || "No se pudo consultar el estado de la recuperación.");
+        if (!("recovery" in payload)) throw new Error("No se recibió el estado de la recuperación.");
+        if (disposed || controller.signal.aborted) return;
+        const next: MetaLeadRecovery | null = payload.recovery;
+        const previous = recoveryRef.current;
+        recoveryRef.current = next;
+        setRecovery(next);
+        setRecoveryStatusError("");
+        if (next && isMetaRecoveryActive(next)) setRecoveryError("");
+        if (next && previous?.id === next.id && isMetaRecoveryActive(previous) && !isMetaRecoveryActive(next)) {
+          void latestLoad.current();
+        }
+      } catch (cause) {
+        if (!disposed && !controller.signal.aborted) {
+          setRecoveryStatusError(cause instanceof Error ? cause.message : "No se pudo consultar el estado de la recuperación.");
+        }
+      } finally {
+        if (!disposed && request === controller && !controller.signal.aborted) {
+          setRecoveryLoading(false);
+          request = null;
+          if (!document.hidden && isMetaRecoveryActive(recoveryRef.current)) {
+            timer = setTimeout(() => void checkStatus(), 15_000);
+          }
+        }
+      }
+    }
+
+    function visibilityChanged() {
+      if (document.hidden) {
+        clearTimer();
+        request?.abort();
+      } else {
+        void checkStatus();
+      }
+    }
+
+    void checkStatus();
+    document.addEventListener("visibilitychange", visibilityChanged);
+    return () => {
+      disposed = true;
+      clearTimer();
+      request?.abort();
+      document.removeEventListener("visibilitychange", visibilityChanged);
+    };
+  }, [recoveryCheck]);
 
   async function changeStatus(campaign: MetaMarketingDashboard["campaigns"][number]) {
     const nextStatus = campaign.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
@@ -102,19 +242,29 @@ export function MetaCampaignDashboard() {
   }
 
   async function recoverLeads() {
-    setRecovering(true);
-    setError("");
-    setRecoveryNotice("");
+    if (recoveryStartRequest.current || isMetaRecoveryActive(recoveryRef.current)) return;
+    const controller = new AbortController();
+    recoveryStartRequest.current = controller;
+    setStartingRecovery(true);
+    setRecoveryError("");
     try {
-      const response = await fetch("/api/crm/meta/backfill", { method: "POST" });
+      const response = await fetch("/api/crm/meta/backfill", { method: "POST", signal: controller.signal });
       const payload = await readPayload(response);
-      if (!response.ok) throw new Error(payload.error || "No se pudieron recuperar los leads.");
-      setRecoveryNotice(`Recuperación completa: ${payload.created} nuevos, ${payload.updated} actualizados y ${payload.errors?.length || 0} errores.`);
-      await load();
+      if (!response.ok) throw new Error(payload.error || "No se pudo iniciar la recuperación.");
+      if (!payload.recovery) throw new Error("No se pudo confirmar el inicio de la recuperación.");
+      if (controller.signal.aborted) return;
+      recoveryRef.current = payload.recovery;
+      setRecovery(payload.recovery);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudieron recuperar los leads.");
+      if (!controller.signal.aborted) setRecoveryError(cause instanceof Error ? cause.message : "No se pudo iniciar la recuperación.");
     } finally {
-      setRecovering(false);
+      if (!controller.signal.aborted) {
+        recoveryStartRequest.current = null;
+        setStartingRecovery(false);
+        // Reconcile even after a lost POST response: the server may have accepted the job.
+        setRecoveryLoading(true);
+        setRecoveryCheck((value) => value + 1);
+      }
     }
   }
 
@@ -144,8 +294,8 @@ export function MetaCampaignDashboard() {
               <p className="text-xs font-medium text-ink/58">
                 Última actualización: <time className="text-ink/78" dateTime={data?.lastLeadSyncAt || undefined}>{syncDateTime(data?.lastLeadSyncAt)}</time>
               </p>
-              <button onClick={() => void recoverLeads()} disabled={recovering} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">
-                <RefreshCw className={`h-4 w-4 ${recovering ? "animate-spin" : ""}`} /> {recovering ? "Recuperando…" : "Recuperar leads de Meta"}
+              <button onClick={() => void recoverLeads()} disabled={recovering || startingRecovery || recoveryLoading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">
+                <RefreshCw aria-hidden="true" className={`h-4 w-4 ${recovering || startingRecovery || recoveryLoading ? "animate-spin motion-reduce:animate-none" : ""}`} /> {startingRecovery ? "Iniciando…" : recovering ? "Recuperando…" : recoveryLoading ? "Consultando estado…" : "Recuperar leads de Meta"}
               </button>
             </div>
           </div>
@@ -155,11 +305,42 @@ export function MetaCampaignDashboard() {
       {error && (
         <div role="alert" className="flex items-start gap-3 rounded-md bg-red-50 px-4 py-3 text-sm leading-6 text-red-900">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div><p className="font-semibold">Meta necesita atención</p><p>{error}</p><p className="mt-1 text-red-800">Verificá que el token tenga los permisos <strong>ads_read</strong> y <strong>ads_management</strong>.</p></div>
+          <div>
+            <p className="font-semibold">{data ? "No se pudieron actualizar las campañas" : "No se pudieron cargar las campañas"}</p>
+            <p>{error}</p>
+            {data && <p className="mt-1">Se conserva el último informe disponible. Sus cifras todavía no incluyen esta actualización.</p>}
+            <p className="mt-1 text-red-800">{hasMetaAccessWarning([error]) ? "Revisá los permisos de la conexión Barrera Brokers CRM para campañas." : "Volvé a intentar con Actualizar. Este error no indica por sí solo un problema de permisos."}</p>
+          </div>
         </div>
       )}
 
-      {recoveryNotice && <div role="status" className="rounded-md bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">{recoveryNotice}</div>}
+      {(recoveryError || recoveryStatusError) && (
+        <div role="alert" className="flex items-start gap-3 rounded-md bg-[#fff7df] px-4 py-3 text-sm leading-6 text-[#5b4300]">
+          <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">No se pudo confirmar el estado de la recuperación</p>
+            {recoveryError && <p>{recoveryError}</p>}
+            {recoveryStatusError && recoveryStatusError !== recoveryError && <p>{recoveryStatusError}</p>}
+            <p>Esto no cancela un trabajo que ya se esté ejecutando en el servidor.</p>
+            <button onClick={() => { setRecoveryLoading(true); setRecoveryCheck((value) => value + 1); }} disabled={recoveryLoading} className="mt-2 min-h-10 rounded-md border border-current px-3 font-semibold disabled:opacity-50">Consultar estado</button>
+          </div>
+        </div>
+      )}
+
+      {recovery && recoveryPresentation && (
+        <div role="status" aria-live="polite" className={`flex items-start gap-3 rounded-md px-4 py-3 text-sm leading-6 ${recoveryPresentation.tone === "success" ? "bg-emerald-50 text-emerald-900" : recoveryPresentation.tone === "warning" ? "bg-[#fff7df] text-[#5b4300]" : recoveryPresentation.tone === "error" ? "bg-red-50 text-red-900" : "bg-ink/5 text-ink"}`}>
+          {recovering ? <Loader2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 animate-spin motion-reduce:animate-none" /> : recoveryPresentation.tone === "success" ? <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" /> : <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />}
+          <div className="min-w-0">
+            <p className="font-semibold">{recoveryPresentation.title}</p>
+            <p>{recoveryPresentation.detail}</p>
+            <p className="mt-1 tabular-nums">{recovery.created} nuevos · {recovery.updated} actualizados · {recovery.unchanged} sin cambios · {recovery.skipped} omitidos</p>
+            <p className="tabular-nums">{recovery.processed} contactos procesados · {recovery.found} encontrados · {recovery.pending} pendientes</p>
+            <p className="tabular-nums">{recovery.formsSucceeded} de {recovery.forms} formularios consultados{recovery.errors > 0 ? ` · ${recovery.errors} errores registrados` : ""}</p>
+            {recovery.warnings.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{recovery.warnings.map((warning, index) => <li className="break-words" key={`${index}-${warning}`}>{warning}</li>)}</ul>}
+            <p className="mt-2 text-xs">Último avance: <time dateTime={recovery.updatedAt}>{syncDateTime(recovery.updatedAt)}</time></p>
+          </div>
+        </div>
+      )}
 
       {loading && !data ? (
         <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-ink/58"><Loader2 className="h-5 w-5 animate-spin" /> Consultando Meta y el CRM…</div>

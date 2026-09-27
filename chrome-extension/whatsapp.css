@@ -314,6 +314,24 @@ html.bb-crm-topbar-active #app {
 }
 
  .bb-sync-info { max-width: 150px; font-size: 11px; color: #52756b; }
-.bb-native-list-info { position: fixed; right: 12px; top: 86px; max-width: min(380px, calc(100vw - 24px)); padding: 10px 14px; border: 1px solid #c5dbd4; border-radius: 8px; background: #f4fbf8; color: #234a3d; font-size: 12px; line-height: 1.4; box-shadow: 0 2px 8px #0001; pointer-events: none; }
+.bb-native-list-info { display: block; margin-top: 8px; color: #234a3d; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 
 .bb-sync-stars { font-size: 12px; padding: 0 10px; }
+
+.bb-communication-history { margin-top: 16px; color: #163d36; font-size: 13px; }
+.bb-communication-history summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.bb-history-content { max-height: 380px; overflow-y: auto; }
+.bb-history-content article { padding: 12px 0; border-bottom: 1px solid #d4dfdc; }
+.bb-history-content time { display: block; margin-top: 4px; font-size: 12px; }
+.bb-history-content p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bb-refresh-history { padding: 8px 12px; margin-bottom: 8px; cursor: pointer; }
+.bb-sync-info { display: block; max-width: 100%; margin-top: 10px; white-space: normal; overflow-wrap: anywhere; color: #234a3d; line-height: 1.5; }
+.bb-sync-details { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--bb-line); }
+.bb-sync-details summary { padding: 10px 0; color: var(--bb-ink); font-size: 14px; font-weight: 600; cursor: pointer; }
+.bb-sync-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.bb-sync-controls button { min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #b2c9c2; border-radius: 6px; background: #fff; color: #234a3d; font: 500 13px/1.4 system-ui,sans-serif; white-space: normal; cursor: pointer; }
+.bb-sync-controls button:hover { background: #e7f4ef; }
+.bb-sync-controls button:focus-visible, .bb-sync-details summary:focus-visible, .bb-contact-crm-link:focus-visible { outline: 2px solid #005c5c; outline-offset: 2px; }
+.bb-contact-crm-link { display: inline-flex; align-items: center; min-height: 40px; margin-top: 6px; color: #005c5c; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.bb-open-contact-crm { text-decoration: none; color: #83e1c9; }
+@media (max-width: 1200px) { .bb-topbar-actions .bb-topbar-action, .bb-topbar-actions .bb-edit-tabs { padding-inline: 10px; font-size: 13px; } }

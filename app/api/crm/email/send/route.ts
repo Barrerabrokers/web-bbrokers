@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { getCrmLeadById } from "@/lib/db";
+import { needsGoogleReconnection } from "@/lib/crm-email-errors";
 import { sendCrmEmail } from "@/lib/crm-email-sender";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
 
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!result.sent) {
-    return NextResponse.json({ error: result.error || "No se pudo enviar el correo." }, { status: 500 });
+    return NextResponse.json({ error: result.error || "No se pudo enviar el correo.", reconnectGoogle: needsGoogleReconnection(result.error) }, { status: needsGoogleReconnection(result.error) ? 409 : 500 });
   }
 
   return NextResponse.json({

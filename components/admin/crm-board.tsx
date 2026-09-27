@@ -1,4 +1,6 @@
 "use client";
+import { MeetingClientInvitation } from "@/components/admin/meeting-client-invitation";
+import { isMeetingStatus } from "@/lib/crm-statuses";
 
 import { CrmBulkActions } from "@/components/admin/crm-bulk-actions";
 import { CrmTemplateAuthorFilter } from "@/components/admin/crm-template-author-filter";
@@ -52,6 +54,7 @@ import {
 import { shouldShowHubSpotContactField } from "@/lib/hubspot-fields";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
 import { getCrmMetaFormSubmissions } from "@/lib/crm-meta-fields";
+import { getCrmImportedInquiries } from "@/lib/crm-imported-inquiries";
 import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
 import { ARGENTINA_TIME_ZONE, argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
@@ -119,6 +122,8 @@ type CrmEmailTemplateContentBlock =
       align?: "left" | "center" | "right";
       alt?: string;
       borderRadius?: number;
+      caption?: string;
+      linkUrl?: string;
     }
   | {
       id: string;
@@ -177,6 +182,10 @@ type LeadFormState = {
 };
 
 type ActivityFormState = {
+  includePablo?: boolean;
+  includeLucas?: boolean;
+  sendClientInvitation?: boolean;
+  reminderMinutes: string;
   callOutcomes?: CallOutcome[];
   type: CrmActivityType;
   title: string;
@@ -341,6 +350,7 @@ const EMPTY_FORM: LeadFormState = {
 };
 
 const EMPTY_ACTIVITY: ActivityFormState = {
+  reminderMinutes: "60",
   type: "nota",
   title: "",
   body: "",
@@ -645,7 +655,7 @@ export function CrmBoard({
   useEffect(() => {
     void refreshFeaturedLeads().catch(() => {});
     const sync = () => { if (!document.hidden) void refreshFeaturedLeads().catch(() => {}); };
-    const timer = window.setInterval(sync, 15_000);
+    const timer = window.setInterval(sync, 60_000);
     window.addEventListener("focus", sync);
     document.addEventListener("visibilitychange", sync);
     return () => {
@@ -875,6 +885,12 @@ export function CrmBoard({
   const update = (field: keyof LeadFormState) => (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
+    if (field === "status" && isMeetingStatus(event.target.value)) {
+      if (form.id) {
+        if (window.confirm("Para cambiar a Reunión debés abrir la agenda. Los cambios sin guardar de este formulario no se conservarán. ¿Abrir la agenda?")) window.location.assign(`/admin/crm/${form.id}?scheduleMeeting=1`);
+      } else setError("Primero guardá el contacto con su estado actual; después elegí Reunión para agendar día y horario.");
+      return;
+    }
     setForm((current) => ({ ...current, [field]: event.target.value }));
     setError("");
     setNotice("");
@@ -883,7 +899,7 @@ export function CrmBoard({
   const updateActivity = (field: keyof ActivityFormState) => (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setActivityForm((current) => ({ ...current, [field]: event.target.value }));
+    setActivityForm((current) => ({ ...current, [field]: (field === "includePablo" || field === "includeLucas") ? (event.target as HTMLInputElement).checked : field === "sendClientInvitation" ? event.target.value === "yes" : event.target.value }));
     setError("");
     setNotice("");
   };
@@ -1002,6 +1018,10 @@ export function CrmBoard({
   };
 
   const saveInlineLeadField = async (leadId: string, field: string, payload: LeadFieldPatch) => {
+    if (isMeetingStatus(payload.status)) {
+      window.location.assign(`/admin/crm/${leadId}?scheduleMeeting=1`);
+      return false;
+    }
     setUpdatingLeadFieldId(`${leadId}:${field}`);
     setError("");
     setNotice("");
@@ -1125,7 +1145,7 @@ export function CrmBoard({
         body: JSON.stringify(payload),
       });
       const data = (await response.json().catch(() => null)) as
-        | { activity?: CrmActivity; error?: string }
+        | { activity?: CrmActivity; error?: string; warning?: string }
         | null;
 
       if (!response.ok || !data?.activity) {
@@ -1134,7 +1154,7 @@ export function CrmBoard({
 
       setActivities((current) => [data.activity!, ...current]);
       setActivityForm({ ...EMPTY_ACTIVITY, type: activityForm.type });
-      setNotice(shouldCreateGoogleEvent ? "Actividad registrada en el CRM y Google Calendar." : "Actividad registrada.");
+      setNotice(data.warning || (shouldCreateGoogleEvent ? "Actividad registrada en el CRM y Google Calendar. El agente recibirá el aviso." : "Actividad registrada."));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la actividad");
     } finally {
@@ -1145,6 +1165,7 @@ export function CrmBoard({
   const setActivityType = (type: CrmActivityType) => {
     const label = ACTIVITY_TYPES.find((item) => item.value === type)?.label || "Actividad";
     setActivityForm({
+      reminderMinutes: "60",
       type,
       title: type === "nota" ? "Nueva nota" : `${label} con ${selectedLead?.firstName || "cliente"}`,
       body: "",
@@ -1306,7 +1327,7 @@ export function CrmBoard({
       formData.append("file", file);
       const response = await fetch("/api/crm/import-excel", { method: "POST", body: formData });
       const data = (await response.json().catch(() => null)) as
-        | { leads?: CrmLead[]; created?: number; updated?: number; skipped?: number; errors?: string[]; error?: string }
+        | { leads?: CrmLead[]; created?: number; existing?: number; skipped?: number; errors?: string[]; error?: string }
         | null;
       if (!response.ok || !data?.leads) {
         throw new Error(data?.error || "No se pudo importar el archivo Excel");
@@ -1316,7 +1337,7 @@ export function CrmBoard({
       setCurrentPage(1);
       setOwnerFilter("all");
       setNotice(
-        `Excel importado: ${data.created || 0} nuevos, ${data.updated || 0} actualizados, ${data.skipped || 0} omitidos.${
+        `Excel importado: ${data.created || 0} nuevos, ${data.existing || 0} existentes sin cambios, ${data.skipped || 0} filas omitidas.${
           data.errors?.length ? ` Primeros errores: ${data.errors.slice(0, 3).join(" ")}` : ""
         }`
       );
@@ -1503,6 +1524,7 @@ export function CrmBoard({
             <div className="flex min-w-0 items-center gap-1.5">
               <Link
                 href={`/admin/crm/${lead.id}`}
+                prefetch={false}
                 className="shrink-0 rounded-full p-0.5 text-ink/45 transition-colors hover:bg-ink/8 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]/35"
                 aria-label={`Ver ficha de ${name}`}
               >
@@ -1524,6 +1546,7 @@ export function CrmBoard({
               </button>
               <Link
                 href={`/admin/crm/${lead.id}`}
+                prefetch={false}
                 className="inline-flex min-w-0 items-center gap-1 truncate text-left font-semibold text-[#006b6b] underline-offset-4 transition-colors hover:text-[#004f4f] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]/35"
                 title="Ver ficha del contacto"
               >
@@ -1722,6 +1745,7 @@ export function CrmBoard({
           )}
           <Link
             href={`/admin/crm/${lead.id}`}
+            prefetch={false}
             className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream-100 text-xs font-semibold text-ink"
             aria-label={`Abrir contacto ${name}`}
           >
@@ -1731,6 +1755,7 @@ export function CrmBoard({
             <div className="flex min-w-0 items-center gap-2">
               <Link
                 href={`/admin/crm/${lead.id}`}
+                prefetch={false}
                 className="block min-w-0 flex-1 truncate text-left text-[22px] font-semibold leading-tight text-[#005c5c] underline-offset-4 hover:underline"
               >
                 {name || "Sin nombre"}
@@ -2500,6 +2525,7 @@ function ContactDetail({
     .filter(([key]) => shouldShowHubSpotContactField(key))
     .slice(0, 28);
   const metaFormSubmissions = getCrmMetaFormSubmissions(lead.metaProperties);
+  const importedInquiries = getCrmImportedInquiries(lead.metaProperties);
 
   useEffect(() => {
     setContactFields({
@@ -2709,12 +2735,14 @@ function ContactDetail({
     "{{cliente_telefono}}": formattedLeadPhone(lead),
     "{{desarrollo}}": lead.developmentName || "el desarrollo que consultaste",
     "{{propietario_contacto}}": lead.assignedAgentName || "Barrera Brokers",
+    "{{telefono_agente}}": lead.assignedAgentPhone || "",
   };
   const templateVariableEntries = [
     { token: "{{cliente_nombre}}", label: "Nombre" },
     { token: "{{cliente_nombre_completo}}", label: "Nombre completo" },
     { token: "{{desarrollo}}", label: "Desarrollo" },
     { token: "{{propietario_contacto}}", label: "Propietario" },
+    { token: "{{telefono_agente}}", label: "Teléfono del agente" },
     { token: "{{cliente_telefono}}", label: "Teléfono" },
   ];
 
@@ -3098,12 +3126,12 @@ function ContactDetail({
                     Elegí un mensaje guardado y ajustalo antes de enviarlo.
                   </p>
                 </div>
-                <a
+                <Link
                   href="/admin/crm/plantillas"
                   className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ink/15 bg-white px-3 text-xs font-medium text-ink transition-colors hover:bg-cream-100"
                 >
                   Administrar plantillas
-                </a>
+                </Link>
               </div>
 
               <div className="mt-3"><CrmTemplateAuthorFilter templates={templates} value={templateAuthorFilter} onChange={setTemplateAuthorFilter} /></div>
@@ -3239,12 +3267,12 @@ function ContactDetail({
                 Se enviará a {lead.email} usando tu correo personal conectado.
               </p>
             </div>
-            <a
+            <Link
               href="/admin/crm/correo"
               className="rounded-md border border-ink/15 px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-cream-100"
             >
               Conectar correo
-            </a>
+            </Link>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -3258,12 +3286,12 @@ function ContactDetail({
                     Adjuntá una plantilla al correo del cliente.
                   </p>
                 </div>
-                <a
+                <Link
                   href="/admin/crm/plantillas"
                   className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ink/15 bg-white px-3 text-xs font-medium text-ink transition-colors hover:bg-cream-100"
                 >
                   Administrar plantillas
-                </a>
+                </Link>
               </div>
 
               <div className="mt-3"><CrmTemplateAuthorFilter templates={templates} value={templateAuthorFilter} onChange={setTemplateAuthorFilter} /></div>
@@ -3618,6 +3646,35 @@ function ContactDetail({
         )}
       </form>
 
+      {importedInquiries.length > 0 && (
+        <section className="rounded-xl border border-ink/12 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">Información importada desde Excel</h3>
+            <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
+              {importedInquiries.length}
+            </span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {importedInquiries.map((inquiry, index) => (
+              <article key={`${inquiry.file}-${inquiry.row}-${index}`} className="rounded-lg border border-ink/10 bg-[#fafafa] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold text-ink">{inquiry.section || inquiry.file || `Importación ${index + 1}`}</h4>
+                  {inquiry.importedAt && !Number.isNaN(Date.parse(inquiry.importedAt)) && (
+                    <time className="text-[10px] font-medium text-ink/45">{formatInteractionDateTime(inquiry.importedAt)}</time>
+                  )}
+                </div>
+                <dl className="mt-3 grid gap-3">
+                  {inquiry.fields.map((field, fieldIndex) => (
+                    <InfoRow key={`${field.label}-${fieldIndex}`} label={field.label} value={field.value} />
+                  ))}
+                </dl>
+                <p className="mt-3 text-[10px] text-ink/45">{inquiry.file || "Excel importado"}{inquiry.row ? ` · Fila ${inquiry.row}` : ""}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       {metaFormSubmissions.length > 0 && (
         <section className="rounded-xl border border-ink/12 bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3688,7 +3745,7 @@ function ContactDetail({
             value={activityForm.title}
             onChange={updateActivity("title")}
             className="form-input"
-            placeholder="Título de la actividad"
+            placeholder={activityForm.type === "reunion" ? "Título de la reunión (visible en la invitación)" : "Título de la actividad"}
             required
           />
           {(activityForm.type === "reunion" || activityForm.type === "llamada" || activityForm.type === "tarea") && (
@@ -3697,10 +3754,21 @@ function ContactDetail({
               onChange={updateActivity("scheduledAt")}
               className="form-input"
               type="datetime-local"
+              required={activityForm.type === "tarea" || activityForm.type === "reunion"}
             />
           )}
+          {activityForm.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink"><input type="checkbox" checked={Boolean(activityForm.includePablo)} onChange={updateActivity("includePablo")} disabled={isSavingActivity} />Invitar a Pablo Barrera</label>}
+          {activityForm.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink"><input type="checkbox" checked={Boolean(activityForm.includeLucas)} onChange={updateActivity("includeLucas")} disabled={isSavingActivity} />Invitar a Lucas Barrera</label>}
+          {activityForm.type === "reunion" && <MeetingClientInvitation value={activityForm.sendClientInvitation} onChange={updateActivity("sendClientInvitation")} email={lead.email} disabled={isSavingActivity} />}
+          {activityForm.type === "tarea" && <label className="block text-sm font-medium text-ink">
+            Avisar al agente asignado al contacto
+            <select className="form-input" value={activityForm.reminderMinutes} onChange={updateActivity("reminderMinutes")}>
+              <option value="1440">1 día antes</option><option value="720">12 horas antes</option><option value="60">1 hora antes</option>
+            </select>
+            <span className="text-xs font-normal text-ink/60">También recibirá un correo al agendar la tarea.</span>
+          </label>}
           <label className="block text-sm font-medium text-ink">
-            {activityForm.type === "llamada" ? "Resultado de la llamada" : "Detalle de la actividad"}
+            {activityForm.type === "llamada" ? "Resultado de la llamada" : activityForm.type === "reunion" ? "Notas internas (no se envían al cliente)" : "Detalle de la actividad"}
           <textarea
             value={activityForm.body}
             onChange={updateActivity("body")}

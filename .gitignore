@@ -45,3 +45,6 @@ chrome-extension [0-9]*/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local diagnostics
+/work/

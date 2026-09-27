@@ -29,10 +29,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function generateMetadata({
-  params,
+  params: pendingparams,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
+  const params = await pendingparams;
   const property = await getPropertyById(params.id);
   if (!property || property.visibility === "agents") {
     return {
@@ -80,12 +81,14 @@ export async function generateMetadata({
 }
 
 export default async function PropertyDetailPage({
-  params,
-  searchParams,
+  params: pendingparams,
+  searchParams: pendingsearchParams,
 }: {
-  params: { id: string };
-  searchParams?: { share?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ share?: string }>;
 }) {
+  const params = await pendingparams;
+  const searchParams = await pendingsearchParams;
   const session = await getServerSession(authOptions);
   const property = await getPropertyById(params.id);
   const shareToken = property ? createShareToken("property", property.id) : undefined;

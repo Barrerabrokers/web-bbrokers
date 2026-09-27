@@ -6,10 +6,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function EditUnitPage({
-  params,
+  params: pendingparams,
 }: {
-  params: { id: string; unitId: string };
+  params: Promise<{ id: string; unitId: string }>;
 }) {
+  const params = await pendingparams;
   const [development, unit] = await Promise.all([
     getDevelopmentById(params.id),
     getUnitById(params.unitId),

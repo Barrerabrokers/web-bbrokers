@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { backfillRecentMetaLeads } from "@/lib/meta-leads";
+import { enqueueMetaRecovery } from "@/lib/meta-recovery-store";
+import { processMetaRecovery } from "@/lib/meta-recovery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,13 +15,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await backfillRecentMetaLeads(3);
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("Error recovering Meta leads from cron:", error);
+    // Starts at most one new 30-day reconciliation every 15 minutes. Active
+    // work resumes each minute; no browser or local computer is required.
+    await enqueueMetaRecovery({ automatic: true });
+    const recovery = await processMetaRecovery();
+    return NextResponse.json({ ok: recovery?.status !== "failed", recovery });
+  } catch {
+    console.error("meta_leads_recovery_tick_failed");
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "No se pudieron recuperar los leads de Meta." },
-      { status: 502 },
+      { error: "No se pudo completar este lote. Vercel retomará el avance guardado en la próxima ejecución." },
+      { status: 503 },
     );
   }
 }

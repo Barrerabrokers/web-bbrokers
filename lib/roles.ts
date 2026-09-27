@@ -10,6 +10,11 @@ export function canManageAdminPanel(role?: string | null) {
   return !!role && ADMIN_PANEL_ROLES.includes(role as any);
 }
 
+/** Access to the CRM marketing workspace. Marketing users remain owner-scoped. */
+export function canAccessMarketing(role?: string | null) {
+  return role === "admin" || role === "marketing";
+}
+
 export function canViewAllCrmContacts(role?: string | null) {
   return role === "admin";
 }

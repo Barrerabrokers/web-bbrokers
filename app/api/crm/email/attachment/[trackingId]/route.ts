@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { trackingId: string } }
+  { params: pendingparams }: { params: Promise<{ trackingId: string }> }
 ) {
+  const params = await pendingparams;
   const { tracking } = await registerCrmEmailAttachmentOpen(params.trackingId);
 
   if (!tracking?.fileUrl) {

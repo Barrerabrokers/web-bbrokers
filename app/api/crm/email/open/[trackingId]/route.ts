@@ -23,8 +23,9 @@ function pixelResponse() {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { trackingId: string } }
+  { params: pendingparams }: { params: Promise<{ trackingId: string }> }
 ) {
+  const params = await pendingparams;
   const trackingId = params.trackingId.replace(/\.png$/i, "");
 
   if (trackingId) {

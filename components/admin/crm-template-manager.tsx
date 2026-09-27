@@ -50,6 +50,7 @@ import {
   Wand2,
 } from "lucide-react";
 import type { CrmEmailTemplate, CrmEmailTemplateContentBlock } from "@/lib/db";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 type TemplateContentBlock = CrmEmailTemplateContentBlock;
 
@@ -79,7 +80,31 @@ const VARIABLES = [
   { token: "{{cliente_telefono}}", label: "Teléfono" },
   { token: "{{desarrollo}}", label: "Desarrollo" },
   { token: "{{propietario_contacto}}", label: "Propietario" },
+  { token: "{{telefono_agente}}", label: "Teléfono del agente" },
 ] as const;
+
+function EmailBrandFooterPreview() {
+  return (
+    <footer className="mt-5 border-t border-[#ded8cf] bg-[#f6f3ee] px-4 py-6 text-center font-sans">
+      <p className="mb-1 text-base font-bold tracking-[-0.01em] text-[#1c1a17]">Barrera Brokers</p>
+      <p className="mb-3 text-[13px] leading-5 text-[#625f59]">Real Estate · Buenos Aires</p>
+      <p className="mb-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-bold leading-5 text-[#005c5c]">
+        {SOCIAL_LINKS.map((link) => <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">{link.label}</a>)}
+      </p>
+      <a href="https://barrerabrokers.com" target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#005c5c] underline underline-offset-2">barrerabrokers.com</a>
+    </footer>
+  );
+}
+
+function EmailBrandHeaderPreview() {
+  return (
+    <header className="mb-5 flex w-full justify-center bg-black px-5 py-[14px]">
+      <a href="https://barrerabrokers.com" target="_blank" rel="noreferrer" className="block h-[76px] w-16 bg-black leading-none" aria-label="Abrir Barrera Brokers">
+        <img src="/logo.png" alt="Barrera Brokers" width={64} height={76} className="block h-[76px] w-16 bg-black object-contain" />
+      </a>
+    </header>
+  );
+}
 
 const EMAIL_FONTS = [
   { label: "Arial", value: "Arial, Helvetica, sans-serif" },
@@ -195,7 +220,8 @@ function variablePreview(value: string) {
     .replaceAll("{{cliente_email}}", "cliente@email.com")
     .replaceAll("{{cliente_telefono}}", "+54 11 5555-5555")
     .replaceAll("{{desarrollo}}", "Alpha Place Belgrano")
-    .replaceAll("{{propietario_contacto}}", "Pablo Barrera");
+    .replaceAll("{{propietario_contacto}}", "Pablo Barrera")
+    .replaceAll("{{telefono_agente}}", "+54 11 6406-9668");
 }
 
 function newTextBlock(text = ""): Extract<TemplateContentBlock, { type: "text" }> {
@@ -411,7 +437,7 @@ export function CrmTemplateManager({
   const [templates, setTemplates] = useState(initialTemplates);
   const [form, setForm] = useState<TemplateForm>(() => newEmptyTemplate());
   const [query, setQuery] = useState("");
-  const [authorFilter, setAuthorFilter] = useState("all");
+  const [authorFilter, setAuthorFilter] = useState("mine");
   const [showTools, setShowTools] = useState(false);
   const [channelFilter, setChannelFilter] = useState<"all" | "email" | "whatsapp">("all");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
@@ -1342,6 +1368,7 @@ export function CrmTemplateManager({
                         [data-email-preview] p { margin-top: 0; margin-bottom: 14px; }
                         [data-email-preview="mobile"] p { margin-bottom: 12px; }
                       `}</style>
+                        <EmailBrandHeaderPreview />
                         {form.contentBlocks.map((block, index) => (
                           <TemplateBlockEditor
                             key={block.id}
@@ -1374,6 +1401,8 @@ export function CrmTemplateManager({
                             }}
                           />
                         ))}
+
+                        <EmailBrandFooterPreview />
 
                     </div>
                   </div>

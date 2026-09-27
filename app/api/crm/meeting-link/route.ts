@@ -13,7 +13,7 @@ const schema = z.object({
   title: z.string().trim().min(3).max(120),
   location: z.string().trim().min(1).max(160),
   meetingModes: z.array(z.enum(["in_person", "google_meet"])).min(1),
-  durations: z.array(z.number().int().min(10).max(180)).min(1),
+  durations: z.array(z.union([z.literal(30), z.literal(60)])).min(1).transform(() => [30, 60]),
   weekdays: z.array(z.number().int().min(0).max(6)).min(1),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),

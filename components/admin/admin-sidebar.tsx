@@ -23,7 +23,7 @@ import {
   Files,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { canManageAdminPanel } from "@/lib/roles";
+import { canAccessMarketing, canManageAdminPanel } from "@/lib/roles";
 
 const baseMenuItems = [
   { href: "/admin/crm", label: "CRM", icon: ContactRound },
@@ -33,8 +33,10 @@ const baseMenuItems = [
 ];
 
 const crmSubmenuItems = [
+  { href: "/admin/crm/ai-sales", label: "AI Sales", icon: LayoutDashboard },
   { href: "/admin/crm/panel-agentes", label: "Panel de agentes", icon: LayoutDashboard },
   { href: "/admin/crm", label: "Contactos", icon: Users },
+  { href: "/admin/crm/clientes", label: "Correos de Marketing", icon: Mail, strictAdminOnly: true },
   { href: "/admin/crm/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/admin/crm/reuniones", label: "Link de reuniones", icon: CalendarPlus },
   { href: "/admin/crm/correo", label: "Correo de CRM", icon: Mail },
@@ -99,13 +101,14 @@ export function AdminSidebar({
           const visibleCrmSubmenuItems = crmSubmenuItems.filter(
             (subItem) =>
               (!subItem.adminOnly || canManageAdminPanel(role)) &&
-              (!("strictAdminOnly" in subItem) || !subItem.strictAdminOnly || role === "admin")
+              (!("strictAdminOnly" in subItem) || !subItem.strictAdminOnly || (subItem.href === "/admin/crm/marketing" ? canAccessMarketing(role) : role === "admin"))
           );
 
           return (
             <div key={item.href}>
               <Link
                 href={item.href}
+                prefetch={false}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm",
                   collapsed && "justify-center px-0",
@@ -133,6 +136,7 @@ export function AdminSidebar({
                       <Link
                         key={subItem.href}
                         href={subItem.href}
+                        prefetch={false}
                         className={cn(
                           "flex items-center gap-2 rounded-md border px-3 py-1.5 text-[13px] transition-colors",
                           isSubActive

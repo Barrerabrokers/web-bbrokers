@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -739,12 +740,12 @@ export function UnitsList({
                         <FileText className="h-4 w-4" />
                         Abrir ficha PDF
                       </a>
-                      <a
+                      <Link
                         href="/#contacto"
                         className="btn-primary inline-flex w-full justify-center sm:w-auto"
                       >
                         Consultar por esta unidad
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>

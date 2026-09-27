@@ -16,8 +16,9 @@ function hidePrivateDevelopmentFields(development: Development): Development {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   const development = await getDevelopmentById(params.id);
   if (!development || (development.visibility === "agents" && !session)) {
@@ -33,8 +34,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -67,8 +69,9 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   if (!session || !canManageAdminPanel(session.user.role)) {
     return NextResponse.json(

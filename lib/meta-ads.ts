@@ -1,4 +1,6 @@
 import postgres from "postgres";
+import { socialConnectionStore } from "@/lib/meta-social-store";
+import { getMetaCrmAppId } from "@/lib/meta-app-config";
 import { getMetaLeadsLastSyncAt } from "@/lib/meta-sync-state";
 
 const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
@@ -78,7 +80,8 @@ function actionValue(actions: MetaAction[] | undefined, names: string[]) {
 }
 
 async function metaJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = process.env.META_ACCESS_TOKEN;
+  const connection = await socialConnectionStore();
+  const token = (connection?.appId === getMetaCrmAppId() ? connection.userToken : undefined) || process.env.META_CRM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
   if (!token) throw new Error("Falta configurar META_ACCESS_TOKEN.");
 
   const separator = path.includes("?") ? "&" : "?";

@@ -10,8 +10,9 @@ import { canManageListings } from "@/lib/roles";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const unit = await getUnitById(params.id);
   if (!unit) {
     return NextResponse.json({ error: "No encontrada" }, { status: 404 });
@@ -21,8 +22,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -52,8 +54,9 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });

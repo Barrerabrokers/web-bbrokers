@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureWhatsAppContact, generateWhatsAppAiReply, listWhatsAppMessages, saveWhatsAppMessage, sendWhatsAppText, shouldEscalateConversation, updateWhatsAppConversation, verifyWhatsAppSignature } from "@/lib/whatsapp-inbox";
 import { createCrmActivity } from "@/lib/db";
+import { recordWhatsAppRead } from "@/lib/whatsapp-inbox";
+import { scheduleSalesAnalysis } from "@/lib/ai-sales/schedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get("hub.mode");
@@ -24,10 +27,13 @@ export async function POST(request: NextRequest) {
   for (const entry of payload.entry || []) {
     for (const change of entry.changes || []) {
       const value = change.value || {};
+      for(const status of value.statuses||[]) {
+        if(status.status==='read'&&await recordWhatsAppRead(String(status.id||''),String(value.metadata?.phone_number_id||'')))scheduleSalesAnalysis();
+      }
       const names = new Map<string, string>((value.contacts || []).map((contact: any): [string, string] => [String(contact.wa_id || ""), String(contact.profile?.name || "")]));
       for (const message of value.messages || []) {
         if (message.type !== "text" || !message.text?.body) continue;
-        const conversation = await ensureWhatsAppContact(message.from, names.get(message.from) || "");
+        const conversation = await ensureWhatsAppContact(message.from, names.get(message.from) || "", value.metadata?.phone_number_id);
         if (!conversation) continue;
         const inserted = await saveWhatsAppMessage({ conversationId: conversation.id, whatsappMessageId: message.id, direction: "inbound", senderType: "customer", content: message.text.body });
         if (inserted && conversation.leadId) await createCrmActivity({ leadId: conversation.leadId, type: "whatsapp", title: `Respuesta por WhatsApp de ${conversation.contactName || conversation.phone}`, body: message.text.body, scheduledAt: new Date(Number(message.timestamp || 0) * 1000 || Date.now()).toISOString(), externalSource: "whatsapp_inbound", externalId: message.id });
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest) {
           const reply = escalate
             ? "Perfecto. Te derivo con un asesor de Barrera Brokers para que continúe con toda la información de esta conversación."
             : await generateWhatsAppAiReply(history);
-          const outboundId = await sendWhatsAppText(conversation.phone, reply);
+          const outboundId = await sendWhatsAppText(conversation.phone, reply, conversation.businessPhoneNumberId);
           await saveWhatsAppMessage({ conversationId: conversation.id, whatsappMessageId: outboundId, direction: "outbound", senderType: "ai", content: reply });
           if (escalate) await updateWhatsAppConversation(conversation.id, { aiEnabled: false });
         } catch (error) {

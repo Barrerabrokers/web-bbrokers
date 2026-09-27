@@ -30,12 +30,23 @@ export async function getMetaLeadsLastSyncAt(): Promise<string | null> {
   }
 }
 
-export async function recordMetaLeadsSync(details: Record<string, unknown>) {
+export async function recordMetaLeadsSync(details: Record<string, unknown>, complete = true): Promise<string | null> {
   const url = databaseUrl();
   if (!url) throw new Error("No database connection URL found");
 
   const sql = postgres(url, { ssl: "require", max: 1, prepare: false });
   try {
+    if (!complete) {
+      // Do not create a successful timestamp for a failed first attempt, or
+      // advance the last complete recovery when only some forms were recovered.
+      const rows = await sql`
+        UPDATE crm_integration_sync_state
+        SET details = ${JSON.stringify(details)}::jsonb, updated_at = NOW()
+        WHERE integration = ${META_LEADS_SYNC_KEY}
+        RETURNING last_success_at
+      `;
+      return rows[0]?.last_success_at ? new Date(rows[0].last_success_at as string).toISOString() : null;
+    }
     const rows = await sql`
       INSERT INTO crm_integration_sync_state (
         integration,

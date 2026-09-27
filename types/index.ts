@@ -56,6 +56,7 @@ export interface Agent {
   title?: string;
   role: AgentRole;
   active: boolean;
+  sessionVersion?: number;
   sortOrder?: number;
   createdAt: Date | string;
 }

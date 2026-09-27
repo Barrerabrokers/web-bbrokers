@@ -35,6 +35,8 @@
     <nav class="bb-topbar" aria-label="Listas de contactos del CRM">
       <div class="bb-contact-tabs" role="tablist" aria-label="Contactos por estado"></div>
       <div class="bb-topbar-actions">
+        <a class="bb-topbar-action bb-open-contact-crm" target="_blank" rel="noopener noreferrer" hidden>Ver en CRM</a>
+        <button class="bb-topbar-action bb-open-sync" type="button">Sincronización</button>
         <button class="bb-topbar-action bb-open-templates" type="button" aria-label="Abrir plantillas">
           <span aria-hidden="true">▤</span> Plantillas
         </button>
@@ -86,6 +88,7 @@
         <section class="bb-results" hidden></section>
         <section class="bb-client" hidden></section>
         <section class="bb-lead-context" hidden></section>
+        <details class="bb-communication-history" hidden><summary>Comunicaciones guardadas en CRM</summary><button type="button" class="bb-refresh-history">Actualizar historial</button><div class="bb-history-content" role="status"></div></details>
         <section class="bb-create-client" hidden>
           <div class="bb-section-heading">
             <h2>Nuevo cliente</h2>
@@ -148,6 +151,7 @@
             <div class="bb-template-manager-tools">
               <button class="bb-manager-variable" type="button" data-variable="{{cliente_nombre}}">＋ Nombre del cliente</button>
               <button class="bb-manager-variable" type="button" data-variable="{{propietario_contacto}}">＋ Propietario del contacto</button>
+              <button class="bb-manager-variable" type="button" data-variable="{{telefono_agente}}">＋ Teléfono del agente</button>
               <label class="bb-manager-image"><span>＋ Imagen opcional</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>
             </div>
             <div class="bb-manager-file" hidden></div>
@@ -179,6 +183,7 @@
           <div class="bb-compose-tools">
             <button class="bb-insert-variable" type="button" data-variable="{{cliente_nombre}}">＋ Nombre del cliente</button>
             <button class="bb-insert-variable" type="button" data-variable="{{propietario_contacto}}">＋ Propietario del contacto</button>
+            <button class="bb-insert-variable" type="button" data-variable="{{telefono_agente}}">＋ Teléfono del agente</button>
             <button class="bb-show-save-template" type="button">Guardar como plantilla</button>
           </div>
           <form class="bb-save-template" hidden>
@@ -474,7 +479,8 @@
       .replaceAll("{{cliente_email}}", lead.email || "")
       .replaceAll("{{cliente_telefono}}", `${lead.countryCode || ""} ${lead.phone || ""}`.trim())
       .replaceAll("{{desarrollo}}", development)
-      .replaceAll("{{propietario_contacto}}", lead.assignedAgentName || "Barrera Brokers");
+      .replaceAll("{{propietario_contacto}}", lead.assignedAgentName || "Barrera Brokers")
+      .replaceAll("{{telefono_agente}}", lead.assignedAgentPhone || lead.assigned_agent_phone || "");
   }
 
   async function loadContext({ silent = false, force = false } = {}) {
@@ -526,9 +532,25 @@
     void loadContext({ silent: true, force: true });
   }
 
+  async function loadCommunicationHistory(lead) {
+    const history = $(".bb-communication-history");
+    history.hidden = false;
+    const content = $(".bb-history-content");
+    content.textContent = "Consultando comunicaciones guardadas…";
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "BB_LOAD_COMMUNICATIONS", leadId: lead.id });
+      if (state.lead?.id !== lead.id) return;
+      if (!response?.ok) throw new Error(response?.error || "No se pudo consultar el historial.");
+      const activities = (response.activities || []).filter(item => ["whatsapp", "correo", "llamada", "reunion"].includes(item.type));
+      content.innerHTML = activities.length ? activities.map(item => `<article><strong>${escapeHtml(item.title)}</strong><time>${escapeHtml(new Date(item.scheduledAt || item.createdAt).toLocaleString("es-AR"))}</time><p>${escapeHtml(item.body || "")}</p></article>`).join("") : "Todavía no hay comunicaciones guardadas para este contacto.";
+    } catch (error) { if (state.lead?.id === lead.id) content.textContent = error.message; }
+  }
+  $(".bb-refresh-history").addEventListener("click", () => { if (state.lead) void loadCommunicationHistory(state.lead); });
+
   function renderLead(lead) {
     if (state.lead?.id !== lead.id) clearSelectedImage();
     state.lead = lead;
+    updateCrmContactLink(lead);
     searchForm.hidden = false;
     createToggle.hidden = false;
     results.hidden = true;
@@ -558,6 +580,7 @@
         </div>
         <span class="bb-client-email">${escapeHtml(lead.email || "Sin email")}</span>
         <small>${escapeHtml(contactPhone)}</small>
+        <a class="bb-contact-crm-link" href="https://barrerabrokers.com/admin/crm/${encodeURIComponent(lead.id)}" target="_blank" rel="noopener noreferrer">Ver en CRM ↗</a>
       </div>
     `;
     leadContext.innerHTML = `
@@ -589,6 +612,7 @@
       ` : ""}
     `;
     renderTemplates();
+    void loadCommunicationHistory(lead);
     void restoreDraft(lead);
   }
 
@@ -1668,15 +1692,35 @@
   });
 
   // Synchronize only messages actually rendered by WhatsApp, never the compose box.
+  function updateCrmContactLink(lead) {
+    const link = $(".bb-open-contact-crm");
+    link.hidden = !lead?.id;
+    if (lead?.id) {
+      link.href = `https://barrerabrokers.com/admin/crm/${encodeURIComponent(lead.id)}`;
+      link.title = `Ver a ${fullName(lead)} en el CRM`;
+    } else link.removeAttribute("href");
+  }
+  const syncDetails = document.createElement("details");
+  syncDetails.className = "bb-sync-details";
+  syncDetails.innerHTML = '<summary>Sincronización de WhatsApp</summary><div class="bb-sync-controls"></div>';
+  $(".bb-content").prepend(syncDetails);
+  const syncControls = syncDetails.querySelector(".bb-sync-controls");
+  $(".bb-open-sync").addEventListener("click", () => {
+    panel.hidden = false;
+    launcher.setAttribute("aria-expanded", "true");
+    syncDetails.open = true;
+    syncDetails.scrollIntoView({ block: "nearest" });
+    syncDetails.querySelector("summary").focus();
+  });
   const chatSyncLabel = document.createElement("button");
   chatSyncLabel.type = "button";
   chatSyncLabel.className = "bb-topbar-action";
   chatSyncLabel.textContent = "Sincronizar historial";
-  $(".bb-topbar-actions").prepend(chatSyncLabel);
+  syncControls.append(chatSyncLabel);
   const syncInfo = document.createElement("span");
   syncInfo.className = "bb-sync-info";
   syncInfo.setAttribute("role", "status");
-  $(".bb-topbar-actions").prepend(syncInfo);
+  syncDetails.append(syncInfo);
   let syncBusy = false;
   let syncingHistory = false;
   const acknowledged = new Map();
@@ -1691,7 +1735,7 @@
   }
   const linkChatButton=document.createElement('button');
   linkChatButton.type='button';linkChatButton.className='bb-history-sync';linkChatButton.textContent='Vincular chat al contacto seleccionado';
-  $(".bb-topbar-actions").prepend(linkChatButton);
+  syncControls.append(linkChatButton);
   linkChatButton.addEventListener('click',async()=>{
     if(!state.lead || !chatKey() || !state.actorId){syncInfo.textContent='Seleccioná el cliente correcto en la extensión y abrí su chat.';return;}
     chatLinks[state.actorId+':'+chatKey()]=state.lead.id;
@@ -1717,28 +1761,32 @@
   }
 
   function renderedMessages() {
-    return Array.from(document.querySelectorAll("#main .message-in, #main .message-out")).flatMap(row => {
-      const id = row.getAttribute("data-id") || row.closest("[data-id]")?.getAttribute("data-id") || row.querySelector("[data-id]")?.getAttribute("data-id");
-      if (!id || row.querySelector('[data-icon="msg-time"], [data-icon="msg-error"]')) return [];
-      const content = row.querySelector("[data-pre-plain-text]");
-      const text = Array.from((content || row).querySelectorAll(".selectable-text")).map(el => el.innerText || el.textContent || "").join("\n").trim();
-      const media = row.querySelector('img[src^="blob:"], video') ? "[Imagen o video: archivo no copiado desde WhatsApp Web]" : row.querySelector('audio, [data-icon*="audio"], [data-icon*="ptt"]') ? "[Audio: archivo no copiado desde WhatsApp Web]" : row.querySelector('[data-icon*="document"]') ? "[Documento adjunto: archivo no copiado desde WhatsApp Web]" : "";
-      const body = [text, media].filter(Boolean).join("\n");
-      if (!body) return [];
-      return [{ id, direction: row.classList.contains("message-out") ? "outbound" : "inbound", text: body.slice(0, 20000), timestamp: (content?.getAttribute("data-pre-plain-text") || "").slice(0, 200) }];
-    });
+    return globalThis.BBMessageCapture.read(document.querySelector("#main"));
   }
 
   async function syncChat() {
     if (syncBusy) return;
     syncBusy = true;
+    // Take the snapshot before waiting for CRM requests: the user may switch chats meanwhile.
+    const snapshotActor = state.actorId;
+    const snapshotLead = snapshotActor ? currentChatLead() : null;
+    const snapshotMessages = snapshotLead ? renderedMessages() : [];
     try {
       await queueReady;
+      if (snapshotLead) {
+        for (const message of snapshotMessages) {
+          const key = `${snapshotActor}:${snapshotLead.id}:${message.id}`;
+          const hash = JSON.stringify(message);
+          if (acknowledged.get(key) !== hash) queue[key] = { actorId: snapshotActor, leadId: snapshotLead.id, message, hash };
+        }
+        await chrome.storage.local.set({ bbConversationQueue: queue });
+      }
       if ((!state.actorId || Date.now()-state.contextLoadedAt>30000) && !(await loadContext({ silent: true, force:true }))) {
         syncInfo.textContent='Iniciá sesión en el CRM con tu usuario para registrar los mensajes.';return;
       }
       linkChatButton.textContent=state.lead ? `Vincular chat a ${fullName(state.lead)}` : 'Seleccioná un contacto para vincular el chat';
       const lead = currentChatLead();
+      updateCrmContactLink(lead);
       if (lead) {
         for (const message of renderedMessages()) {
           const key = `${state.actorId}:${lead.id}:${message.id}`;
@@ -1750,7 +1798,7 @@
       const pending = Object.entries(queue).filter(([, item]) => item.actorId===state.actorId && state.leads.some(lead => lead.id === item.leadId));
       const leadId = pending[0]?.[1]?.leadId;
       if (!leadId) {
-        syncInfo.textContent = lead ? `Chat registrado · ${state.actorName}` : "Chat sin vincular: buscá el cliente y vinculalo para registrar la conversación";
+        syncInfo.textContent = lead ? (renderedMessages().length ? `Chat registrado · ${state.actorName}` : "No hay mensajes legibles cargados en este chat") : "Chat sin vincular: buscá el cliente y vinculalo para registrar la conversación";
         return;
       }
       const batch = pending.filter(([, item]) => item.leadId === leadId).slice(0, 100);
@@ -1759,9 +1807,10 @@
       if(response.saved!==batch.length)throw new Error('El CRM no confirmó todos los mensajes. Se volverá a intentar.');
       for (const [key, item] of batch) { acknowledged.set(key, item.hash); delete queue[key]; }
       await chrome.storage.local.set({ bbConversationQueue: queue });
-      syncInfo.textContent = Object.keys(queue).length ? "Guardando conversación…" : "Chat registrado en CRM";
+      syncInfo.textContent = Object.keys(queue).length ? "Guardando conversación…" : `Chat registrado en CRM · ${batch.length} mensajes confirmados`;
+      if (state.lead?.id === leadId && $(".bb-communication-history").open) void loadCommunicationHistory(state.lead);
     } catch (error) {
-      syncInfo.textContent = "Sincronización pendiente";
+      syncInfo.textContent = `Sincronización pendiente: ${error.message}`;
       syncInfo.title = error.message;
     } finally { syncBusy = false; }
   }
@@ -1771,7 +1820,7 @@
     await loadContext({ silent: true, force: true });
     const lead = currentChatLead();
     if (!lead) { syncInfo.textContent = "Abrí un chat que coincida con un único contacto del CRM"; return; }
-    let scroller = document.querySelector("#main .message-in, #main .message-out")?.parentElement;
+    let scroller = globalThis.BBMessageCapture.rows(document.querySelector("#main"))[0]?.parentElement;
     while (scroller && scroller.id !== "main" && !(scroller.scrollHeight > scroller.clientHeight + 20 && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
     if (!scroller || scroller.id === "main") { await syncChat(); syncInfo.textContent = "Se registró lo cargado. Desplazate hacia arriba para cargar mensajes anteriores."; return; }
     syncingHistory = true; chatSyncLabel.textContent = "Detener historial";
@@ -1799,7 +1848,7 @@
   nativeInfo.className = "bb-native-list-info";
   nativeInfo.setAttribute("role", "status");
   nativeInfo.hidden = true;
-  root.append(nativeInfo);
+  syncDetails.append(nativeInfo);
   function reportFeatured(text) {
     nativeInfo.textContent = text; nativeInfo.hidden = false;
     clearTimeout(nativeInfo.hideTimer);
@@ -1809,12 +1858,11 @@
   const syncStarsButton = document.createElement("button");
   syncStarsButton.className = "bb-topbar-action bb-sync-stars";
   syncStarsButton.textContent = "Sincronizar destacados";
-  $(".bb-topbar-actions").prepend(syncStarsButton);
+  syncControls.append(syncStarsButton);
   syncStarsButton.addEventListener("click", async () => {
     if (featuredBridge.busy) { featuredBridge.cancel(); return; }
     if (!(await loadContext({ silent: true, force: true }))) { reportFeatured("Abrí el CRM e iniciá sesión para vincular destacados."); return; }
-    panel.hidden = true;
-    launcher.setAttribute("aria-expanded", "false");
+    syncDetails.open = true;
     syncStarsButton.textContent = "Cancelar vinculación";
     try {
       const ok = await featuredBridge.syncFeatured({
@@ -1854,7 +1902,16 @@
     document.querySelectorAll(".bb-chat-list").forEach(node => node.remove());
   }
   renderChatList();
-  window.setInterval(() => { if (!document.hidden) void syncChat(); }, 4000);
+  // Capture DOM updates promptly, including messages received while the tab is in the background.
+  let captureTimer;
+  const messageObserver = new MutationObserver(changes => {
+    if (!changes.some(change => (change.target instanceof Element ? change.target : change.target.parentElement)?.closest("#main"))) return;
+    clearTimeout(captureTimer);
+    captureTimer = setTimeout(() => void syncChat(), 150);
+  });
+  messageObserver.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-pre-plain-text", "data-icon", "aria-label"] });
+  window.setInterval(() => void syncChat(), 4000);
+  window.addEventListener("online", () => void syncChat());
   loadContactTabs().then(() => { state.activeTabId = "all"; renderContactTabs(); });
   hydrateCachedContext();
   const syncFeatured = async () => {

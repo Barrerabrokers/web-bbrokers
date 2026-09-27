@@ -1,13 +1,16 @@
 import crypto from "crypto";
+import { getWhatsAppAppSecret } from "@/lib/meta-app-config";
 import { getMetaSocialCredentials, getMetaSocialContactName } from "@/lib/meta-social";
 import postgres from "postgres";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { upsertCrmLead, upsertCrmLeadByEmail } from "@/lib/db";
 import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
+import { selectWhatsAppSender, deliverWhatsAppText, WHATSAPP_TEST_PHONE_ID } from "@/lib/whatsapp-send";
 
 export type WhatsAppConversation = {
   id: string;
   phone: string;
+  businessPhoneNumberId?: string;
   contactName: string;
   leadId?: string;
   assignedAgentId?: string;
@@ -68,6 +71,7 @@ export async function ensureWhatsAppInboxSchema() {
         );
         ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp';
         ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS external_contact_id TEXT NULL;
+        ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS business_phone_number_id TEXT NULL;
         CREATE TABLE IF NOT EXISTS crm_whatsapp_messages (
           id UUID PRIMARY KEY,
           conversation_id UUID NOT NULL REFERENCES crm_whatsapp_conversations(id) ON DELETE CASCADE,
@@ -97,6 +101,7 @@ function mapConversation(row: any): WhatsAppConversation {
   return {
     id: row.id,
     phone: row.phone,
+    businessPhoneNumberId: row.business_phone_number_id || undefined,
     contactName: row.contact_name || row.lead_name || row.phone,
     leadId: row.lead_id || undefined,
     assignedAgentId: row.assigned_agent_id || undefined,
@@ -143,7 +148,7 @@ export async function getWhatsAppConversation(id: string) {
   } finally { await sql.end(); }
 }
 
-export async function ensureWhatsAppContact(phoneValue: string, contactName = "") {
+export async function ensureWhatsAppContact(phoneValue: string, contactName = "", businessPhoneNumberId?: string) {
   await ensureWhatsAppInboxSchema();
   const phone = phoneValue.replace(/\D/g, "");
   const sql = connection();
@@ -172,11 +177,12 @@ export async function ensureWhatsAppContact(phoneValue: string, contactName = ""
       leadId = result.lead?.id;
     }
     const rows = await sql`
-      INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, lead_id)
-      VALUES (${crypto.randomUUID()}, ${phone}, ${contactName.trim()}, ${leadId || null})
+      INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, lead_id, business_phone_number_id, ai_enabled)
+      VALUES (${crypto.randomUUID()}, ${phone}, ${contactName.trim()}, ${leadId || null}, ${businessPhoneNumberId || null}, ${businessPhoneNumberId !== WHATSAPP_TEST_PHONE_ID})
       ON CONFLICT (phone) DO UPDATE SET
         contact_name = COALESCE(NULLIF(EXCLUDED.contact_name, ''), crm_whatsapp_conversations.contact_name),
         lead_id = COALESCE(crm_whatsapp_conversations.lead_id, EXCLUDED.lead_id),
+        business_phone_number_id = COALESCE(EXCLUDED.business_phone_number_id, crm_whatsapp_conversations.business_phone_number_id),
         updated_at = NOW()
       RETURNING id
     `;
@@ -261,23 +267,42 @@ export async function listWhatsAppMessagesForLead(leadId: string, phoneValue: st
 export async function saveWhatsAppMessage(data: {
   conversationId: string; whatsappMessageId?: string; direction: "inbound" | "outbound";
   senderType: "customer" | "ai" | "agent"; senderAgentId?: string; content: string; status?: string;
+  createdAt?: string; historical?: boolean;
 }) {
   await ensureWhatsAppInboxSchema();
   const sql = connection();
+  const createdAt = data.createdAt || new Date().toISOString();
   try {
-    const rows = await sql`
-      INSERT INTO crm_whatsapp_messages (id, conversation_id, whatsapp_message_id, direction, sender_type, sender_agent_id, content, status)
-      VALUES (${crypto.randomUUID()}, ${data.conversationId}, ${data.whatsappMessageId || null}, ${data.direction}, ${data.senderType}, ${data.senderAgentId || null}, ${data.content}, ${data.status || "sent"})
-      ON CONFLICT (whatsapp_message_id) DO NOTHING RETURNING id
-    `;
-    if (!rows[0]) return false;
-    await sql`
-      UPDATE crm_whatsapp_conversations SET last_message = ${data.content}, last_message_at = NOW(),
-        unread_count = CASE WHEN ${data.direction} = 'inbound' THEN unread_count + 1 ELSE unread_count END,
-        updated_at = NOW() WHERE id = ${data.conversationId}
-    `;
-    return true;
+    return await sql.begin(async tx => {
+      const rows = await tx`
+        INSERT INTO crm_whatsapp_messages (id, conversation_id, whatsapp_message_id, direction, sender_type, sender_agent_id, content, status, created_at)
+        VALUES (${crypto.randomUUID()}, ${data.conversationId}, ${data.whatsappMessageId || null}, ${data.direction}, ${data.senderType}, ${data.senderAgentId || null}, ${data.content}, ${data.status || "sent"}, ${createdAt})
+        ON CONFLICT (whatsapp_message_id) DO NOTHING RETURNING id
+      `;
+      if (!rows[0]) return false;
+      await tx`
+        UPDATE crm_whatsapp_conversations SET
+          last_message = CASE WHEN last_message = '' OR last_message_at <= ${createdAt}::timestamptz THEN ${data.content} ELSE last_message END,
+          last_message_at = CASE WHEN last_message = '' OR last_message_at <= ${createdAt}::timestamptz THEN ${createdAt}::timestamptz ELSE last_message_at END,
+          unread_count = CASE WHEN ${data.direction} = 'inbound' AND ${!data.historical} THEN unread_count + 1 ELSE unread_count END,
+          updated_at = NOW() WHERE id = ${data.conversationId}
+      `;
+      return true;
+    });
   } finally { await sql.end(); }
+}
+
+// Meta read receipts are matched to the exact outbound message and business number.
+export async function recordWhatsAppRead(messageId:string,businessPhoneNumberId:string) {
+ if(!messageId||!businessPhoneNumberId)return false;
+ await ensureWhatsAppInboxSchema();
+ const sql=connection();
+ try {
+  const rows=await sql`UPDATE crm_whatsapp_messages m SET status='read' FROM crm_whatsapp_conversations c
+    WHERE m.conversation_id=c.id AND m.whatsapp_message_id=${messageId} AND m.direction='outbound'
+    AND c.business_phone_number_id=${businessPhoneNumberId} AND m.status NOT IN ('read','failed','error') RETURNING m.id`;
+  return rows.length>0;
+ }finally{await sql.end();}
 }
 
 export async function updateWhatsAppConversation(id: string, data: {
@@ -311,26 +336,19 @@ export async function updateWhatsAppConversation(id: string, data: {
 }
 
 export function verifyWhatsAppSignature(rawBody: string, signature: string | null) {
-  const secret = process.env.META_APP_SECRET;
+  const secret = getWhatsAppAppSecret();
   if (!secret || !signature?.startsWith("sha256=")) return false;
   const expected = `sha256=${crypto.createHmac("sha256", secret).update(rawBody).digest("hex")}`;
   if (expected.length !== signature.length) return false;
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
-export async function sendWhatsAppText(phone: string, text: string) {
+export async function sendWhatsAppText(phone: string, text: string, businessPhoneNumberId?: string) {
   const saved = await getWhatsAppChannelCredentials();
   const token = process.env.WHATSAPP_ACCESS_TOKEN || saved?.accessToken || process.env.META_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || saved?.phoneNumberId;
-  if (!token || !phoneNumberId) throw new Error("Faltan las credenciales oficiales de WhatsApp.");
-  const version = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-  const response = await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`, {
-    method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: phone, type: "text", text: { preview_url: false, body: text } }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result?.error?.message || "WhatsApp rechazó el mensaje.");
-  return result?.messages?.[0]?.id as string | undefined;
+  const sender = selectWhatsAppSender(businessPhoneNumberId, { token, phoneNumberId }, process.env.WHATSAPP_TEST_ACCESS_TOKEN);
+  return deliverWhatsAppText(sender, phone, text, process.env.WHATSAPP_GRAPH_VERSION || "v23.0");
 }
 
 export async function sendMetaSocialText(channel: "instagram" | "facebook", recipientId: string, text: string) {

@@ -6,6 +6,7 @@ import { Save, ArrowLeft, Star } from "lucide-react";
 import Link from "next/link";
 import { PROPERTY_CATEGORIES } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 import {
   ImageUploader,
   type ImageItem,
@@ -116,9 +117,7 @@ export default function EditPropertyPage() {
           .toString(36)
           .substring(7)}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("properties")
-          .upload(fileName, file, {
+        const { error: uploadError } = await uploadPublicFile(fileName, file, {
             cacheControl: "3600",
             upsert: false,
             contentType: file.type,

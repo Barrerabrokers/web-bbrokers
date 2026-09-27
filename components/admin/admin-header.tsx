@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useSiteSettings } from "@/lib/use-site-settings";
 import { PwaInstaller } from "@/components/pwa-installer";
 import { CrmNotifications } from "@/components/admin/crm-notifications";
+import { disableDevicePush } from "@/lib/crm-push-client";
 
 export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
   const { data: session } = useSession();
@@ -17,7 +18,7 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
   return (
     <header className="bg-cream-200/85 backdrop-blur-xl border-b border-ink/15 sticky top-0 z-30">
       <div className="flex items-center justify-between px-6 md:px-8 h-14">
-        <Link href={crmOnly ? "/admin/crm" : "/admin"} className="flex items-center gap-2.5">
+        <Link href={crmOnly ? "/admin/crm" : "/admin"} prefetch={false} className="flex items-center gap-2.5">
           <div className="relative h-7 w-7">
             <Image
               src={settings.logoUrl}
@@ -43,6 +44,7 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
 
           <Link
             href="/"
+            prefetch={false}
             target="_blank"
             className={`btn-ghost text-xs hidden sm:inline-flex ${crmOnly ? "sm:!hidden" : ""}`}
           >
@@ -65,7 +67,7 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
           </div>
 
           <button
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={async () => { await disableDevicePush().catch(() => undefined); await signOut({ callbackUrl: "/" }); }}
             className="btn-ghost text-xs"
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -74,7 +76,7 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
         </div>
       </div>
       <nav aria-label="Accesos del CRM" className={`${crmOnly ? "flex" : "flex md:hidden"} gap-2 overflow-x-auto px-4 pb-2`}>
-        {[{ href: "/admin/crm", label: "Contactos" }, { href: "/admin/crm/panel-agentes", label: session?.user?.role === "admin" ? "Panel de agentes" : "Mi actividad" }].map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-3 text-sm font-medium ${pathname === item.href ? "bg-[#006b6b] text-white" : "text-ink hover:bg-white/60"}`}>{item.label}</Link>)}
+        {[{ href: "/admin/crm", label: "Contactos" }, ...(session?.user?.role === "admin" ? [{href: "/admin/crm/clientes", label: "Correos de Marketing"}] : []), { href: "/admin/crm/panel-agentes", label: session?.user?.role === "admin" ? "Panel de agentes" : "Mi actividad" }].map(item => <Link key={item.href} href={item.href} prefetch={false} aria-current={pathname === item.href ? "page" : undefined} className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-3 text-sm font-medium ${pathname === item.href ? "bg-[#006b6b] text-white" : "text-ink hover:bg-white/60"}`}>{item.label}</Link>)}
       </nav>
     </header>
   );

@@ -8,12 +8,15 @@ import { cn } from "@/lib/utils";
 import { canManageAdminPanel } from "@/lib/roles";
 
 const crmNavItems = [
+  { href: "/admin/crm/ai-sales", label: "AI Sales", description: "Qué hacer ahora", icon: UsersRound },
+  { href: "/admin/crm/clientes", label: "Correos de Marketing", description: "Listas por estado del lead", icon: Mail, administratorOnly: true },
   { href: "/admin/crm/panel-agentes", label: "Panel de agentes", description: "Actividad y comunicaciones", icon: UsersRound },
   {
     href: "/admin/crm/marketing/whatsapp",
     label: "Conversaciones",
     description: "WhatsApp, Instagram y Facebook",
     icon: Inbox,
+    administratorOnly: true,
   },
   {
     href: "/admin/crm",
@@ -77,7 +80,7 @@ export function CrmNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const visibleCrmNavItems = crmNavItems.filter(
-    (item) => !item.adminOnly || canManageAdminPanel(session?.user?.role)
+    (item) => (!item.administratorOnly || session?.user?.role === "admin") && (!item.adminOnly || canManageAdminPanel(session?.user?.role))
   );
 
   return (
@@ -102,6 +105,7 @@ export function CrmNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={cn(
                   "flex min-w-[190px] items-center gap-3 rounded-md border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/35",
                   isActive

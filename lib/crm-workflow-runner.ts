@@ -31,6 +31,7 @@ function replaceTemplateVariables(value: string, lead: CrmLead) {
     cliente_telefono: [lead.countryCode, lead.phone].filter(Boolean).join(" ").trim(),
     desarrollo: lead.developmentName || lead.developmentNameText || "el desarrollo consultado",
     propietario_contacto: lead.assignedAgentName || "Barrera Brokers",
+    telefono_agente: lead.assignedAgentPhone || "",
     estado_lead: lead.status,
   };
 
@@ -146,6 +147,12 @@ async function executeCrmWorkflowEmail({
             html: column.html ? replaceTemplateVariables(column.html, lead) : column.html,
           } : column),
         };
+      }
+      if (block.type === "image") {
+        return {...block,alt:replaceTemplateVariables(block.alt||"",lead),caption:replaceTemplateVariables(block.caption||"",lead),linkUrl:replaceTemplateVariables(block.linkUrl||"",lead)};
+      }
+      if (block.type === "attachment") {
+        return {...block,name:replaceTemplateVariables(block.name,lead),url:replaceTemplateVariables(block.url,lead)};
       }
       return block;
     });

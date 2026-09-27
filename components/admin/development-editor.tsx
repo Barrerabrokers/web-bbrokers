@@ -7,6 +7,7 @@ import { COMMON_AMENITIES, Development, DevelopmentImage, DEVELOPMENT_IMAGE_TYPE
 import { ImageItem } from "./image-uploader";
 import { MediaUploader } from "./media-uploader";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 
 interface Props {
   development: Development;
@@ -105,9 +106,7 @@ export function DevelopmentEditor({ development }: Props) {
       .toString(36)
       .substring(7)}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("properties")
-      .upload(fileName, file, {
+    const { error: uploadError } = await uploadPublicFile(fileName, file, {
         cacheControl: "3600",
         upsert: false,
         contentType: file.type || "application/octet-stream",

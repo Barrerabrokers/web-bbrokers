@@ -6,7 +6,8 @@ import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
 
 export const dynamic = "force-dynamic";
 
-export default async function PublicMeetingPage({params}:{params:{slug:string}}) {
+export default async function PublicMeetingPage({params: pendingparams}:{params:Promise<{slug:string}>}) {
+  const params = await pendingparams;
   const link=await getMeetingLinkBySlug(params.slug);
   if(!link) notFound();
   const from=new Date(),to=new Date(Date.now()+45*86400000);

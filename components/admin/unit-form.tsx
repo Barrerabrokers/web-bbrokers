@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Save, ArrowLeft, Trash2 } from "lucide-react";
 import { UNIT_IMAGE_TYPES, Unit } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 import {
   type ImageItem,
   getImageItemStableId,
@@ -121,9 +122,7 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
             .toString(36)
             .substring(7)}.${ext}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from("properties")
-            .upload(fileName, item.file, {
+          const { error: uploadError } = await uploadPublicFile(fileName, item.file, {
               cacheControl: "3600",
               upsert: false,
               contentType: item.file.type,

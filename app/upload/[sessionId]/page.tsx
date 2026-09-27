@@ -1,16 +1,15 @@
 "use client";
+import { useParams as useRouteParams } from "next/navigation";
 
 import { useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Camera, Image as ImageIcon, Check, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 import { isVideoFile, removeAudioFromVideoFile } from "@/lib/video-utils";
 
-export default function MobileUploadPage({
-  params,
-}: {
-  params: { sessionId: string };
-}) {
+export default function MobileUploadPage() {
+  const params = useRouteParams<{ sessionId: string }>();
   const searchParams = useSearchParams();
   const imageOnly = searchParams.get("media") === "images";
   const [uploaded, setUploaded] = useState<string[]>([]);
@@ -27,12 +26,11 @@ export default function MobileUploadPage({
     const ext = fileToUpload.name.split(".").pop() || "jpg";
     const fileName = `mobile-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("properties")
-      .upload(fileName, fileToUpload, {
+    const { error: uploadError } = await uploadPublicFile(fileName, fileToUpload, {
         cacheControl: "3600",
         upsert: false,
         contentType: fileToUpload.type,
+        sessionId: params.sessionId,
       });
 
     if (uploadError) throw new Error(uploadError.message);

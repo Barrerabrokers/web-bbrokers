@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { MeetingClientInvitation } from "@/components/admin/meeting-client-invitation";
 import { CalendarPlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import type { CrmActivityType, CrmLead } from "@/lib/db";
 import { argentinaDateKey, argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
@@ -34,9 +35,13 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
   const [leadId, setLeadId] = useState(leads[0]?.id || "");
   const [type, setType] = useState<Extract<CrmActivityType, "reunion" | "tarea" | "nota">>("reunion");
   const [date, setDate] = useState(todayValue());
-  const [time, setTime] = useState("10:00");
+  const [time, setTime] = useState("10:00"); const [duration, setDuration] = useState(60);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [includePablo, setIncludePablo] = useState(false);
+  const [includeLucas, setIncludeLucas] = useState(false);
+  const [sendClientInvitation, setSendClientInvitation] = useState<boolean>();
+  const [reminderMinutes, setReminderMinutes] = useState("60");
 
   const selectedLead = useMemo(
     () => leads.find((lead) => lead.id === leadId),
@@ -66,10 +71,14 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
           type,
           title: eventTitle,
           body,
-          scheduledAt,
+          scheduledAt, duration: type === "reunion" ? duration : undefined,
+          includePablo: type === "reunion" && includePablo,
+          includeLucas: type === "reunion" && includeLucas,
+          sendClientInvitation: type === "reunion" ? sendClientInvitation : undefined,
+          reminderMinutes: Number(reminderMinutes),
         }),
       });
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      const data = (await response.json().catch(() => null)) as { error?: string; warning?: string } | null;
 
       if (!response.ok) {
         throw new Error(data?.error || "No se pudo guardar el evento");
@@ -77,7 +86,11 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
 
       setTitle("");
       setBody("");
+      setIncludePablo(false);
+      setIncludeLucas(false);
+      setSendClientInvitation(undefined);
       setIsOpen(false);
+      if (data?.warning) window.alert(data.warning);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar el evento");
@@ -90,7 +103,7 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
     <div className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => { setDuration(60); setSendClientInvitation(undefined); setIsOpen(true); }}
         className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-ink/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
       >
         <Plus className="h-4 w-4" />
@@ -197,15 +210,26 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
                 />
               </label>
 
+              {type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={includePablo} onChange={(event) => setIncludePablo(event.target.checked)} disabled={isSaving} />Invitar a Pablo Barrera</label>}
+              {type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={includeLucas} onChange={(event) => setIncludeLucas(event.target.checked)} disabled={isSaving} />Invitar a Lucas Barrera</label>}
+              {type === "reunion" && <label className="text-sm font-medium text-ink">Duración<select className="form-input" value={duration} onChange={event => setDuration(Number(event.target.value))} disabled={isSaving}><option value={60}>1 hora</option><option value={30}>30 minutos</option></select></label>}
+              {type === "reunion" && <MeetingClientInvitation value={sendClientInvitation} onChange={event => setSendClientInvitation(event.target.value === "yes")} email={selectedLead?.email} disabled={isSaving} />}
+              {type === "tarea" && <label className="sm:col-span-2 text-sm font-medium text-ink">
+                Avisar al agente asignado al contacto
+                <select className="form-input" value={reminderMinutes} onChange={event => setReminderMinutes(event.target.value)}>
+                  <option value="1440">1 día antes</option><option value="720">12 horas antes</option><option value="60">1 hora antes</option>
+                </select>
+                <span className="text-xs font-normal text-ink/60">También recibirá un correo al agendar la tarea.</span>
+              </label>}
               <label className="sm:col-span-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/48">
-                  Nota
+                  Notas internas (no se envían al cliente)
                 </span>
                 <textarea
                   value={body}
                   onChange={(event) => setBody(event.target.value)}
                   rows={4}
-                  placeholder="Detalle del evento, dirección, recordatorio o próximos pasos."
+                  placeholder="Información interna para el agente."
                   className="mt-2 w-full resize-none rounded-md border border-ink/14 bg-white px-3 py-3 text-sm leading-6 text-ink outline-none transition-colors placeholder:text-ink/45 focus:border-accent"
                 />
               </label>

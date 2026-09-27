@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { GoogleCalendarConnectionNotice } from "@/components/admin/google-calendar-connection-notice";
+import { canManageListings } from "@/lib/roles";
 
 export function AdminShell({ children, session }: { children: React.ReactNode; session: Session }) {
   const pathname = usePathname();
@@ -26,8 +28,9 @@ export function AdminShell({ children, session }: { children: React.ReactNode; s
     if (!isStandaloneCrm) return;
 
     const isContactRoute = pathname === "/admin/crm" || /^\/admin\/crm\/[0-9a-f-]{36}$/i.test(pathname);
-    if (!isContactRoute && pathname !== "/admin/crm/panel-agentes") router.replace("/admin/crm");
-  }, [isStandaloneCrm, pathname, router]);
+    const isPrivateClients=pathname==="/admin/crm/clientes" && session.user.role==="admin";
+    if (!isContactRoute && !isPrivateClients && pathname !== "/admin/crm/panel-agentes") router.replace("/admin/crm");
+  }, [isStandaloneCrm, pathname, router, session.user.role]);
   useEffect(() => {
     const handleEditorMode = (event: Event) => {
       const active = Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active);
@@ -40,7 +43,10 @@ export function AdminShell({ children, session }: { children: React.ReactNode; s
   return <SessionProvider session={session} refetchInterval={0} refetchOnWindowFocus={false}>
     <div className="admin-area min-h-screen bg-cream-200 text-ink"><AdminHeader crmOnly={isStandaloneCrm}/><div className="flex">
       {!isStandaloneCrm && <AdminSidebar collapsed={navigationCollapsed} onToggle={() => setNavigationCollapsed(value => !value)}/>} 
-      <main className={`min-w-0 flex-1 ${isContactDetail || isAgentPanel || editorMode ? "p-0" : isStandaloneCrm ? "p-3 sm:p-4" : "p-6 md:p-10"}`}>{children}</main>
+      <main className={`min-w-0 flex-1 ${isContactDetail || isAgentPanel || editorMode ? "p-0" : isStandaloneCrm ? "p-3 sm:p-4" : "p-6 md:p-10"}`}>
+        {canManageListings(session.user.role) && <GoogleCalendarConnectionNotice key={session.user.id} />}
+        {children}
+      </main>
     </div></div>
   </SessionProvider>;
 }

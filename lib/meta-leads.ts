@@ -1,13 +1,18 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import postgres from "postgres";
 import { getDevelopments } from "@/lib/developments-db";
 import {
   createCrmActivity,
   getAllAgents,
+  notifyCrmCampaignRecontact,
   upsertCrmLeadByEmail,
   type CrmHubSpotProperties,
 } from "@/lib/db";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { recordMetaLeadsSync } from "@/lib/meta-sync-state";
+import { socialConnectionStore } from "@/lib/meta-social-store";
+import { getMetaCrmAppId, getMetaCrmAppSecret } from "@/lib/meta-app-config";
+import { getExcludedMetaRecoveryFormIds } from "@/lib/meta-lead-recovery-policy";
 
 const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
 const META_GRAPH_BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -51,6 +56,24 @@ type ImportedMetaLead = {
   skipped?: boolean;
   reason?: string;
 };
+
+export async function metaLeadConnection() {
+  const stored = await socialConnectionStore().catch(() => null);
+  const connected = stored?.appId === getMetaCrmAppId() ? stored : null;
+  const systemToken = process.env.META_CRM_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
+  // Legacy connections were authorized only for Instagram. They must not
+  // displace the working Lead Ads token before CRM OAuth has been renewed.
+  const useRenewedConnection = Boolean(connected?.userToken);
+  return {
+    token: (useRenewedConnection ? connected?.token : systemToken) || connected?.token || "",
+    pageId: useRenewedConnection || !systemToken ? connected?.pageId : undefined,
+    userToken: connected?.userToken,
+  };
+}
+
+async function metaLeadAccessToken() {
+  return (await metaLeadConnection()).token;
+}
 
 function normalizeKey(value: string) {
   return value
@@ -139,25 +162,68 @@ function metaProperties(
   return properties;
 }
 
-async function metaFetchFormName(formId?: string) {
-  const token = process.env.META_ACCESS_TOKEN;
+export type MetaImportContext = {
+  token: string;
+  formNames: Map<string, string>;
+  developments: Array<{ id: string; name: string; slug: string }>;
+  auditAgentId: string;
+};
+
+function metaReadDb() {
+  const url = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!url) throw new Error("Falta la conexión de datos del CRM.");
+  return postgres(url, { ssl: "require", prepare: false, max: 1, connect_timeout: 10, connection: { statement_timeout: 15000 }, onnotice() {} });
+}
+
+export async function createMetaImportContext(token: string, formNames: Map<string, string>): Promise<MetaImportContext> {
+  const sql = metaReadDb();
+  try {
+    // Matching only needs these three fields, not images, brochures or videos.
+    const developments = await sql`SELECT id,name,slug FROM developments`;
+    return { token, formNames, developments: developments as unknown as MetaImportContext["developments"], auditAgentId: await defaultAssignedAgentId() };
+  } finally { await sql.end(); }
+}
+
+export async function getKnownMetaFormIds() {
+  const sql = metaReadDb();
+  try {
+    const rows = await sql`SELECT DISTINCT meta_form_id AS id FROM crm_leads WHERE meta_form_id ~ '^[0-9]+$' LIMIT 500`;
+    return rows.map(row => String(row.id));
+  } finally { await sql.end(); }
+}
+
+export async function findProcessedMetaLeadIds(ids: string[]) {
+  if (!ids.length) return new Set<string>();
+  const sql = metaReadDb();
+  try {
+    const rows = await sql`SELECT a.external_id FROM crm_activities a JOIN crm_leads l ON l.id=a.lead_id
+      WHERE a.external_source='meta_lead_ads' AND a.external_id=ANY(${ids}::text[])`;
+    return new Set(rows.map(row => String(row.external_id)));
+  } finally { await sql.end(); }
+}
+
+async function metaFetchFormName(formId?: string, context?: MetaImportContext) {
+  if (formId && context?.formNames.has(formId)) return context.formNames.get(formId)!;
+  const token = context?.token || await metaLeadAccessToken();
   if (!token || !formId) return "";
 
   try {
     const response = await fetch(
       `${META_GRAPH_BASE_URL}/${encodeURIComponent(formId)}?fields=id,name&access_token=${encodeURIComponent(token)}`,
-      { cache: "no-store" }
+      { cache: "no-store", signal: AbortSignal.timeout(15000) }
     );
     if (!response.ok) return "";
     const form = (await response.json()) as { name?: string };
-    return form.name?.trim() || "";
+    const name = form.name?.trim() || "";
+    context?.formNames.set(formId, name);
+    return name;
   } catch {
     return "";
   }
 }
 
-async function metaFetchLead(leadgenId: string) {
-  const token = process.env.META_ACCESS_TOKEN;
+async function metaFetchLead(leadgenId: string, context?: MetaImportContext) {
+  const token = context?.token || await metaLeadAccessToken();
   if (!token) {
     throw new Error("Falta META_ACCESS_TOKEN en las variables de entorno.");
   }
@@ -176,15 +242,12 @@ async function metaFetchLead(leadgenId: string) {
 
   const response = await fetch(
     `${META_GRAPH_BASE_URL}/${encodeURIComponent(leadgenId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`,
-    { cache: "no-store" }
+    { cache: "no-store", signal: AbortSignal.timeout(15000) }
   );
 
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`Meta ${response.status}: ${text || response.statusText}`);
-  }
-
-  return JSON.parse(text) as MetaLeadResponse;
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.error || !data?.id) throw new Error(`Meta no pudo leer el lead (HTTP ${response.status}, código ${Number(data?.error?.code) || 0}).`);
+  return data as MetaLeadResponse;
 }
 
 async function defaultAssignedAgentId() {
@@ -220,9 +283,10 @@ function inferredDevelopmentText(fields: Map<string, string>) {
 async function matchDevelopment(
   lead: MetaLeadResponse,
   fields: Map<string, string>,
-  formName = ""
+  formName = "",
+  context?: MetaImportContext,
 ): Promise<MetaDevelopmentMatch | undefined> {
-  const developments = await getDevelopments();
+  const developments = context?.developments || await getDevelopments();
   if (developments.length === 0) return undefined;
 
   const haystack = normalizeSearch(
@@ -242,7 +306,7 @@ async function matchDevelopment(
     { patterns: ["alpha place libertador", "formulario libertador"], names: ["Alpha Place Libertador"] },
     { patterns: ["alpha place belgrano"], names: ["Alpha Place Belgrano", "Alpha Place Belgrano German"] },
     { patterns: ["juan b justo", "juan b. justo"], names: ["Juan B Justo"] },
-    { patterns: ["feel recoleta"], names: ["Feel Recoleta"] },
+    { patterns: ["feel recoleta", "formulario recoleta"], names: ["Feel Recoleta"] },
     { patterns: ["feel palermo"], names: ["Feel Palermo", "Feel Palermo G&D"] },
     { patterns: ["obelisco"], names: ["Obelisco"] },
   ];
@@ -278,7 +342,7 @@ async function matchDevelopment(
 }
 
 export function verifyMetaSignature(rawBody: string, signatureHeader: string | null) {
-  const appSecret = process.env.META_APP_SECRET;
+  const appSecret = getMetaCrmAppSecret();
   if (!appSecret) return false;
   if (!signatureHeader?.startsWith("sha256=")) return false;
 
@@ -298,9 +362,10 @@ export async function importMetaLeadgenId(
   options?: {
     createdBy?: string | null;
     webhookValue?: MetaLeadWebhookValue;
+    context?: MetaImportContext;
   }
 ): Promise<ImportedMetaLead> {
-  const lead = await metaFetchLead(leadgenId);
+  const lead = await metaFetchLead(leadgenId, options?.context);
   const fields = fieldMap(lead.field_data);
   const email = getMappedValue(fields, [
     "email",
@@ -339,9 +404,9 @@ export async function importMetaLeadgenId(
   const lastNameField = getMappedValue(fields, ["last_name", "lastname", "apellido"]);
   const name = splitName(rawFullName, email);
   const phone = splitPhone(rawPhone);
-  const auditAgentId = await defaultAssignedAgentId();
-  const formName = await metaFetchFormName(lead.form_id || options?.webhookValue?.form_id);
-  const development = await matchDevelopment(lead, fields, formName);
+  const auditAgentId = options?.context?.auditAgentId || await defaultAssignedAgentId();
+  const formName = await metaFetchFormName(lead.form_id || options?.webhookValue?.form_id, options?.context);
+  const development = await matchDevelopment(lead, fields, formName, options?.context);
 
   const result = await upsertCrmLeadByEmail({
     firstName: firstNameField || name.firstName,
@@ -349,7 +414,7 @@ export async function importMetaLeadgenId(
     email,
     countryCode: phone.countryCode,
     phone: phone.phone || rawPhone || "-",
-    status: "NEW",
+    status: "Nuevo",
     source: "Meta Lead Ads",
     developmentId: development?.id,
     developmentNameText: development?.name || "",
@@ -366,7 +431,19 @@ export async function importMetaLeadgenId(
     throw new Error(result.error || "No se pudo guardar el contacto de Meta.");
   }
 
-  await createCrmActivity({
+  // The source activity is the recovery completion marker. Persist the owner
+  // notification first; its unique event key makes a crash/retry safe.
+  if (!result.created) {
+    const notification = await notifyCrmCampaignRecontact({
+      leadId: result.lead.id,
+      campaignLeadId: lead.id,
+      campaignName: lead.campaign_name,
+      formName,
+    });
+    if (notification?.error) throw new Error("El contacto se guardó, pero falta avisar al propietario. Se reintentará sin duplicarlo.");
+  }
+
+  const activityResult = await createCrmActivity({
     leadId: result.lead.id,
     type: "nota",
     title: result.created ? "Lead recibido desde Meta" : "Lead actualizado desde Meta",
@@ -381,6 +458,7 @@ export async function importMetaLeadgenId(
     externalSource: "meta_lead_ads",
     externalId: lead.id,
   });
+  if (activityResult?.error) throw new Error("El contacto se guardó, pero falta registrar su consulta de Meta. Se reintentará sin duplicarlo.");
 
   return {
     created: result.created,
@@ -395,34 +473,116 @@ const DEFAULT_META_FORM_IDS = [
   "1108265682151952",
 ];
 
+type MetaCollection<T> = {
+  data?: T[];
+  paging?: { next?: string };
+  error?: { code?: number; error_subcode?: number };
+};
+
+async function metaCollection<T>(url: string): Promise<MetaCollection<T>> {
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+  const payload = await response.json().catch(() => null) as MetaCollection<T> | null;
+  if (!response.ok || payload?.error || !Array.isArray(payload?.data)) {
+    // Meta errors can contain request details. Report identifiers, not tokens or payloads.
+    const code = payload?.error?.code;
+    throw new Error(`No se pudo consultar Meta (HTTP ${response.status}${code ? `, código ${code}` : ""}).`);
+  }
+  return payload;
+}
+
+async function fetchMetaLeadFormIds(pageId: string, token: string) {
+  const ids = new Set<string>();
+  let url = `${META_GRAPH_BASE_URL}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id&limit=100&access_token=${encodeURIComponent(token)}`;
+
+  try {
+    for (let page = 0; page < 10 && url; page += 1) {
+      const payload = await metaCollection<{ id?: string }>(url);
+      for (const form of payload.data || []) {
+        if (form.id) ids.add(form.id);
+      }
+      url = payload.paging?.next || "";
+    }
+    return { ids, error: url ? "Se alcanzó el límite de páginas de formularios; la consulta quedó incompleta." : undefined };
+  } catch (error) {
+    return { ids, error: error instanceof Error ? error.message : "No se pudieron consultar los formularios." };
+  }
+}
+
+async function discoverMetaLeadFormIds(connection: Awaited<ReturnType<typeof metaLeadConnection>>) {
+  const { token } = connection;
+  const pageIds = new Set(
+    [
+      connection.pageId || process.env.META_CRM_PAGE_ID || process.env.META_PAGE_ID || process.env.META_SOCIAL_PAGE_ID || process.env.FACEBOOK_PAGE_ID,
+    ]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value))
+  );
+  const errors: Array<{ pageId?: string; error: string }> = [];
+
+  // A connected Page can discover its own forms directly. Only use /me/accounts
+  // with an explicit user token when there is no configured Page to query.
+  if (pageIds.size === 0 && connection.userToken) {
+    let url = `${META_GRAPH_BASE_URL}/me/accounts?fields=id&limit=100&access_token=${encodeURIComponent(connection.userToken)}`;
+    try {
+      for (let page = 0; page < 10 && url; page += 1) {
+        const payload = await metaCollection<{ id?: string }>(url);
+        for (const item of payload.data || []) {
+          if (item.id) pageIds.add(item.id);
+        }
+        url = payload.paging?.next || "";
+      }
+      if (url) errors.push({ error: "Se alcanzó el límite de páginas de Meta; el descubrimiento quedó incompleto." });
+    } catch (error) {
+      errors.push({ error: error instanceof Error ? error.message : "No se pudieron consultar las páginas de Meta." });
+    }
+  }
+
+  const formIds = new Set<string>();
+  if (pageIds.size === 0) errors.push({ error: "Falta conectar o configurar la página del CRM para descubrir sus formularios." });
+  for (const pageId of pageIds) {
+    const result = await fetchMetaLeadFormIds(pageId, token);
+    for (const id of result.ids) formIds.add(id);
+    if (result.error) errors.push({ pageId, error: result.error });
+  }
+  return { formIds, errors };
+}
+
 export async function backfillRecentMetaLeads(days = 3, createdBy?: string | null) {
-  const token = process.env.META_ACCESS_TOKEN;
+  const connection = await metaLeadConnection();
+  const { token } = connection;
   if (!token) throw new Error("Falta META_ACCESS_TOKEN en las variables de entorno.");
   const configured = (process.env.META_LEAD_FORM_IDS || "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
-  const formIds = configured.length > 0 ? configured : DEFAULT_META_FORM_IDS;
+  const discovered = await discoverMetaLeadFormIds(connection);
+  const excludedForms = getExcludedMetaRecoveryFormIds();
+  const formIds = Array.from(new Set([
+    ...DEFAULT_META_FORM_IDS,
+    ...configured,
+    ...discovered.formIds,
+  ])).filter(id => !excludedForms.has(id));
   const since = Date.now() - Math.max(1, Math.min(days, 30)) * 24 * 60 * 60 * 1000;
   const leadIds = new Set<string>();
+  const formErrors: Array<{ formId: string; error: string }> = [];
+  let formsSucceeded = 0;
 
   for (const formId of formIds) {
     let url = `${META_GRAPH_BASE_URL}/${formId}/leads?fields=id,created_time&limit=100&access_token=${encodeURIComponent(token)}`;
-    for (let page = 0; page < 20 && url; page += 1) {
-      const response = await fetch(url, { cache: "no-store" });
-      const payload = await response.json() as {
-        data?: Array<{ id?: string; created_time?: string }>;
-        paging?: { next?: string };
-        error?: { message?: string };
-      };
-      if (!response.ok || payload.error) throw new Error(payload.error?.message || `Meta respondió ${response.status}`);
-      const entries = payload.data || [];
-      for (const entry of entries) {
-        if (entry.id && (!entry.created_time || new Date(entry.created_time).getTime() >= since)) leadIds.add(entry.id);
+    try {
+      for (let page = 0; page < 20 && url; page += 1) {
+        const payload = await metaCollection<{ id?: string; created_time?: string }>(url);
+        const entries = payload.data || [];
+        for (const entry of entries) {
+          if (entry.id && (!entry.created_time || new Date(entry.created_time).getTime() >= since)) leadIds.add(entry.id);
+        }
+        const oldest = entries.at(-1)?.created_time;
+        url = oldest && new Date(oldest).getTime() < since ? "" : payload.paging?.next || "";
       }
-      const oldest = entries.at(-1)?.created_time;
-      if (!payload.paging?.next || (oldest && new Date(oldest).getTime() < since)) break;
-      url = payload.paging.next;
+      if (url) formErrors.push({ formId, error: "Se alcanzó el límite de páginas de consultas; la recuperación quedó incompleta." });
+      else formsSucceeded += 1;
+    } catch (error) {
+      formErrors.push({ formId, error: error instanceof Error ? error.message : "No se pudieron recuperar las consultas del formulario." });
     }
   }
 
@@ -440,10 +600,23 @@ export async function backfillRecentMetaLeads(days = 3, createdBy?: string | nul
       errors.push({ leadId, error: error instanceof Error ? error.message : "No se pudo importar" });
     }
   }
-  const summary = { forms: formIds.length, found: leadIds.size, created, updated, skipped, errors };
+  const complete = errors.length === 0 && formErrors.length === 0 && discovered.errors.length === 0 && skipped === 0;
+  const status = complete ? "complete" : formsSucceeded === 0 && created + updated === 0 ? "failed" : "partial";
+  const warnings = [
+    ...discovered.errors.map((error) => `Formularios${error.pageId ? ` de la página ${error.pageId}` : ""}: ${error.error}`),
+    ...formErrors.map((error) => `Formulario ${error.formId}: ${error.error}`),
+    ...(skipped ? [`${skipped} consultas no pudieron importarse porque no incluyen correo electrónico.`] : []),
+  ];
+  const summary = {
+    status, complete, forms: formIds.length, formsSucceeded, discoveredForms: [...discovered.formIds].filter(id => !excludedForms.has(id)).length,
+    found: leadIds.size, created, updated, skipped, errors,
+    discoveryErrors: discovered.errors, formErrors, warnings,
+  };
   const lastLeadSyncAt = await recordMetaLeadsSync({
     ...summary,
     errors: errors.length,
-  });
+    discoveryErrorCount: discovered.errors.length,
+    formErrorCount: formErrors.length,
+  }, complete);
   return { ...summary, lastLeadSyncAt };
 }

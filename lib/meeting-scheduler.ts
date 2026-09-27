@@ -34,7 +34,7 @@ async function ensure(sql: ReturnType<typeof db>) {
       location TEXT NOT NULL DEFAULT 'A definir',
       meeting_mode TEXT NOT NULL DEFAULT 'in_person',
       meeting_modes TEXT[] NOT NULL DEFAULT '{in_person,google_meet}',
-      durations INTEGER[] NOT NULL DEFAULT '{15,30,60}',
+      durations INTEGER[] NOT NULL DEFAULT '{30,60}',
       weekdays INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5}',
       start_time TIME NOT NULL DEFAULT '09:00',
       end_time TIME NOT NULL DEFAULT '18:00',
@@ -66,7 +66,7 @@ async function ensure(sql: ReturnType<typeof db>) {
 function map(row: any): MeetingLink {
   return {
     id: row.id, agentId: row.agent_id, slug: row.slug, title: row.title,
-    location: row.location, meetingModes: row.meeting_modes?.length ? row.meeting_modes : [row.meeting_mode === "google_meet" ? "google_meet" : "in_person"], durations: row.durations || [15, 30, 60],
+    location: row.location, meetingModes: row.meeting_modes?.length ? row.meeting_modes : [row.meeting_mode === "google_meet" ? "google_meet" : "in_person"], durations: [30, 60],
     weekdays: row.weekdays || [1, 2, 3, 4, 5], startTime: String(row.start_time).slice(0, 5),
     endTime: String(row.end_time).slice(0, 5), slotInterval: row.slot_interval || 15,
     active: row.active, agentName: row.agent_name || "Asesor Barrera Brokers",
@@ -98,7 +98,7 @@ export async function saveMeetingLink(agentId: string, data: Omit<MeetingLink, "
     await ensure(sql);
     const id = crypto.randomUUID();
     await sql`INSERT INTO crm_meeting_links (id,agent_id,slug,title,location,meeting_mode,meeting_modes,durations,weekdays,start_time,end_time,slot_interval,active)
-      VALUES (${id},${agentId},${data.slug},${data.title},${data.location},${data.meetingModes[0]},${data.meetingModes},${data.durations},${data.weekdays},${data.startTime},${data.endTime},${data.slotInterval},${data.active})
+      VALUES (${id},${agentId},${data.slug},${data.title},${data.location},${data.meetingModes[0]},${data.meetingModes},${[30, 60]},${data.weekdays},${data.startTime},${data.endTime},${data.slotInterval},${data.active})
       ON CONFLICT (agent_id) DO UPDATE SET slug=EXCLUDED.slug,title=EXCLUDED.title,location=EXCLUDED.location,meeting_mode=EXCLUDED.meeting_mode,meeting_modes=EXCLUDED.meeting_modes,durations=EXCLUDED.durations,weekdays=EXCLUDED.weekdays,start_time=EXCLUDED.start_time,end_time=EXCLUDED.end_time,slot_interval=EXCLUDED.slot_interval,active=EXCLUDED.active,updated_at=NOW()`;
     return getMeetingLinkByAgent(agentId);
   } finally { await sql.end(); }

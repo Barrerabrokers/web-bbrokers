@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   const property = await getPropertyById(params.id);
   const shareToken = new URL(request.url).searchParams.get("share");

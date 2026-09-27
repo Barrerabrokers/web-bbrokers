@@ -23,8 +23,9 @@ function bedroomsLabel(value: number) {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   const session = await getServerSession(authOptions);
   const unit = await getUnitById(params.id);
 

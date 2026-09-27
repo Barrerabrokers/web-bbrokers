@@ -113,6 +113,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "BB_LOAD_COMMUNICATIONS") {
+    callCrm(`/api/crm/activities?leadId=${encodeURIComponent(message.leadId)}`)
+      .then(result => { if (result?.__error) throw new Error(result.__error); sendResponse({ ok: true, activities: result?.activities || [] }); })
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   if (message?.type === "BB_SYNC_CONVERSATION") {
     callCrm("/api/crm/whatsapp/extension-sync", {
       method: "POST", headers: { "Content-Type": "application/json" },

@@ -1,6 +1,7 @@
 import postgres from "postgres";
-import { getCrmLeadById } from "@/lib/db";
+import { getCrmEmailAccountWithSecret, getCrmLeadById } from "@/lib/db";
 import { syncLeadEmailReplies } from "@/lib/crm-email-replies";
+import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
 
 // Events are persisted before delivery, so a provider outage is retried next run.
 export async function processCrmEmailNotifications() {
@@ -22,27 +23,60 @@ export async function processCrmEmailNotifications() {
         subject TEXT NOT NULL, body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         sent_at TIMESTAMPTZ, lease_until TIMESTAMPTZ, attempts INTEGER NOT NULL DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS crm_notifications (
+        id UUID PRIMARY KEY, recipient_agent_id UUID NULL REFERENCES agents(id) ON DELETE CASCADE,
+        lead_id UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE, event_key TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', href TEXT NOT NULL DEFAULT '',
+        read_by UUID[] NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
     // A single worker owns the poll and delivery pass, including overlapping cron requests.
     const [lock] = await sql`SELECT pg_try_advisory_lock(735208441) AS acquired`;
     if (!lock.acquired) return { sent, failed, imported, busy: true };
     try {
+      const registerReplyNotifications=()=>sql`
+        INSERT INTO crm_notifications(id,recipient_agent_id,lead_id,event_key,type,title,body,href,created_at)
+        SELECT gen_random_uuid(),COALESCE(l.assigned_agent_id,act.created_by),l.id,'email-reply:'||act.external_id,'email_reply',
+          CONCAT_WS(' ',NULLIF(BTRIM(CONCAT_WS(' ',l.first_name,l.last_name)),''),'respondió tu correo'),
+          act.title,'/admin/crm/'||l.id||'?activity=correo',COALESCE(act.scheduled_at,act.created_at)
+        FROM crm_activities act JOIN crm_leads l ON l.id=act.lead_id
+        WHERE act.external_source='gmail_inbound' AND act.external_id IS NOT NULL
+          AND act.scheduled_at >= (SELECT enabled_at FROM crm_email_alert_state WHERE id='primary')
+          AND COALESCE(l.assigned_agent_id,act.created_by) IS NOT NULL
+          AND act.title NOT IN ('Respuesta por correo: Tu cliente respondió un correo','Respuesta por correo: Tu cliente abrió un correo')
+        ON CONFLICT(event_key) DO NOTHING`;
+      await registerReplyNotifications();
       const leads = await sql`
-        SELECT l.id, l.assigned_agent_id, COALESCE(c.checked_at, (SELECT enabled_at FROM crm_email_alert_state WHERE id = 'primary')) AS since FROM crm_leads l
+        SELECT l.id,l.assigned_agent_id,COALESCE(c.checked_at,(SELECT enabled_at FROM crm_email_alert_state WHERE id='primary')) AS since,
+          recent_campaign.sent_at AS recent_campaign_at FROM crm_leads l
         JOIN crm_email_accounts a ON a.agent_id = l.assigned_agent_id
         LEFT JOIN crm_email_reply_checks c ON c.lead_id = l.id
+        LEFT JOIN LATERAL(SELECT MAX(h.sent_at) AS sent_at FROM crm_private_clients pc
+          JOIN crm_client_mail_history h ON h.client_id=pc.id AND h.status='sent'
+          WHERE pc.lead_id=l.id AND h.sent_at>NOW()-INTERVAL '30 days') recent_campaign ON true
         WHERE a.provider = 'google-oauth' AND a.google_scopes LIKE '%gmail.readonly%'
-          AND COALESCE(l.email, '') <> ''
-        ORDER BY c.checked_at ASC NULLS FIRST, l.id LIMIT 20
+          AND BTRIM(COALESCE(l.email, '')) ~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$'
+        ORDER BY (recent_campaign.sent_at IS NOT NULL) DESC,c.checked_at ASC NULLS FIRST,l.id LIMIT 80
       `;
       const deadline = Date.now() + 180000;
+      const accessTokens=new Map<string,Promise<string>>();
       for (const row of leads) {
         if (Date.now() > deadline) break;
         const checkStarted = new Date();
         try {
           const lead = await getCrmLeadById(String(row.id), { includeAll: true });
           if (lead) {
-            const result = await syncLeadEmailReplies({ lead, agentId: String(row.assigned_agent_id), origin, since: new Date(new Date(row.since).getTime() - 60000) });
+            const agentId=String(row.assigned_agent_id);
+            let token=accessTokens.get(agentId);
+            if(!token) {
+              token=(async()=>{
+                const account=await getCrmEmailAccountWithSecret(agentId);
+                if(!account||account.provider!=="google-oauth"||!account.googleScopes?.includes("gmail.readonly"))throw new Error("La cuenta no permite leer respuestas.");
+                return getAccessTokenForGoogleAccount({origin,account});
+              })();
+              accessTokens.set(agentId,token);
+            }
+            const result = await syncLeadEmailReplies({ lead, agentId, origin, since: new Date(new Date(row.since).getTime() - 60000),accessToken:await token });
             imported += result.imported;
             if (result.available) await sql`INSERT INTO crm_email_reply_checks (lead_id, checked_at) VALUES (${row.id}, ${checkStarted})
               ON CONFLICT (lead_id) DO UPDATE SET checked_at = EXCLUDED.checked_at`;
@@ -52,6 +86,7 @@ export async function processCrmEmailNotifications() {
           console.error("No se pudieron sincronizar respuestas del contacto", row.id);
         }
       }
+      await registerReplyNotifications();
       // Notify the first recorded opening once per email, not image-proxy reloads.
       await sql`
         INSERT INTO crm_email_alert_outbox (event_key, agent_id, lead_id, subject, body)
@@ -71,6 +106,8 @@ export async function processCrmEmailNotifications() {
           concat_ws(E'\n', concat_ws(' ', l.first_name, l.last_name), act.title)
         FROM crm_activities act JOIN crm_leads l ON l.id = act.lead_id
         WHERE act.external_source = 'gmail_inbound' AND act.external_id IS NOT NULL
+          AND BTRIM(COALESCE(l.email, '')) <> ''
+          AND act.title NOT IN ('Respuesta por correo: Tu cliente respondió un correo', 'Respuesta por correo: Tu cliente abrió un correo')
           AND act.scheduled_at >= (SELECT enabled_at FROM crm_email_alert_state WHERE id = 'primary')
           AND COALESCE(l.assigned_agent_id, act.created_by) IS NOT NULL
         ON CONFLICT DO NOTHING
@@ -78,6 +115,12 @@ export async function processCrmEmailNotifications() {
       const pending = await sql`
         SELECT o.*, a.email FROM crm_email_alert_outbox o JOIN agents a ON a.id = o.agent_id
         WHERE o.sent_at IS NULL AND (o.lease_until IS NULL OR o.lease_until < NOW())
+          AND (o.event_key NOT LIKE 'reply:%' OR EXISTS (
+            SELECT 1 FROM crm_activities act JOIN crm_leads l ON l.id=act.lead_id
+            WHERE 'reply:' || act.external_id=o.event_key AND act.lead_id=o.lead_id
+              AND act.external_source='gmail_inbound' AND BTRIM(COALESCE(l.email,''))<>''
+              AND act.title NOT IN ('Respuesta por correo: Tu cliente respondió un correo', 'Respuesta por correo: Tu cliente abrió un correo')
+          ))
         ORDER BY o.created_at LIMIT 50
       `;
       for (const alert of pending) {

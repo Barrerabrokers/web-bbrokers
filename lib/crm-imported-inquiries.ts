@@ -16,12 +16,43 @@ function readable(value: unknown) {
 }
 type ImportedInquiry = {row:string;file:string;section:string;importedAt:string;origin:string;fields:{label:string;value:string}[]};
 export function getCrmImportedInquiries(properties:Properties): ImportedInquiry[] {
+  const inquiries: ImportedInquiry[] = [];
+  const excelRaw=properties?.excel_imports;
+  if(excelRaw){
+    try{
+      const saved=typeof excelRaw==="string"?JSON.parse(excelRaw):excelRaw;
+      if(Array.isArray(saved)){
+        for(const item of saved){
+          if(!item || typeof item!=="object" || Array.isArray(item))continue;
+          const record=item as Record<string,unknown>;
+          const fields=Array.isArray(record.fields)?record.fields.flatMap((field:unknown)=>{
+            if(!field || typeof field!=="object" || Array.isArray(field))return [];
+            const value=field as Record<string,unknown>;
+            const label=text(value.label || value.key);
+            const fieldValue=text(value.value);
+            return label && fieldValue ? [{label,value:fieldValue}] : [];
+          }):[];
+          if(fields.length){
+            inquiries.push({
+              row:text(record.row),
+              file:text(record.file),
+              section:text(record.sheet) || "Excel",
+              importedAt:text(record.importedAt),
+              origin:"Excel",
+              fields,
+            });
+          }
+        }
+      }
+    }catch{}
+  }
+
   const raw=properties?.jbj_pablo_import;
-  if(!raw)return [];
+  if(!raw)return inquiries;
   try {
     const saved=typeof raw==="string"?JSON.parse(raw):raw;
-    if(!saved || !Array.isArray(saved.rows))return [];
-    return saved.rows.flatMap((row:unknown)=>{
+    if(!saved || !Array.isArray(saved.rows))return inquiries;
+    inquiries.push(...saved.rows.flatMap((row:unknown)=>{
       if(!row || typeof row!=="object")return [];
       const r=row as Record<string,unknown>,data=r.data;
       if(!data || typeof data!=="object" || Array.isArray(data))return [];
@@ -33,6 +64,7 @@ export function getCrmImportedInquiries(properties:Properties): ImportedInquiry[
           {label:"Horizonte de compra",value:readable(values["En cuanto tiempo compraria"])},
           {label:"Canal de contacto preferido",value:readable(values["Por donde quiere que lo contactemos"])},
         ]}];
-    });
-  }catch{return [];}
+    }));
+  }catch{}
+  return inquiries;
 }

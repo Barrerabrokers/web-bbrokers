@@ -16,6 +16,10 @@ export function WhatsAppInbox({ initialConversations, agents, isAdmin, configure
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState(initialSelectedId || initialConversations.find(c => initialChannel === "all" || c.channel === initialChannel)?.id || "");
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [cursors, setCursors] = useState<Partial<Record<"instagram" | "facebook", string>>>({});
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,30 +36,51 @@ export function WhatsAppInbox({ initialConversations, agents, isAdmin, configure
 
   const refreshConversations = useCallback(async () => {
     const response = await fetch("/api/crm/whatsapp/conversations", { cache: "no-store" });
-    if (!response.ok) return;
+    if (!response.ok) throw new Error("No se pudieron cargar las conversaciones. Reintentá en unos segundos.");
     const data = await response.json();
     setConversations(data.conversations || []);
+    setLoadError("");
   }, []);
 
   const refreshMessages = useCallback(async (conversationId: string) => {
     const response = await fetch(`/api/crm/whatsapp/messages?conversationId=${encodeURIComponent(conversationId)}`, { cache: "no-store" });
-    if (!response.ok) return;
+    if (!response.ok) throw new Error("No se pudieron cargar los mensajes de esta conversación.");
     const data = await response.json();
     if (activeId.current === conversationId) setMessages(data.messages || []);
   }, []);
 
   useEffect(() => {
     setMessages([]); setDraft(""); setError("");
-    if (selectedId) void refreshMessages(selectedId).catch(() => {});
+    if (selectedId) void refreshMessages(selectedId).catch(cause => setLoadError(cause.message));
   }, [selectedId, refreshMessages]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void refreshConversations().catch(() => {});
-      if (selectedId) void refreshMessages(selectedId).catch(() => {});
-    }, 3000);
+      if (document.visibilityState !== "visible") return;
+      void refreshConversations().catch(cause => setLoadError(cause.message));
+      if (selectedId) void refreshMessages(selectedId).catch(cause => setLoadError(cause.message));
+    }, 10000);
     return () => window.clearInterval(timer);
   }, [refreshConversations, refreshMessages, selectedId]);
+
+  async function syncHistory() {
+    setSyncing(true); setSyncNotice("");
+    const notices: string[] = [];
+    try {
+      for (const source of ["instagram", "facebook"] as const) {
+        if (channel !== "all" && channel !== source) continue;
+        try {
+          const response = await fetch("/api/crm/meta/messages/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: source, after: cursors[source] }) });
+          const result = await response.json().catch(() => { throw new Error(`No se pudo completar la sincronización (HTTP ${response.status}). Actualizá la página y reintentá.`); });
+          if (!response.ok) throw new Error(result.error || "No se pudo sincronizar");
+          setCursors(current => ({ ...current, [source]: result.nextCursor || undefined }));
+          notices.push(`${channelLabel[source]}: ${result.imported} mensajes recuperados.${result.nextCursor ? " Hay más conversaciones; volvé a sincronizar para continuar." : ""}`);
+        } catch (cause) { notices.push(cause instanceof Error ? cause.message : "No se pudo sincronizar."); }
+      }
+      await refreshConversations();
+    } catch (cause) { setLoadError(cause instanceof Error ? cause.message : "No se pudo actualizar la bandeja."); }
+    finally { setSyncNotice(notices.join(" ")); setSyncing(false); }
+  }
 
   async function action(actionName: string, extra: Record<string, unknown> = {}) {
     setError("");
@@ -89,9 +114,15 @@ export function WhatsAppInbox({ initialConversations, agents, isAdmin, configure
           <div><p className="text-xs font-semibold text-[#006b6b]">Atención en tiempo real</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Bandeja omnicanal</h2><p className="mt-1 max-w-2xl text-sm text-ink/60">WhatsApp, Instagram y Facebook en un solo lugar, con IA y derivación al equipo.</p></div>
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold ${configured.ai ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>{configured.ai ? <Check className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}{configured.ai ? "IA disponible" : "IA pendiente"}</span>
         </div>
+        {isAdmin && <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+          <button type="button" onClick={syncHistory} disabled={syncing || channel === "whatsapp"} className="min-h-11 rounded-md bg-[#006b6b] px-4 py-2 font-semibold text-white disabled:opacity-50">{syncing ? "Recuperando mensajes…" : "Sincronizar mensajes de Meta"}</button>
+          <p className="text-ink/70">Recupera hasta 20 mensajes por conversación de Instagram y Facebook. WhatsApp recibe los mensajes entregados al CRM desde su conexión.</p>
+        </div>}
+        {syncNotice && <p role="status" className="mb-4 rounded-md bg-cream-50 p-3 text-sm text-ink">{syncNotice}</p>}
+        {loadError && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{loadError}</p>}
         <div className="grid min-h-[680px] overflow-hidden rounded-md border border-ink/12 bg-white lg:grid-cols-[360px_1fr]">
           <aside className="border-b border-ink/10 lg:border-b-0 lg:border-r">
-            <div className="border-b border-ink/10 p-4"><strong className="text-sm text-ink">Conversaciones</strong><p className="text-xs text-ink/48">{visibleConversations.length} chats visibles</p><div className="mt-3 flex gap-1 overflow-x-auto">{(["all", "whatsapp", "instagram", "facebook"] as Channel[]).map((value) => <button key={value} onClick={() => setChannel(value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${channel === value ? "bg-[#006b6b] text-white" : "bg-cream-100 text-ink/65"}`}>{value === "all" ? "Todos" : channelLabel[value]}</button>)}</div></div>
+            <div className="border-b border-ink/10 p-4"><strong className="text-sm text-ink">Conversaciones</strong><p className="text-xs text-ink/48">{visibleConversations.length} chats visibles</p><div className="mt-3 flex gap-1 overflow-x-auto">{(["all", "whatsapp", "instagram", "facebook"] as Channel[]).map((value) => <button key={value} aria-pressed={channel === value} onClick={() => setChannel(value)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${channel === value ? "bg-[#006b6b] text-white" : "bg-cream-100 text-ink/65"}`}>{value === "all" ? "Todos" : channelLabel[value]}</button>)}</div></div>
             <div className="max-h-[300px] overflow-y-auto lg:max-h-[620px]">
               {!visibleConversations.length && <div className="p-8 text-center text-sm text-ink/50"><MessageCircle className="mx-auto mb-3 h-8 w-8 opacity-40" />No hay conversaciones en este canal.</div>}
               {visibleConversations.map((conversation) => <button key={conversation.id} onClick={() => setSelectedId(conversation.id)} className={`w-full border-b border-ink/8 p-4 text-left transition ${selectedId === conversation.id ? "bg-cream-100" : "hover:bg-cream-50"}`}><span className="flex items-start justify-between gap-3"><strong className="flex min-w-0 items-center gap-2 truncate text-sm text-ink">{conversation.channel === "instagram" ? <Instagram className="h-4 w-4 text-pink-600" /> : conversation.channel === "facebook" ? <Facebook className="h-4 w-4 text-blue-600" /> : <MessageCircle className="h-4 w-4 text-emerald-600" />}<span className="truncate">{conversation.contactName || conversation.phone}</span></strong><small className="shrink-0 text-[10px] text-ink/42">{new Date(conversation.lastMessageAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</small></span><span className="mt-1 block truncate text-xs text-ink/52">{conversation.lastMessage}</span><span className="mt-2 flex items-center gap-2 text-[11px] text-ink/48"><b className="font-medium text-[#006b6b]">{channelLabel[conversation.channel]}</b>{conversation.aiEnabled ? <><Bot className="h-3.5 w-3.5 text-accent" /> IA activa</> : <><CircleUserRound className="h-3.5 w-3.5" />{conversation.assignedAgentName || "Esperando agente"}</>}{conversation.unreadCount > 0 && <b className="ml-auto rounded-full bg-accent px-2 py-0.5 text-white">{conversation.unreadCount}</b>}</span></button>)}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import nodemailer from "nodemailer";
+import nodemailer from "crm-nodemailer";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { getCrmEmailAccount, upsertCrmEmailAccount } from "@/lib/db";

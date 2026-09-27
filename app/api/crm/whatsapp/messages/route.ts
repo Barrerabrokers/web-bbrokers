@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
+import { canAccessMarketing, canViewAllCrmContacts } from "@/lib/roles";
 import { getWhatsAppConversation, listWhatsAppMessages, saveWhatsAppMessage, sendMetaSocialText, sendWhatsAppText, updateWhatsAppConversation } from "@/lib/whatsapp-inbox";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ async function allowed(conversationId: string, userId: string, role?: string) {
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || !canManageListings(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session || !canAccessMarketing(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const conversationId = request.nextUrl.searchParams.get("conversationId") || "";
   const conversation = await allowed(conversationId, session.user.id, session.user.role);
   if (!conversation) return NextResponse.json({ error: "No podés ver este chat" }, { status: 403 });
@@ -25,20 +25,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || !canManageListings(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session || !canAccessMarketing(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const parsed = z.object({ conversationId: z.string().uuid(), content: z.string().trim().min(1).max(4000) }).safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Mensaje inválido" }, { status: 400 });
   let conversation = await getWhatsAppConversation(parsed.data.conversationId);
   if (!conversation) return NextResponse.json({ error: "Conversación inexistente" }, { status: 404 });
   if (!canViewAllCrmContacts(session.user.role) && conversation.assignedAgentId !== session.user.id) return NextResponse.json({ error: "Este chat pertenece a otro agente" }, { status: 403 });
+  let stage = "lock";
   try {
     conversation = await updateWhatsAppConversation(conversation.id, { lockAgentId: session.user.id, markRead: true });
+    stage = "send";
     const messageId = conversation!.channel === "whatsapp"
-      ? await sendWhatsAppText(conversation!.phone, parsed.data.content)
+      ? await sendWhatsAppText(conversation!.phone, parsed.data.content, conversation!.businessPhoneNumberId)
       : await sendMetaSocialText(conversation!.channel, conversation!.externalContactId || "", parsed.data.content);
+    stage = "save";
     await saveWhatsAppMessage({ conversationId: conversation!.id, whatsappMessageId: messageId, direction: "outbound", senderType: "agent", senderAgentId: session.user.id, content: parsed.data.content });
+    stage = "list";
     return NextResponse.json({ messages: await listWhatsAppMessages(conversation!.id), conversation });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo enviar" }, { status: 502 });
+    const message = error instanceof Error ? error.message : "No se pudo enviar";
+    const safeWhatsAppError = stage === "send" && conversation?.channel === "whatsapp" && /^(Meta |WhatsApp |El identificador |El número |Falta configurar el token|Faltan las credenciales|La versión |La ventana |No se pudo confirmar)/.test(message);
+    console.error("crm-send-v2", { stage, channel: conversation?.channel, errorType: error instanceof Error ? error.name : "unknown", ...(safeWhatsAppError ? { reason: message } : {}) });
+    return NextResponse.json({ error: message, diagnostic: `crm-send-v2:${stage}` }, { status: safeWhatsAppError ? 422 : 502 });
   }
 }

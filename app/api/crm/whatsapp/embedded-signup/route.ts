@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { canViewAllCrmContacts } from "@/lib/roles";
 import { getWhatsAppChannelCredentials, saveWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
+import { getWhatsAppAppId, getWhatsAppAppSecret } from "@/lib/meta-app-config";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +37,8 @@ export async function POST(request: Request) {
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Meta no devolvió una autorización válida." }, { status: 400 });
 
-  const appId = process.env.NEXT_PUBLIC_META_APP_ID || "1735228224390278";
-  const appSecret = process.env.META_APP_SECRET;
+  const appId = getWhatsAppAppId();
+  const appSecret = getWhatsAppAppSecret();
   if (!appSecret) return NextResponse.json({ error: "Falta configurar el secreto de la aplicación de Meta." }, { status: 503 });
 
   const tokenUrl = new URL("https://graph.facebook.com/v23.0/oauth/access_token");

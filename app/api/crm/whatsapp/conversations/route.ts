@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
+import { canAccessMarketing, canViewAllCrmContacts } from "@/lib/roles";
+import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 import { getWhatsAppConversation, listWhatsAppConversations, updateWhatsAppConversation } from "@/lib/whatsapp-inbox";
 
 export const dynamic = "force-dynamic";
@@ -16,14 +17,15 @@ const patchSchema = z.object({
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session || !canManageListings(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session || !canAccessMarketing(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const conversations = await listWhatsAppConversations({ agentId: session.user.id, includeAll: canViewAllCrmContacts(session.user.role) });
-  return NextResponse.json({ conversations, configured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.OPENAI_API_KEY) });
+  const saved = await getWhatsAppChannelCredentials();
+  return NextResponse.json({ conversations, configured: Boolean((process.env.WHATSAPP_ACCESS_TOKEN || saved?.accessToken || process.env.META_ACCESS_TOKEN) && (process.env.WHATSAPP_PHONE_NUMBER_ID || saved?.phoneNumberId)) });
 }
 
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || !canManageListings(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session || !canAccessMarketing(session.user.role)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
   const current = await getWhatsAppConversation(parsed.data.id);

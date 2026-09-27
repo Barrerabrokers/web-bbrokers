@@ -17,8 +17,9 @@ export const maxDuration = 60;
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingparams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingparams;
   try {
     const session = await getServerSession(authOptions);
     if (!session) {

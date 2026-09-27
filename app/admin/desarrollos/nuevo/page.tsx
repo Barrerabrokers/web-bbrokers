@@ -7,6 +7,7 @@ import { Save, ArrowLeft, FileText, Upload, X, Link2 } from "lucide-react";
 import Link from "next/link";
 import { COMMON_AMENITIES, DEVELOPMENT_IMAGE_TYPES } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 import {
   type ImageItem,
   getImageItemStableId,
@@ -105,9 +106,7 @@ export default function NewDevelopmentPage() {
             .toString(36)
             .substring(7)}.${ext}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from("properties")
-            .upload(fileName, item.file, {
+          const { error: uploadError } = await uploadPublicFile(fileName, item.file, {
               cacheControl: "3600",
               upsert: false,
               contentType: item.file.type,
@@ -144,9 +143,7 @@ export default function NewDevelopmentPage() {
       .toString(36)
       .substring(7)}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("properties")
-      .upload(fileName, priceListFile, {
+    const { error: uploadError } = await uploadPublicFile(fileName, priceListFile, {
         cacheControl: "3600",
         upsert: false,
         contentType: priceListFile.type || "application/octet-stream",

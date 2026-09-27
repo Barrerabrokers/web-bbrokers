@@ -8,11 +8,19 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/ai-sales",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/meta-leads",
-      "schedule": "*/15 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/crm-email-notifications",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/crm-client-campaigns",
       "schedule": "*/5 * * * *"
     }
   ],

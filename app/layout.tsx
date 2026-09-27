@@ -13,6 +13,9 @@ import {
   SITE_URL,
 } from "@/lib/seo";
 import { getSiteSettings } from "@/lib/db";
+import { unstable_cache } from "next/cache";
+
+const getCachedSiteSettings=unstable_cache(getSiteSettings,["site-settings-metadata"],{revalidate:300,tags:["site-settings"]});
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -30,7 +33,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSiteSettings();
+  const settings = await getCachedSiteSettings();
   return {
   metadataBase: new URL(SITE_URL),
   title: {

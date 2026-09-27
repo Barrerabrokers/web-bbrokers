@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth";
 import * as XLSX from "xlsx";
 import { authOptions } from "@/lib/auth";
 import { canManageAdminPanel, canViewAllCrmContacts } from "@/lib/roles";
-import { getAllAgents, getCrmLeads, upsertCrmLeadByEmail } from "@/lib/db";
+import { getCrmLeads, upsertCrmLead } from "@/lib/db";
 import { getDevelopments } from "@/lib/developments-db";
+import { splitInternationalPhone } from "@/lib/phone-countries";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -22,7 +23,7 @@ const TEMPLATE_HEADERS = [
   "Temperatura",
   "Fuente",
   "Desarrollo",
-  "Email agente",
+  "Tipo de departamento",
   "Notas",
   "Fecha creación",
 ];
@@ -55,6 +56,17 @@ function cell(row: ExcelRow, ...names: string[]) {
   return "";
 }
 
+function uniqueHeaders(values: unknown[]) {
+  const seen = new Map<string, number>();
+  return values.map((value, index) => {
+    const base = text(value) || `Columna ${index + 1}`;
+    const key = normalized(base);
+    const count = (seen.get(key) || 0) + 1;
+    seen.set(key, count);
+    return count === 1 ? base : `${base} (${count})`;
+  });
+}
+
 function rowsFromSheet(sheet: XLSX.WorkSheet) {
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: true });
   const headerIndex = matrix.slice(0, 25).findIndex((row) =>
@@ -64,10 +76,36 @@ function rowsFromSheet(sheet: XLSX.WorkSheet) {
     throw new Error("No encontramos una columna de email/correo en el archivo");
   }
 
-  const headers = matrix[headerIndex].map((value, index) => text(value) || `Columna ${index + 1}`);
-  return matrix.slice(headerIndex + 1)
+  const headers = uniqueHeaders(matrix[headerIndex]);
+  const rows = matrix.slice(headerIndex + 1)
     .filter((values) => values.some((value) => text(value)))
-    .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])));
+    .map((values, index) => ({
+      rowNumber: headerIndex + index + 2,
+      data: Object.fromEntries(headers.map((header, columnIndex) => [header, values[columnIndex] ?? ""])),
+    }));
+  return { headers, rows };
+}
+
+function importedCellValue(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  return text(value);
+}
+
+function excelImportRecord(file: File, sheetName: string, rowNumber: number, row: ExcelRow) {
+  return {
+    file: file.name,
+    sheet: sheetName,
+    row: rowNumber,
+    importedAt: new Date().toISOString(),
+    fields: Object.entries(row)
+      .map(([key, value]) => ({ key: normalized(key).replaceAll(" ", "_"), label: key, value: importedCellValue(value) }))
+      .filter((field) => field.value !== ""),
+  };
+}
+
+function phoneKey(countryCode: string, phone: string) {
+  const digits = `${countryCode}${phone}`.replace(/\D/g, "");
+  return digits.length >= 8 ? digits : "";
 }
 
 function excelDate(value: unknown) {
@@ -96,7 +134,7 @@ function templateWorkbook() {
       "tibio",
       "Excel",
       "Nombre exacto del desarrollo",
-      "agente@barrerabrokers.com",
+      "3 ambientes",
       "Consulta por inversión",
       "2026-08-24",
     ],
@@ -111,12 +149,13 @@ function templateWorkbook() {
 
   const instructions = XLSX.utils.aoa_to_sheet([
     ["Instrucciones para importar contactos"],
-    ["Email", "Obligatorio. Se usa para detectar contactos existentes y actualizarlos."],
+    ["Email", "Obligatorio. Se usa para detectar contactos existentes. Los contactos existentes se omiten sin modificarlos."],
     ["Nombre y apellido", "Si faltan, se completan a partir del email y con '-' respectivamente."],
     ["Estado", "Opcional. Ejemplos: Nuevo, Interesado, Contactado, En curso."],
     ["Temperatura", "Opcional: frio, tibio o caliente."],
     ["Desarrollo", "Opcional. Escribí el nombre tal como aparece en el CRM."],
-    ["Email agente", "Opcional. Debe coincidir con el email de un agente activo."],
+    ["Propietario", "Los contactos nuevos se crean siempre como Sin asignar. Esta columna no cambia propietarios."],
+    ["Columnas adicionales", "Podés agregar cualquier columna. Todo valor no vacío se guardará en Información del cliente."],
     ["Fecha creación", "Opcional. Formato recomendado: AAAA-MM-DD."],
     ["Importante", "No cambies los encabezados de la hoja Contactos. Eliminá la fila de ejemplo antes de importar."],
   ]);
@@ -164,7 +203,8 @@ export async function POST(request: NextRequest) {
     const sheet = workbook.Sheets.Contactos || workbook.Sheets[workbook.SheetNames[0]];
     if (!sheet) return NextResponse.json({ error: "El Excel no contiene hojas" }, { status: 400 });
 
-    const rows = rowsFromSheet(sheet);
+    const parsedSheet = rowsFromSheet(sheet);
+    const rows = parsedSheet.rows;
     if (rows.length === 0) {
       return NextResponse.json({ error: "La hoja Contactos no contiene filas para importar" }, { status: 400 });
     }
@@ -172,17 +212,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `El archivo supera el máximo de ${MAX_ROWS} contactos` }, { status: 400 });
     }
 
-    const [agents, developments] = await Promise.all([getAllAgents(), getDevelopments()]);
-    const agentsByEmail = new Map(agents.map((agent) => [agent.email.trim().toLowerCase(), agent]));
+    const [developments, existingLeads] = await Promise.all([
+      getDevelopments(),
+      getCrmLeads({ includeAll: true }),
+    ]);
     const developmentsByName = new Map(developments.map((development) => [normalized(development.name), development]));
+    const existingEmails = new Set(
+      existingLeads
+        .map((lead) => String(lead.email || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+    const existingPhones = new Set(existingLeads.map((lead) => phoneKey(lead.countryCode, lead.phone)).filter(Boolean));
     let created = 0;
-    let updated = 0;
+    let existing = 0;
     let skipped = 0;
     const errors: string[] = [];
 
     for (let index = 0; index < rows.length; index += 1) {
-      const row = rows[index];
-      const rowNumber = index + 2;
+      const { data: row, rowNumber } = rows[index];
       const email = cell(row, "Email", "Correo", "Correo electrónico", "Email address", "Contact email").toLowerCase();
       if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
         skipped += 1;
@@ -192,43 +239,67 @@ export async function POST(request: NextRequest) {
 
       const developmentName = cell(row, "Desarrollo", "Proyecto", "Development", "Project");
       const development = developmentName ? developmentsByName.get(normalized(developmentName)) : undefined;
-      const agentEmail = cell(row, "Email agente", "Agente", "Propietario", "Contact owner", "HubSpot owner").toLowerCase();
-      const agent = agentEmail ? agentsByEmail.get(agentEmail) : undefined;
+      const rawPhone = cell(row, "Teléfono", "Telefono", "Celular", "Phone", "Phone number", "Mobile phone number");
+      const splitPhone = splitInternationalPhone(
+        rawPhone,
+        cell(row, "Código país", "Codigo pais", "Prefijo", "Country code") || "+54"
+      );
+      const normalizedPhone = phoneKey(splitPhone.countryCode, splitPhone.phone);
+      if (existingEmails.has(email) || (normalizedPhone && existingPhones.has(normalizedPhone))) {
+        existing += 1;
+        continue;
+      }
+
+      const fullName = cell(row, "Nombre completo", "Full name", "Fullname", "Name");
+      const fullNameParts = fullName.split(/\s+/).filter(Boolean);
+      const firstName = cell(row, "Nombre", "First name", "Firstname", "Nombre de pila") || fullNameParts.shift() || email.split("@")[0];
+      const lastName = cell(row, "Apellido", "Last name", "Lastname", "Apellidos") || fullNameParts.join(" ") || "-";
       const temperatureValue = normalized(cell(row, "Temperatura"));
       const temperature = ["frio", "tibio", "caliente"].includes(temperatureValue)
         ? (temperatureValue as "frio" | "tibio" | "caliente")
         : "";
       const rawDate = Object.entries(row).find(([key]) => normalized(key) === normalized("Fecha creación"))?.[1];
 
-      const result = await upsertCrmLeadByEmail({
-        firstName: cell(row, "Nombre", "First name", "Firstname", "Nombre de pila"),
-        lastName: cell(row, "Apellido", "Last name", "Lastname", "Apellidos"),
+      const result = await upsertCrmLead({
+        firstName,
+        lastName,
         email,
-        countryCode: cell(row, "Código país", "Codigo pais", "Prefijo", "Country code"),
-        phone: cell(row, "Teléfono", "Telefono", "Celular", "Phone", "Phone number", "Mobile phone number"),
-        status: cell(row, "Estado", "Estado del lead", "Lead status", "Contact status"),
+        countryCode: splitPhone.countryCode,
+        phone: splitPhone.phone,
+        status: cell(row, "Estado", "Estado del lead", "Lead status", "Contact status") || "Nuevo",
         temperature,
-        source: cell(row, "Fuente", "Origen", "Original source", "Lead source"),
+        source: cell(row, "Fuente", "Origen", "Original source", "Lead source") || "Excel",
         developmentId: development?.id,
         developmentNameText: development?.name || developmentName,
-        assignedAgentId: agent?.id,
+        assignedAgentId: undefined,
         notes: cell(row, "Notas", "Comentarios", "Notes", "Message"),
+        metaProperties: {
+          excel_imports: JSON.stringify([
+            excelImportRecord(file, workbook.SheetNames.find((name) => workbook.Sheets[name] === sheet) || "Contactos", rowNumber, row),
+          ]),
+        },
         createdBy: session.user.id,
         createdAt: excelDate(rawDate),
-      }, { preserveExistingValues: true });
+      });
 
       if (!result.lead) {
-        skipped += 1;
-        errors.push(`Fila ${rowNumber}: ${result.error || "no se pudo guardar"}.`);
-      } else if (result.created) created += 1;
-      else updated += 1;
+        if ((result.error || "").toLocaleLowerCase("es-AR").includes("existe")) existing += 1;
+        else {
+          skipped += 1;
+          errors.push(`Fila ${rowNumber}: ${result.error || "no se pudo guardar"}.`);
+        }
+      } else {
+        created += 1;
+        existingEmails.add(email);
+        if (normalizedPhone) existingPhones.add(normalizedPhone);
+      }
     }
 
     const leads = await getCrmLeads({
       agentId: session.user.id,
       includeAll: canViewAllCrmContacts(session.user.role),
     });
-    return NextResponse.json({ leads, created, updated, skipped, errors: errors.slice(0, 25) });
+    return NextResponse.json({ leads, created, existing, updated: 0, skipped, errors: errors.slice(0, 25) });
   } catch (error) {
     console.error("Error importing CRM contacts from Excel:", error);
     return NextResponse.json(

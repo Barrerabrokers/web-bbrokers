@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { hasGoogleCalendarAccess } from "@/lib/google-calendar-connection";
 import { getServerSession } from "next-auth";
 import { CrmCalendarView } from "@/components/admin/crm-calendar-view";
 import { authOptions } from "@/lib/auth";
@@ -23,7 +24,7 @@ export default async function AdminCrmCalendarPage() {
     }),
     getCrmEmailAccount(session.user.id),
   ]);
-  const activities = await getCrmActivities(leads.map((lead) => lead.id));
+  const activities = await getCrmActivities(leads.map((lead) => lead.id), { calendarOnly: true });
   const leadById = new Map(leads.map((lead) => [lead.id, lead]));
   const calendarActivities = activities.map((activity) => ({
     ...activity,
@@ -35,7 +36,7 @@ export default async function AdminCrmCalendarPage() {
       activities={calendarActivities}
       leads={leads}
       email={emailAccount?.email || null}
-      isGoogleConnected={emailAccount?.provider === "google-oauth"}
+      isGoogleConnected={hasGoogleCalendarAccess(emailAccount)}
     />
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, FileText, Link2, Loader2, Save, Upload } from "lucide-react";
 import type { Development } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { uploadPublicFile } from "@/lib/authorized-upload";
 
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 
@@ -140,9 +141,7 @@ export function DevelopmentDocumentsManager({
       const fileName = `${folder}/${Date.now()}-${Math.random()
         .toString(36)
         .slice(2)}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("properties")
-        .upload(fileName, file, {
+      const { error: uploadError } = await uploadPublicFile(fileName, file, {
           cacheControl: "3600",
           contentType: "application/pdf",
           upsert: false,

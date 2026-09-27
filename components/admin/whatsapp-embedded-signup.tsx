@@ -19,7 +19,7 @@ declare global {
   }
 }
 
-const APP_ID = process.env.NEXT_PUBLIC_META_APP_ID || "1735228224390278";
+const APP_ID = process.env.NEXT_PUBLIC_WHATSAPP_APP_ID || process.env.NEXT_PUBLIC_META_APP_ID || "1735228224390278";
 const CONFIG_ID = process.env.NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1991012558271468";
 
 export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnection?: { displayPhoneNumber: string } }) {
@@ -160,7 +160,7 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
               <h2 id="whatsapp-connection-title" className="text-base font-semibold text-ink">Conectar WhatsApp Business</h2>
               <span className="inline-flex items-center gap-1 rounded-full bg-ink/5 px-2 py-1 text-[11px] font-medium text-ink/65"><ShieldCheck className="h-3.5 w-3.5" />Solo administradores</span>
             </div>
-            <p className="mt-1 max-w-3xl text-sm leading-5 text-ink/65">Vinculá el número oficial mediante Meta. WhatsApp Business seguirá funcionando en el teléfono y el historial disponible se conservará.</p>
+            <p className="mt-1 max-w-3xl text-sm leading-5 text-ink/65">Vinculá +54 11 6406 9668 mediante Meta para recibir las consultas de tus campañas y responder desde el CRM. Si Meta ofrece mantener WhatsApp Business en el teléfono, elegí esa opción. La disponibilidad del historial depende de la conexión.</p>
             {message && <p role="status" className={`mt-2 text-sm font-medium ${state === "error" ? "text-red-700" : state === "connected" ? "text-emerald-700" : "text-ink/65"}`}>{message}</p>}
           </div>
         </div>

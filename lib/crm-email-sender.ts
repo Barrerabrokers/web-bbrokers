@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer from "crm-nodemailer";
 import type { CrmEmailTemplateContentBlock, CrmLead } from "@/lib/db";
 import {
   createCrmActivity,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/db";
 import { friendlySmtpError } from "@/lib/crm-email-errors";
 import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 type EmailContentBlock = CrmEmailTemplateContentBlock;
 
@@ -42,6 +43,37 @@ function textParagraphsToHtml(value: string) {
     .filter((paragraph) => paragraph.trim())
     .map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll("\n", "<br />")}</p>`)
     .join("");
+}
+
+const BRAND_WEBSITE = "https://barrerabrokers.com";
+
+function brandHeaderHtml() {
+  return `<tr><td class="bb-email-header" style="padding:14px 20px;text-align:center;background:#000000;line-height:0;">
+    <a href="${BRAND_WEBSITE}" style="display:inline-block;width:64px;height:76px;background:#000000;text-decoration:none;line-height:0;">
+      <img src="${BRAND_WEBSITE}/logo.png" width="64" height="76" alt="Barrera Brokers" style="display:block;width:64px;height:76px;object-fit:contain;border:0;background:#000000;" />
+    </a>
+  </td></tr>`;
+}
+
+function brandFooterText() {
+  return [
+    "Barrera Brokers · Real Estate en Buenos Aires",
+    BRAND_WEBSITE,
+    ...SOCIAL_LINKS.map((link) => `${link.label}: ${link.href}`),
+  ].join("\n");
+}
+
+function brandFooterHtml() {
+  const socialLinks = SOCIAL_LINKS.map(
+    (link) => `<a href="${link.href}" style="color:#005c5c;text-decoration:none;font-weight:700;white-space:nowrap;">${escapeHtml(link.label)}</a>`
+  ).join('<span style="color:#aaa39a;padding:0 7px;">·</span>');
+
+  return `<tr><td class="bb-email-footer" style="border-top:1px solid #ded8cf;background:#f6f3ee;padding:24px 20px;text-align:center;font-family:Arial,Helvetica,sans-serif;">
+    <p style="margin:0 0 5px;color:#1c1a17;font-size:16px;line-height:1.3;font-weight:700;letter-spacing:-0.01em;">Barrera Brokers</p>
+    <p style="margin:0 0 15px;color:#625f59;font-size:13px;line-height:1.5;">Real Estate · Buenos Aires</p>
+    <p style="margin:0 0 13px;font-size:13px;line-height:1.8;">${socialLinks}</p>
+    <p style="margin:0;font-size:13px;line-height:1.5;"><a href="${BRAND_WEBSITE}" style="color:#005c5c;text-decoration:underline;font-weight:700;">barrerabrokers.com</a></p>
+  </td></tr>`;
 }
 
 function blocksToText(blocks: EmailContentBlock[]) {
@@ -185,12 +217,13 @@ function blocksToHtml(blocks: EmailContentBlock[], attachmentTrackingUrls = new 
         .bb-email-content h1 { font-size: 28px !important; }
         .bb-email-content h2 { font-size: 24px !important; }
         .bb-email-content h3 { font-size: 20px !important; }
+        .bb-email-footer { padding: 22px 16px !important; }
       }
     </style>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#f3f4f4;margin:0;padding:0;"><tr><td class="bb-email-shell" align="center" style="padding:12px 8px;">
-      <table class="bb-email-card" role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;background:#ffffff;margin:0 auto;"><tr><td class="bb-email-content" style="padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1c1a17;">
+      <table class="bb-email-card" role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;background:#ffffff;margin:0 auto;">${brandHeaderHtml()}<tr><td class="bb-email-content" style="padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1c1a17;">
         ${blocksHtml}
-      </td></tr></table>
+      </td></tr>${brandFooterHtml()}</table>
     </td></tr></table>
   `;
 }
@@ -207,18 +240,25 @@ function textToHtml(value: string, imageUrls: string[] = []) {
     )
     .join("");
 
-  return `
-    <div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#1c1a17;">
-      ${textHtml}
-      ${imagesHtml}
-    </div>
-  `;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#f3f4f4;margin:0;padding:0;"><tr><td align="center" style="padding:12px 8px;">
+    <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;background:#ffffff;margin:0 auto;">${brandHeaderHtml()}<tr><td style="padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#1c1a17;">
+      ${textHtml}${imagesHtml}
+    </td></tr>${brandFooterHtml()}</table>
+  </td></tr></table>`;
 }
 
 function withOpenTrackingPixel(html: string, trackingUrl?: string) {
   if (!trackingUrl) return html;
   const pixel = `<img src="${trackingUrl.replaceAll('"', "%22")}" width="1" height="1" alt="" style="display:none!important;width:1px!important;height:1px!important;opacity:0!important;overflow:hidden!important;" />`;
   return `${html}\n${pixel}`;
+}
+
+function withClickTracking(html:string,trackingBaseUrl?:string) {
+  if(!trackingBaseUrl)return html;
+  return html.replace(/href="(https?:\/\/[^"\s]+)"/gi,(_match,target:string)=>{
+    if(target.startsWith(trackingBaseUrl))return `href="${target}"`;
+    return `href="${trackingBaseUrl}?url=${encodeURIComponent(target)}"`;
+  });
 }
 
 function base64Url(value: Buffer) {
@@ -281,6 +321,19 @@ async function sendMailWithAccount({
     },
   });
   await transporter.sendMail(mail);
+}
+
+// Private customer newsletters must not create records in the shared lead activity feed.
+export async function sendPrivateClientEmail(input:{agentId:string;email:string;subject:string;body:string;imageUrls?:string[];contentBlocks?:EmailContentBlock[];replyTo?:string;openTrackingUrl?:string;clickTrackingBaseUrl?:string}) {
+  const account=await getCrmEmailAccountWithSecret(input.agentId);
+  if(!account)throw Error("Conectá tu correo de CRM antes de enviar.");
+  const rawHtml=input.contentBlocks?.length?blocksToHtml(input.contentBlocks):textToHtml(input.body,input.imageUrls);
+  await sendMailWithAccount({account,origin:process.env.NEXTAUTH_URL || "https://barrerabrokers.com",mail:{
+    from:account.fromName ? `"${account.fromName.replaceAll('"',"")}" <${account.email}>` : account.email,
+    to:input.email,subject:input.subject,replyTo:input.replyTo||account.email,
+    text:[input.contentBlocks?.length?blocksToText(input.contentBlocks):input.body,brandFooterText()].filter(Boolean).join("\n\n"),
+    html:withOpenTrackingPixel(withClickTracking(rawHtml,input.clickTrackingBaseUrl),input.openTrackingUrl),
+  }});
 }
 
 export async function sendCrmEmail({
@@ -369,10 +422,12 @@ export async function sendCrmEmail({
         : account.email,
       to: lead.email,
       subject,
-      text:
+      text: [
         blocksWithSignature.length > 0
           ? blocksToText(blocksWithSignature)
           : [bodyWithSignature, ...imageUrls].filter(Boolean).join("\n\n"),
+        brandFooterText(),
+      ].filter(Boolean).join("\n\n"),
       html: withOpenTrackingPixel(
         blocksWithSignature.length > 0
           ? blocksToHtml(blocksWithSignature, attachmentTrackingUrls)
