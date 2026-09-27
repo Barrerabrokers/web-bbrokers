@@ -19,13 +19,16 @@ export async function processSales({liveOnly=false}:{liveOnly?:boolean}={}){
   // Time-based review is coalesced and uses saved semantic analysis, not a new model request.
   await sql`INSERT INTO crm_ai_events(lead_id,event_type,source,source_id,dedupe_key)
     SELECT s.lead_id,'followup_due','scheduler',s.lead_id::text,'review:'||s.lead_id::text||':'||date_trunc('hour',now())::text
-    FROM crm_ai_state s WHERE s.next_review_at<=now() AND s.last_analyzed_at IS NOT NULL
+    FROM crm_ai_state s JOIN crm_leads l ON l.id=s.lead_id
+    WHERE lower(btrim(COALESCE(l.status,'')))='interesados'
+    AND s.next_review_at<=now() AND s.last_analyzed_at IS NOT NULL
     AND s.ai_status NOT IN ('CLOSED_WON','LOST') AND NOT EXISTS(SELECT 1 FROM crm_ai_events e WHERE e.lead_id=s.lead_id AND e.processed_at IS NULL)
     ORDER BY s.next_review_at LIMIT 500 ON CONFLICT(dedupe_key) DO NOTHING`;
   while(Date.now()<deadline&&processed+failed<20){
    const token=randomUUID();
    const [job]=await sql`UPDATE crm_ai_state SET lease_token=${token},lease_until=now()+interval '5 minutes'
-     WHERE lead_id=(SELECT s.lead_id FROM crm_ai_state s JOIN crm_leads l ON l.id=s.lead_id WHERE (s.lease_until IS NULL OR s.lease_until<now())
+     WHERE lead_id=(SELECT s.lead_id FROM crm_ai_state s JOIN crm_leads l ON l.id=s.lead_id WHERE lower(btrim(COALESCE(l.status,'')))='interesados'
+       AND (s.lease_until IS NULL OR s.lease_until<now())
        AND s.attempts<5 AND (s.retry_at IS NULL OR s.retry_at<=now())
        AND EXISTS(SELECT 1 FROM crm_ai_events e WHERE e.lead_id=s.lead_id AND e.processed_at IS NULL)
        AND (NOT ${liveOnly} OR EXISTS(SELECT 1 FROM crm_ai_events e WHERE e.lead_id=s.lead_id AND e.processed_at IS NULL AND e.source NOT IN ('initial_backfill','scheduler')))

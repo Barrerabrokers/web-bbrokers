@@ -107,6 +107,30 @@ function getMappedValue(fields: Map<string, string>, keys: string[]) {
   return "";
 }
 
+function getPhoneValue(fields: Map<string, string>) {
+  const mapped = getMappedValue(fields, [
+    "phone_number",
+    "phone",
+    "telefono",
+    "teléfono",
+    "numero_de_telefono",
+    "número_de_teléfono",
+    "numero de telefono",
+    "número de teléfono",
+    "celular",
+    "whatsapp",
+  ]);
+  if (mapped) return mapped;
+
+  // Meta preserves the field label chosen in each instant form. Accept custom
+  // labels such as "Número de teléfono" without treating unrelated answers as
+  // a phone number.
+  for (const [key, value] of fields) {
+    if (/(^|_)(phone|telefono|celular|whatsapp)(_|$)/.test(key)) return value;
+  }
+  return "";
+}
+
 function splitName(rawName: string, email: string) {
   const cleanName = rawName.trim();
   if (!cleanName) {
@@ -385,14 +409,7 @@ export async function importMetaLeadgenId(
     };
   }
 
-  const rawPhone = getMappedValue(fields, [
-    "phone_number",
-    "phone",
-    "telefono",
-    "teléfono",
-    "celular",
-    "whatsapp",
-  ]);
+  const rawPhone = getPhoneValue(fields);
   const rawFullName = getMappedValue(fields, [
     "full_name",
     "full name",

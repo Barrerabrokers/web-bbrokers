@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { CheckCircle2, Loader2, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, Loader2, Trash2 } from "lucide-react";
 import type { CrmLead, CrmLeadStatus } from "@/lib/db";
 import { isMeetingStatus, leadStatusOptionsForValue } from "@/lib/crm-statuses";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
@@ -48,6 +48,7 @@ export function CrmLeadFieldsEditor({
   const [assignedAgentId, setAssignedAgentId] = useState(lead.assignedAgentId || "");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [copiedField, setCopiedField] = useState<"email" | "phone" | "">("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -105,6 +106,18 @@ export function CrmLeadFieldsEditor({
     const saved = await save({ status: nextStatus });
     if (!saved) setStatus(previousStatus);
     setIsSavingStatus(false);
+  };
+
+  const copyContactField = async (field: "email" | "phone", value: string) => {
+    const cleanValue = value.trim();
+    if (!cleanValue) return;
+    try {
+      await navigator.clipboard.writeText(cleanValue);
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField(""), 1600);
+    } catch {
+      setError("No se pudo copiar el dato. Seleccionalo y copialo manualmente.");
+    }
   };
 
   const deleteLead = async () => {
@@ -208,13 +221,25 @@ export function CrmLeadFieldsEditor({
           <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Correo
           </span>
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
-            type="email"
-            required
-          />
+          <div className="flex gap-2">
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+              type="email"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => void copyContactField("email", email)}
+              disabled={!email.trim()}
+              aria-label={copiedField === "email" ? "Correo copiado" : "Copiar correo"}
+              title={copiedField === "email" ? "Copiado" : "Copiar correo"}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/14 bg-white text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {copiedField === "email" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
         </label>
 
         <div className="grid min-w-0 grid-cols-[92px_minmax(0,1fr)] gap-2.5 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
@@ -239,12 +264,24 @@ export function CrmLeadFieldsEditor({
             <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
               Teléfono
             </span>
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => void copyContactField("phone", `${normalizeDialCode(countryCode)}${phone}`)}
+                disabled={!phone.trim()}
+                aria-label={copiedField === "phone" ? "Teléfono copiado" : "Copiar teléfono"}
+                title={copiedField === "phone" ? "Copiado" : "Copiar teléfono"}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/14 bg-white text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {copiedField === "phone" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
           </label>
         </div>
 

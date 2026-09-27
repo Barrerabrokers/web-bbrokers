@@ -2255,13 +2255,21 @@ export async function upsertCrmLeadByEmail(
       preservePopulated && current?.trim()
         ? current
         : keep && (!value || !value.trim()) ? current || "" : value || "";
+    const phoneValueOrExisting = (value: string | undefined, current: string | undefined) => {
+      const currentPhone = current?.trim() || "";
+      const hasPhone = currentPhone.length > 0 && currentPhone !== "-";
+      if (preservePopulated && hasPhone) return currentPhone;
+      return keep && (!value || !value.trim()) ? currentPhone : value || "";
+    };
     const result = await upsertCrmLead({
       ...data,
       id: existingId,
       firstName: valueOrExisting(data.firstName, existingLead?.firstName) || email.split("@")[0],
       lastName: valueOrExisting(data.lastName, existingLead?.lastName) || "-",
       countryCode: valueOrExisting(data.countryCode, existingLead?.countryCode) || "+54",
-      phone: valueOrExisting(data.phone, existingLead?.phone),
+      // Older Meta imports used "-" as a missing-phone placeholder. It must
+      // not prevent a later form refresh from filling the actual number.
+      phone: phoneValueOrExisting(data.phone, existingLead?.phone),
       status: (preservePopulated ? existingLead.status : keep && !data.status ? existingLead.status : data.status) || "Nuevo",
       temperature: valueOrExisting(data.temperature, existingLead?.temperature) as CrmLeadTemperature,
       source: valueOrExisting(data.source, existingLead?.source),

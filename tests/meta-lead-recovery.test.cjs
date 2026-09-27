@@ -19,7 +19,7 @@ function load(file, dependencies, context = {}) {
 }
 
 function fixture({ saved = { appId: "crm-app", pageId: "saved-page", token: "page-token" }, env = {}, handler, existing = false, notificationFailure = false } = {}) {
-  const calls = [], imports = [], records = [], effects = [];
+  const calls = [], imports = [], records = [], effects = [], splitPhones = [];
   const module = load("lib/meta-leads.ts", {
     "@/lib/developments-db": { getDevelopments: async () => [] },
     "@/lib/db": {
@@ -31,7 +31,7 @@ function fixture({ saved = { appId: "crm-app", pageId: "saved-page", token: "pag
       createCrmActivity: async () => { effects.push("activity"); },
       notifyCrmCampaignRecontact: async () => { effects.push("notification"); return { error: notificationFailure ? "notification failed" : null }; },
     },
-    "@/lib/phone-countries": { splitInternationalPhone: () => ({ countryCode: "+54", phone: "123" }) },
+    "@/lib/phone-countries": { splitInternationalPhone: value => { splitPhones.push(value); return { countryCode: "+54", phone: "123" }; } },
     "@/lib/meta-social-store": { socialConnectionStore: async () => saved },
     "@/lib/meta-app-config": { getMetaCrmAppId: () => "crm-app", getMetaCrmAppSecret: () => "crm-secret" },
     "@/lib/meta-lead-recovery-policy": load("lib/meta-lead-recovery-policy.ts", {}, { process: { env } }),
@@ -57,8 +57,21 @@ function fixture({ saved = { appId: "crm-app", pageId: "saved-page", token: "pag
       throw new Error("Unexpected mocked request: " + path);
     },
   });
-  return { module, calls, imports, records, effects };
+  return { module, calls, imports, records, effects, splitPhones };
 }
+
+test("imports the phone when Meta uses the Número De Teléfono field label", async () => {
+  const f = fixture({ handler: path => path === "lead-phone" ? Response.json({
+    id: "lead-phone", form_id: "form-new", created_time: new Date().toISOString(),
+    field_data: [
+      { name: "email", values: ["cliente@example.com"] },
+      { name: "Número De Teléfono", values: ["+54 9 226 256 4857"] },
+    ],
+  }) : undefined });
+  await f.module.importMetaLeadgenId("lead-phone");
+  assert.equal(f.splitPhones[0], "+54 9 226 256 4857");
+  assert.equal(f.imports[0].data.metaProperties.meta_field_numero_de_telefono, "+54 9 226 256 4857");
+});
 
 test("a recontact notification is persisted before the recovery completion marker", async () => {
   const f = fixture({ existing: true });

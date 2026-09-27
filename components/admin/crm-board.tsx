@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Building2,
+  Copy,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -2474,6 +2475,7 @@ function ContactDetail({
   const [isSavingFields, setIsSavingFields] = useState(false);
   const [fieldsError, setFieldsError] = useState("");
   const [fieldsNotice, setFieldsNotice] = useState("");
+  const [copiedContactField, setCopiedContactField] = useState<"email" | "phone" | "">("");
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [emailSubject, setEmailSubject] = useState("Barrera Brokers");
   const [emailBody, setEmailBody] = useState(`Hola ${lead.firstName},\n\n`);
@@ -2654,6 +2656,18 @@ function ContactDetail({
       setFieldsError(err instanceof Error ? err.message : "No se pudo guardar el cambio");
     } finally {
       setIsSavingFields(false);
+    }
+  };
+
+  const copyContactField = async (field: "email" | "phone", value: string) => {
+    const cleanValue = value.trim();
+    if (!cleanValue) return;
+    try {
+      await navigator.clipboard.writeText(cleanValue);
+      setCopiedContactField(field);
+      window.setTimeout(() => setCopiedContactField(""), 1600);
+    } catch {
+      setFieldsError("No se pudo copiar el dato. Seleccionalo y copialo manualmente.");
     }
   };
 
@@ -3522,13 +3536,25 @@ function ContactDetail({
           </div>
           <div className="sm:col-span-2">
           <Field label="Correo">
-            <input
-              value={contactFields.email}
-              onChange={updateContactField("email")}
-              className="form-input"
-              type="email"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                value={contactFields.email}
+                onChange={updateContactField("email")}
+                className="form-input min-w-0 flex-1"
+                type="email"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => void copyContactField("email", contactFields.email)}
+                disabled={!contactFields.email.trim()}
+                aria-label={copiedContactField === "email" ? "Correo copiado" : "Copiar correo"}
+                title={copiedContactField === "email" ? "Copiado" : "Copiar correo"}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-ink/15 bg-white text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {copiedContactField === "email" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
           </Field>
           </div>
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -3547,12 +3573,24 @@ function ContactDetail({
               </select>
             </Field>
             <Field label="Teléfono">
-              <input
-                value={contactFields.phone}
-                onChange={updateContactField("phone")}
-                className="form-input"
-                required
-              />
+              <div className="flex gap-2">
+                <input
+                  value={contactFields.phone}
+                  onChange={updateContactField("phone")}
+                  className="form-input min-w-0 flex-1"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => void copyContactField("phone", `${contactFields.countryCode}${contactFields.phone}`)}
+                  disabled={!contactFields.phone.trim()}
+                  aria-label={copiedContactField === "phone" ? "Teléfono copiado" : "Copiar teléfono"}
+                  title={copiedContactField === "phone" ? "Copiado" : "Copiar teléfono"}
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-ink/15 bg-white text-[#006b6b] transition-colors hover:bg-[#e7f4f2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {copiedContactField === "phone" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
             </Field>
           </div>
           <Field label="Estado del lead">

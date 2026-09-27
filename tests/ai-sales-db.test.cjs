@@ -106,7 +106,8 @@ test('database events → worker → stored score → scoped UI, with retries an
   const prioritized=await readSales({id:owner,all:false});
   assert.deepEqual(Array.from(prioritized.leads.filter(l=>[interested,plural,inProgress,contacted].includes(l.id)),l=>l.id),[interested,plural,inProgress,contacted]);
   assert.equal((await processSales({liveOnly:true})).processed,1);
-  assert.ok((await sql`SELECT last_analyzed_at FROM crm_ai_state WHERE lead_id=${interested}`)[0].last_analyzed_at);
+  assert.ok((await sql`SELECT last_analyzed_at FROM crm_ai_state WHERE lead_id=${plural}`)[0].last_analyzed_at);
+  assert.equal((await sql`SELECT last_analyzed_at FROM crm_ai_state WHERE lead_id=${interested}`)[0].last_analyzed_at,null);
   assert.equal((await sql`SELECT last_analyzed_at FROM crm_ai_state WHERE lead_id=${inProgress}`)[0].last_analyzed_at,null);
   // Higher score outranks pipeline; equal scores retain pipeline and date ordering.
   await sql`UPDATE crm_ai_state SET ai_score=0`;
