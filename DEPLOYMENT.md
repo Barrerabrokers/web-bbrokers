@@ -1,298 +1,88 @@
-# Guía de Deployment
+# Operación de producción — Barrera Brokers
 
-Esta guía te ayudará a desplegar el sitio web de Barrera Brokers en producción.
+Este documento define un único camino para publicar Barrera Brokers. Su objetivo es que el código, Vercel y Supabase siempre correspondan a la misma versión.
 
-## 📋 Requisitos Previos
+## Fuente de verdad
 
-- Cuenta en [Vercel](https://vercel.com) (recomendado) o plataforma alternativa
-- Repositorio en GitHub conectado
-- Variables de entorno configuradas
+| Sistema | Responsabilidad |
+| --- | --- |
+| Repositorio GitHub `Barrerabrokers/web-bbrokers` | Historial aprobado de código |
+| Rama `main` | Única fuente de producción |
+| Vercel, proyecto `web-bbrokers` | Construye y publica automáticamente cada commit de `main` |
+| Supabase | Base de datos de producción; la aplicación accede mediante variables de entorno de Vercel |
 
-## 🚀 Deployment en Vercel (Recomendado)
+El nombre `web-bbrokers` se mantiene igual porque es el nombre del proyecto de Vercel, no el nombre de cada publicación. Cada despliegue se identifica por la rama, el mensaje de commit, el SHA y la fecha. No se crean proyectos Vercel nuevos para versiones nuevas.
 
-### Paso 1: Conectar Repositorio
+## Flujo obligatorio
 
-1. Ve a [vercel.com](https://vercel.com) e inicia sesión
-2. Click en "Add New Project"
-3. Importa el repositorio `Barrerabrokers/web-bbrokers`
-4. Vercel detectará automáticamente que es un proyecto Next.js
+1. Partir de una copia local limpia y actualizada de `origin/main`.
+2. Crear una rama por cambio: `feat/...`, `fix/...` o `chore/...`.
+3. Implementar y validar localmente:
 
-### Paso 2: Configurar Variables de Entorno
+   ```bash
+   npm run build
+   npx tsc --noEmit
+   ```
 
-En la configuración del proyecto en Vercel, agrega estas variables:
+4. Crear un commit descriptivo, por ejemplo `feat(crm): excluir emails inválidos de campañas`.
+5. Subir la rama a GitHub. Vercel genera un *Preview Deployment* para revisarla.
+6. Abrir un Pull Request y aprobarlo. Al fusionarlo en `main`, Vercel publica automáticamente en producción.
+7. Confirmar en GitHub el estado de Vercel **success**, que el entorno sea **Production** y que el dominio responda.
 
-```
-NEXTAUTH_SECRET=tu-secret-key-aqui-usa-openssl-rand-base64-32
-NEXTAUTH_URL=https://barrerabrokers.com
-DATABASE_URL=tu-url-de-base-de-datos
-```
+No ejecutar despliegues de producción desde una carpeta local con cambios sin versionar, ni publicar ramas de backup. Eso crea versiones imposibles de rastrear y fue el origen de funcionalidades que aparecían y desaparecían.
 
-**Generar NEXTAUTH_SECRET:**
-```bash
-openssl rand -base64 32
-```
+## Estado consolidado
 
-### Paso 3: Deploy
+`main` contiene el CRM completo y las correcciones de seguridad. El commit `32b0d44` publicó en producción el manejo de emails inválidos/rebotados y los indicadores de campañas. La copia histórica `backup-production-2026-09-26` queda únicamente como respaldo: no se usa como origen de nuevos despliegues.
 
-1. Click en "Deploy"
-2. Vercel construirá y desplegará tu aplicación automáticamente
-3. Recibirás una URL de producción (ej: `web-bbrokers.vercel.app`)
+La copia local que quedó en una versión anterior debe conservarse solo para rescatar trabajo pendiente. Para el desarrollo habitual, crear o actualizar una copia desde `origin/main`; antes de reutilizar la anterior, convertir sus cambios pendientes en una rama y revisarlos.
 
-### Paso 4: Configurar Dominio Personalizado
+## Variables de entorno y Supabase
 
-1. En el dashboard de Vercel, ve a "Settings" > "Domains"
-2. Agrega tu dominio: `barrerabrokers.com`
-3. Sigue las instrucciones para configurar DNS:
-   - Tipo: `A` o `CNAME`
-   - Apunta a los servidores de Vercel
+Las claves existen únicamente en Vercel y en archivos `.env.local` excluidos de Git. Nunca se suben valores reales al repositorio, capturas o tickets. La lista de nombres se mantiene en [`.env.example`](.env.example).
 
-## 🗄️ Base de Datos en Producción
+Como mínimo, la aplicación necesita en Vercel las variables de autenticación y datos:
 
-Actualmente el proyecto usa datos en memoria (mock). Para producción, elige una opción:
-
-### Opción 1: Vercel Postgres
-
-```bash
-# Instalar
-npm install @vercel/postgres
-
-# En Vercel Dashboard:
-# Storage > Create Database > Postgres
-# Las variables se agregarán automáticamente
+```text
+NEXTAUTH_SECRET
+NEXTAUTH_URL
+NEXT_PUBLIC_SITE_URL
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+DATABASE_URL
 ```
 
-### Opción 2: Supabase (Recomendado)
+Las integraciones habilitadas (correo, CRM, WhatsApp/Meta y automatizaciones) requieren también sus variables correspondientes del archivo de ejemplo. Cuando se agregue una integración, se agrega su nombre a `.env.example` y se carga el valor en Vercel para Preview y Production según corresponda.
 
-```bash
-# Instalar
-npm install @supabase/supabase-js
+En Vercel: **Project → Settings → Environment Variables**. Verificar el nombre y los entornos asignados; no hace falta revelar el valor. Una variable nueva o modificada requiere crear un nuevo despliegue para que sea utilizada.
 
-# Variables de entorno:
-NEXT_PUBLIC_SUPABASE_URL=tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
-```
+Las migraciones de Supabase se guardan versionadas en `migrations/` y se aplican de forma explícita y verificable. No se exponen endpoints públicos que inicialicen o alteren la base de datos.
 
-1. Crea cuenta en [supabase.com](https://supabase.com)
-2. Crea un nuevo proyecto
-3. Crea las tablas en SQL Editor:
+## Reglas de ramas y despliegues
 
-```sql
--- Tabla de agentes
-CREATE TABLE agents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  phone VARCHAR(50),
-  photo VARCHAR(500),
-  role VARCHAR(20) DEFAULT 'agent',
-  created_at TIMESTAMP DEFAULT NOW()
-);
+- `main`: solo código aprobado y desplegable; cada push equivale a una publicación de producción.
+- `feat/*` y `fix/*`: cambios aislados, con Preview Deployment automático.
+- `backup/*` o tags de respaldo: solo recuperación, nunca despliegue directo.
+- Un Pull Request debe mostrar el enlace de Vercel Preview y superar el build antes de fusionarse.
+- No se agrega un GitHub Action de `vercel --prod`: la integración GitHub ↔ Vercel ya realiza ese trabajo y duplicarla generaría despliegues competidores.
+- Los commits deben explicar el cambio. Evitar mensajes como `update`, `cambios` o `fix` sin contexto.
 
--- Tabla de propiedades
-CREATE TABLE properties (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
-  description TEXT NOT NULL,
-  category VARCHAR(50) NOT NULL,
-  price DECIMAL(12,2) NOT NULL,
-  location VARCHAR(255) NOT NULL,
-  address VARCHAR(255) NOT NULL,
-  bedrooms INTEGER,
-  bathrooms INTEGER,
-  area DECIMAL(10,2) NOT NULL,
-  images TEXT[] NOT NULL,
-  features TEXT[] NOT NULL,
-  agent_id UUID REFERENCES agents(id),
-  status VARCHAR(20) DEFAULT 'disponible',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+## Verificación y recuperación
 
--- Tabla de contactos
-CREATE TABLE contacts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  phone VARCHAR(50),
-  message TEXT NOT NULL,
-  property_id UUID REFERENCES properties(id),
-  status VARCHAR(20) DEFAULT 'nuevo',
-  created_at TIMESTAMP DEFAULT NOW()
-);
+Después de cada merge a `main`:
 
--- Índices
-CREATE INDEX idx_properties_category ON properties(category);
-CREATE INDEX idx_properties_status ON properties(status);
-CREATE INDEX idx_contacts_status ON contacts(status);
-```
+1. Abrir el commit en GitHub y comprobar el check de Vercel en verde.
+2. En Vercel, confirmar que ese SHA figura como **Production** y revisar los logs si falló.
+3. Probar la funcionalidad afectada en `https://barrerabrokers.com`.
+4. Si hay una falla urgente, promover/recuperar el último despliegue de producción sano desde Vercel y luego corregirlo con un commit nuevo. No reescribir `main` ni publicar una carpeta local vieja.
 
-4. Reemplaza `/lib/db.ts` con implementación de Supabase
+## Checklist antes de fusionar
 
-### Opción 3: Railway + PostgreSQL
-
-```bash
-# Variables de entorno:
-DATABASE_URL=postgresql://usuario:password@host:5432/db
-```
-
-## 📧 Configurar Email
-
-### Usando Gmail:
-
-1. Habilita "App Passwords" en tu cuenta de Google
-2. Genera una contraseña de aplicación
-3. Agrega a variables de entorno:
-
-```
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=tu-email@gmail.com
-SMTP_PASSWORD=tu-app-password
-SMTP_FROM=noreply@barrerabrokers.com
-```
-
-### Usando SendGrid:
-
-```bash
-npm install @sendgrid/mail
-```
-
-```
-SENDGRID_API_KEY=tu-api-key
-```
-
-## 🔒 Seguridad en Producción
-
-### 1. Cambiar Credenciales de Demo
-
-En `/lib/db.ts`, actualiza o elimina el agente demo:
-
-```typescript
-// Hashear nueva contraseña
-import bcrypt from 'bcryptjs';
-const hashedPassword = await bcrypt.hash('nueva-contraseña-segura', 10);
-```
-
-### 2. Configurar CORS
-
-En `next.config.js`:
-
-```javascript
-async headers() {
-  return [
-    {
-      source: '/api/:path*',
-      headers: [
-        { key: 'Access-Control-Allow-Origin', value: 'https://barrerabrokers.com' },
-      ],
-    },
-  ];
-},
-```
-
-### 3. Rate Limiting
-
-Considera agregar rate limiting para las APIs:
-
-```bash
-npm install @upstash/ratelimit @upstash/redis
-```
-
-## 🖼️ Almacenamiento de Imágenes
-
-Para almacenar imágenes de propiedades, usa:
-
-### Cloudinary (Recomendado)
-
-```bash
-npm install cloudinary next-cloudinary
-```
-
-Variables:
-```
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
-CLOUDINARY_API_KEY=tu-api-key
-CLOUDINARY_API_SECRET=tu-api-secret
-```
-
-### Vercel Blob
-
-```bash
-npm install @vercel/blob
-```
-
-## 📊 Analytics
-
-Vercel Analytics está incluido por defecto. Para analytics adicionales:
-
-```bash
-npm install @vercel/analytics
-```
-
-En `app/layout.tsx`:
-```typescript
-import { Analytics } from '@vercel/analytics/react';
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  );
-}
-```
-
-## 🔄 CI/CD
-
-Con Vercel, cada push a `main` despliega automáticamente.
-
-### Configurar Branches de Preview:
-
-1. Crea rama `develop` para staging
-2. Cada PR generará una preview URL automática
-3. Solo los merges a `main` van a producción
-
-## ✅ Checklist Pre-Deployment
-
-- [ ] Variables de entorno configuradas
-- [ ] Base de datos en producción lista
-- [ ] NEXTAUTH_SECRET generado (único y seguro)
-- [ ] Credenciales demo removidas/cambiadas
-- [ ] Dominio personalizado configurado
-- [ ] SSL/HTTPS habilitado (automático en Vercel)
-- [ ] Almacenamiento de imágenes configurado
-- [ ] Email/SMTP configurado
-- [ ] Analytics configurado
-- [ ] Probado en producción
-
-## 🐛 Troubleshooting
-
-### Error: "NEXTAUTH_SECRET missing"
-- Asegúrate de agregar `NEXTAUTH_SECRET` en variables de entorno de Vercel
-
-### Error: "Cannot connect to database"
-- Verifica `DATABASE_URL` en variables de entorno
-- Asegúrate que la base de datos permite conexiones externas
-
-### Imágenes no cargan
-- Verifica configuración de `next.config.js` > `images.domains`
-- Agrega dominio de CDN/almacenamiento de imágenes
-
-### 500 Error en API
-- Revisa logs en Vercel Dashboard > Deployments > Logs
-- Verifica que todas las variables de entorno estén configuradas
-
-## 📞 Soporte
-
-Para problemas de deployment:
-- Vercel Support: https://vercel.com/support
-- Documentación Next.js: https://nextjs.org/docs
-- Supabase Docs: https://supabase.com/docs
-
----
-
-¡Tu sitio está listo para producción! 🎉
+- [ ] Rama creada desde el último `origin/main`.
+- [ ] `npm run build` y `npx tsc --noEmit` correctos.
+- [ ] Variables nuevas documentadas sin secretos en `.env.example`.
+- [ ] Migración de Supabase versionada y aplicada de forma controlada, si corresponde.
+- [ ] Preview Deployment revisado.
+- [ ] Pull Request aprobado y mergeado a `main`.
+- [ ] Despliegue Production asociado al SHA confirmado.
