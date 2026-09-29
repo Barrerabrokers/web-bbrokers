@@ -9,52 +9,27 @@ export function meetingDb() {
   return postgres(url, {ssl:"require",max:1,prepare:false});
 }
 let schemaPromise: Promise<void> | undefined;
+
+// The production migration has already installed these CRM objects. Request paths
+// only verify them: executing DDL here caused locks and connection timeouts.
 export async function ensureMeetingLifecycle(sql: Sql) {
-  if (!schemaPromise) schemaPromise = initializeMeetingLifecycle(sql).catch(error => {schemaPromise=undefined;throw error;});
+  if (!schemaPromise) schemaPromise = verifyMeetingLifecycle(sql).catch(error => {
+    schemaPromise = undefined;
+    throw error;
+  });
   await schemaPromise;
 }
-async function initializeMeetingLifecycle(sql: Sql) {
-  await sql.unsafe(`
-    CREATE TABLE IF NOT EXISTS crm_activity_results (
-      activity_id UUID PRIMARY KEY REFERENCES crm_activities(id) ON DELETE CASCADE,
-      outcome TEXT NOT NULL DEFAULT '', updated_by UUID REFERENCES agents(id) ON DELETE SET NULL,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    ALTER TABLE crm_activity_results ADD COLUMN IF NOT EXISTS outcome_status TEXT NOT NULL DEFAULT 'completed';
-    CREATE TABLE IF NOT EXISTS crm_meeting_schedules (
-      activity_id UUID PRIMARY KEY REFERENCES crm_activities(id) ON DELETE RESTRICT,
-      ends_at TIMESTAMPTZ, calendar_agent_id UUID REFERENCES agents(id),
-      cancelled_at TIMESTAMPTZ, checked_at TIMESTAMPTZ);
-    ALTER TABLE crm_meeting_schedules ALTER COLUMN ends_at DROP NOT NULL;
-    CREATE TABLE IF NOT EXISTS crm_meeting_result_history (
-      id BIGSERIAL PRIMARY KEY, activity_id UUID NOT NULL REFERENCES crm_activities(id) ON DELETE RESTRICT,
-      outcome TEXT NOT NULL, outcome_status TEXT NOT NULL, actor_id UUID REFERENCES agents(id),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    ALTER TABLE crm_activity_results ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE crm_meeting_schedules ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE crm_meeting_result_history ENABLE ROW LEVEL SECURITY;
-    CREATE OR REPLACE FUNCTION crm_require_meeting() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      -- ON CONFLICT will run the UPDATE trigger; don't treat existing leads as new inserts.
-      IF TG_OP='INSERT' AND EXISTS(SELECT 1 FROM crm_leads WHERE id=NEW.id) THEN RETURN NEW; END IF;
-      IF TG_OP='UPDATE' AND NEW.status IS NOT DISTINCT FROM OLD.status THEN RETURN NEW; END IF;
-      IF EXISTS(SELECT 1 FROM crm_meeting_schedules s JOIN crm_activities a ON a.id=s.activity_id
-        LEFT JOIN crm_activity_results r ON r.activity_id=a.id
-        WHERE a.lead_id=NEW.id AND (s.ends_at<=NOW() OR s.cancelled_at IS NOT NULL) AND COALESCE(TRIM(r.outcome),'')='') THEN
-        RAISE EXCEPTION 'Registrá el resultado o el motivo de cancelación de la reunión pendiente antes de cambiar el estado.';
-      END IF;
-      IF lower(trim(translate(NEW.status,'óÓ','oO')))='reunion' AND NOT EXISTS(
-        SELECT 1 FROM crm_activities a JOIN crm_meeting_schedules s ON s.activity_id=a.id
-        LEFT JOIN crm_activity_results r ON r.activity_id=a.id
-        WHERE a.lead_id=NEW.id AND a.type='reunion' AND a.external_source='google_calendar'
-          AND a.external_id IS NOT NULL AND a.scheduled_at>NOW() AND s.ends_at>a.scheduled_at
-          AND s.cancelled_at IS NULL AND COALESCE(r.outcome_status,'completed')<>'cancelled') THEN
-        RAISE EXCEPTION 'Para cambiar a Reunión primero debés agendar día y horario en el calendario.';
-      END IF;
-      RETURN NEW;
-    END; $$;
-    CREATE OR REPLACE TRIGGER crm_lead_meeting_required BEFORE INSERT OR UPDATE OF status ON crm_leads
-      FOR EACH ROW EXECUTE FUNCTION crm_require_meeting();
-  `);
+
+async function verifyMeetingLifecycle(sql: Sql) {
+  const [state] = await sql`SELECT
+    to_regclass('public.crm_activity_results') IS NOT NULL AS activity_results,
+    to_regclass('public.crm_meeting_schedules') IS NOT NULL AS schedules,
+    to_regclass('public.crm_meeting_result_history') IS NOT NULL AS history,
+    to_regprocedure('crm_require_meeting()') IS NOT NULL AS meeting_trigger_function,
+    EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'crm_lead_meeting_required' AND NOT tgisinternal) AS meeting_trigger`;
+  if (!state?.activity_results || !state?.schedules || !state?.history || !state?.meeting_trigger_function || !state?.meeting_trigger) {
+    throw new Error('La migración de ciclo de vida de reuniones no está aplicada.');
+  }
 }
 
 export async function registerScheduledMeeting(activityId: string, endsAt: string, agentId: string, moveToMeeting = false) {

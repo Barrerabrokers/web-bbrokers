@@ -4,15 +4,18 @@ import { getCrmEmailAccountWithSecret } from "@/lib/db";
 import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
 
 type Sql = ReturnType<typeof postgres>;
+let taskScheduleVerified: Promise<void> | undefined;
+
+// Schema changes are deployed separately; running DDL from CRM requests creates locks.
 export async function ensureTaskSchedules(sql: Sql) {
-  await sql`CREATE TABLE IF NOT EXISTS crm_task_schedules (
-    id UUID PRIMARY KEY, activity_id UUID UNIQUE REFERENCES crm_activities(id) ON DELETE SET NULL,
-    reminder_minutes INTEGER NOT NULL DEFAULT 60 CHECK (reminder_minutes IN (60,720,1440)),
-    calendar_agent_id UUID, calendar_event_id TEXT, calendar_version TEXT,
-    assignment_version TEXT, reminder_version TEXT, checked_at TIMESTAMPTZ,
-    last_error TEXT
-  )`;
-  await sql`ALTER TABLE crm_task_schedules ENABLE ROW LEVEL SECURITY`;
+  if (!taskScheduleVerified) taskScheduleVerified = (async () => {
+    const [state] = await sql`SELECT to_regclass('public.crm_task_schedules') IS NOT NULL AS present`;
+    if (!state?.present) throw new Error('La migración de agenda de tareas no está aplicada.');
+  })().catch(error => {
+    taskScheduleVerified = undefined;
+    throw error;
+  });
+  await taskScheduleVerified;
 }
 
 export function taskVersion(values: unknown[]) {
