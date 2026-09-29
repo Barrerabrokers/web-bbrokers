@@ -12,12 +12,6 @@ type Sql = ReturnType<typeof connection>;
 async function ensure(sql: Sql) {
   await ensureMeetingLifecycle(sql);
   await ensureTaskSchedules(sql);
-  await sql`CREATE TABLE IF NOT EXISTS crm_activity_results (
-    activity_id UUID PRIMARY KEY REFERENCES crm_activities(id) ON DELETE CASCADE,
-    outcome TEXT NOT NULL DEFAULT '', updated_by UUID REFERENCES agents(id) ON DELETE SET NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )`;
-  await sql`ALTER TABLE crm_activity_results ENABLE ROW LEVEL SECURITY`;
 }
 function version(row: {title:string;body:string|null;scheduled_at:unknown;reminder_minutes?:number;outcome_status?:string;cancelled_at?:unknown;ends_at?:unknown}, outcome:string) {
   return createHash("sha256").update(JSON.stringify([row.title,row.body || "",row.scheduled_at ? new Date(String(row.scheduled_at)).toISOString() : "",outcome,row.reminder_minutes || 60,row.outcome_status,row.cancelled_at,row.ends_at])).digest("hex");
