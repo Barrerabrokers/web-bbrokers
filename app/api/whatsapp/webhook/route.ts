@@ -86,6 +86,10 @@ export async function POST(request: NextRequest) {
           for (const part of splitMiaReplyMessages(reply)) {
             const outboundId = await sendWhatsAppText(conversation.phone, part, conversation.businessPhoneNumberId);
             await saveWhatsAppMessage({ conversationId: conversation.id, whatsappMessageId: outboundId, direction: "outbound", senderType: "ai", content: part });
+            if (part.startsWith('Sí, acá te lo mando: https://')) {
+            const {markMiaBrochureSent} = await import('@/mia/lib/whatsapp-flow');
+            await markMiaBrochureSent(messageId, part);
+          }
           }
           await finishMiaPublicHandoff(conversation.id,content);
           await finishWhatsAppAiRetry(messageId,'sent');
