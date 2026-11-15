@@ -5,6 +5,7 @@ import { deliverMetaSocialText } from '@/lib/meta-social-send';
 import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
 import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
+import { newMiaEngineAllows } from '@/mia/lib/rollout';
 import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
 import type { WhatsAppAttachment } from '@/lib/whatsapp-attachments';
 import { requestsHuman } from "@/lib/whatsapp-sales-policy";
@@ -429,7 +430,15 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   const history = await listWhatsAppMessages(id, null);
   const contact = await getWhatsAppConversation(id);
   if (!contact) return null;
-  if (contact.channel !== 'whatsapp') return generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
+  const legacy = () => generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
+  if (contact.channel !== 'whatsapp') return legacy();
+  const profile = await loadWhatsAppLeadContext(id);
+  const email = typeof profile.email === 'string' ? profile.email : '';
+  if (!newMiaEngineAllows(contact.phone, email, {
+    MIA_NEW_ENGINE_ENABLED: process.env.MIA_NEW_ENGINE_ENABLED,
+    MIA_TEST_NUMBERS: process.env.MIA_TEST_NUMBERS,
+    MIA_TEST_EMAILS: process.env.MIA_TEST_EMAILS,
+  })) return legacy();
   if (!contact.aiEnabled || contact.status === 'closed') return null;
   const meeting = await replyMiaMeeting(id, history);
   if (meeting) return meeting.reply;

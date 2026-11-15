@@ -1,6 +1,7 @@
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { sendPrivateClientEmail } from '@/lib/crm-email-sender';
 import { sendWhatsAppText } from '@/lib/whatsapp-inbox';
+import { newMiaEngineAllows } from './rollout';
 import { meetingReminderTemplates } from './meeting-reminder-templates';
 
 type Template = {subject?: string; body: string};
@@ -14,13 +15,19 @@ export async function processMiaReminders() {
   const result = {sent: 0, failed: 0};
   try {
     const candidates = await sql`
-      select r.id
+      select r.id, c.whatsapp, c.email
       from public.mia_reminders r join public.mia_meetings m on m.id = r.meeting_id
+      join public.mia_clients c on c.id = m.client_id
       where m.estado = 'confirmada' and r.estado in ('pendiente', 'fallido')
         and r.intentos < 2 and r.programado_en <= now()
         and (m.dia::text || ' ' || m.hora::text)::timestamp at time zone 'America/Argentina/Buenos_Aires' > now()
       order by r.programado_en limit 4`;
     for (const candidate of candidates) {
+      if (!newMiaEngineAllows(candidate.whatsapp ?? '', candidate.email ?? '', {
+        MIA_NEW_ENGINE_ENABLED: process.env.MIA_NEW_ENGINE_ENABLED,
+        MIA_TEST_NUMBERS: process.env.MIA_TEST_NUMBERS,
+        MIA_TEST_EMAILS: process.env.MIA_TEST_EMAILS,
+      })) continue;
       const [job] = await sql`
         update public.mia_reminders set estado = 'procesando', intentos = intentos + 1
         where id = ${candidate.id} and estado in ('pendiente', 'fallido') and intentos < 2
