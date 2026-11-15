@@ -43,8 +43,9 @@ export function unverifiedCatalogClaim(text: string) {
 export function renderVerifiedOptions(options: SheetUnit[], missing: number[] = []) {
   return options.map((option, index) => {
     const {project} = option;
+    const originalType = /\bstudio\b/i.test(option.originalType ?? '') ? 'Studio' : option.originalType;
     const rooms = option.roomCount === 1
-      ? `1 ambiente tipo ${option.originalType}` : `${option.roomCount} ambientes`;
+      ? `1 ambiente tipo ${originalType}` : `${option.roomCount} ambientes`;
     const link = project.brochure_url ? 'Brochure ' + project.brochure_url : 'Brochure no confirmado, un asesor lo revisa - Lista ' + project.listUrl;
     return `Opción ${index + 1}: ${project.name} - ${project.address} - ${project.location} - ${rooms} - ${option.price} - ${option.availability} - Entrega ${project.delivery} - ${link}`;
   }).join('\n') + (options.length === 2

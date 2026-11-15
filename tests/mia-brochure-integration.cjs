@@ -23,11 +23,15 @@ async function run() {
   await db.begin(async tx => {
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_brochure_state.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_options_state.sql', 'utf8'));
+    await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_cache.sql', 'utf8'));
     tx.begin = callback => callback(tx);
     let sourceProjects = [];
     let sourceOptions = [];
     const mocks = {
-      './development-sheet': {getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async () => sourceOptions},
+      './development-sheet': {getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async (_projects, _zone, _rooms, saveList) => {
+        if (sourceOptions.length) await saveList(sourceOptions[0].project.id, sourceOptions);
+        return sourceOptions;
+      }},
       '@/lib/database-pool': {getSharedDatabase: () => tx, releaseSharedDatabase: async () => {}},
       '@/lib/whatsapp-ai-provider': {
         generateGroqCustomerReply: async () => {
@@ -80,8 +84,8 @@ async function run() {
       location:'Núñez',delivery:'12 meses',listUrl:'https://example.invalid/lista',brochure_url:'https://example.invalid/brochure'};
     sourceProjects = [project];
     sourceOptions = [
-      {project,originalType:'Studio',roomCount:1,price:'USD 120000',availability:'Disponible'},
-      {project,originalType:'2 ambientes',roomCount:2,price:'USD 145000',availability:'Disponible'},
+      {project,originalType:'Studio',roomCount:1,price:'USD 120.000',currency:'USD',availability:'Disponible'},
+      {project,originalType:'2 ambientes',roomCount:2,price:'USD 145.000',currency:'USD',availability:'Disponible'},
     ];
     const optionsContact = {phone:'549118' + String(Date.now()).slice(-7),contactName:'Sintético'};
     const inbound = content => ({direction:'inbound', content, status:'received', whatsappMessageId:'wamid.test.' + randomUUID()});
@@ -91,6 +95,8 @@ async function run() {
     assert.match(options, /Opción 1: .*1 ambiente.*USD.*Disponible/);
     assert.match(options, /Opción 2: .*2 ambientes.*USD.*Disponible/);
     assert.doesNotMatch(options, /Reservado-test|Sin-precio-test|disponibilidad inmediata|te preparo/i);
+    const cached = await tx`select moneda from mia_catalog_cache where proyecto=${project.id}`;
+    assert.deepEqual(cached.map(row => row.moneda), ['USD','USD']);
     assert.equal(options.split('\n').length, 3);
     assert.equal((options.match(/\?/g) ?? []).length, 1);
     await markMiaOptionsSent(request.whatsappMessageId, options);

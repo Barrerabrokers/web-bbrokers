@@ -10,7 +10,7 @@ export type SheetProject = {
 };
 export type SheetUnit = {
   project: SheetProject; unit: string | null; originalType: string | null;
-  roomCount: number | null; price: string | null; availability: string | null;
+  roomCount: number | null; price: string | null; currency: string; availability: string | null;
 };
 
 function https(value: string | undefined) {
@@ -109,14 +109,23 @@ export function parseDevelopmentUnits(workbook: XLSX.WorkBook, project: SheetPro
       if (!unit && !originalType && !availability) return [];
       const rawPrice = row[priceColumn]?.trim() ?? '';
       const priceContext = [rawPrice, values[header][priceColumn], row[currencyColumn]].join(' ');
-      const currency = /\bUSD\b|U\$S|US\$/i.test(priceContext) ? 'USD'
-        : /\bARS\b/i.test(priceContext) ? 'ARS' : null;
-      const price = currency && /[1-9]/.test(rawPrice) ? (/USD|ARS|U\$S|US\$/i.test(rawPrice) ? rawPrice : `${currency} ${rawPrice}`) : null;
+      const currency = /\bARS\b/i.test(priceContext) ? 'ARS' :
+        /\bEUR\b|€/i.test(priceContext) ? 'EUR' :
+        /\bGBP\b|£/i.test(priceContext) ? 'GBP' :
+        /\b(?:UYU|BRL|CLP|MXN|CAD|CHF|PYG|BOB|COP|PEN)\b/i.exec(priceContext)?.[0].toUpperCase() ??
+        (/^[A-Z]{3}$/i.test(row[currencyColumn]?.trim() ?? '') ? row[currencyColumn].trim().toUpperCase() : 'USD');
+      let numeric = rawPrice.replace(/[^0-9.,-]/g, '');
+      if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(numeric)) numeric = numeric.replace(/\./g, '').replace(',', '.');
+      else if (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(numeric)) numeric = numeric.replace(/,/g, '');
+      else numeric = numeric.replace(',', '.');
+      const amount = Number(numeric);
+      const price = /^\d+(?:\.\d+)?$/.test(numeric) && Number.isFinite(amount) && amount > 0
+        ? `${currency} ${amount.toLocaleString('es-AR', {maximumFractionDigits: 2})}` : null;
       return [{project, unit: unit && row[floorColumn] ? `${row[floorColumn]}-${unit}` : unit,
         originalType, roomCount: originalType
           ? /^\d+$/.test(originalType) && /ambientes|dormitorios|bedrooms/.test(fields[typeColumn])
             ? Number(originalType) : normalizedRooms(originalType)
-          : null, price, availability}];
+          : null, price, currency, availability}];
     });
   });
 }
@@ -125,16 +134,43 @@ export async function getDevelopmentProjects() {
   return parseDevelopmentProjects(await readDevelopmentWorkbook(PROJECT_SHEET_ID));
 }
 
-export async function getVerifiedSheetOptions(projects: SheetProject[], zone: string, rooms: number[]) {
+export function linkedDelivery(workbook: XLSX.WorkBook) {
+  const deliveries = new Set<string>();
+  for (const {values} of rows(workbook)) {
+    const cells = values.map(value => String(value).trim());
+    for (let index = 0; index < cells.length; index++) {
+      const label = cells[index];
+      if (!/^(?:fecha (?:estimada )?de entrega|entrega (?:estimada|prevista)|tiempo de entrega|delivery date|estimated delivery)\b/i.test(label)) continue;
+      const value = label.split(':').slice(1).join(':').trim() || cells[index + 1];
+      if (value && /\d/.test(value)) deliveries.add(deliveryValue(value));
+    }
+  }
+  return deliveries.size === 1 ? [...deliveries][0] : null;
+}
+
+export async function getVerifiedSheetOptions(projects: SheetProject[], zone: string, rooms: number[],
+  saveList?: (projectId: string, units: SheetUnit[]) => Promise<void>,
+  onUnavailable?: (project: SheetProject) => Promise<void>) {
   const nearby = zone === 'nunez' ? ['nunez', 'belgrano'] : [zone];
-  const candidates = projects.filter(project => nearby.includes(normalize(project.location)));
+  const candidates = projects.filter(project => nearby.includes(normalize(project.location)))
+    .sort((a,b) => Number(normalize(b.location) === zone) - Number(normalize(a.location) === zone));
   const lists = await Promise.allSettled(candidates.map(async project => {
     const id = sheetId(project.listUrl);
-    return id ? parseDevelopmentUnits(await readDevelopmentWorkbook(id), project) : [];
+    if (!id) return null;
+    const workbook = await readDevelopmentWorkbook(id);
+    return parseDevelopmentUnits(workbook, {...project, delivery: project.delivery ?? linkedDelivery(workbook)});
   }));
-  const available = lists.flatMap(result => result.status === 'fulfilled' ? result.value : [])
-    .filter(unit => unit.project.address && unit.project.delivery && unit.price && unit.availability &&
-      /^(?:disponible|available)(?:\s*\/\s*(?:disponible|available))?$/i.test(unit.availability));
+  const available: SheetUnit[] = [];
+  for (const [index, result] of lists.entries()) {
+    const project = candidates[index];
+    if (result.status !== 'fulfilled' || !result.value) {
+      await onUnavailable?.(project);
+      continue;
+    }
+    await saveList?.(project.id, result.value);
+    available.push(...result.value.filter(unit => unit.project.address && unit.project.delivery && unit.price && unit.availability &&
+      /^(?:disponible|available)(?:\s*\/\s*(?:disponible|available))?$/i.test(unit.availability)));
+  }
   return rooms.flatMap(room => {
     const match = available.find(unit => unit.roomCount === room);
     return match ? [match] : [];

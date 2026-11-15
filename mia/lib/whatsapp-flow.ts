@@ -112,7 +112,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const evidence = [...recentInbound, String(client.zona ?? '')];
         const zone = optionsZone(evidence);
         const requestedRooms = evidence.map(requestedRoomCounts).find(rooms => rooms.length) ?? [];
-        const key = `planilla:${zone ?? 'sin-zona'}:${requestedRooms.join(',') || 'sin-ambientes'}`;
+        const key = `planilla-usd:${zone ?? 'sin-zona'}:${requestedRooms.join(',') || 'sin-ambientes'}`;
         const handled = conversation.opciones_proyecto === key || client.opciones_proyecto === key;
         if (handled) return null;
 
@@ -123,7 +123,20 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
             })
           : [];
         const options = zone && requestedRooms.length && projects.length
-          ? await getVerifiedSheetOptions(projects, zone, requestedRooms) : [];
+          ? await getVerifiedSheetOptions(projects, zone, requestedRooms, async (projectId, units) => {
+              await tx`delete from public.mia_catalog_cache where proyecto=${projectId}`;
+              if (units.length) {
+                await tx`insert into public.mia_catalog_cache ${tx(units.map((unit, index) => ({
+                  proyecto: projectId, registro: String(index), moneda: unit.currency, datos: tx.json(unit),
+                })), 'proyecto', 'registro', 'moneda', 'datos')}`;
+              }
+            }, async project => {
+              const observation = 'Lista no accesible: ' + project.name + ' · ' + project.address;
+              await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
+                select ${client.id}, 'Lista de precios no confirmada', ${observation}, 'pendiente'
+                where not exists(select 1 from public.mia_observations
+                  where client_id=${client.id} and propuesta=${observation} and estado='pendiente')`;
+            }) : [];
         const missing = requestedRooms.filter(room => !options.some(option => option.roomCount === room));
         const needsDetails = !zone || !requestedRooms.length;
         const reply = needsDetails

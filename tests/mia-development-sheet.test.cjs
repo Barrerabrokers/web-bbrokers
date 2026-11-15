@@ -38,7 +38,7 @@ test('unit lists preserve original typology and missing facts', () => {
   ]) xlsx.utils.book_append_sheet(workbook,xlsx.utils.aoa_to_sheet(rows),tab);
   const project={name:'P',address:'A 1',location:'Núñez'};
   const units=parseDevelopmentUnits(workbook,project);
-  assert.deepEqual(units.map(u=>[u.roomCount,u.price,u.availability]),[[1,'USD 110000','Disponible'],[2,null,null]]);
+  assert.deepEqual(units.map(u=>[u.roomCount,u.price,u.availability]),[[1,'USD 110.000','Disponible'],[2,'USD 150.000',null]]);
   assert.equal(normalizedRooms('Monoambiente'),1);
   assert.equal(normalizedRooms('1 dormitorio'),1);
 });
