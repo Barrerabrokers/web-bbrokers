@@ -1,4 +1,4 @@
-import { recordConfirmedMiaMeeting } from '@/mia/lib/meeting-record';
+import { markMiaMeetingClosed, recordConfirmedMiaMeeting } from '@/mia/lib/meeting-record';
 import { readMiaLearnings } from '@/lib/mia-learnings';
 import { requestMiaMeetingAdmin } from '@/lib/mia-meeting-admin';
 import { miaContactDeferred } from '@/lib/mia-deferred-contact';
@@ -48,7 +48,7 @@ function outsideHours(turn:MeetingTurn){
  return !!(turn.time&&(turn.time<'10:00'||turn.time>'19:00')||turn.date&&new Date(turn.date+'T12:00:00-03:00').getUTCDay()===0||turn.weekdays.length===1&&turn.weekdays[0]===0);
 }
 async function session(conversationId:string){const sql=getSharedDatabase();try{const [r]=await sql`SELECT version,state FROM crm_mia_meeting_sessions WHERE conversation_id=${conversationId}`;return r?{version:Number(r.version),state:r.state as MeetingState}:null;}finally{await releaseSharedDatabase(sql);}}
-async function save(conversationId:string,state:MeetingState,version:number){state={...state,conversationState:meetingConversationState(state)};const sql=getSharedDatabase();try{const rows=version<0?await sql`INSERT INTO crm_mia_meeting_sessions(conversation_id,state) VALUES(${conversationId},${sql.json(state)}) ON CONFLICT DO NOTHING RETURNING version`:await sql`UPDATE crm_mia_meeting_sessions SET state=${sql.json(state)},version=version+1,updated_at=NOW() WHERE conversation_id=${conversationId} AND version=${version} RETURNING version`;if(!rows.length)throw Error('Meeting turn changed');return Number(rows[0].version);}finally{await releaseSharedDatabase(sql);}}
+async function save(conversationId:string,state:MeetingState,version:number){state={...state,conversationState:state.phase==='booked'&&!state.crmSyncedAt?'esperando_confirmacion':meetingConversationState(state)};const sql=getSharedDatabase();try{const rows=version<0?await sql`INSERT INTO crm_mia_meeting_sessions(conversation_id,state) VALUES(${conversationId},${sql.json(state)}) ON CONFLICT DO NOTHING RETURNING version`:await sql`UPDATE crm_mia_meeting_sessions SET state=${sql.json(state)},version=version+1,updated_at=NOW() WHERE conversation_id=${conversationId} AND version=${version} RETURNING version`;if(!rows.length)throw Error('Meeting turn changed');return Number(rows[0].version);}finally{await releaseSharedDatabase(sql);}}
 async function client(conversationId:string):Promise<Client>{const sql=getSharedDatabase();try{const [r]=await sql`SELECT c.lead_id,c.contact_name,c.phone,c.channel,l.first_name,l.last_name,l.email FROM crm_whatsapp_conversations c LEFT JOIN crm_leads l ON l.id=c.lead_id WHERE c.id=${conversationId}`;if(!r)throw Error('Conversation unavailable');const name=[r.first_name,r.last_name].filter(Boolean).join(' ').trim()||r.contact_name||'';return {leadId:r.lead_id,name:/^(?:contacto|whatsapp|consulta)/i.test(name)?'':name,email:r.email?.endsWith('.barrerabrokers.local')?'':r.email||'',phone:r.phone,channel:r.channel};}finally{await releaseSharedDatabase(sql);}}
 export async function parseMiaMeetingTurn(messages:Message[],state:MeetingState|null,now=new Date()):Promise<MeetingTurn>{
  const latest=messages.filter(message=>message.direction==='inbound').at(-1)?.content.trim()||'';
@@ -77,8 +77,29 @@ export async function createMiaGoogleMeeting(token:string,state:MeetingState,c:M
 }
 function bookedReply(state:MeetingState,c:MeetingConfig,preview=false){return `${preview?'Simulación: la reunión quedaría agendada':'Reunión confirmada'} con un agente comercial el ${meetingSummary(state,c)}.${state.mode==='google_meet'&&state.meetUrl?`\nGoogle Meet: ${state.meetUrl}`:state.mode==='google_meet'?'\nEl enlace de Google Meet está pendiente de generarse; no hace falta volver a reservar.':''}${preview?' No se creó ninguna cita ni se envió una invitación.':state.email?' La invitación fue solicitada a Google Calendar para '+state.email+'.':' Te llamaremos al teléfono de esta conversación.'}`;}
 function bookedClosing(state:MeetingState,c:MeetingConfig){
- return `Listo, queda agendada con ${state.organizerName||'un agente comercial'}. ${state.email?'La invitación a tu email fue solicitada a Google Calendar.':'Un agente comercial te llamará al número de esta conversación.'}\n${meetingSummary(state,c)}.\n¿Querés que te recordemos 1 hora antes por acá?`;
+ return `Listo, queda agendada con ${state.organizerName||'un agente comercial'}. ${meetingSummary(state,c)}.\n${state.meetUrl ? 'Google Meet: ' + state.meetUrl : 'La invitación quedó solicitada en Calendar.'}\n¿Querés que te recordemos 1 hora antes por acá?`;
 }
+async function hasConfirmedRecord(state: MeetingState) {
+ if (!state.eventId) return false;
+ const sql = getSharedDatabase();
+ try {
+  const [row] = await sql`select count(distinct r.tipo)::int as reminders
+    from public.mia_meetings m join public.mia_reminders r on r.meeting_id=m.id
+    where m.google_event_id=${state.eventId} and m.estado='confirmada'
+      and r.tipo in ('1_dia_antes','1_hora_antes')`;
+  return row?.reminders === 2;
+ } finally { await releaseSharedDatabase(sql); }
+}
+
+async function verifiedBookedMeeting(state: MeetingState, config: MeetingConfig) {
+ if (!state.eventId || !state.organizerId || !state.crmSyncedAt || !(await hasConfirmedRecord(state))) return false;
+ const token = await miaMeetingCalendar({...config, organizerId:state.organizerId});
+ const event = await googleEvent(token, state.eventId);
+ return event?.id === state.eventId && event.status !== 'cancelled'
+   && event.extendedProperties?.private?.miaBooking === state.id
+   && Date.parse(event.start?.dateTime) === Date.parse(state.selected?.start ?? '');
+}
+
 async function book(conversationId:string,state:MeetingState,version:number,c:MeetingConfig,person:Client,preview:boolean,inboundMessageId?:string){
  if(!state.selected||!state.mode||(state.mode==='phone'?!state.phone:!state.email)||!state.name||!allowedMeetingSlot(state.selected,c))return {reply:'Ese horario ya no está dentro de la disponibilidad. Decime qué otro día te sirve para buscar alternativas.',state};
  let token='';
@@ -116,19 +137,23 @@ async function book(conversationId:string,state:MeetingState,version:number,c:Me
    state={...state,phase:'creating',eventId:createHash('sha256').update('mia-meeting:'+state.id).digest('hex'),updatedAt:new Date().toISOString()};version=await save(conversationId,state,version);
    event=await createMiaGoogleMeeting(token,state,c);
   }
-  if(!event?.id||event.status==='cancelled'||new Date(event.end?.dateTime).getTime()!==new Date(state.selected!.end).getTime()||event.extendedProperties?.private?.miaBooking!==state.id||new Date(event.start?.dateTime).getTime()!==new Date(state.selected!.start).getTime())throw Error('Invalid calendar confirmation');
+  if(event?.id!==state.eventId||event.status==='cancelled'||new Date(event.end?.dateTime).getTime()!==new Date(state.selected!.end).getTime()||event.extendedProperties?.private?.miaBooking!==state.id||new Date(event.start?.dateTime).getTime()!==new Date(state.selected!.start).getTime())throw Error('Invalid calendar confirmation');
   const meet=event.hangoutLink||event.conferenceData?.entryPoints?.find((p:any)=>p.entryPointType==='video')?.uri;
-  state={...state,phase:'booked',conversationState:'reunion_cerrada',meetUrl:typeof meet==='string'&&/^https:\/\/meet\.google\.com\/[a-z-]+$/.test(meet)?meet:undefined,updatedAt:new Date().toISOString()};
+  state={...state,phase:'booked',conversationState:'esperando_confirmacion',meetUrl:typeof meet==='string'&&/^https:\/\/meet\.google\.com\/[a-z-]+$/.test(meet)?meet:undefined,updatedAt:new Date().toISOString()};
   // Persist Calendar success before CRM enrichment so an enrichment failure cannot duplicate the event.
   version=await save(conversationId,state,version);
   if(!person.leadId)throw Error('Missing CRM lead');
-  state=await syncMiaMeetingToCrm(state,person.leadId);
+  if(state.mode==='google_meet'&&!state.meetUrl)throw Error('Missing Google Meet URL');
   await recordConfirmedMiaMeeting(state,c,person.leadId,person.phone);
+  if (!(await hasConfirmedRecord(state))) throw Error('Missing appointment reminders');
+  state=await syncMiaMeetingToCrm(state,person.leadId);
+  await markMiaMeetingClosed(state.eventId!);
+  state={...state,conversationState:'reunion_cerrada'};
   await save(conversationId,state,version);
   return {reply:bookedClosing(state,c),state};
  }catch(error){
   console.warn('mia-meeting-booking-review',{phase:state.phase});
-  return {reply:state.phase==='booked'?bookedReply(state,c)+' El equipo revisará los detalles pendientes; no hace falta reservar otra vez.':state.phase==='creating'?'La solicitud de reserva está pendiente de verificación. No vuelvas a agendarla; revisaré el mismo evento para evitar duplicados.':'El horario queda por confirmar con un agente comercial. Todavía no hay una reunión confirmada.',state};
+  return {reply:'Un agente te confirma el horario. ¿Querés que te avise por acá?',state};
  }finally{if(lease)await releaseWorkerLease(sql,'mia-pablo-meeting-calendar',lease);if(sendToken)await releaseWhatsAppSend(conversationId,sendToken);await releaseSharedDatabase(sql);}
 }
 export async function replyMiaMeeting(conversationId:string,messages:Message[],options:{preview?:boolean;state?:MeetingState|null;offerOnly?:boolean}={}):Promise<{reply:string;state:MeetingState}|null>{
@@ -149,7 +174,7 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
  const changing=meetingChangeIntent(latest)||!!state?.changeRequest&&/lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mediod[ií]a|\d{1,2}(?:hs|:|\s*horas)|^(?:si|sí|dale|ok|la primera|la segunda)$/i.test(latest);
  const acceptingInvitation=/agend|coordin|reuni[oó]n|visita(?:r)?.*showroom|vernos|juntarnos|d[ií]a.*horario/i.test(lastQuestion)&&(explicitlyConfirmsMeeting(latest)||/lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[nñ]ana|tarde|\d{1,2}[:/]\d{2}/i.test(latest));
  if(!options.offerOnly&&!changing&&!meetingIntent(latest)&&!active&&!acceptingInvitation&&!(state?.phase==='booked'&&explicitlyConfirmsMeeting(latest)))return null;
- if(options.offerOnly&&state?.phase==='booked')return {reply:'Podemos seguir con tu consulta por acá; la reunión ya está coordinada.',state};
+ if(options.offerOnly&&state?.phase==='booked')return null;
  if(options.offerOnly&&active&&state&&state.phase!=='offered')return null;
  try{
   if(state?.phase==='pendiente_admin'&&!changing&&(explicitlyConfirmsMeeting(latest)||options.offerOnly))return {reply:'Tu pedido sigue pendiente de confirmación del equipo; todavía no hay una cita agendada.',state};
@@ -188,13 +213,21 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
    }catch{return {reply:'No pude registrar el cambio ni avisar al equipo. Tu reunión no fue modificada; podés reintentar el pedido por acá.',state:original};}
   }
   if(state?.phase==='booked'&&explicitlyConfirmsMeeting(latest)){
-   if(/recordemos 1 hora antes/.test(lastQuestion)&&state.reminderRequested===undefined){
-    state={...state,reminderRequested:true,conversationState:'reunion_cerrada'};if(!options.preview){const person=await client(conversationId);if(person.leadId)await createCrmActivity({leadId:person.leadId,type:'nota',title:'Recordatorio de reunión solicitado',body:'El cliente solicita un recordatorio por WhatsApp una hora antes de la reunión. Pendiente de coordinación por un agente comercial.',createdBy:c.organizerId,externalSource:'mia_meeting_reminder_request',externalId:state.id});await save(conversationId,state,version);}
-    return {reply:options.preview?'Simulación: registraríamos tu preferencia de recordatorio.':'Registré tu preferencia de recordatorio por WhatsApp para que la confirme un agente comercial.',state};
+   if(!/recordemos 1 hora antes/.test(lastQuestion)||state.reminderRequested!==undefined) return null;
+   if(!options.preview && !(await verifiedBookedMeeting(state,c).catch(()=>false))) {
+    return {reply:'Un agente te confirma el horario. ¿Querés que te avise por acá?',state};
    }
-   return {reply:'Perfecto, la reunión ya está coordinada. Seguimos por acá si te surge alguna consulta.',state};
+   state={...state,reminderRequested:true,conversationState:'reunion_cerrada'};
+   if(!options.preview)await save(conversationId,state,version);
+   return {reply:'Registré tu preferencia para el recordatorio. ¿Querés que te ayude con algo más?',state};
   }
-  if(state?.phase==='booked')return meetingIntent(latest)&&/cu[aá]ndo|record|horario|link|enlace/i.test(latest)?{reply:bookedReply(state,c,options.preview),state}:null;
+  if(state?.phase==='booked'){
+   if(!meetingIntent(latest)||!/cu[aá]ndo|record|horario|link|enlace/i.test(latest))return null;
+   if(!options.preview && !(await verifiedBookedMeeting(state,c).catch(()=>false))) {
+    return {reply:'Un agente te confirma el horario. ¿Querés que te avise por acá?',state};
+   }
+   return {reply:options.preview?bookedReply(state,c,true):bookedClosing(state,c),state};
+  }
   const person=options.preview?{name:'',email:'',phone:''}:await client(conversationId);
   const form=extractConversationForms(messages);if(form.name)person.name=form.name;if(form.email&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email))person.email=form.email;if(form.phone)person.phone=form.phone;
   if(!options.offerOnly&&active&&state?.phase==='confirm'&&explicitlyConfirmsMeeting(latest))return await book(conversationId,state,version,c,person,!!options.preview,inbound?.whatsappMessageId);

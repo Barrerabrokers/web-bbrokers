@@ -5,6 +5,7 @@ import { deliverMetaSocialText } from '@/lib/meta-social-send';
 import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
 import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
+import { repeatsLastMessage } from '@/mia/lib/reply-safety';
 import { routesToMiaMeeting } from '@/mia/lib/meeting-routing';
 import { newMiaEngineAllows } from '@/mia/lib/rollout';
 import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
@@ -447,7 +448,13 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   const previousReply = activeHistory.findLast(message => message.direction === 'outbound')?.content ?? '';
   if (routesToMiaMeeting(inbound.content, previousReply)) {
     const meeting = await replyMiaMeeting(id, activeHistory);
-    if (meeting) return meeting.reply;
+    if (meeting) {
+      const reply = meeting.reply.includes('?') ? meeting.reply : meeting.reply + ' ¿Querés que te ayude con algo más?';
+      const questions = reply.replace(/https?:\/\/\S+/g, '').match(/\?/g) ?? [];
+      if (repeatsLastMessage(reply, previousReply) || questions.length !== 1 || reply.split('\n').length > 3) return null;
+      return reply;
+    }
+    if (/^(?:si|sí|dale|ok|perfecto|confirmo)[.! ]*$/i.test(inbound.content.trim())) return null;
   }
   return generateMiaWhatsAppReply(contact, history);
 }

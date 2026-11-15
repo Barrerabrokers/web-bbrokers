@@ -11,7 +11,7 @@ export type SheetProject = {
 export type SheetUnit = {
   project: SheetProject; unit: string | null; originalType: string | null;
   roomCount: number | null; price: string | null; currency: string; availability: string | null;
-  totalArea: string | null; downPayment: string | null;
+  totalArea: string | null; areaLabel?: 'propios'; downPayment: string | null;
   installments: { count: number; amount: string; frequency: string | null } | null;
 };
 
@@ -137,7 +137,7 @@ export function parseDevelopmentUnits(workbook: XLSX.WorkBook, project: SheetPro
     const priceColumn = fields.findIndex(value => /precio|\bprice\b/.test(value) && !/m2|m 2/.test(value));
     const currencyColumn = fields.findIndex(value => /moneda|currency/.test(value));
     const floorColumn = fields.findIndex(value => /piso|floor/.test(value));
-    const totalColumn = fields.findIndex(value => /m ?2 totales|superficie total|total m ?2|total area/.test(value));
+    const totalColumn = fields.findIndex(value => /m ?2 totales|superficie total|total m ?2|total area|propia unidad m ?2|private area per unit/.test(value));
     const downColumn = fields.findIndex(value => /anticipo|down payment/.test(value));
     const installmentColumn = fields.findIndex(value => /cuota|installment/.test(value) && !/forma de pago|cantidad|number of/.test(value));
     const countColumn = fields.findIndex(value => /cantidad.*cuotas|numero.*cuotas|number of installments/.test(value));
@@ -174,6 +174,7 @@ export function parseDevelopmentUnits(workbook: XLSX.WorkBook, project: SheetPro
             ? Number(originalType) : normalizedRooms(originalType)
           : null, price, currency, availability,
         totalArea: total === null ? null : total.toLocaleString('es-AR', {maximumFractionDigits: 2}),
+        areaLabel: /propia unidad|private area per unit/.test(fields[totalColumn] ?? '') ? 'propios' as const : undefined,
         downPayment, installments}];
     });
   });
@@ -197,9 +198,9 @@ export function linkedDelivery(workbook: XLSX.WorkBook) {
   return deliveries.size === 1 ? [...deliveries][0] : null;
 }
 
-export async function getVerifiedSheetOptions(projects: SheetProject[], zone: string, rooms: number[],
+export async function loadAvailableSheetUnits(projects: SheetProject[], zone: string,
   saveList?: (projectId: string, units: SheetUnit[]) => Promise<void>,
-  onUnavailable?: (project: SheetProject) => Promise<void>) {
+  onUnavailable?: (project: SheetProject) => Promise<void>, allowUnconfirmedDelivery = false) {
   const nearby = zone === 'nunez' ? ['nunez', 'belgrano'] : [zone];
   const candidates = projects.filter(project => nearby.includes(normalize(project.location)))
     .sort((a,b) => Number(normalize(b.location) === zone) - Number(normalize(a.location) === zone));
@@ -217,9 +218,16 @@ export async function getVerifiedSheetOptions(projects: SheetProject[], zone: st
       continue;
     }
     await saveList?.(project.id, result.value);
-    available.push(...result.value.filter(unit => unit.project.address && unit.project.delivery && unit.unit && unit.totalArea && unit.price && unit.availability &&
+    available.push(...result.value.filter(unit => unit.project.address && (unit.project.delivery || allowUnconfirmedDelivery) && unit.unit && unit.totalArea && unit.price && unit.availability &&
       /^(?:disponible|available)(?:\s*\/\s*(?:disponible|available))?$/i.test(unit.availability)));
   }
+  return available;
+}
+
+export async function getVerifiedSheetOptions(projects: SheetProject[], zone: string, rooms: number[],
+  saveList?: (projectId: string, units: SheetUnit[]) => Promise<void>,
+  onUnavailable?: (project: SheetProject) => Promise<void>) {
+  const available = await loadAvailableSheetUnits(projects, zone, saveList, onUnavailable);
   return rooms.flatMap(room => {
     const match = available.find(unit => unit.roomCount === room);
     return match ? [match] : [];

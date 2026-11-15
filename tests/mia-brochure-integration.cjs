@@ -26,11 +26,12 @@ async function run() {
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_cache.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_delivery_months.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_option_selection.sql', 'utf8'));
+    await tx.unsafe(fs.readFileSync('migrations/20261115_mia_last_message.sql', 'utf8'));
     tx.begin = callback => callback(tx);
     let sourceProjects = [];
     let sourceOptions = [];
     const mocks = {
-      './development-sheet': {deliveryMonths: value => value === '0 meses' ? 0 : null, getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async (_projects, _zone, _rooms, saveList) => {
+      './development-sheet': {loadAvailableSheetUnits: async () => sourceOptions, deliveryMonths: value => value === '0 meses' ? 0 : null, getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async (_projects, _zone, _rooms, saveList) => {
         if (sourceOptions.length) await saveList(sourceOptions[0].project.id, sourceOptions);
         return sourceOptions;
       }},
@@ -127,6 +128,23 @@ async function run() {
     assert.match(await generateMiaWhatsAppReply(optionsContact, history), /financiación de esa unidad está a confirmar/i);
     console.log('PASS financiación: usa la opción elegida, deriva solo la que carece de datos.');
     console.log('PASS opciones: dos unidades con precio y disponibilidad, un mensaje, ningún loop.');
+    const ugarte = {...project,id:randomUUID(),address:'Manuel Ugarte 1576',location:'Belgrano'};
+    sourceProjects = [ugarte];
+    sourceOptions = [{...sourceOptions[0],project:ugarte}];
+    const buyer = {phone:'549117' + String(Date.now()).slice(-7),contactName:'Sintético Ugarte'};
+    const ugarteHistory = [inbound('Vi que tenían un proyecto en Manuel Ugarte')];
+    const clarification = await generateMiaWhatsAppReply(buyer, ugarteHistory);
+    assert.equal(clarification,'¿Te interesa el de Ugarte 1576 o el de Ugarte 1524?');
+    ugarteHistory.push({direction:'outbound',content:clarification,status:'sent'},
+      inbound('Pásame valores de 1 y 2 alrededor de 50.000 y puedo pagar cuotas hasta 2000'));
+    const nearest = await generateMiaWhatsAppReply(buyer, ugarteHistory);
+    assert.match(nearest,/La más cercana; queda fuera del rango pedido.*Manuel Ugarte 1576.*Unidad 1-A/);
+    assert.doesNotMatch(nearest,/queda anotado|example\.invalid\/lista|USD 50.000/);
+    assert.equal((nearest.match(/\?/g) ?? []).length,1);
+    const [latest] = await tx`select v.last_message from mia_conversations v join mia_clients c on c.id=v.client_id
+      where c.whatsapp=${buyer.phone}`;
+    assert.equal(latest.last_message,nearest);
+    console.log('PASS Ugarte: una aclaración y unidad real más cercana, sin promesa ni lista.');
     throw rollback;
   });
 }

@@ -20,13 +20,13 @@ export async function recordConfirmedMiaMeeting(state: MeetingState, config: Mee
         where crm_lead_id = ${leadId} or whatsapp in (${whatsapp}, ${'+' + whatsapp})
         order by (crm_lead_id = ${leadId}) desc nulls last limit 1`;
       const [client] = existing ? [existing] : await tx`
-        insert into public.mia_clients (crm_lead_id, whatsapp, nombre, email, etapa_crm)
-        values (${leadId}, ${whatsapp}, ${state.name ?? ''}, ${state.email ?? null}, 'reunion')
+        insert into public.mia_clients (crm_lead_id, whatsapp, nombre, email)
+        values (${leadId}, ${whatsapp}, ${state.name ?? ''}, ${state.email ?? null})
         returning id`;
       await tx`
-        update public.mia_clients set etapa_crm = 'reunion',
+        update public.mia_clients set crm_lead_id = coalesce(crm_lead_id, ${leadId}),
           email = coalesce(nullif(${state.email ?? ''}, ''), email),
-          proximo_paso = 'reunion_cerrada', updated_at = now()
+          updated_at = now()
         where id = ${client.id}`;
       await tx`
         insert into public.mia_meetings (client_id, agente, dia, hora, modalidad, estado, google_event_id, lugar_link)
@@ -36,6 +36,17 @@ export async function recordConfirmedMiaMeeting(state: MeetingState, config: Mee
           ${mode}, 'confirmada', ${eventId}, ${location})
         on conflict (google_event_id) do nothing`;
     });
+  } finally {
+    await releaseSharedDatabase(sql);
+  }
+}
+
+export async function markMiaMeetingClosed(eventId: string) {
+  const sql = getSharedDatabase();
+  try {
+    await sql`
+      update public.mia_clients c set etapa_crm='reunion', proximo_paso='reunion_cerrada', updated_at=now()
+      from public.mia_meetings m where m.client_id=c.id and m.google_event_id=${eventId} and m.estado='confirmada'`;
   } finally {
     await releaseSharedDatabase(sql);
   }

@@ -1,8 +1,9 @@
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
 import { brochureAccepted, brochureRequested, lastQuestion, questionIntent, resolveBrochureProject, verifiedBrochureUrl } from './brochure';
-import { financingRequested, financingTerms, selectedOption, catalogFactsRequested, optionsRequested, optionsZone, renderVerifiedOptions, requestedRoomCounts, unverifiedCatalogClaim } from './catalog-options';
-import { type SheetUnit, deliveryMonths, getDevelopmentProjects, getVerifiedSheetOptions } from './development-sheet';
+import { catalogBudget, rankBudgetOptions, ugarteAddress, financingRequested, financingTerms, selectedOption, catalogFactsRequested, optionsRequested, optionsZone, renderVerifiedOptions, requestedRoomCounts, unverifiedCatalogClaim } from './catalog-options';
+import { type SheetProject, type SheetUnit, deliveryMonths, getDevelopmentProjects, getVerifiedSheetOptions, loadAvailableSheetUnits } from './development-sheet';
+import { repeatsLastMessage, unverifiedMeetingClaim } from './reply-safety';
 import { MIA_CONVERSATION_INSTRUCTIONS } from './conversation-instructions';
 
 type Message = { direction: string; content: string; whatsappMessageId?: string; status: string };
@@ -47,6 +48,14 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
       if (!inserted.length) return null;
 
       const previousReply = turns.findLast(turn => turn.direction === 'outbound')?.content ?? '';
+      const previousMessage = previousReply || conversation.last_message || '';
+      const recordReply = async (reply: string, version: number | null = null) => {
+        if (repeatsLastMessage(reply, previousMessage)) return null;
+        await tx`update public.mia_conversations set last_message=${reply} where id=${conversation.id}`;
+        await tx`insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto, conocimiento_version_usada)
+          values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply}, ${version})`;
+        return reply;
+      };
       const priorQuestion = conversation.ultima_pregunta ?? lastQuestion(previousReply);
       const choice = selectedOption(inbound.content);
       const asksFinancing = financingRequested(inbound.content);
@@ -76,9 +85,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         if (questionIntent(question) === questionIntent(priorQuestion)) return null;
         await tx`update public.mia_conversations set ultima_pregunta=${question} where id=${conversation.id}`;
         await tx`update public.mia_clients set ultima_pregunta=${question},updated_at=now() where id=${client.id}`;
-        await tx`insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto)
-          values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply})`;
-        return reply;
+        return recordReply(reply);
       }
       const requested = brochureRequested(inbound.content);
       const accepting = brochureAccepted(inbound.content);
@@ -131,20 +138,26 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
           where id=${client.id}`;
         await tx`update public.mia_conversations set brochure_ofrecido=true, brochure_enviado=false,
           brochure_proyecto=${projectKey}, ultima_pregunta=${question} where id=${conversation.id}`;
-        await tx`insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto)
-          values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply})`;
-        return reply;
+        return recordReply(reply);
       }
 
       const priorPromisedOptions = unverifiedCatalogClaim(previousReply) && /opciones|alternativas/i.test(previousReply);
       const wantsOptions = optionsRequested(inbound.content)
         || (requestedRoomCounts(inbound.content).length > 0 && /pasame|mandame|enviame|mostrame|busco|quiero/i.test(inbound.content))
         || (accepting && priorPromisedOptions);
-      if (wantsOptions || catalogFactsRequested(inbound.content)) {
+      const budget = catalogBudget(inbound.content);
+      const ugarte = recentInbound.map(ugarteAddress).find(Boolean);
+      const exactUgarte = ugarteAddress(inbound.content);
+      if (exactUgarte === 'ambos' && !wantsOptions && !budget.total && !budget.installment) {
+        const reply = '¿Te interesa el de Ugarte 1576 o el de Ugarte 1524?';
+        await tx`update public.mia_conversations set ultima_pregunta=${reply} where id=${conversation.id}`;
+        return recordReply(reply);
+      }
+      if (wantsOptions || catalogFactsRequested(inbound.content) || !!budget.total || !!budget.installment) {
         const evidence = [...recentInbound, String(client.zona ?? '')];
-        const zone = optionsZone(evidence);
+        const zone = ugarte ? 'belgrano' : optionsZone(evidence);
         const requestedRooms = evidence.map(requestedRoomCounts).find(rooms => rooms.length) ?? [];
-        const key = `planilla-unidad:${zone ?? 'sin-zona'}:${requestedRooms.join(',') || 'sin-ambientes'}`;
+        const key = `planilla-presupuesto:${ugarte ?? zone ?? 'sin-zona'}:${requestedRooms.join(',')}:${budget.total ?? ''}:${budget.installment ?? ''}`;
         const handled = conversation.opciones_proyecto === key || client.opciones_proyecto === key;
         if (handled) return null;
 
@@ -154,33 +167,49 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
               return [];
             })
           : [];
-        const options = zone && requestedRooms.length && projects.length
-          ? await getVerifiedSheetOptions(projects, zone, requestedRooms, async (projectId, units) => {
+        const saveList = async (projectId: string, units: SheetUnit[]) => {
               await tx`delete from public.mia_catalog_cache where proyecto=${projectId}`;
               if (units.length) {
                 await tx`insert into public.mia_catalog_cache ${tx(units.map((unit, index) => ({
                   proyecto: projectId, registro: String(index), moneda: unit.currency, entrega_meses: deliveryMonths(unit.project.delivery), datos: tx.json(unit),
                 })), 'proyecto', 'registro', 'moneda', 'entrega_meses', 'datos')}`;
               }
-            }, async project => {
+            };
+        const onUnavailable = async (project: SheetProject) => {
               const observation = 'Lista no accesible: ' + project.name + ' · ' + project.address;
               await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
                 select ${client.id}, 'Lista de precios no confirmada', ${observation}, 'pendiente'
                 where not exists(select 1 from public.mia_observations
                   where client_id=${client.id} and propuesta=${observation} and estado='pendiente')`;
-            }) : [];
+            };
+        const candidates = ugarte ? projects.filter(project => /ugarte/i.test(project.address)
+          && (ugarte === 'ambos' ? /\b(?:1576|1524)\b/.test(project.address) : project.address.endsWith(ugarte))) : projects;
+        const hasBudget = !!(budget.total || budget.installment);
+        const hadCachedProject = hasBudget && candidates.length
+          ? await tx`select proyecto from public.mia_catalog_cache where proyecto in ${tx(candidates.map(project=>project.id))} group by proyecto` : [];
+        const cachedProjects = new Set(hadCachedProject.map(row => row.proyecto));
+        candidates.sort((a,b) => Number(cachedProjects.has(b.id)) - Number(cachedProjects.has(a.id)));
+        const ranked = zone && requestedRooms.length && candidates.length && hasBudget
+          ? rankBudgetOptions(await loadAvailableSheetUnits(candidates, zone, saveList, onUnavailable, true), requestedRooms, budget) : null;
+        const options = ranked?.options ?? (zone && requestedRooms.length && candidates.length
+          ? await getVerifiedSheetOptions(candidates, zone, requestedRooms, saveList, onUnavailable) : []);
         const missing = requestedRooms.filter(room => !options.some(option => option.roomCount === room));
         const needsDetails = !zone || !requestedRooms.length;
         const reply = needsDetails
           ? !zone ? '¿En qué barrio querés que busque?' : '¿Cuántos ambientes necesitás?'
-          : options.length ? renderVerifiedOptions(options, missing)
+          : options.length ? renderVerifiedOptions(options, ranked?.closest ? [] : missing).replace('Opción 1: ',
+              ranked?.closest ? 'Opción 1: La más cercana; queda fuera del rango pedido. ' : 'Opción 1: ')
             : 'No las tengo verificadas ahora. Un agente comercial te las manda hoy por acá. ¿Querés que tenga en cuenta un presupuesto máximo?';
         const nextStep = options.length ? 'Detallar la opción elegida' :
           needsDetails ? 'Completar filtros de opciones' : 'Asesor debe verificar opciones de catálogo';
-        if (missing.length && !needsDetails) {
+        if ((missing.length || ranked?.closest) && !needsDetails) {
+          const note = ranked?.closest
+            ? 'Confirmar si hay una unidad más cercana al presupuesto y cuota solicitados en ' + (ugarte ? 'Manuel Ugarte' : zone)
+            : `Verificar ${missing.join(' y ')} ambientes en ${zone}`;
           await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
-            values (${client.id}, 'Pedido de opciones sin inventario verificado en planilla',
-            ${`Verificar ${missing.join(' y ')} ambientes en ${zone}`}, 'pendiente')`;
+            select ${client.id}, 'Pedido de opciones sin inventario verificado en planilla', ${note}, 'pendiente'
+            where not exists(select 1 from public.mia_observations
+              where client_id=${client.id} and propuesta=${note} and estado='pendiente')`;
         }
         const missingBrochures = new Set(options.filter(option => !option.project.brochure_url)
           .map(({project}) => 'Brochure pendiente de ' + project.name + ' · ' + project.address));
@@ -196,9 +225,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         await tx`update public.mia_conversations set opciones_enviadas=false, opciones_proyecto=${key},
           opciones_detalle=${tx.json(options)}, opcion_elegida=null,
           opciones_fecha=now(), ultima_pregunta=${lastQuestion(reply)} where id=${conversation.id}`;
-        await tx`insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto)
-          values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply})`;
-        return reply;
+        return recordReply(reply);
       }
 
       const strategies = await tx`
@@ -236,7 +263,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const reply = typeof candidate?.respuesta === 'string' ? candidate.respuesta.trim() : '';
         const nextIntent = questionIntent(lastQuestion(reply));
         const repeated = !!nextIntent && nextIntent === questionIntent(priorQuestion);
-        if (!repeated && nextIntent !== 'envio-material' && !brochureRequested(reply) && !unverifiedCatalogClaim(reply) && !/(?:https?:|www\.|docs\.google\.com|drive\.google\.com)/i.test(reply) && reply.endsWith('?') && (reply.match(/\?/g) ?? []).length === 1 &&
+        if (!repeated && !repeatsLastMessage(reply, previousMessage) && !unverifiedMeetingClaim(reply) && (reply.match(/¿/g) ?? []).length <= 1 && nextIntent !== 'envio-material' && !brochureRequested(reply) && !unverifiedCatalogClaim(reply) && !/(?:https?:|www\.|docs\.google\.com|drive\.google\.com)/i.test(reply) && reply.endsWith('?') && (reply.match(/\?/g) ?? []).length === 1 &&
             reply.split(/\r?\n/).length <= 3 && typeof candidate.resumen === 'string' &&
             typeof candidate.proximo_paso === 'string') {
           result = {...candidate, respuesta: reply};
@@ -244,24 +271,18 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         }
       }
       if (!result) {
-        const reply = 'Entendido. Queda anotado para seguir desde acá cuando quieras.';
-        await tx`insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto)
-          values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply})`;
-        return reply;
+        const reply = 'Prefiero que un agente verifique ese dato. ¿Querés que revisemos alguna otra duda?';
+        return recordReply(reply);
       }
       const reply = result.respuesta;
       await tx`update public.mia_clients set resumen = ${result.resumen}, proximo_paso = ${result.proximo_paso}, ultima_pregunta = ${lastQuestion(reply)}, updated_at = now() where id = ${client.id}`;
       await tx`update public.mia_conversations set resumen = ${result.resumen}, ultima_pregunta = ${lastQuestion(reply)} where id = ${conversation.id}`;
-      await tx`
-        insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto, conocimiento_version_usada)
-        values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply},
-          ${strategies[0]?.version ?? null})`;
       if (typeof result.propuesta === 'string' && result.propuesta.trim()) {
         await tx`
           insert into public.mia_observations (client_id, que_paso, propuesta, estado)
           values (${client.id}, 'Propuesta de mejora de WhatsApp', ${result.propuesta}, 'pendiente')`;
       }
-      return reply;
+      return recordReply(reply, strategies[0]?.version ?? null);
     });
   } finally {
     await releaseSharedDatabase(sql);
