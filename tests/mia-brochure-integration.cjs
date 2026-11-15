@@ -22,6 +22,7 @@ function load(file, mocks) {
 async function run() {
   await db.begin(async tx => {
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_brochure_state.sql', 'utf8'));
+    await tx.unsafe(fs.readFileSync('migrations/20261115_mia_options_state.sql', 'utf8'));
     tx.begin = callback => callback(tx);
     const mocks = {
       '@/lib/database-pool': {getSharedDatabase: () => tx, releaseSharedDatabase: async () => {}},
@@ -31,7 +32,7 @@ async function run() {
         },
       },
     };
-    const {generateMiaWhatsAppReply, markMiaBrochureSent} = load('mia/lib/whatsapp-flow.ts', mocks);
+    const {generateMiaWhatsAppReply, markMiaBrochureSent, markMiaOptionsSent} = load('mia/lib/whatsapp-flow.ts', mocks);
     const {questionIntent} = load('mia/lib/brochure.ts', mocks);
     assert.equal(questionIntent('¿Te parece bien si te envío el brochure?'),
       questionIntent('¿Querés recibir el folleto por acá?'));
@@ -69,6 +70,35 @@ async function run() {
       assert.equal(check.observations, url ? 0 : 1);
       console.log(url ? 'PASS URL verificada: un enlace, un envío y ningún loop.' : 'PASS sin URL: una derivación y una observación.');
     }
+    const {unverifiedCatalogClaim} = load('mia/lib/catalog-options.ts', mocks);
+    assert.equal(unverifiedCatalogClaim('Te preparo dos opciones con disponibilidad inmediata.'), true);
+    assert.equal(unverifiedCatalogClaim('¿Qué es lo más importante para vos?'), false);
+    const [project] = await tx`insert into developments(name,slug,description,location,address,visibility)
+      values('Prueba Parque de la Innovación',${'test-' + randomUUID()},'Sintético','Núñez','Sintética','public')
+      returning id`;
+    await tx`insert into units(development_id,unit_number,bedrooms,area,price,currency,status)
+      values (${project.id},'M-test',0,31,120000,'USD','disponible'),
+             (${project.id},'D-test',1,45,145000,'USD','disponible'),
+             (${project.id},'Reservado-test',0,30,1000,'USD','reservada'),
+             (${project.id},'Sin-precio-test',1,42,0,'USD','disponible')`;
+    const optionsContact = {phone:'549118' + String(Date.now()).slice(-7),contactName:'Sintético'};
+    const inbound = content => ({direction:'inbound', content, status:'received', whatsappMessageId:'wamid.test.' + randomUUID()});
+    const request = inbound('Pásame dos opciones 1 ambiente y dos ambientes');
+    const history = [inbound('La ubicación por el parque de la innovación'), inbound('Si'), request];
+    const options = await generateMiaWhatsAppReply(optionsContact, history);
+    assert.match(options, /Opción 1: .*1 ambiente.*USD.*Disponible según CRM/);
+    assert.match(options, /Opción 2: .*2 ambientes.*USD.*Disponible según CRM/);
+    assert.doesNotMatch(options, /Reservado-test|Sin-precio-test|disponibilidad inmediata|te preparo/i);
+    assert.equal(options.split('\n').length, 3);
+    assert.equal((options.match(/\?/g) ?? []).length, 1);
+    await markMiaOptionsSent(request.whatsappMessageId, options);
+    history.push({direction:'outbound', content:options, status:'sent'}, inbound('Quiero ver las opciones'));
+    assert.equal(await generateMiaWhatsAppReply(optionsContact, history), null);
+    const [sent] = await tx`select c.opciones_enviadas, v.opciones_enviadas as conversation_sent,
+      (select count(*)::int from mia_messages m where m.conversation_id=v.id and m.direccion='outbound') as replies
+      from mia_clients c join mia_conversations v on v.client_id=c.id where c.whatsapp=${optionsContact.phone}`;
+    assert.deepEqual({...sent}, {opciones_enviadas:true, conversation_sent:true, replies:1});
+    console.log('PASS opciones: dos unidades con precio y disponibilidad, un mensaje, ningún loop.');
     throw rollback;
   });
 }

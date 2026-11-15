@@ -41,9 +41,10 @@ export async function processWhatsAppAiRetries() {
         for (const part of splitMiaReplyMessages(reply)) {
           const outboundId=await sendWhatsAppText(conversation.phone,part,conversation.businessPhoneNumberId);
           await saveWhatsAppMessage({conversationId:conversation.id,whatsappMessageId:outboundId,direction:'outbound',senderType:'ai',content:part});
-          if (part.startsWith('Sí, acá te lo mando: https://')) {
-            const {markMiaBrochureSent} = await import('@/mia/lib/whatsapp-flow');
+          if (part.startsWith('Sí, acá te lo mando: https://') || part.startsWith('Opción 1: ')) {
+            const {markMiaBrochureSent, markMiaOptionsSent} = await import('@/mia/lib/whatsapp-flow');
             await markMiaBrochureSent(job.message_id, part);
+            await markMiaOptionsSent(job.message_id, part);
           }
         }
         await finishMiaPublicHandoff(conversation.id,last.content);
