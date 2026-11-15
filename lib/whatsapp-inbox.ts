@@ -3,6 +3,8 @@ import { getMiaAccess, miaAccessAllows } from '@/lib/mia-access';
 import { persistWhatsAppLeadForm } from "@/lib/whatsapp-lead-enrichment";
 import { deliverMetaSocialText } from '@/lib/meta-social-send';
 import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
+import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
+import { replyMiaMeeting } from '@/mia/lib/meetings';
 import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
 import type { WhatsAppAttachment } from '@/lib/whatsapp-attachments';
 import { requestsHuman } from "@/lib/whatsapp-sales-policy";
@@ -425,5 +427,11 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   const id = messages[0]?.conversationId;
   if (!id || !miaAccessAllows(await getMiaAccess(), id)) return null;
   const history = await listWhatsAppMessages(id, null);
-  return generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
+  const contact = await getWhatsAppConversation(id);
+  if (!contact) return null;
+  if (contact.channel !== 'whatsapp') return generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
+  if (!contact.aiEnabled || contact.status === 'closed') return null;
+  const meeting = await replyMiaMeeting(id, history);
+  if (meeting) return meeting.reply;
+  return generateMiaWhatsAppReply(contact, history);
 }

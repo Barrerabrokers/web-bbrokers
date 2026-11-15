@@ -8,6 +8,10 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/mia-reminders",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/meta-leads",
       "schedule": "*/5 * * * *"
     },
