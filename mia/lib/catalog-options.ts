@@ -40,6 +40,21 @@ export function unverifiedCatalogClaim(text: string) {
     || /\b(?:usd|ars|u\$s)\s*[\d.]|\$\s*\d|\b\d[\d.,]*\s*(?:dolares|pesos)\b/.test(value);
 }
 
+export function financingTerms(option: SheetUnit) {
+  if (!option.downPayment || !option.installments) return null;
+  const {count, amount, frequency} = option.installments;
+  return `Anticipo ${option.downPayment} + ${count} cuotas${frequency ? ' ' + frequency : ''} de ${amount}`;
+}
+
+export function financingRequested(text: string) {
+  return /financi|anticipo|cuotas/i.test(text);
+}
+
+export function selectedOption(text: string) {
+  const match = /\bopci[oó]n\s*([12])\b|^\s*([12])\s*[.!]?\s*$/i.exec(text);
+  return match ? Number(match[1] ?? match[2]) : null;
+}
+
 export function renderVerifiedOptions(options: SheetUnit[], missing: number[] = []) {
   const pending = new Set<string>();
   const lines = options.map((option, index) => {
@@ -47,15 +62,16 @@ export function renderVerifiedOptions(options: SheetUnit[], missing: number[] = 
     const originalType = /\bstudio\b/i.test(option.originalType ?? '') ? 'Studio' : option.originalType;
     const rooms = option.roomCount === 1
       ? `1 ambiente tipo ${originalType}` : `${option.roomCount} ambientes`;
-    const link = project.brochure_url ? 'Brochure ' + project.brochure_url : 'Lista de precios ' + project.listUrl;
+    const link = project.brochure_url ? ' - Brochure ' + project.brochure_url : '';
+    const financing = financingTerms(option) ?? 'Financiación a confirmar';
     if (!project.brochure_url) pending.add(project.id);
     const delivery = deliveryMonths(project.delivery) === 0 ? 'Entrega inmediata' : 'Entrega ' + project.delivery;
     const availability = /^disponible|^available/i.test(option.availability ?? '') ? 'Disponible' : option.availability;
-    return `Opción ${index + 1}: ${project.name} - ${project.address}, ${project.location} - ${rooms} - ${option.price} - ${availability} - ${delivery} - ${link}`;
+    return `Opción ${index + 1}: ${project.name} - ${project.address}, ${project.location} - Unidad ${option.unit} - ${rooms} - ${option.totalArea} m² totales - ${option.price} - ${financing} - ${delivery} - ${availability}${link}`;
   });
   if (pending.size) lines[lines.length - 1] += pending.size === 1
-    ? ' — El brochure de este proyecto está pendiente, te comparto la lista de precios.'
-    : ' — Los brochures de estos proyectos están pendientes, te comparto las listas de precios.';
+    ? ' — El brochure de este proyecto está pendiente.'
+    : ' — Los brochures de estos proyectos están pendientes.';
   return lines.join('\n') + (options.length === 2
     ? '\n¿Cuál querés que te detalle primero, la de 1 o la de 2?'
     : missing.length

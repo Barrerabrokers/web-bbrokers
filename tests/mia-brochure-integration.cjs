@@ -25,6 +25,7 @@ async function run() {
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_options_state.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_cache.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_delivery_months.sql', 'utf8'));
+    await tx.unsafe(fs.readFileSync('migrations/20261115_mia_option_selection.sql', 'utf8'));
     tx.begin = callback => callback(tx);
     let sourceProjects = [];
     let sourceOptions = [];
@@ -85,8 +86,8 @@ async function run() {
       location:'Núñez',delivery:'0 meses',listUrl:'https://example.invalid/lista',brochure_url:null};
     sourceProjects = [project];
     sourceOptions = [
-      {project,originalType:'Studio',roomCount:1,price:'USD 120.000',currency:'USD',availability:'Disponible'},
-      {project,originalType:'2 ambientes',roomCount:2,price:'USD 145.000',currency:'USD',availability:'Disponible'},
+      {project,unit:'1-A',totalArea:'40',downPayment:'USD 36.000',installments:{count:24,amount:'USD 3.500',frequency:'mensuales'},originalType:'Studio',roomCount:1,price:'USD 120.000',currency:'USD',availability:'Disponible'},
+      {project,unit:'2-B',totalArea:'58',downPayment:null,installments:null,originalType:'2 ambientes',roomCount:2,price:'USD 145.000',currency:'USD',availability:'Disponible'},
     ];
     const optionsContact = {phone:'549118' + String(Date.now()).slice(-7),contactName:'Sintético'};
     const inbound = content => ({direction:'inbound', content, status:'received', whatsappMessageId:'wamid.test.' + randomUUID()});
@@ -102,6 +103,8 @@ async function run() {
     assert.equal((options.match(/Entrega inmediata/g) ?? []).length, 2);
     assert.equal((options.match(/brochure de este proyecto está pendiente/g) ?? []).length, 1);
     assert.doesNotMatch(options, /0 meses/);
+    assert.doesNotMatch(options, /example\.invalid\/lista|Lista de precios/i);
+    assert.match(options, /Unidad 1-A.*40 m² totales.*Anticipo USD 36.000.*24 cuotas mensuales de USD 3.500/);
     assert.equal(options.split('\n').length, 3);
     assert.equal((options.match(/\?/g) ?? []).length, 1);
     await markMiaOptionsSent(request.whatsappMessageId, options);
@@ -114,6 +117,15 @@ async function run() {
     const [pending] = await tx`select count(*)::int as n from mia_observations o join mia_clients c on c.id=o.client_id
       where c.whatsapp=${optionsContact.phone} and o.que_paso='Brochure pendiente' and o.propuesta like '%Prueba 150'`;
     assert.equal(pending.n, 1);
+    history.push(inbound('Opción 1'));
+    const selection = await generateMiaWhatsAppReply(optionsContact, history);
+    assert.match(selection, /unidad 1-A/);
+    history.push({direction:'outbound',content:selection,status:'sent'},inbound('Se puede financiar?'));
+    const financing = await generateMiaWhatsAppReply(optionsContact, history);
+    assert.match(financing, /Opción 1, unidad 1-A.*USD 36.000.*24 cuotas mensuales de USD 3.500/);
+    history.push({direction:'outbound',content:financing,status:'sent'},inbound('Se puede financiar la Opción 2?'));
+    assert.match(await generateMiaWhatsAppReply(optionsContact, history), /financiación de esa unidad está a confirmar/i);
+    console.log('PASS financiación: usa la opción elegida, deriva solo la que carece de datos.');
     console.log('PASS opciones: dos unidades con precio y disponibilidad, un mensaje, ningún loop.');
     throw rollback;
   });

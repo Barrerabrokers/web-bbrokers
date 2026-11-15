@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export const PROJECT_SHEET_ID = '1ETOspJQfcnAVvjGp7mJ2Qx5TNXDQsYG88A9GRSPClMA';
-const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '')
+const normalize = (value: string) => value.normalize('NFKD').replace(/\p{M}/gu, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 export type SheetProject = {
@@ -11,6 +11,8 @@ export type SheetProject = {
 export type SheetUnit = {
   project: SheetProject; unit: string | null; originalType: string | null;
   roomCount: number | null; price: string | null; currency: string; availability: string | null;
+  totalArea: string | null; downPayment: string | null;
+  installments: { count: number; amount: string; frequency: string | null } | null;
 };
 
 function https(value: string | undefined) {
@@ -107,6 +109,20 @@ export function normalizedRooms(value: string) {
   return null;
 }
 
+function positiveNumber(value: string) {
+  let numeric = value.trim().replace(/^(?:[A-Z]{3}|U\$S|US\$|\$|€|£)\s*/i, '');
+  if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(numeric)) numeric = numeric.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(numeric)) numeric = numeric.replace(/,/g, '');
+  else numeric = numeric.replace(',', '.');
+  const amount = Number(numeric);
+  return /^\d+(?:\.\d+)?$/.test(numeric) && Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function money(value: string, currency: string) {
+  const amount = positiveNumber(value);
+  return amount === null ? null : `${currency} ${amount.toLocaleString('es-AR', {maximumFractionDigits: 2})}`;
+}
+
 export function parseDevelopmentUnits(workbook: XLSX.WorkBook, project: SheetProject): SheetUnit[] {
   return workbook.SheetNames.flatMap(name => {
     const sheet = workbook.Sheets[name];
@@ -121,6 +137,13 @@ export function parseDevelopmentUnits(workbook: XLSX.WorkBook, project: SheetPro
     const priceColumn = fields.findIndex(value => /precio|\bprice\b/.test(value) && !/m2|m 2/.test(value));
     const currencyColumn = fields.findIndex(value => /moneda|currency/.test(value));
     const floorColumn = fields.findIndex(value => /piso|floor/.test(value));
+    const totalColumn = fields.findIndex(value => /m ?2 totales|superficie total|total m ?2|total area/.test(value));
+    const downColumn = fields.findIndex(value => /anticipo|down payment/.test(value));
+    const installmentColumn = fields.findIndex(value => /cuota|installment/.test(value) && !/forma de pago|cantidad|number of/.test(value));
+    const countColumn = fields.findIndex(value => /cantidad.*cuotas|numero.*cuotas|number of installments/.test(value));
+    const frequencyColumn = fields.findIndex(value => /frecuencia|frequency|periodicidad/.test(value));
+    const installmentHeader = values[header][installmentColumn] ?? '';
+    const headerCount = Number(installmentHeader.match(/(?:\bx\s*|\b)(\d+)\s*(?:cuotas|installments|\))/i)?.[1] ?? 0);
     return values.slice(header + 1).flatMap(row => {
       const unit = row[unitColumn]?.trim() || null;
       const originalType = row[typeColumn]?.trim() || null;
@@ -133,18 +156,25 @@ export function parseDevelopmentUnits(workbook: XLSX.WorkBook, project: SheetPro
         /\bGBP\b|£/i.test(priceContext) ? 'GBP' :
         /\b(?:UYU|BRL|CLP|MXN|CAD|CHF|PYG|BOB|COP|PEN)\b/i.exec(priceContext)?.[0].toUpperCase() ??
         (/^[A-Z]{3}$/i.test(row[currencyColumn]?.trim() ?? '') ? row[currencyColumn].trim().toUpperCase() : 'USD');
-      let numeric = rawPrice.replace(/[^0-9.,-]/g, '');
-      if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(numeric)) numeric = numeric.replace(/\./g, '').replace(',', '.');
-      else if (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(numeric)) numeric = numeric.replace(/,/g, '');
-      else numeric = numeric.replace(',', '.');
-      const amount = Number(numeric);
-      const price = /^\d+(?:\.\d+)?$/.test(numeric) && Number.isFinite(amount) && amount > 0
-        ? `${currency} ${amount.toLocaleString('es-AR', {maximumFractionDigits: 2})}` : null;
+      const price = money(rawPrice, currency);
+      const total = positiveNumber(row[totalColumn] ?? '');
+      const downPayment = /%/.test(row[downColumn] ?? '') ? null : money(row[downColumn] ?? '', currency);
+      const rawInstallment = row[installmentColumn] ?? '';
+      const embedded = /^(\d+)\s+(?:cuotas|installments)\s+(?:de|of)\s+(.+?)(?:\s+(?:mensuales|monthly|trimestrales))?$/i.exec(rawInstallment.trim());
+      const count = Number(row[countColumn] || embedded?.[1] || headerCount);
+      const installmentAmount = money(embedded?.[2] ?? rawInstallment, currency);
+      const frequencySource = [row[frequencyColumn], installmentHeader, rawInstallment].join(' ');
+      const frequency = /mensual|monthly/i.test(frequencySource) ? 'mensuales' :
+        /trimestral|quarterly/i.test(frequencySource) ? 'trimestrales' : null;
+      const installments = Number.isInteger(count) && count > 0 && installmentAmount
+        ? {count, amount: installmentAmount, frequency} : null;
       return [{project, unit: unit && row[floorColumn] ? `${row[floorColumn]}-${unit}` : unit,
         originalType, roomCount: originalType
           ? /^\d+$/.test(originalType) && /ambientes|dormitorios|bedrooms/.test(fields[typeColumn])
             ? Number(originalType) : normalizedRooms(originalType)
-          : null, price, currency, availability}];
+          : null, price, currency, availability,
+        totalArea: total === null ? null : total.toLocaleString('es-AR', {maximumFractionDigits: 2}),
+        downPayment, installments}];
     });
   });
 }
@@ -187,7 +217,7 @@ export async function getVerifiedSheetOptions(projects: SheetProject[], zone: st
       continue;
     }
     await saveList?.(project.id, result.value);
-    available.push(...result.value.filter(unit => unit.project.address && unit.project.delivery && unit.price && unit.availability &&
+    available.push(...result.value.filter(unit => unit.project.address && unit.project.delivery && unit.unit && unit.totalArea && unit.price && unit.availability &&
       /^(?:disponible|available)(?:\s*\/\s*(?:disponible|available))?$/i.test(unit.availability)));
   }
   return rooms.flatMap(room => {

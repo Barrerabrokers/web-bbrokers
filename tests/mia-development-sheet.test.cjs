@@ -59,3 +59,20 @@ test('zero delivery and generic Drive URLs are handled without inventing a broch
   const projects=parseDevelopmentProjects(workbook);
   assert.deepEqual(projects.map(p=>p.brochure_url),[null,null,'https://drive.google.com/file/d/example/view']);
 });
+
+test('financing is read from the same unit row and omitted if missing', () => {
+  const w=xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(w,xlsx.utils.aoa_to_sheet([
+    ['Piso','Unidad','Tipología','Estado','M² Totales','Precio','Anticipo','Cuota (x24)','Frecuencia'],
+    [1,'A','Studio','Disponible',55.5,130900,40000,3000,'mensual'],
+    [2,'B','2 amb','Disponible',75,274400,'','',''],
+  ]),'Lista');
+  const [first,second]=parseDevelopmentUnits(w,{});
+  assert.equal(first.unit,'1-A');
+  assert.equal(first.totalArea,'55,5');
+  assert.equal(first.price,'USD 130.900');
+  assert.equal(first.downPayment,'USD 40.000');
+  assert.deepEqual(first.installments,{count:24,amount:'USD 3.000',frequency:'mensuales'});
+  assert.equal(second.downPayment,null);
+  assert.equal(second.installments,null);
+});
