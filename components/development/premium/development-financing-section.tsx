@@ -9,7 +9,8 @@ interface DevelopmentFinancingSectionProps {
 
 export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSectionProps) {
   const { development, priceFrom, units, brochureHref, priceListHref } = model;
-  const unitWithPlan = units.find(
+  const isAlpha = development.slug === "alpha-place-libertador";
+  const unitWithPlan = (isAlpha ? [] : units).find(
     (unit) => unit.downPayment || unit.installmentCount || unit.installmentValue
   );
   const hasDocuments = Boolean(brochureHref || priceListHref);
@@ -22,25 +23,25 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
             Propuesta comercial
           </p>
           <h2 className="mt-4 font-display text-[clamp(3rem,6vw,6rem)] font-light leading-[0.92] tracking-[-0.04em]">
-            Financiación presentada con claridad.
+            Elegí tu unidad. Conocé su plan de pago.
           </h2>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-[#070707]/68 md:text-lg">
-            Los valores se muestran a partir de la información cargada en las unidades. Las condiciones pueden variar según disponibilidad.
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-[#070707]/80 md:text-lg">
+            {isAlpha ? "Pedinos la cotización vigente de la unidad que te interesa, con anticipo, cantidad de cuotas, moneda y condiciones de ajuste." : "Consultá el anticipo y las cuotas de cada unidad. Las condiciones pueden variar según disponibilidad."}
           </p>
         </div>
 
-        <div className="grid gap-px overflow-hidden border border-[#070707]/12 bg-[#070707]/12 md:grid-cols-3" data-dev-reveal>
+        {!isAlpha && <div className="grid gap-px overflow-hidden border border-[#070707]/12 bg-[#070707]/12 md:grid-cols-3" data-dev-reveal>
           <div className="bg-[#f8f5ef] p-6">
             <Calculator className="mb-10 h-5 w-5 text-[#3a1d17]" />
-            <p className="text-[10px] uppercase tracking-[0.16em] text-[#070707]/48">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#070707]/75">
               Precio desde
             </p>
             <p className="mt-2 font-display text-3xl font-light">
-              {priceFrom ? formatPrice(priceFrom) : "Consultar"}
+              {!isAlpha && priceFrom ? formatPrice(priceFrom) : "Consultar"}
             </p>
           </div>
           <div className="bg-[#f8f5ef] p-6">
-            <p className="mb-10 text-[10px] uppercase tracking-[0.16em] text-[#070707]/48">
+            <p className="mb-10 text-[10px] uppercase tracking-[0.16em] text-[#070707]/75">
               Anticipo
             </p>
             <p className="font-display text-3xl font-light">
@@ -48,7 +49,7 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
             </p>
           </div>
           <div className="bg-[#f8f5ef] p-6">
-            <p className="mb-10 text-[10px] uppercase tracking-[0.16em] text-[#070707]/48">
+            <p className="mb-10 text-[10px] uppercase tracking-[0.16em] text-[#070707]/75">
               Cuotas
             </p>
             <p className="font-display text-3xl font-light">
@@ -57,7 +58,16 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
                 : "Consultar"}
             </p>
           </div>
-        </div>
+        </div>}
+
+        {isAlpha && (
+          <div className="border-t border-ink/25 pt-6 lg:col-start-2">
+            <p className="mb-3 font-display text-3xl">Un plan para la unidad que elegís.</p>
+            <p className="mb-6 max-w-xl leading-relaxed">Recibí el detalle del anticipo, las cuotas y el importe total. Revisamos con vos los plazos y la documentación para avanzar.</p>
+            <a href="#contacto-desarrollo" className="btn-primary">Pedir cotización de mi unidad</a>
+            <p className="mt-4 text-sm leading-relaxed">Confirmamos disponibilidad y condiciones antes de avanzar con la reserva.</p>
+          </div>
+        )}
 
         {hasDocuments && (
           <div className="lg:col-start-2" data-dev-reveal>

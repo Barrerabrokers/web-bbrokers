@@ -1,3 +1,7 @@
+import { Suspense } from "react";
+import { MetaCatalogEvent } from "@/components/meta-website-tracking";
+import { serializeJsonLd } from "@/lib/seo-structured-data";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -11,7 +15,7 @@ import { absoluteUrl, SEO_KEYWORDS, SITE_NAME, truncateDescription } from "@/lib
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export const metadata: Metadata = {
+const spanishMetadata: Metadata = {
   title: "Departamentos para invertir y propiedades en Buenos Aires",
   description:
     "Buscá departamentos para invertir y propiedades en venta en Buenos Aires: Recoleta, Palermo, Belgrano, Nuñez, Puerto Madero y zonas de alta demanda.",
@@ -27,6 +31,12 @@ export const metadata: Metadata = {
     canonical: absoluteUrl("/propiedades"),
   },
 };
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ categoria?: string }> }): Promise<Metadata> {
+  const { categoria } = await searchParams;
+  const rental = ["rentals", "alquileres", "alquiler"].includes((categoria || "").toLowerCase());
+  return localizePublicMetadata({ ...spanishMetadata, ...(rental ? { robots: { index: false, follow: true } } : {}) });
+}
 
 export default async function PropertiesPage({
   searchParams: pendingsearchParams,
@@ -123,10 +133,11 @@ export default async function PropertiesPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(propertyListSchema),
+          __html: serializeJsonLd(propertyListSchema),
         }}
       />
       <Header />
+      {activeCategory && <Suspense fallback={null}><MetaCatalogEvent name="Search" data={{ content_type: "home_listing", content_category: activeCategory.value, content_ids: properties.filter(p => p.visibility === "public").slice(0, 10).map(p => p.id), city: "Buenos Aires", region: "Buenos Aires", country: "AR" }} /></Suspense>}
 
       <main className="pt-32 pb-32">
         <div className="container-custom">

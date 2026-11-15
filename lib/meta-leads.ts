@@ -1,3 +1,4 @@
+import { isNewMetaRecontact, reopenMetaContact } from "@/lib/meta-recontact";
 import { createHmac, timingSafeEqual } from "crypto";
 import postgres from "postgres";
 import { getDevelopments } from "@/lib/developments-db";
@@ -142,10 +143,47 @@ function splitName(rawName: string, email: string) {
 
   const parts = cleanName.split(/\s+/).filter(Boolean);
   if (parts.length === 1) return { firstName: parts[0], lastName: "-" };
+
+  // Campaign forms normally send the full name in a single field. Keep the
+  // requested commercial convention consistent: one/two given names first,
+  // followed by one/two surnames. For longer names, retain every remaining
+  // token as a surname instead of dropping information.
+  if (parts.length === 2) {
+    return { firstName: parts[0], lastName: parts[1] };
+  }
+  if (parts.length === 3) {
+    return { firstName: parts.slice(0, 2).join(" "), lastName: parts[2] };
+  }
   return {
-    firstName: parts.slice(0, -1).join(" "),
-    lastName: parts.slice(-1).join(" "),
+    firstName: parts.slice(0, 2).join(" "),
+    lastName: parts.slice(2).join(" "),
   };
+}
+
+function metaSocialSource(platform?: string) {
+  const normalizedPlatform = normalizeKey(platform || "");
+  if (["ig", "instagram"].includes(normalizedPlatform)) return "Instagram";
+  if (["fb", "facebook"].includes(normalizedPlatform)) return "Facebook";
+  return "Meta Lead Ads";
+}
+
+function getSocialProfileValue(fields: Map<string, string>) {
+  const direct = getMappedValue(fields, [
+    "instagram",
+    "instagram_handle",
+    "instagram_username",
+    "perfil_instagram",
+    "facebook",
+    "facebook_profile",
+    "red_social",
+    "social_profile",
+  ]);
+  if (direct) return direct;
+
+  for (const [key, value] of fields) {
+    if (/(instagram|facebook|red_social|social_profile|perfil_social)/.test(key)) return value;
+  }
+  return "";
 }
 
 function splitPhone(rawPhone: string) {
@@ -414,6 +452,7 @@ export async function importMetaLeadgenId(
     "full_name",
     "full name",
     "nombre_y_apellido",
+    "nombre_y_apellidos",
     "nombre completo",
     "name",
   ]);
@@ -421,6 +460,7 @@ export async function importMetaLeadgenId(
   const lastNameField = getMappedValue(fields, ["last_name", "lastname", "apellido"]);
   const name = splitName(rawFullName, email);
   const phone = splitPhone(rawPhone);
+  const socialProfile = getSocialProfileValue(fields);
   const auditAgentId = options?.context?.auditAgentId || await defaultAssignedAgentId();
   const formName = await metaFetchFormName(lead.form_id || options?.webhookValue?.form_id, options?.context);
   const development = await matchDevelopment(lead, fields, formName, options?.context);
@@ -432,7 +472,8 @@ export async function importMetaLeadgenId(
     countryCode: phone.countryCode,
     phone: phone.phone || rawPhone || "-",
     status: "Nuevo",
-    source: "Meta Lead Ads",
+    source: metaSocialSource(lead.platform),
+    socialProfile,
     developmentId: development?.id,
     developmentNameText: development?.name || "",
     assignedAgentId: undefined,
@@ -451,6 +492,13 @@ export async function importMetaLeadgenId(
   // The source activity is the recovery completion marker. Persist the owner
   // notification first; its unique event key makes a crash/retry safe.
   if (!result.created) {
+    const recontact = {
+      leadId: result.lead.id, campaignLeadId: lead.id, campaignName: lead.campaign_name, formName,
+    };
+    if (isNewMetaRecontact(lead.created_time)) {
+      try { await reopenMetaContact(recontact); }
+      catch { throw new Error("El contacto se guardó, pero falta reabrirlo y avisar al propietario. Se reintentará sin duplicarlo."); }
+    } else {
     const notification = await notifyCrmCampaignRecontact({
       leadId: result.lead.id,
       campaignLeadId: lead.id,
@@ -458,12 +506,13 @@ export async function importMetaLeadgenId(
       formName,
     });
     if (notification?.error) throw new Error("El contacto se guardó, pero falta avisar al propietario. Se reintentará sin duplicarlo.");
+    }
   }
 
   const activityResult = await createCrmActivity({
     leadId: result.lead.id,
     type: "nota",
-    title: result.created ? "Lead recibido desde Meta" : "Lead actualizado desde Meta",
+    title: result.created ? "Lead recibido desde Meta" : isNewMetaRecontact(lead.created_time) ? "El cliente volvió a consultar desde Meta" : "Lead actualizado desde Meta",
     body: [
       lead.ad_name ? `Anuncio: ${lead.ad_name}` : "",
       lead.campaign_name ? `Campaña: ${lead.campaign_name}` : "",

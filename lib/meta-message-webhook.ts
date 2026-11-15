@@ -1,6 +1,10 @@
+import { splitMiaReplyMessages } from '@/lib/mia-reply-messages';
+import { claimInstagramAiSend, releaseWhatsAppSend } from '@/lib/whatsapp-turn-lock';
+import { canMiaContinue, miaRequestsAdvisor } from '@/lib/whatsapp-mia-conversation';
 import { createCrmActivity } from "@/lib/db";
 import {
   ensureSocialContact,
+  getWhatsAppConversation,
   generateWhatsAppAiReply,
   listWhatsAppMessages,
   saveWhatsAppMessage,
@@ -32,40 +36,54 @@ export async function processMetaMessages(payload: any) {
     ];
     for (const event of events) {
       if (!event) continue;
-      if (!event.sender?.id || event.message?.is_echo || !event.message?.mid) continue;
+      if (!event.sender?.id || !event.message?.mid) continue;
       const content = socialMessageContent(event.message);
       if (!content) continue;
-      const conversation = await ensureSocialContact(channel, String(event.sender.id));
+      const echo = event.message.is_echo === true;
+      const contactId = echo ? event.recipient?.id : event.sender.id;
+      if (!contactId) continue;
+      const conversation = await ensureSocialContact(channel, String(contactId), '', { enableAi: channel === 'instagram' });
       if (!conversation) continue;
       const inserted = await saveWhatsAppMessage({
         conversationId: conversation.id,
         whatsappMessageId: event.message.mid,
-        direction: "inbound",
-        senderType: "customer",
+        direction: echo ? "outbound" : "inbound",
+        senderType: echo ? "agent" : "customer",
+        createdAt: new Date(event.timestamp ? Number(event.timestamp) * (Number(event.timestamp) < 1e12 ? 1000 : 1) : Date.now()).toISOString(),
         content: content,
       });
       if (inserted && conversation.leadId) {
         await createCrmActivity({
           leadId: conversation.leadId,
           type: "whatsapp",
-          title: `Respuesta por ${channel === "instagram" ? "Instagram" : "Facebook"}`,
+          title: `${echo ? "Enviado" : "Recibido"} por ${channel === "instagram" ? "Instagram" : "Facebook"}`,
           body: content,
           scheduledAt: new Date(event.timestamp ? Number(event.timestamp) * (Number(event.timestamp) < 1e12 ? 1000 : 1) : Date.now()).toISOString(),
-          externalSource: `${channel}_inbound`,
+          externalSource: `${channel}_${echo ? "outbound" : "inbound"}`,
           externalId: event.message.mid,
-        });
+        }).catch(() => console.error("social-message-activity-failed"));
       }
-      if (!inserted || !conversation.aiEnabled || conversation.status === "closed" || conversation.assignedAgentId) continue;
+      if (echo || !inserted || !conversation.aiEnabled || conversation.status === "closed" || (conversation.assignedAgentId && !conversation.aiAssistAssigned)) continue;
+      let sendToken:string|null=null;
       try {
-        const escalate = shouldEscalateConversation(content);
         const history = await listWhatsAppMessages(conversation.id, 30);
-        const reply = escalate
-          ? "Perfecto. Te derivo con un asesor de Barrera Brokers para que continúe con toda la información de esta conversación."
-          : await generateWhatsAppAiReply(history);
-        const outboundId = await sendMetaSocialText(channel, String(event.sender.id), reply);
-        await saveWhatsAppMessage({ conversationId: conversation.id, whatsappMessageId: outboundId, direction: "outbound", senderType: "ai", content: reply });
+        if(!canMiaContinue(history))continue;
+        const escalate = miaRequestsAdvisor(content);
+        const reply = await generateWhatsAppAiReply(history);
+        if (!reply) continue;
+        const current = await getWhatsAppConversation(conversation.id);
+        if(!current?.aiEnabled || current.status==='closed' || (current.assignedAgentId&&!current.aiAssistAssigned))continue;
+        if(channel==='instagram') {
+          sendToken=await claimInstagramAiSend(conversation.id,event.message.mid);
+          if(!sendToken)continue;
+        }
+        for (const part of splitMiaReplyMessages(reply)) {
+          const outboundId = await sendMetaSocialText(channel, String(event.sender.id), part);
+          await saveWhatsAppMessage({ conversationId: conversation.id, whatsappMessageId: outboundId, direction: "outbound", senderType: "ai", content: part });
+        }
         if (escalate) await updateWhatsAppConversation(conversation.id, { aiEnabled: false });
-      } catch (error) { console.error(`${channel} AI reply error`, error); }
+      } catch { console.error(`${channel}-mia-reply-failed`); }
+      finally {if(sendToken)await releaseWhatsAppSend(conversation.id,sendToken).catch(()=>console.error('instagram-mia-lock-release-failed'));}
     }
   }
 }

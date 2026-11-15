@@ -122,16 +122,14 @@ export function UnitForm({ developmentId, developmentName, unit }: Props) {
             .toString(36)
             .substring(7)}.${ext}`;
 
-          const { error: uploadError } = await uploadPublicFile(fileName, item.file, {
+          const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, item.file, {
               cacheControl: "3600",
               upsert: false,
               contentType: item.file.type,
             });
           if (uploadError) throw new Error(uploadError.message);
 
-          const { data: urlData } = supabase.storage
-            .from("properties")
-            .getPublicUrl(fileName);
+          const urlData = { publicUrl: uploadedUrl! };
           url = urlData.publicUrl;
         }
 

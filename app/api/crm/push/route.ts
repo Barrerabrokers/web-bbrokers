@@ -8,7 +8,7 @@ import { pushDb, ensurePush, validPushEndpoint, deliverPush } from "@/lib/crm-pu
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const settings = z.object({ email_opens: z.boolean(), tasks: z.boolean(), meetings: z.boolean(), meeting_minutes: z.union([z.literal(60),z.literal(720),z.literal(1440)]) });
+const settings = z.object({ email_opens: z.boolean(), email_replies: z.boolean().default(true), tasks: z.boolean(), meetings: z.boolean(), meeting_minutes: z.literal(60) });
 const input = z.object({
   action: z.enum(["status","subscribe","settings","test","delete"]),
   endpoint: z.string().max(4096).refine(validPushEndpoint),
@@ -36,13 +36,14 @@ export async function POST(request:NextRequest) {
   try {
     const config=await ensurePush(sql);
     const [sub]=await sql`SELECT * FROM crm_push_subscriptions WHERE endpoint=${data.endpoint} AND agent_id=${agentId}`;
-    if(data.action==="status")return reply({subscribed:!!sub,settings:sub?{email_opens:sub.email_opens,tasks:sub.tasks,meetings:sub.meetings,meeting_minutes:sub.meeting_minutes}:null});
+    if(data.action==="status")return reply({subscribed:!!sub,settings:sub?{email_opens:sub.email_opens,email_replies:sub.email_replies,tasks:sub.tasks,meetings:sub.meetings,meeting_minutes:sub.meeting_minutes}:null});
     if(data.action==="subscribe"){
       if(!data.keys)return reply({error:"Faltan las claves del dispositivo."},400);
       // Never transfer an existing endpoint between accounts. The browser must replace it.
       const saved=await sql`INSERT INTO crm_push_subscriptions(id,agent_id,endpoint,p256dh,auth)
         SELECT ${randomUUID()},${agentId},${data.endpoint},${data.keys.p256dh},${data.keys.auth}
         WHERE (SELECT COUNT(*) FROM crm_push_subscriptions WHERE agent_id=${agentId})<20
+          OR EXISTS(SELECT 1 FROM crm_push_subscriptions WHERE agent_id=${agentId} AND endpoint=${data.endpoint})
         ON CONFLICT(endpoint) DO UPDATE SET p256dh=EXCLUDED.p256dh,auth=EXCLUDED.auth
         WHERE crm_push_subscriptions.agent_id=EXCLUDED.agent_id RETURNING id`;
       if(!saved.length)return reply({error:"No se pudo registrar este dispositivo. Desactivá la suscripción anterior o revisá el límite de 20 dispositivos."},409);
@@ -56,7 +57,7 @@ export async function POST(request:NextRequest) {
     if(data.action==="settings"){
       if(!data.settings)return reply({error:"Faltan las preferencias."},400);
       const s=data.settings;
-      await sql`UPDATE crm_push_subscriptions SET email_opens=${s.email_opens},tasks=${s.tasks},meetings=${s.meetings},meeting_minutes=${s.meeting_minutes} WHERE id=${sub.id} AND agent_id=${agentId}`;
+      await sql`UPDATE crm_push_subscriptions SET email_opens=${s.email_opens},email_replies=${s.email_replies},tasks=${s.tasks},meetings=${s.meetings},meeting_minutes=${s.meeting_minutes} WHERE id=${sub.id} AND agent_id=${agentId}`;
       return reply({success:true});
     }
     const reserved=await sql`UPDATE crm_push_subscriptions SET last_test_at=NOW() WHERE id=${sub.id}

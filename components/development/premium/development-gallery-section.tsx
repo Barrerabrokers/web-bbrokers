@@ -1,3 +1,4 @@
+import { PortraitVideo } from "@/components/viewport-video";
 import { DevelopmentMediaMosaic } from "@/components/development/development-media-mosaic";
 import type { DevelopmentDetailModel } from "@/lib/development-detail-view-model";
 
@@ -31,9 +32,9 @@ export function DevelopmentGallerySection({ model }: DevelopmentGallerySectionPr
         </div>
 
         {galleryVideoUrls.length > 0 && (
-          <div className="mt-5 grid gap-4 md:grid-cols-2" data-dev-reveal>
+          <div className="mt-5 flex flex-wrap justify-center gap-5 md:justify-start" data-dev-reveal>
             {galleryVideoUrls.map((url, index) => (
-              <video
+              <PortraitVideo
                 key={url}
                 src={url}
                 autoPlay
@@ -44,9 +45,6 @@ export function DevelopmentGallerySection({ model }: DevelopmentGallerySectionPr
                 poster={primaryImage}
                 disablePictureInPicture
                 aria-label={`Video ${index + 1} sin audio de ${development.name}`}
-                className={`aspect-video w-full bg-[#070707] object-cover ${
-                  galleryVideoUrls.length === 1 ? "md:col-span-2" : ""
-                }`}
               />
             ))}
           </div>

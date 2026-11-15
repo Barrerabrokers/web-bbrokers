@@ -5,13 +5,14 @@ import { authOptions } from "@/lib/auth";
 import { canViewAllCrmContacts } from "@/lib/roles";
 import { getWhatsAppChannelCredentials, saveWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 import { getWhatsAppAppId, getWhatsAppAppSecret } from "@/lib/meta-app-config";
+import { FIRST_CONTACT_WHATSAPP_NUMBER } from "@/lib/whatsapp-inbox-scope";
 
 export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
   code: z.string().min(1),
   wabaId: z.string().regex(/^\d+$/),
-  phoneNumberId: z.string().regex(/^\d+$/),
+  phoneNumberId: z.string().regex(/^\d+$/).optional(),
 });
 
 export async function GET() {
@@ -53,7 +54,27 @@ export async function POST(request: Request) {
 
   const accessToken = String(tokenData.access_token);
   const wabaId = parsed.data.wabaId;
-  const phoneNumberId = parsed.data.phoneNumberId;
+  // The Business App completion event may omit phone_number_id. Resolve it
+  // through the authorized WABA rather than waiting forever in the browser.
+  const phonesResponse = await fetch(`https://graph.facebook.com/v23.0/${wabaId}/phone_numbers?fields=id,display_phone_number&limit=100`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(25_000),
+  });
+  const phones = await phonesResponse.json();
+  if (!phonesResponse.ok || !Array.isArray(phones.data)) {
+    return NextResponse.json({ error: phones?.error?.message || "No se pudo consultar el número autorizado por Meta." }, { status: 502 });
+  }
+  const normalize = (value: string) => value.replace(/\D/g, "").replace(/^549/, "54");
+  const phone = phones.data.find((candidate: { id?: string; display_phone_number?: string }) =>
+    (!parsed.data.phoneNumberId || candidate.id === parsed.data.phoneNumberId) &&
+    normalize(candidate.display_phone_number || "") === normalize(FIRST_CONTACT_WHATSAPP_NUMBER)
+  );
+  if (!phone?.id) {
+    return NextResponse.json({ error: `La cuenta autorizada no incluye el número ${FIRST_CONTACT_WHATSAPP_NUMBER}. Volvé a conectar la cuenta de WhatsApp Business correspondiente.` }, { status: 400 });
+  }
+  const phoneNumberId = String(phone.id);
+  const displayPhoneNumber = String(phone.display_phone_number);
   if (wabaId) {
     const subscription = await fetch(`https://graph.facebook.com/v23.0/${wabaId}/subscribed_apps`, {
       method: "POST",
@@ -64,19 +85,6 @@ export async function POST(request: Request) {
     if (!subscription.ok) {
       const error = await subscription.json().catch(() => null);
       return NextResponse.json({ error: error?.error?.message || "No se pudo activar el webhook de WhatsApp." }, { status: 502 });
-    }
-  }
-
-  let displayPhoneNumber = "";
-  if (phoneNumberId) {
-    const phoneResponse = await fetch(`https://graph.facebook.com/v23.0/${phoneNumberId}?fields=display_phone_number,verified_name,status`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(25_000),
-    });
-    if (phoneResponse.ok) {
-      const phone = await phoneResponse.json();
-      displayPhoneNumber = phone.display_phone_number || "";
     }
   }
 

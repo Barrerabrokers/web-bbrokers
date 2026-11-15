@@ -1,0 +1,10 @@
+.blog-video { width: 100%; min-width: 0; margin: 32px auto; color: inherit; }
+.blog-video-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #171717; border-radius: 4px; }
+.blog-video-frame > iframe, .blog-video-frame > video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; object-fit: contain; }
+.blog-video > figcaption { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--journal-rule, #c8c8c8); color: var(--journal-muted, #514b46); font: 12px/1.5 Arial, Helvetica, sans-serif; }
+.blog-video > figcaption a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
+.blog-video a:focus-visible { outline: 2px solid #12606b; outline-offset: 4px; }
+.blog-video-featured { max-width: 960px; margin: 0 auto 38px; }
+.blog-video-portrait { max-width: 380px; }
+.blog-video-portrait .blog-video-frame { aspect-ratio: 9 / 16; }
+@media (max-width: 599px) { .blog-video { margin-block: 26px; } .blog-video-featured { margin-top: 0; margin-bottom: 28px; } .blog-video-portrait { max-width: min(100%, 340px); } }

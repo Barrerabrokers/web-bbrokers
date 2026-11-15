@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ViewportVideo } from "@/components/viewport-video";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -324,7 +325,7 @@ export function UnitsList({
             >
               <div className="relative aspect-[4/3] bg-[#e7d8c8]">
                 {unit.videoUrl ? (
-                  <video
+                  <ViewportVideo
                     src={unit.videoUrl}
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     muted
@@ -486,7 +487,7 @@ export function UnitsList({
                       <>
                         <div className="relative aspect-[4/3] lg:aspect-[5/4] bg-ink-600 rounded overflow-hidden border border-bone/10">
                           {activeImageIndex === -1 && activeUnit.videoUrl ? (
-                            <video
+                            <ViewportVideo
                               src={activeUnit.videoUrl}
                               className="h-full w-full object-contain"
                               autoPlay
@@ -528,7 +529,7 @@ export function UnitsList({
                                 }`}
                                 aria-label="Ver video de la unidad"
                               >
-                                <video
+                                <ViewportVideo
                                   src={activeUnit.videoUrl}
                                   className="h-full w-full object-cover opacity-70"
                                   muted

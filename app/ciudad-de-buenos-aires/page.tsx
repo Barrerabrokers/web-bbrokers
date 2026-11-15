@@ -1,3 +1,5 @@
+import { serializeJsonLd } from "@/lib/seo-structured-data";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import type { Metadata } from "next";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -13,7 +15,7 @@ import { absoluteUrl, SEO_KEYWORDS, SITE_NAME, truncateDescription } from "@/lib
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export const metadata: Metadata = {
+const spanishMetadata: Metadata = {
   title: "Mapa de desarrollos e inversiones en Buenos Aires",
   description:
     "Mapa de desarrollos inmobiliarios e inversiones en real estate por zona: Recoleta, Palermo, Belgrano, Nuñez, Puerto Madero y Buenos Aires.",
@@ -29,6 +31,8 @@ export const metadata: Metadata = {
     canonical: absoluteUrl("/ciudad-de-buenos-aires"),
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(spanishMetadata); }
 
 export default async function CiudadDeBuenosAiresPage() {
   const visibility = await getListingVisibilityFilter();
@@ -84,12 +88,11 @@ export default async function CiudadDeBuenosAiresPage() {
         position: index + 1,
         url: absoluteUrl(`/desarrollos/${dev.slug}`),
         item: {
-          "@type": "Product",
+          "@type": "ApartmentComplex",
           name: dev.name,
           description: truncateDescription(dev.shortDescription || dev.description, 180),
           image: dev.image,
-          category: "Desarrollo inmobiliario",
-          areaServed: dev.location,
+          url: absoluteUrl(`/desarrollos/${dev.slug}`),
           address: {
             "@type": "PostalAddress",
             streetAddress: dev.address,
@@ -124,7 +127,7 @@ export default async function CiudadDeBuenosAiresPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(mapSchema),
+          __html: serializeJsonLd(mapSchema),
         }}
       />
       <Header />

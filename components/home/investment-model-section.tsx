@@ -1,3 +1,4 @@
+import { ViewportVideo } from "@/components/viewport-video";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -174,7 +175,7 @@ export async function InvestmentModelSection() {
         {(s.investmentVideo || s.investmentImage) && (
           <div className="mt-16 md:mt-24 flex justify-center">
             {s.investmentVideo ? (
-              <video
+              <ViewportVideo
                 src={s.investmentVideo}
                 muted
                 playsInline

@@ -1,3 +1,4 @@
+import { agendaScheduleError } from "@/lib/crm-agenda-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCrmEmailAccountWithSecret } from "@/lib/db";
@@ -55,6 +56,8 @@ export async function POST(request: NextRequest, { params: pendingparams }: { pa
   if (!link.meetingModes.includes(parsed.data.meetingMode)) return NextResponse.json({ error: "Modalidad no disponible." }, { status: 400 });
   const start = new Date(parsed.data.startsAt);
   const end = new Date(start.getTime() + parsed.data.duration * 60000);
+  const scheduleError = agendaScheduleError(parsed.data.startsAt, parsed.data.duration);
+  if (scheduleError) return NextResponse.json({error:scheduleError},{status:400});
   if (start.getTime() < Date.now() + 5 * 60000) return NextResponse.json({ error: "Elegí un horario futuro." }, { status: 400 });
   const arParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(start);
   const weekday = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(arParts.find(p=>p.type==="weekday")?.value || "");
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest, { params: pendingparams }: { pa
         description: [`Reserva desde Barrera Brokers`, `Cliente: ${parsed.data.name}`, `Email: ${parsed.data.email}`, parsed.data.phone && `Teléfono: ${parsed.data.phone}`, parsed.data.notes && `Mensaje: ${parsed.data.notes}`].filter(Boolean).join("\n"),
         start: { dateTime: start.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
         end: { dateTime: end.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
+        reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 60 }] },
         attendees: [{ email: parsed.data.email, displayName: parsed.data.name }],
       }),
     });

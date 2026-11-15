@@ -1,3 +1,5 @@
+import { serializePressLinks } from "@/lib/press-links";
+import { ZodError } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -96,6 +98,13 @@ export async function PUT(request: NextRequest) {
         continue;
       }
       if (body[k] !== undefined) data[k] = String(body[k]);
+    }
+
+    if (data.pressLinks !== undefined) {
+      try { data.pressLinks = serializePressLinks(data.pressLinks); }
+      catch (error) {
+        return NextResponse.json({ error: error instanceof ZodError ? error.issues[0]?.message : "Revisá los títulos y links de Prensa." }, { status: 400 });
+      }
     }
 
     // Trim de strings cortos (mantener saltos de línea en descripciones)

@@ -20,6 +20,7 @@ type DevelopmentDocumentRow = {
 
 type DevelopmentDocumentsManagerProps = {
   developments: Development[];
+  allPriceLists?: React.ReactNode;
 };
 
 function toRow(development: Development): DevelopmentDocumentRow {
@@ -45,6 +46,7 @@ function isValidOptionalUrl(value: string) {
 
 export function DevelopmentDocumentsManager({
   developments,
+  allPriceLists,
 }: DevelopmentDocumentsManagerProps) {
   const [rows, setRows] = useState<DevelopmentDocumentRow[]>(
     developments.map(toRow)
@@ -141,7 +143,7 @@ export function DevelopmentDocumentsManager({
       const fileName = `${folder}/${Date.now()}-${Math.random()
         .toString(36)
         .slice(2)}.pdf`;
-      const { error: uploadError } = await uploadPublicFile(fileName, file, {
+      const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, file, {
           cacheControl: "3600",
           contentType: "application/pdf",
           upsert: false,
@@ -149,7 +151,7 @@ export function DevelopmentDocumentsManager({
 
       if (uploadError) throw new Error(uploadError.message);
 
-      const { data } = supabase.storage.from("properties").getPublicUrl(fileName);
+      const data = { publicUrl: uploadedUrl! };
       updateRow(row.id, field, data.publicUrl);
       setNotice(`${field === "brochureUrl" ? "Brochure" : "Lista de precios"} cargada para ${row.name}. Guardá los cambios para publicarla.`);
     } catch (err) {
@@ -185,6 +187,8 @@ export function DevelopmentDocumentsManager({
           Nuevo desarrollo
         </Link>
       </div>
+
+      {allPriceLists}
 
       {error && (
         <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

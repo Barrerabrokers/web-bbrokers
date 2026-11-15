@@ -1,3 +1,6 @@
+import { readMiaMailTarget } from "@/lib/mia-sales-oauth";
+import { startMiaSalesPilot } from "@/lib/mia-sales-store";
+import { miaSalesDb } from "@/lib/mia-sales-store";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -30,6 +33,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  const targetCookie=request.cookies.get("bb_google_oauth_mia")?.value;
+  let target:ReturnType<typeof readMiaMailTarget>|undefined;
+  if(targetCookie){
+    redirectUrl.pathname="/admin/crm/panel-agentes";
+    redirectUrl.searchParams.set("miaPilot","1");
+    try{target=readMiaMailTarget(targetCookie,session.user,state);const sql=miaSalesDb();try{const [current]=await sql`SELECT a.email FROM crm_mia_sales_control c JOIN agents a ON a.id=c.agent_id WHERE c.id=TRUE AND c.agent_id=${target.target} AND a.active`;if(!current||current.email.toLowerCase()!==target.email.toLowerCase())throw Error("Perfil cambiado");}finally{await sql.end();}}catch{redirectUrl.searchParams.set("google","invalid_mia_target");const response=NextResponse.redirect(redirectUrl);response.cookies.delete("bb_google_oauth_mia");response.cookies.delete("bb_google_oauth_state");return response;}
+  }
   try {
     const origin = requestOrigin(request);
     const token = await exchangeGoogleCode({ origin, code });
@@ -39,11 +49,12 @@ export async function GET(request: NextRequest) {
     }
 
     const profile = await getGoogleUserInfo(token.access_token);
+    if(target&&profile.email.toLowerCase()!==target.email.toLowerCase())throw Error("Elegí la cuenta de correo configurada para MIA.");
     const { account } = await upsertCrmEmailAccount({
-      agentId: session.user.id,
+      agentId: target?.target || session.user.id,
       provider: "google-oauth",
       email: profile.email,
-      fromName: profile.name || session.user.name || "",
+      fromName: target ? "MIA · Barrera Brokers" : profile.name || session.user.name || "",
       smtpHost: "gmail.googleapis.com",
       smtpPort: 443,
       smtpSecure: true,
@@ -53,6 +64,7 @@ export async function GET(request: NextRequest) {
     });
 
     redirectUrl.searchParams.set("google", account ? "connected" : "error");
+    if(target&&account){const sql=miaSalesDb();let control;try{[control]=await sql`SELECT run_id,approved_lead_ids FROM crm_mia_sales_control WHERE id=TRUE`;}finally{await sql.end();}if(!control?.run_id)await startMiaSalesPilot(session.user.id,control?.approved_lead_ids||[]);}
   } catch (error) {
     console.error("Google OAuth callback error:", error);
     redirectUrl.searchParams.set("google", "error");
@@ -60,5 +72,6 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(redirectUrl);
   response.cookies.delete("bb_google_oauth_state");
+  response.cookies.delete("bb_google_oauth_mia");
   return response;
 }

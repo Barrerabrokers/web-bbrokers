@@ -11,7 +11,7 @@ import {
   type CrmDataProperty,
   type CrmLeadStatus,
 } from "@/lib/db";
-import { isCrmLeadStatus } from "@/lib/crm-statuses";
+import { normalizeCrmLeadStatus } from "@/lib/crm-statuses";
 import { HUBSPOT_LEAD_STATUS_OPTIONS } from "@/lib/crm-statuses";
 import { getDevelopments } from "@/lib/developments-db";
 import { canManageAdminPanel, canViewAllCrmContacts } from "@/lib/roles";
@@ -303,16 +303,7 @@ async function getContactPropertyNames(token: string) {
 }
 
 function mapStatus(value?: string | null): CrmLeadStatus {
-  if (value && isCrmLeadStatus(value)) return value;
-
-  const normalized = (value || "").toLowerCase();
-  if (normalized.includes("qualified") || normalized.includes("calificado")) return "IN_PROGRESS";
-  if (normalized.includes("contact")) return "Contactado";
-  if (normalized.includes("proposal") || normalized.includes("propuesta")) return "OPEN_DEAL";
-  if (normalized.includes("deal") || normalized.includes("opportunity")) return "OPEN_DEAL";
-  if (normalized.includes("lost") || normalized.includes("perdido") || normalized.includes("unqualified")) return "UNQUALIFIED";
-  if (normalized.includes("customer") || normalized.includes("reserved")) return "Reservado";
-  return "NEW";
+  return normalizeCrmLeadStatus(value);
 }
 
 function splitPhone(rawPhone?: string | null, fallbackCountry?: string | null) {

@@ -48,3 +48,10 @@ next-env.d.ts
 
 # Local diagnostics
 /work/
+
+# Historical local audit containing personal client details
+/scripts/report-lead-data.cjs
+
+# One-off historical sends containing client identifiers
+/scripts/send-mia-pablo-20261022.cjs
+/scripts/send-mia-six-whatsapp-20261023.cjs

@@ -1,3 +1,4 @@
+import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -13,7 +14,7 @@ export async function GET(
     const session = await getServerSession(authOptions);
     const property = await getPropertyById(params.id);
 
-    if (!property || (property.visibility === "agents" && !session)) {
+    if (!property || !canReadListing(property.visibility, session?.user.role)) {
       return NextResponse.json(
         { error: "Propiedad no encontrada" },
         { status: 404 }

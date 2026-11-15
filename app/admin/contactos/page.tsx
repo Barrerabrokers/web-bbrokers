@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { canManageAdminPanel } from "@/lib/roles";
+import { CopyContactValue } from "@/components/admin/copy-contact-value";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -72,21 +73,27 @@ export default async function ContactsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink/60 mb-3">
-                  <a
-                    href={`mailto:${contact.email}`}
-                    className="inline-flex items-center gap-1.5 hover:text-accent transition-colors"
-                  >
-                    <Mail className="h-3.5 w-3.5" />
-                    {contact.email}
-                  </a>
-                  {contact.phone && (
+                  <span className="inline-flex min-w-0 items-center gap-0.5">
                     <a
-                      href={`tel:${contact.phone}`}
-                      className="inline-flex items-center gap-1.5 hover:text-accent transition-colors"
+                      href={`mailto:${contact.email}`}
+                      className="inline-flex min-w-0 items-center gap-1.5 break-all hover:text-accent transition-colors"
                     >
-                      <Phone className="h-3.5 w-3.5" />
-                      {contact.phone}
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      {contact.email}
                     </a>
+                    <CopyContactValue value={contact.email} label="Correo" />
+                  </span>
+                  {contact.phone && (
+                    <span className="inline-flex min-w-0 items-center gap-0.5">
+                      <a
+                        href={`tel:${contact.phone}`}
+                        className="inline-flex min-w-0 items-center gap-1.5 break-all hover:text-accent transition-colors"
+                      >
+                        <Phone className="h-3.5 w-3.5 shrink-0" />
+                        {contact.phone}
+                      </a>
+                      <CopyContactValue value={contact.phone} label="Teléfono" />
+                    </span>
                   )}
                   <span className="inline-flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />

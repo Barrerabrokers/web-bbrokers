@@ -1,4 +1,4 @@
-const CACHE_NAME = "barrera-brokers-crm-v2";
+const CACHE_NAME = "barrera-brokers-crm-v4";
 const STATIC_ASSETS = [
   "/crm-icon-192.png",
   "/crm-icon-512.png",
@@ -55,11 +55,15 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch {}
-  event.waitUntil(self.registration.showNotification(payload.title || "BB CRM", {
+  event.waitUntil((async () => {
+  await self.registration.showNotification(payload.title || "BB CRM", {
     body: payload.body || "Tenés una nueva notificación en el CRM.",
     icon: "/crm-icon-192.png", badge: "/crm-icon-192.png",
     tag: payload.tag || "crm-notification", data: { href: crmNotificationUrl(payload.href) },
-  }));
+  });
+  const windows = await self.clients.matchAll({type: "window", includeUncontrolled: true});
+  for (const client of windows) client.postMessage({type:"crm-notification"});
+  })());
 });
 
 function crmNotificationUrl(href) {

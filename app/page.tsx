@@ -1,3 +1,6 @@
+import { serializeJsonLd } from "@/lib/seo-structured-data";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
+import { AlphaFeaturedSection } from "@/components/home/alpha-featured-section";
 import { HeroSection } from "@/components/home/hero-section";
 import { DevelopmentsSection } from "@/components/home/developments-section";
 import { FinishedDevelopmentsSection } from "@/components/home/finished-developments-section";
@@ -23,8 +26,8 @@ import { SOCIAL_SAME_AS } from "@/lib/social-links";
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "Inversiones en Real Estate en Buenos Aires",
+const spanishMetadata: Metadata = {
+  title: "Barrera Brokers | Desarrollos e inversiones en Buenos Aires",
   description:
     "Invertí en real estate en Buenos Aires con Barrera Brokers: desarrollos en pozo, departamentos para invertir, financiación en cuotas y oportunidades en Recoleta, Palermo, Belgrano, Nuñez y Puerto Madero.",
   keywords: [
@@ -48,6 +51,8 @@ export const metadata: Metadata = {
   },
 };
 
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(spanishMetadata); }
+
 export default async function HomePage() {
   const siteSettings = await getFullSiteSettings();
   const organizationSchema = {
@@ -59,11 +64,13 @@ export default async function HomePage() {
     logo: siteSettings.logoUrl.startsWith("http") ? siteSettings.logoUrl : `${SITE_URL}${siteSettings.logoUrl}`,
     image: siteSettings.logoUrl.startsWith("http") ? siteSettings.logoUrl : `${SITE_URL}${siteSettings.logoUrl}`,
     description: DEFAULT_SEO_DESCRIPTION,
-    slogan: "Invertí en desarrollos desde el inicio.",
+    slogan: "Invertí en tu próximo departamento en Buenos Aires.",
     priceRange: "$$$",
+    telephone: siteSettings.phone,
+    email: siteSettings.email,
     address: {
       "@type": "PostalAddress",
-      streetAddress: "Av Santa Fe y Libertad",
+      streetAddress: siteSettings.addressStreet,
       addressLocality: "Ciudad de Buenos Aires",
       addressRegion: "Buenos Aires",
       addressCountry: "AR",
@@ -116,58 +123,21 @@ export default async function HomePage() {
     url: SITE_URL,
     publisher: { "@id": `${SITE_URL}/#organization` },
     inLanguage: "es-AR",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${SITE_URL}/propiedades?search={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
   };
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "¿Cómo invertir en real estate en Buenos Aires?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text:
-            "Barrera Brokers selecciona desarrollos en pozo y departamentos en zonas de alta demanda de Buenos Aires, con análisis de precio, financiación, renta estimada y potencial de reventa.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "¿Qué zonas son recomendadas para invertir en departamentos?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text:
-            "Recoleta, Palermo, Belgrano, Nuñez y Puerto Madero concentran demanda residencial, turística y de renta temporaria, por eso son zonas clave para evaluar inversiones inmobiliarias.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "¿Se puede financiar un departamento en pozo?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text:
-            "Sí. Muchos desarrollos permiten ingresar con anticipo y financiar el saldo en cuotas durante la obra, según el proyecto y la etapa de construcción.",
-        },
-      },
-    ],
-  };
-  const homeSchema = [organizationSchema, websiteSchema, faqSchema];
+  const homeSchema = [organizationSchema, websiteSchema];
 
   return (
     <div className="min-h-screen bg-ink">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(homeSchema),
+          __html: serializeJsonLd(homeSchema),
         }}
       />
       <Header />
       <main>
         <HeroSection videos={siteSettings.heroVideos} />
+        <AlphaFeaturedSection />
         
         {/* Desarrollos - Main investment projects */}
         <DevelopmentsSection />

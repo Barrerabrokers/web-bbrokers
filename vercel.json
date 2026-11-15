@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "node scripts/vercel-build-checks.cjs && npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
@@ -8,12 +8,8 @@
   ],
   "crons": [
     {
-      "path": "/api/cron/ai-sales",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/cron/meta-leads",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/crm-email-notifications",
@@ -21,6 +17,18 @@
     },
     {
       "path": "/api/cron/crm-client-campaigns",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/crm-device-notifications",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp-ai-retry",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/mia-sales-pilot",
       "schedule": "*/5 * * * *"
     }
   ],

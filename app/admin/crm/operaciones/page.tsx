@@ -23,7 +23,7 @@ export default async function AdminCrmOperationsPage() {
       <CrmSectionCard
         href="/admin/crm/propiedades"
         title="Propiedades de datos"
-        description="Administrar estados del lead y desarrollos para que los datos importados desde HubSpot coincidan correctamente."
+        description="Administrar actividades de los clientes, estados del lead y desarrollos."
       />
       <CrmSectionCard
         href="/admin/crm/correo"

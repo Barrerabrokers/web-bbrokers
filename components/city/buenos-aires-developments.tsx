@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ArrowUpRight,
   Check,
@@ -37,14 +37,6 @@ export interface CityDevelopment {
   video?: string;
 }
 
-const ZONE_ORDER = [
-  "Puerto Madero",
-  "Recoleta",
-  "Palermo",
-  "Belgrano",
-  "Nuñez",
-];
-
 function normalizeZone(location: string) {
   const lower = location.toLowerCase();
   if (lower.includes("puerto")) return "Puerto Madero";
@@ -53,11 +45,6 @@ function normalizeZone(location: string) {
   if (lower.includes("belgrano")) return "Belgrano";
   if (lower.includes("nunez") || lower.includes("nuñez")) return "Nuñez";
   return location.split(",")[0].trim() || "Buenos Aires";
-}
-
-function getZoneIndex(zone: string) {
-  const idx = ZONE_ORDER.findIndex((item) => item.toLowerCase() === zone.toLowerCase());
-  return idx >= 0 ? idx : ZONE_ORDER.length;
 }
 
 const ZONE_POSITIONS: Record<string, { x: number; y: number }> = {
@@ -150,11 +137,7 @@ export function BuenosAiresDevelopments({
   const [activeId, setActiveId] = useState(developments[0]?.id || "");
   const [zoom, setZoom] = useState(1);
 
-  const sortedDevelopments = useMemo(() => {
-    return [...developments].sort(
-      (a, b) => getZoneIndex(normalizeZone(a.location)) - getZoneIndex(normalizeZone(b.location))
-    );
-  }, [developments]);
+  const sortedDevelopments = developments;
 
   const activeDevelopment =
     sortedDevelopments.find((dev) => dev.id === activeId) || sortedDevelopments[0] || developments[0];

@@ -1,4 +1,4 @@
-# Barrera Brokers CRM para WhatsApp — 0.6.18
+# Barrera Brokers CRM para WhatsApp — 0.6.20
 
 La barra de contactos queda libre de avisos de sincronización. Abrí «Sincronización» para consultar el estado y usar sus controles dentro del panel. El cliente seleccionado incluye «Ver en CRM» para abrir su ficha en otra pestaña.
 
@@ -39,10 +39,10 @@ La vinculación reúne los destacados de ambos lugares:
 
 - Los contactos con estrella del usuario conectado al CRM se buscan por teléfono completo en WhatsApp y se agregan a Destacados cuando existe un resultado único.
 - Para los integrantes de la lista nativa, se recorren los chats que WhatsApp muestra en esa lista. El nombre o número propone una coincidencia con el CRM, que debe verificarse buscando el teléfono completo y comprobando que ya está marcado dentro de Destacados. Los nombres o teléfonos ambiguos se omiten.
-- Los contactos importados reciben la misma estrella que usa la web. La web consulta esa información al recuperar el foco y cada 15 segundos mientras está visible. Las estrellas son personales del agente conectado al CRM.
+- Al abrir la lista nativa Destacados, los nuevos contactos visibles se importan automáticamente al CRM sin abrir Ajustes ni interrumpir la conversación. La extensión recibe los cambios hechos en la web cada 3 segundos. Las estrellas son personales del agente conectado al CRM.
 - Los contactos sin coincidencia, sin teléfono válido, sin chat disponible o con nombres distintos entre ambas aplicaciones pueden requerir vinculación manual. Los chats archivados que WhatsApp no muestre en la lista no se consideran importados automáticamente. El aviso informa los casos que no pudieron verificarse; no se crean contactos ni se cambian sus propietarios.
 - La primera ejecución tarda aproximadamente un segundo por teléfono. Mantené WhatsApp abierto sin usar sus formularios durante el proceso. Podés cancelar; las estrellas ya guardadas en el CRM se conservan y el borrador pendiente de WhatsApp se descarta.
-- Repetí **Sincronizar destacados** después de incorporar nuevos destacados en cualquiera de los dos lugares. No se ejecutan cambios automáticos en segundo plano. Quitar una estrella no elimina integrantes de la otra aplicación.
+- Para incorporar contactos del CRM a la lista nativa de WhatsApp sigue disponible **Sincronizar destacados**: WhatsApp no ofrece una API de listas y ese paso requiere abrir sus controles visibles. Quitar una estrella no elimina integrantes de la otra aplicación.
 - Pulsar la pestaña Destacados solo abre tu lista nativa. Las demás pestañas no modifican listas de WhatsApp.
 
 ## Actualizar
@@ -83,3 +83,7 @@ Corrige la captura tras el cambio de WhatsApp Web a `conv-msg-*`: las clases ant
 Descomprimí el ZIP 0.6.17 y reemplazá los archivos de la carpeta que Chrome ya tiene cargada. Incluí el nuevo archivo `message-capture.js`. En `chrome://extensions`, recargá Barrera Brokers CRM y luego recargá WhatsApp Web. Mantené una sola versión activa y el CRM abierto con tu usuario en el mismo perfil.
 
 Validación: sintaxis y pruebas de captura con el DOM actual y el anterior, mensajes agrupados, dirección, fecha, audio y transición de pendiente a enviado. La validación del guardado real con esta versión requiere recargar la extensión instalada.
+
+## Estabilidad de edición (0.6.20)
+
+La sincronización de destacados actualiza la estrella sin abrir la ficha ni restaurar borradores. Las cargas pendientes no cambian de pantalla después de una interacción y los borradores no reemplazan texto escrito mientras se recuperan. No requiere cambios del servidor.

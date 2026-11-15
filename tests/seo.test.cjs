@@ -1,0 +1,18 @@
+const { test } = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), ts = require('typescript');
+function load(file,mocks={}) { const box={exports:{},Date,process,Response,require:n=>n in mocks?mocks[n]:require(n)};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,box);return box.exports; }
+const seo=load('lib/seo.ts'), structured=load('lib/seo-structured-data.ts',{'@/lib/seo':seo}), feed=load('lib/blog-feed.ts',{'@/lib/seo':seo});
+const post={slug:'mercado-caba',title:'Mercado & ciudad </script>',excerpt:'Precios < disponibilidad',image:'https://example.com/image.jpg',gallery:[],author:'Barrera Brokers',publishedAt:'2026-10-28T12:00:00.000Z',updatedAt:'2026-10-28T13:00:00.000Z',status:'published',sourceUrl:'https://example.com/source'};
+test('article JSON-LD identifies publisher, dates and original source without executable HTML',()=>{
+ const schema=structured.blogPostSchema(post),json=structured.serializeJsonLd(schema);assert(!json.includes('</script>'));assert.equal(JSON.parse(json).headline,post.title);assert.equal(schema.citation,post.sourceUrl);assert.equal(schema.dateModified,post.updatedAt);assert.equal(schema.author['@type'],'Organization');assert.equal(structured.blogPostSchema({...post,author:'Persona'}).author['@type'],'Person');
+ const crumbs=structured.breadcrumbSchema([{name:'Inicio',path:'/'},{name:'Noticias',path:'/blog'}]);assert.equal(crumbs.itemListElement[1].position,2);assert.equal(crumbs.itemListElement[1].item,'https://barrerabrokers.com/blog');
+});
+test('RSS excludes drafts and archives, escapes data and links to canonical public articles',()=>{
+ const xml=feed.blogRss([post,{...post,status:'draft',slug:'private-draft'},{...post,status:'archived',slug:'old'}]);assert(!xml.includes('private-draft'));assert(!xml.includes('/blog/old'));assert(xml.includes('Mercado &amp; ciudad &lt;/script&gt;'));assert(xml.includes('https://barrerabrokers.com/blog/mercado-caba'));assert(xml.includes('Wed, 28 Oct 2026 12:00:00 GMT'));
+});
+test('sitemap includes only canonical public URLs and uses real update dates',async()=>{
+ let visibility;const site=load('app/sitemap.ts',{'@/lib/seo':seo,'@/lib/blog-store':{listBlogPosts:async()=>[post]},'@/lib/developments-db':{getDevelopments:async options=>{visibility=options.visibility;return[{slug:'alpha',updatedAt:post.updatedAt}]}},'@/lib/db':{getProperties:async options=>{assert.equal(options.visibility,'public');return[]}}});
+ const result=await site.default();assert.equal(visibility,'public');assert(!result.some(item=>item.url.includes('?')));assert.equal(result.find(item=>item.url.endsWith('/desarrollos/alpha')).lastModified.toISOString(),post.updatedAt);assert(!result.find(item=>item.url.endsWith('/blog')).lastModified);assert(result.some(item=>item.url.endsWith('/blog/criterio-editorial')));
+});
+test('real-estate markup distinguishes listings from buildings and never offers sold-out projects',()=>{
+ const project={slug:'alpha',name:'Alpha',location:'Belgrano',address:'Dirección',availableUnits:0};const sold=structured.developmentListingSchema(project,'https://example.com/a.jpg',100000);assert.equal(sold['@type'],'RealEstateListing');assert.equal(sold.about['@type'],'ApartmentComplex');assert(!sold.offers);const available=structured.developmentListingSchema({...project,availableUnits:2},undefined,100000);assert.equal(available.offers.lowPrice,100000);assert.equal(available.about.numberOfAvailableAccommodationUnits.value,2);
+});

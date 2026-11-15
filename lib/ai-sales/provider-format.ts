@@ -10,6 +10,11 @@ export function compactSalesContext(context:unknown) {
   instruction:'Extractos acotados. Si un dato no aparece, no afirmes que falta en el CRM ni lo pidas de nuevo. Priorizá la última interacción.',
   lead:{id:'lead',name:clip(lead.name,100),status:clip(lead.status,100),source:clip(lead.source,100),hasEmail:Boolean(lead.hasEmail),hasPhone:Boolean(lead.hasPhone),development:clip(lead.development,200),notes:clip(lead.notes,short?400:900),forms:clip(lead.forms,short?500:1200),imported:clip(lead.imported,short?500:1200)},
   signals:source.signals,callHistory:{count:source.callHistory?.count,lastCalls:(source.callHistory?.lastCalls||[]).slice(0,1).map((c:any)=>({...c,body:clip(c.body,400)}))},
+  meetingHistory:(source.meetingHistory||[]).slice(0,short?1:3).map((m:any)=>({
+   id:m.id,title:m.title,body:clip(m.body,300),meeting_at:m.meeting_at,happened_at:m.happened_at,
+   attended:m.outcome_status==='completed'&&Date.parse(m.happened_at)<=Date.parse(source.now),
+   outcome:m.outcome,outcome_status:m.outcome_status,result_updated_at:m.result_updated_at,
+  })),
   events:(source.events||[]).slice(0,short?2:4).map((e:any)=>({id:e.id,type:e.type,data:{...e.data,body:clip(e.data?.body,short?300:650)}})),
   history:(source.history||[]).slice(0,short?2:4).map((e:any)=>({...e,detalle:clip(e.detalle,short?200:400)})),
   previous:source.previous?{summary:clip(source.previous.summary,400),preferences:clip(source.previous.preferences,600)}:null,
@@ -18,17 +23,18 @@ export function compactSalesContext(context:unknown) {
  };
  // Unbounded source fields are never included. Reduce optional history first if needed.
  // Bound all remaining external strings/collections, including titles and optional fields.
- function bound(value:any,depth=0):any {
-  if(typeof value==='string')return value.slice(0,1200);
+ function bound(value:any,depth=0,key=''):any {
+  if(typeof value==='string')return value.slice(0,key==='outcome'?(short?2400:6000):1200);
   if(depth>7)return null;
   if(Array.isArray(value))return value.slice(0,6).map(v=>bound(v,depth+1));
-  if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).slice(0,20).map(([k,v])=>[k.slice(0,100),bound(v,depth+1)]));
+  if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).slice(0,20).map(([k,v])=>[k.slice(0,100),bound(v,depth+1,k)]));
   return value;
  }
  const bounded=bound(result);
  let json=JSON.stringify(bounded);
  while(Buffer.byteLength(json,'utf8')>(short?7000:11000)){
   if(bounded.history.length)bounded.history.pop();else if(bounded.inventory.length)bounded.inventory.pop();else if(bounded.upcoming.length)bounded.upcoming.pop();
+  else if(bounded.meetingHistory.length>1)bounded.meetingHistory.pop();
   else if(bounded.events.length>1)bounded.events.pop();
   else {
    const shrink=(v:any,key=''):any=>typeof v==='string'?(key==='instruction'?v:['id','type'].includes(key)?v.slice(0,100):v.slice(0,Math.floor(v.length/2))):Array.isArray(v)?v.map(value=>shrink(value)):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,value])=>[k,shrink(value,k)])):v;

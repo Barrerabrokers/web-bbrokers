@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MeetingClientInvitation } from "@/components/admin/meeting-client-invitation";
 import { CalendarPlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import type { CrmActivityType, CrmLead } from "@/lib/db";
+import { agendaTimes } from "@/lib/crm-agenda-policy";
 import { argentinaDateKey, argentinaLocalDateTimeToIso } from "@/lib/argentina-time";
 
 type CalendarLeadOption = Pick<
@@ -71,7 +72,7 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
           type,
           title: eventTitle,
           body,
-          scheduledAt, duration: type === "reunion" ? duration : undefined,
+          scheduledAt, duration: type === "reunion" || type === "tarea" ? duration : undefined,
           includePablo: type === "reunion" && includePablo,
           includeLucas: type === "reunion" && includeLucas,
           sendClientInvitation: type === "reunion" ? sendClientInvitation : undefined,
@@ -201,18 +202,12 @@ export function AddCalendarEvent({ leads }: { leads: CalendarLeadOption[] }) {
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/48">
                   Hora
                 </span>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(event) => setTime(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-ink/14 bg-white px-3 py-3 text-sm text-ink outline-none transition-colors focus:border-accent"
-                  required
-                />
+                <select value={time} onChange={event=>setTime(event.target.value)} className="form-input mt-2" required><option value="">Elegí un horario</option>{agendaTimes(duration).map(value=><option key={value} value={value}>{value}</option>)}</select>
               </label>
 
               {type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={includePablo} onChange={(event) => setIncludePablo(event.target.checked)} disabled={isSaving} />Invitar a Pablo Barrera</label>}
               {type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={includeLucas} onChange={(event) => setIncludeLucas(event.target.checked)} disabled={isSaving} />Invitar a Lucas Barrera</label>}
-              {type === "reunion" && <label className="text-sm font-medium text-ink">Duración<select className="form-input" value={duration} onChange={event => setDuration(Number(event.target.value))} disabled={isSaving}><option value={60}>1 hora</option><option value={30}>30 minutos</option></select></label>}
+              {(type === "reunion" || type === "tarea") && <label className="text-sm font-medium text-ink">Duración<select className="form-input" value={duration} onChange={event => { const next=Number(event.target.value);setDuration(next);if(!agendaTimes(next).includes(time))setTime(""); }} disabled={isSaving}><option value={60}>1 hora</option><option value={30}>30 minutos</option></select></label>}
               {type === "reunion" && <MeetingClientInvitation value={sendClientInvitation} onChange={event => setSendClientInvitation(event.target.value === "yes")} email={selectedLead?.email} disabled={isSaving} />}
               {type === "tarea" && <label className="sm:col-span-2 text-sm font-medium text-ink">
                 Avisar al agente asignado al contacto

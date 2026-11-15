@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowLeft, BarChart3, CircleAlert, Eye, ListFilter, LockKeyhole, Mail, MessageCircle, MonitorSmartphone, MousePointerClick, Search, Send, UsersRound } from "lucide-react";
-import type { ClientCampaignReport, ClientCampaignSummary, ClientInput, ClientLeadStatus, ClientList, PrivateClient } from "@/lib/crm-clients";
+import type { ClientCampaignReport, ClientCampaignSummary, ClientInput, ClientLeadStatus, ClientLeadSegment, ClientList, PrivateClient } from "@/lib/crm-clients";
 import type { CrmEmailTemplate } from "@/lib/db";
 
 const field = "mt-1 w-full rounded-lg border border-ink/25 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-[#006b6b]";
@@ -24,6 +24,10 @@ type Batch = {
   template: CrmEmailTemplate;
 };
 
+function normalizeOccupation(value: string) {
+  return value.trim().toLowerCase().replace(/[áéíóúü]/g, letter => "aeiouu"["áéíóúü".indexOf(letter)]);
+}
+
 function rate(value:number,total:number){return total?Math.round(value/total*100):0;}
 function formatDate(value:string|null){return value?new Intl.DateTimeFormat("es-AR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(new Date(value)):"—";}
 
@@ -32,6 +36,10 @@ export function CrmClients() {
   const [lists, setLists] = useState<ClientList[]>([]);
   const [leadStatuses, setLeadStatuses] = useState<ClientLeadStatus[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<CrmEmailTemplate[]>([]);
+  const [segments, setSegments] = useState<ClientLeadSegment[]>([]);
+  const [selectedOccupation, setSelectedOccupation] = useState("");
+  const [selectedDevelopment, setSelectedDevelopment] = useState("");
+  const [listDraftName, setListDraftName] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedList, setSelectedList] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("");
@@ -51,9 +59,17 @@ export function CrmClients() {
   const [campaigns,setCampaigns]=useState<ClientCampaignSummary[]>([]);
   const [selectedCampaign,setSelectedCampaign]=useState("");
   const [campaignReport,setCampaignReport]=useState<ClientCampaignReport|null>(null);
+  const [reportError,setReportError]=useState("");
   const [reportLoading,setReportLoading]=useState(false);
   const [campaignFilter,setCampaignFilter]=useState<"all"|"delivered"|"notDelivered"|"bounced"|"opened"|"replied">("all");
 
+  const developments = useMemo(() => Array.from(new Set(segments.map(segment => segment.development).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"es")), [segments]);
+  const occupations = useMemo(() => Array.from(new Map(segments.filter(segment => segment.occupation).map(segment => [normalizeOccupation(segment.occupation), segment.occupation])).entries()).sort((a,b) => a[1].localeCompare(b[1], "es")), [segments]);
+  const matchingSegments = segments.filter(segment => (!selectedStatus || segment.status === selectedStatus) && (!selectedDevelopment || segment.development.toLocaleLowerCase() === selectedDevelopment.toLocaleLowerCase()) && (!selectedOccupation || normalizeOccupation(segment.occupation || "") === normalizeOccupation(selectedOccupation)));
+  const matchingCount = matchingSegments.reduce((sum, segment) => sum + segment.eligible, 0);
+  const matchingEmailCount = matchingSegments.reduce((sum, segment) => sum + (segment.emailReady || 0), 0);
+  const suggestedName = [selectedOccupation, selectedStatus, selectedDevelopment].filter(Boolean).join(" · ").slice(0,120);
+  const importListName = (listDraftName || suggestedName).trim();
   const activeList = useMemo(() => lists.find((list) => list.name === selectedList), [lists, selectedList]);
   const activeTemplate = useMemo(() => emailTemplates.find((template) => template.id === selectedTemplate), [emailTemplates, selectedTemplate]);
   const visibleCampaignContacts = useMemo(() => (campaignReport?.contacts || []).filter(contact => {
@@ -85,6 +101,7 @@ export function CrmClients() {
       .then(([statusData, templateData, listData]) => {
         if (!active) return;
         setLeadStatuses(statusData.statuses || []);
+        setSegments(statusData.segments || []);
         setEmailTemplates(templateData.templates || []);
         setLists(listData.lists || []);
       })
@@ -94,33 +111,34 @@ export function CrmClients() {
 
   useEffect(()=>{
     let active=true;
+    setReportError("");
     jsonRequest("/api/crm/clients/report").then(data=>{if(active){
       const nextCampaigns:ClientCampaignSummary[]=data.campaigns||[];
       setCampaigns(nextCampaigns);
       setSelectedCampaign(current=>nextCampaigns.some(campaign=>campaign.campaignId===current)?current:(nextCampaigns[0]?.campaignId||""));
-    }}).catch(requestError=>active&&setError(requestError.message));
+    }}).catch(requestError=>{if(active){setReportError(requestError.message);setError(requestError.message);}});
     return()=>{active=false;};
   },[refresh]);
 
   useEffect(()=>{
     if(!selectedCampaign){setCampaignReport(null);return;}
     setCampaignFilter("all");
-    let active=true;setReportLoading(true);
-    jsonRequest(`/api/crm/clients/report?campaignId=${encodeURIComponent(selectedCampaign)}`).then(data=>{if(active)setCampaignReport(data.report||null);}).catch(requestError=>active&&setError(requestError.message)).finally(()=>active&&setReportLoading(false));
+    let active=true;setReportLoading(true);setReportError("");
+    jsonRequest(`/api/crm/clients/report?campaignId=${encodeURIComponent(selectedCampaign)}`).then(data=>{if(active)setCampaignReport(data.report||null);}).catch(requestError=>{if(active){setReportError(requestError.message);setError(requestError.message);}}).finally(()=>active&&setReportLoading(false));
     return()=>{active=false;};
   },[selectedCampaign,refresh]);
 
   async function createList(event: FormEvent) {
     event.preventDefault();
-    if (!selectedStatus || !importConfirmed || busy) return;
+    if ((!selectedStatus && !selectedDevelopment && !selectedOccupation) || !importListName || !matchingCount || !importConfirmed || busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const data = await jsonRequest("/api/crm/clients", { action: "import-status", status: selectedStatus, confirmed: true });
-      setSelectedList(selectedStatus);
+      const data = await jsonRequest("/api/crm/clients", { action: "import-segment", status: selectedStatus, development: selectedDevelopment, occupation: selectedOccupation, listName: importListName, confirmed: true });
+      setSelectedList(data.listName);
       setImportConfirmed(false);
       setPage(0);
       setRefresh((value) => value + 1);
-      setNotice(`Lista «${selectedStatus}» actualizada: ${data.added} contactos nuevos y ${data.updated || 0} actualizados. No se modificó ningún lead, propietario ni estado.`);
+      setNotice(`Lista «${data.listName}» actualizada: ${data.added} contactos nuevos y ${data.updated || 0} actualizados. No se modificó ningún lead, propietario ni estado.`);
     } catch (requestError) { setError((requestError as Error).message); }
     finally { setBusy(false); }
   }
@@ -193,7 +211,7 @@ export function CrmClients() {
   return <section className="mx-auto max-w-6xl py-6">
     <header>
       <h2 className="text-2xl font-semibold text-ink">Correos de Marketing</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink/80">Creá listas desde el Estado del Lead y enviá a todos sus contactos una plantilla de correo ya guardada.</p>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink/80">Creá listas por estado del lead y desarrollo y enviá a todos sus contactos una plantilla de correo ya guardada.</p>
       <p className="mt-3 flex items-center gap-2 text-sm text-[#006b6b]"><LockKeyhole className="h-4 w-4"/>Solo los administradores pueden ver listas, destinatarios e historial de envíos.</p>
     </header>
 
@@ -202,11 +220,16 @@ export function CrmClients() {
 
     <section className="mt-6 grid gap-5 lg:grid-cols-2">
       <div className="rounded-xl border border-ink/15 bg-white p-5">
-        <div className="flex gap-3"><UsersRound className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]"/><div><h3 className="font-semibold">1. Crear una lista por Estado del Lead</h3><p className="mt-1 text-sm leading-relaxed text-ink/75">Por ejemplo, elegí «Vendido». El contacto se agrega a esa lista sin cambiar el estado, el propietario ni ningún dato del lead.</p></div></div>
+        <div className="flex gap-3"><UsersRound className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]"/><div><h3 className="font-semibold">1. Crear una lista de contactos</h3><p className="mt-1 text-sm leading-relaxed text-ink/75">Elegí una actividad o profesión, un estado o un desarrollo. Podés combinarlos para crear listas como «Anestesiólogo» o «Interesado · Aguilar Point». Los contactos pueden participar en varias listas.</p></div></div>
         <form onSubmit={createList} className="mt-4 space-y-3">
-          <label className="block text-sm font-medium">Estado del Lead<select className={field} value={selectedStatus} onChange={(event) => { setSelectedStatus(event.target.value); setImportConfirmed(false); }}><option value="">Elegí un estado</option>{leadStatuses.map((status) => <option key={status.status} value={status.status}>{status.status} — {status.eligible} contactos</option>)}</select></label>
+          <label className="block text-sm font-medium">Actividad / profesión<select className={field} value={selectedOccupation} onChange={event => { setSelectedOccupation(event.target.value); setImportConfirmed(false); }}><option value="">Todas las actividades</option>{occupations.map(([key, label]) => <option key={key} value={label}>{label}</option>)}</select></label>
+          <p className="text-xs leading-relaxed text-ink/75">Se usa la actividad guardada en la ficha del contacto. Si falta, completala desde el CRM para incluirlo en esta lista.</p>
+          <label className="block text-sm font-medium">Estado del Lead<select className={field} value={selectedStatus} onChange={(event) => { setSelectedStatus(event.target.value); setImportConfirmed(false); }}><option value="">Todos los estados</option>{leadStatuses.map((status) => <option key={status.status} value={status.status}>{status.status} — {status.eligible} contactos</option>)}</select></label>
+          <label className="block text-sm font-medium">Desarrollo<select className={field} value={selectedDevelopment} onChange={event=>{setSelectedDevelopment(event.target.value);setImportConfirmed(false);}}><option value="">Todos los desarrollos</option>{developments.map(development=><option key={development} value={development}>{development}</option>)}</select></label>
+          <label className="block text-sm font-medium">Nombre de la lista<input className={field} maxLength={120} value={listDraftName} placeholder={suggestedName || "Por ejemplo: Interesados en Aguilar Point"} onChange={event=>{setListDraftName(event.target.value);setImportConfirmed(false);}}/></label>
+          <p role="status" className="text-sm text-ink/75">{selectedStatus || selectedDevelopment || selectedOccupation ? `${matchingCount} contactos coinciden con los filtros; ${matchingEmailCount} tienen correo informado. Al actualizar, la lista queda con los contactos que coincidan en ese momento.` : "Elegí al menos una actividad, estado o desarrollo para crear la lista."}</p>
           <label className="flex items-start gap-3 text-sm leading-relaxed"><input required type="checkbox" checked={importConfirmed} onChange={(event) => setImportConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#006b6b]"/><span>Confirmo que los contactos de esta lista están autorizados a recibir correos de marketing.</span></label>
-          <button disabled={busy || !selectedStatus || !importConfirmed} className={primary}><ListFilter className="h-4 w-4"/>{busy ? "Actualizando…" : "Crear o actualizar lista"}</button>
+          <button disabled={busy || (!selectedStatus && !selectedDevelopment && !selectedOccupation) || !matchingCount || !importListName || !importConfirmed} className={primary}><ListFilter className="h-4 w-4"/>{busy ? "Actualizando…" : "Crear o actualizar lista"}</button>
         </form>
       </div>
 
@@ -222,7 +245,7 @@ export function CrmClients() {
 
     <section className="mt-7 rounded-xl bg-white p-5 ring-1 ring-ink/15 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4"><div className="flex gap-3"><BarChart3 className="mt-0.5 h-5 w-5 text-[#006b6b]"/><div><h3 className="text-lg font-semibold">Informe de campañas</h3><p className="mt-1 max-w-2xl text-sm text-ink/75">El informe muestra únicamente envíos confirmados. Las precargas automáticas de privacidad se separan y no cuentan como aperturas. Un clic confirma interacción y permite identificar mejor el dispositivo.</p></div></div>{campaigns.length>0&&<label className="min-w-64 text-sm font-medium">Campaña<select className={field} value={selectedCampaign} onChange={event=>setSelectedCampaign(event.target.value)}>{campaigns.map(campaign=><option key={campaign.campaignId} value={campaign.campaignId}>{campaign.listName} · {formatDate(campaign.sentAt)}</option>)}</select></label>}</div>
-      {reportLoading?<p className="py-10 text-sm text-ink/70">Actualizando informe…</p>:!campaignReport?<div className="py-10 text-center"><p className="font-semibold">Todavía no hay campañas enviadas</p><p className="mt-2 text-sm text-ink/70">El informe aparecerá después del primer envío a una lista.</p></div>:<>
+      {reportError?<div role="alert" className="py-8"><p className="font-semibold text-red-700">No se pudo cargar el informe</p><p className="mt-2 text-sm text-ink/75">{reportError}</p><button type="button" className={`${button} mt-4`} onClick={()=>setRefresh(value=>value+1)}>Volver a cargar campañas</button></div>:reportLoading?<p className="py-10 text-sm text-ink/70">Actualizando informe…</p>:!campaignReport?<div className="py-10 text-center"><p className="font-semibold">Todavía no hay campañas enviadas</p><p className="mt-2 text-sm text-ink/70">El informe aparecerá después del primer envío a una lista.</p></div>:<>
         <div className="mt-6 grid gap-px overflow-hidden rounded-lg bg-ink/10 sm:grid-cols-5">
           {[{label:"Entregados",value:campaignReport.summary.sent,detail:"aceptados por el servidor",icon:Mail},{label:"No entregados",value:campaignReport.summary.notDelivered,detail:"incluye rebotes y pendientes",icon:CircleAlert},{label:"Rebotados",value:campaignReport.summary.bounced,detail:"se excluyen de marketing",icon:CircleAlert},{label:"Abiertos",value:campaignReport.summary.opened,detail:`${rate(campaignReport.summary.opened,campaignReport.summary.sent)}% de entregados`,icon:Eye},{label:"Respuestas",value:campaignReport.summary.replied,detail:"registradas en el CRM",icon:MessageCircle}].map(metric=>{const Icon=metric.icon;return <div key={metric.label} className="bg-[#f7faf9] p-4"><Icon className="h-4 w-4 text-[#006b6b]"/><p className="mt-3 text-2xl font-semibold">{metric.value}</p><p className="mt-1 text-xs font-medium text-ink/70">{metric.label}</p><p className="mt-1 text-xs text-ink/55">{metric.detail}</p></div>;})}
         </div>
@@ -249,7 +272,7 @@ export function CrmClients() {
         <label className="min-w-56 flex-1 text-sm font-medium">Buscar contactos<input className={field} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, correo o teléfono"/></label>
         <button className={button}><Search className="h-4 w-4"/>Buscar</button>
       </form>
-      {loading ? <p role="status" className="py-10 text-sm text-ink/75">Cargando contactos…</p> : clients.length === 0 ? <div className="py-12 text-center"><h3 className="text-lg font-semibold">{selectedList ? "Esta lista todavía no tiene contactos" : "Creá o elegí una lista para comenzar"}</h3><p className="mx-auto mt-3 max-w-xl text-sm text-ink/75">Las listas se completan desde el Estado del Lead y se mantienen separadas de los datos comerciales del contacto.</p></div> : <div className="mt-5 overflow-x-auto rounded-lg bg-white ring-1 ring-ink/15">
+      {loading ? <p role="status" className="py-10 text-sm text-ink/75">Cargando contactos…</p> : clients.length === 0 ? <div className="py-12 text-center"><h3 className="text-lg font-semibold">{selectedList ? "Esta lista todavía no tiene contactos" : "Creá o elegí una lista para comenzar"}</h3><p className="mx-auto mt-3 max-w-xl text-sm text-ink/75">Las listas se completan por actividad o profesión, estado del lead y desarrollo y se mantienen separadas de los datos comerciales del contacto.</p></div> : <div className="mt-5 overflow-x-auto rounded-lg bg-white ring-1 ring-ink/15">
         <table className="w-full text-left text-sm"><thead className="border-b border-ink/15 bg-[#f2f8f7]"><tr>{["Contacto", "Lista", "Estado del email", "Autorización", "Último envío", "Acciones"].map((value) => <th key={value} scope="col" className="px-4 py-3 font-semibold">{value}</th>)}</tr></thead><tbody className="divide-y divide-ink/10">{clients.map((client) => <tr key={client.id}><td className="max-w-xs px-4 py-4"><p className="font-semibold">{client.name}</p><p className="mt-1 break-all text-ink/75">{client.email || client.phone}</p></td><td className="px-4 py-4">{client.listName}</td><td className="px-4 py-4">{client.emailStatus==='invalid'?<span className="font-semibold text-red-700">Inválido / desactualizado</span>:"Activo"}</td><td className="px-4 py-4">{client.subscribed ? "Autorizado" : "No enviar"}</td><td className="whitespace-nowrap px-4 py-4">{client.lastSentAt ? new Date(client.lastSentAt).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }) : "Sin envíos"}</td><td className="px-4 py-3"><button type="button" className={button} onClick={() => setEditingClient({ id: client.id, name: client.name, email: client.email, phone: client.phone, purchase: client.purchase, notes: client.notes, subscribed: client.subscribed, emailStatus:client.emailStatus, leadId: client.leadId })}>Preferencias</button></td></tr>)}</tbody></table>
       </div>}
       <div className="mt-4 flex items-center justify-between gap-2"><button type="button" className={button} disabled={page === 0 || loading} onClick={() => setPage((value) => value - 1)}>Anterior</button><span className="text-sm text-ink/75">Página {page + 1}</span><button type="button" className={button} disabled={!hasMore || loading} onClick={() => setPage((value) => value + 1)}>Siguiente</button></div>

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS crm_shared_documents (
+  key TEXT PRIMARY KEY,
+  url TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE crm_shared_documents ENABLE ROW LEVEL SECURITY;

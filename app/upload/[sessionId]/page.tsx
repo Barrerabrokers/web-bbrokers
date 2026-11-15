@@ -26,7 +26,7 @@ export default function MobileUploadPage() {
     const ext = fileToUpload.name.split(".").pop() || "jpg";
     const fileName = `mobile-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-    const { error: uploadError } = await uploadPublicFile(fileName, fileToUpload, {
+    const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, fileToUpload, {
         cacheControl: "3600",
         upsert: false,
         contentType: fileToUpload.type,
@@ -35,9 +35,7 @@ export default function MobileUploadPage() {
 
     if (uploadError) throw new Error(uploadError.message);
 
-    const { data: urlData } = supabase.storage
-      .from("properties")
-      .getPublicUrl(fileName);
+    const urlData = { publicUrl: uploadedUrl! };
 
     return urlData.publicUrl;
   };

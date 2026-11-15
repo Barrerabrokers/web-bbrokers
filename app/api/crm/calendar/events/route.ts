@@ -1,3 +1,4 @@
+import { agendaScheduleError } from "@/lib/crm-agenda-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { hasGoogleCalendarAccess } from "@/lib/google-calendar-connection";
 import { getServerSession } from "next-auth";
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Revisá contacto, título, fecha y hora." }, { status: 400 });
   }
   if (parsed.data.type === "reunion" && parsed.data.duration !== undefined && ![30, 60].includes(parsed.data.duration)) return NextResponse.json({ error: "Las reuniones deben durar 30 minutos o 1 hora." }, { status: 400 });
+  if (parsed.data.type === "reunion") { const error = agendaScheduleError(parsed.data.scheduledAt, parsed.data.duration || 60); if (error) return NextResponse.json({error},{status:400}); }
   if (parsed.data.type === "reunion" && parsed.data.sendClientInvitation === undefined) {
     return NextResponse.json({ error: "Elegí si querés enviar la invitación al cliente o no enviarla." }, { status: 400 });
   }
@@ -157,6 +159,7 @@ export async function POST(request: NextRequest) {
           dateTime: end.toISOString(),
           timeZone: "America/Argentina/Buenos_Aires",
         },
+        reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 60 }] },
         attendees,
         location: parsed.data.meetingMode === "in_person" ? parsed.data.location : undefined,
         conferenceData: parsed.data.meetingMode === "google_meet" ? { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } } : undefined,

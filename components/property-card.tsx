@@ -1,3 +1,4 @@
+import { ViewportVideo } from "@/components/viewport-video";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight, Bed, Bath, Square } from "lucide-react";
@@ -14,7 +15,7 @@ export function PropertyCard({ property }: { property: Property }) {
     >
       <div className="relative h-[420px] mb-6 overflow-hidden bg-cream-300">
         {coverVideo ? (
-          <video
+          <ViewportVideo
             src={coverVideo}
             autoPlay
             muted

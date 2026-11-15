@@ -1,6 +1,8 @@
+import { acquireWorkerLease, releaseWorkerLease } from "@/lib/database-worker-lease";
 import postgres from "postgres";
 import { getCrmEmailAccountWithSecret } from "@/lib/db";
 import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
+import { shouldRunRuntimeSchemaMigrations } from "@/lib/runtime-schema";
 
 type Sql = ReturnType<typeof postgres>;
 export function meetingDb() {
@@ -10,11 +12,14 @@ export function meetingDb() {
 }
 let schemaPromise: Promise<void> | undefined;
 export async function ensureMeetingLifecycle(sql: Sql) {
+  if (!shouldRunRuntimeSchemaMigrations()) return;
   if (!schemaPromise) schemaPromise = initializeMeetingLifecycle(sql).catch(error => {schemaPromise=undefined;throw error;});
   await schemaPromise;
 }
 async function initializeMeetingLifecycle(sql: Sql) {
   await sql.unsafe(`
+    CREATE TABLE IF NOT EXISTS crm_meta_recontacts (meta_lead_id TEXT PRIMARY KEY, lead_id UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+    ALTER TABLE crm_meta_recontacts ENABLE ROW LEVEL SECURITY;
     CREATE TABLE IF NOT EXISTS crm_activity_results (
       activity_id UUID PRIMARY KEY REFERENCES crm_activities(id) ON DELETE CASCADE,
       outcome TEXT NOT NULL DEFAULT '', updated_by UUID REFERENCES agents(id) ON DELETE SET NULL,
@@ -37,6 +42,13 @@ async function initializeMeetingLifecycle(sql: Sql) {
       -- ON CONFLICT will run the UPDATE trigger; don't treat existing leads as new inserts.
       IF TG_OP='INSERT' AND EXISTS(SELECT 1 FROM crm_leads WHERE id=NEW.id) THEN RETURN NEW; END IF;
       IF TG_OP='UPDATE' AND NEW.status IS NOT DISTINCT FROM OLD.status THEN RETURN NEW; END IF;
+      -- A new Meta submission reopens the contact without discarding its meetings.
+      -- The event must have been inserted by this same transaction.
+      IF TG_OP='UPDATE' AND NEW.status='Nuevo' AND EXISTS (
+        SELECT 1 FROM crm_meta_recontacts e WHERE e.lead_id=NEW.id
+          AND e.meta_lead_id=current_setting('crm.meta_recontact_event',true)
+          AND e.created_at=transaction_timestamp()
+      ) THEN RETURN NEW; END IF;
       IF EXISTS(SELECT 1 FROM crm_meeting_schedules s JOIN crm_activities a ON a.id=s.activity_id
         LEFT JOIN crm_activity_results r ON r.activity_id=a.id
         WHERE a.lead_id=NEW.id AND (s.ends_at<=NOW() OR s.cancelled_at IS NOT NULL) AND COALESCE(TRIM(r.outcome),'')='') THEN
@@ -80,8 +92,8 @@ export async function processMeetingOutcomes() {
   const sql=meetingDb();let checked=0,failed=0;
   try {
     await ensureMeetingLifecycle(sql);
-    const [lock]=await sql`SELECT pg_try_advisory_lock(735208445) AS acquired`;
-    if(!lock.acquired)return {checked,failed};
+    const lease = await acquireWorkerLease(sql,"meeting-lifecycle");
+    if(!lease)return {checked,failed};
     try {
       const rows=await sql`SELECT a.id,a.external_id,a.created_by,s.calendar_agent_id FROM crm_activities a
         LEFT JOIN crm_meeting_schedules s ON s.activity_id=a.id LEFT JOIN crm_activity_results r ON r.activity_id=a.id
@@ -122,6 +134,6 @@ export async function processMeetingOutcomes() {
         WHERE (s.ends_at<=NOW() OR s.cancelled_at IS NOT NULL) AND COALESCE(TRIM(r.outcome),'')=''
         ON CONFLICT(event_key) DO UPDATE SET recipient_agent_id=EXCLUDED.recipient_agent_id`;
       return {checked,failed};
-    } finally {await sql`SELECT pg_advisory_unlock(735208445)`;}
+    } finally {await releaseWorkerLease(sql,"meeting-lifecycle",lease);}
   } finally {await sql.end();}
 }

@@ -5,7 +5,7 @@ export async function getCrmCalendarBusy(token: string, from: Date, to: Date) {
   do {
     const query = new URLSearchParams({ timeMin: from.toISOString(), timeMax: to.toISOString(), singleEvents: "true", maxResults: "2500", timeZone: "America/Argentina/Buenos_Aires" });
     if (pageToken) query.set("pageToken", pageToken);
-    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${query}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${query}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const data = await response.json().catch(() => null);
     if (!response.ok) throw new Error(data?.error?.message || "No se pudo consultar Google Calendar. Reconectá tu cuenta e intentá nuevamente.");
     for (const event of data?.items || []) {

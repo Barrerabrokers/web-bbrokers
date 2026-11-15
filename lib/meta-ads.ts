@@ -225,7 +225,7 @@ export async function getMetaMarketingDashboard(days: number): Promise<MetaMarke
 
   const warnings: string[] = [];
   if (totals.leads > 0 && totals.crmLeads < totals.leads) warnings.push(`Meta informa ${totals.leads} leads y el CRM puede atribuir ${totals.crmLeads}. Revisá la atribución antes de escalar presupuesto.`);
-  if (totals.crmLeads > 0 && totals.qualifiedLeads === 0) warnings.push("Todavía no hay leads calificados atribuidos a campañas en este período.");
+  if (totals.crmLeads > 0 && totals.qualifiedLeads === 0) warnings.push("Todavía no hay leads interesados atribuidos a campañas en este período.");
 
   return {
     account: { id: account.id, name: account.name || account.id, currency: account.currency || "USD", timezone: account.timezone_name || "" },

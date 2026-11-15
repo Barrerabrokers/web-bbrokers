@@ -14,20 +14,22 @@ export function clientDb() {
 }
 let ready:Promise<void>|undefined;
 export async function ensureClients(sql:ReturnType<typeof clientDb>) {
-  if(!ready)ready=(async()=>{
-    const [schema]=await sql`SELECT
+  if(!ready)ready=sql.begin(async tx=>{
+    await tx`SELECT pg_advisory_xact_lock(731104220)`;
+    const [schema]=await tx`SELECT
       to_regclass('public.crm_private_clients') IS NOT NULL AS clients,
+      to_regclass('public.crm_client_list_members') IS NOT NULL AS members,
+      to_regclass('public.crm_activities_gmail_lead_created') IS NOT NULL AS reply_index,
       to_regclass('public.crm_client_mail_history') IS NOT NULL AS history,
       to_regclass('public.crm_client_mail_events') IS NOT NULL AS events,
       (SELECT COUNT(*)::int FROM information_schema.columns
         WHERE table_schema='public' AND table_name='crm_client_mail_history'
           AND column_name=ANY(ARRAY['campaign_id','tracking_token','list_name','template_id','owner_agent_id','reply_to_email','open_count','first_opened_at','last_opened_at','click_count','first_clicked_at','last_clicked_at','retry_count','last_attempt_at','last_error'])) AS history_columns`;
+    if(schema.clients && schema.history && schema.events && schema.members && schema.reply_index && schema.history_columns===15)return;
     // Keep migrations idempotent: new email-delivery fields must be added to databases
     // created by earlier versions of the CRM as well.
 
-    const lockId=731104219;
-    await sql`SELECT pg_advisory_lock(${lockId})`;
-    try { await sql.unsafe(`
+    await tx.unsafe(`
     CREATE TABLE IF NOT EXISTS crm_private_clients (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, email TEXT NOT NULL DEFAULT '',
       phone TEXT NOT NULL DEFAULT '', purchase TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
@@ -43,6 +45,12 @@ export async function ensureClients(sql:ReturnType<typeof clientDb>) {
     CREATE UNIQUE INDEX IF NOT EXISTS crm_private_clients_email ON crm_private_clients(lower(email)) WHERE email<>'';
     CREATE UNIQUE INDEX IF NOT EXISTS crm_private_clients_lead ON crm_private_clients(lead_id) WHERE lead_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS crm_private_clients_list_name ON crm_private_clients(list_name,name);
+    CREATE TABLE IF NOT EXISTS crm_client_list_members (
+      list_name TEXT NOT NULL, client_id UUID NOT NULL REFERENCES crm_private_clients(id) ON DELETE CASCADE,
+      PRIMARY KEY(list_name,client_id));
+    ${!schema.members ? 'INSERT INTO crm_client_list_members(list_name,client_id) SELECT list_name,id FROM crm_private_clients ON CONFLICT DO NOTHING;' : ''}
+    ALTER TABLE crm_client_list_members ENABLE ROW LEVEL SECURITY;
+    REVOKE ALL ON crm_client_list_members FROM anon,authenticated,PUBLIC;
     CREATE TABLE IF NOT EXISTS crm_client_newsletter (
       id INTEGER PRIMARY KEY CHECK(id=1), subject TEXT NOT NULL, body TEXT NOT NULL,
       updated_by UUID REFERENCES agents(id), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
@@ -76,14 +84,15 @@ export async function ensureClients(sql:ReturnType<typeof clientDb>) {
       device_type TEXT NOT NULL DEFAULT 'Desconocido', mail_client TEXT NOT NULL DEFAULT 'No identificado',
       privacy_protected BOOLEAN NOT NULL DEFAULT false, target_url TEXT NOT NULL DEFAULT ''
     );
+    CREATE INDEX IF NOT EXISTS crm_activities_gmail_lead_created ON crm_activities(lead_id,created_at) WHERE external_source='gmail_inbound';
     CREATE INDEX IF NOT EXISTS crm_client_mail_events_history_time ON crm_client_mail_events(history_id,occurred_at DESC);
     ALTER TABLE crm_private_clients ENABLE ROW LEVEL SECURITY;
     ALTER TABLE crm_client_newsletter ENABLE ROW LEVEL SECURITY;
     ALTER TABLE crm_client_mail_history ENABLE ROW LEVEL SECURITY;
     ALTER TABLE crm_client_mail_events ENABLE ROW LEVEL SECURITY;
     REVOKE ALL ON crm_private_clients,crm_client_newsletter,crm_client_mail_history,crm_client_mail_events FROM anon,authenticated,PUBLIC;
-  `); } finally { await sql`SELECT pg_advisory_unlock(${lockId})`; }
-  })().catch(e=>{ready=undefined;throw e;});
+  `);
+  }).catch(e=>{ready=undefined;throw e;});
   await ready;
 }
 export async function getPrivateClients(query="",page=0,listName="") {
@@ -91,9 +100,9 @@ export async function getPrivateClients(query="",page=0,listName="") {
   try {
     await ensureClients(sql);
     const pattern="%"+query.replace(/[\\%_]/g,"\\$&")+"%";
-    const rows=await sql`SELECT c.id,c.name,c.email,c.phone,c.purchase,c.notes,c.subscribed,c.email_status AS "emailStatus",c.email_status_reason AS "emailStatusReason",c.email_invalid_at AS "emailInvalidAt",c.list_name AS "listName",c.lead_id AS "leadId",
+    const rows=await sql`SELECT c.id,c.name,c.email,c.phone,c.purchase,c.notes,c.subscribed,c.email_status AS "emailStatus",c.email_status_reason AS "emailStatusReason",c.email_invalid_at AS "emailInvalidAt",CASE WHEN ${listName}='' THEN c.list_name ELSE ${listName} END AS "listName",c.lead_id AS "leadId",
       c.updated_at AS "updatedAt",(SELECT MAX(sent_at) FROM crm_client_mail_history WHERE client_id=c.id AND status='sent') AS "lastSentAt"
-      FROM crm_private_clients c WHERE (${listName}='' OR c.list_name=${listName}) AND (c.name ILIKE ${pattern} OR c.email ILIKE ${pattern} OR c.phone ILIKE ${pattern} OR c.purchase ILIKE ${pattern})
+      FROM crm_private_clients c WHERE (${listName}='' OR EXISTS(SELECT 1 FROM crm_client_list_members m WHERE m.client_id=c.id AND m.list_name=${listName})) AND (c.name ILIKE ${pattern} OR c.email ILIKE ${pattern} OR c.phone ILIKE ${pattern} OR c.purchase ILIKE ${pattern})
       ORDER BY c.name,c.id LIMIT 51 OFFSET ${page*50}`;
     return {clients:rows.slice(0,50) as unknown as PrivateClient[],hasMore:rows.length>50};
   }finally{await sql.end();}
@@ -110,8 +119,11 @@ export async function saveClient(data:ClientInput,actor:string) {
         notes=${data.notes},subscribed=${emailStatus==='invalid'?false:data.subscribed},email_status=${emailStatus},
         email_status_reason=${emailStatus==='invalid'?'Marcado como inválido desde el CRM.':''},email_invalid_at=${emailStatus==='invalid'?sql`COALESCE(email_invalid_at,NOW())`:null},updated_by=${actor},updated_at=NOW() WHERE id=${data.id} RETURNING id`;
       if(!rows.length)throw Error("El cliente ya no está disponible.");
-    }else await sql`INSERT INTO crm_private_clients(name,email,phone,purchase,notes,subscribed,lead_id,created_by,updated_by)
-      VALUES(${data.name},${data.email.toLowerCase()},${data.phone},${data.purchase},${data.notes},${data.subscribed},${data.leadId||null},${actor},${actor})`;
+    }else await sql.begin(async tx=>{
+      const [client]=await tx`INSERT INTO crm_private_clients(name,email,phone,purchase,notes,subscribed,lead_id,created_by,updated_by)
+        VALUES(${data.name},${data.email.toLowerCase()},${data.phone},${data.purchase},${data.notes},${data.subscribed},${data.leadId||null},${actor},${actor}) RETURNING id,list_name`;
+      await tx`INSERT INTO crm_client_list_members(list_name,client_id) VALUES(${client.list_name},${client.id}) ON CONFLICT DO NOTHING`;
+    });
   }finally{await sql.end();}
 }
 export async function markClientEmailInvalid(id:string,actor:string,reason="Marcado como inválido desde el informe de campaña.") {
@@ -148,30 +160,60 @@ export async function getClientLeadStatuses():Promise<ClientLeadStatus[]> {
 }
 export type ClientList = {name:string;total:number;authorized:number;emailReady:number;invalidEmails:number};
 export async function getClientLists():Promise<ClientList[]> {
-  const sql=clientDb();try {await ensureClients(sql);return await sql`SELECT list_name AS name,COUNT(*)::int AS total,
+  const sql=clientDb();try {await ensureClients(sql);return await sql`SELECT m.list_name AS name,COUNT(*)::int AS total,
     COUNT(*) FILTER (WHERE subscribed)::int AS authorized,COUNT(*) FILTER (WHERE subscribed AND email<>'' AND email_status='active')::int AS "emailReady",
     COUNT(*) FILTER (WHERE email_status='invalid')::int AS "invalidEmails"
-    FROM crm_private_clients GROUP BY list_name ORDER BY list_name` as unknown as ClientList[];}finally{await sql.end();}
+    FROM crm_client_list_members m JOIN crm_private_clients c ON c.id=m.client_id GROUP BY m.list_name ORDER BY m.list_name` as unknown as ClientList[];}finally{await sql.end();}
 }
 export async function getClientListRecipients(listName:string) {
-  const sql=clientDb();try {await ensureClients(sql);return await sql`SELECT id,name,email FROM crm_private_clients
-    WHERE list_name=${listName} AND subscribed AND email<>'' AND email_status='active' ORDER BY name,id` as unknown as Pick<PrivateClient,"id"|"name"|"email">[];}finally{await sql.end();}
+  const sql=clientDb();try {await ensureClients(sql);return await sql`SELECT c.id,c.name,c.email FROM crm_private_clients c
+    WHERE EXISTS(SELECT 1 FROM crm_client_list_members m WHERE m.client_id=c.id AND m.list_name=${listName}) AND subscribed AND email<>'' AND email_status='active' ORDER BY name,id` as unknown as Pick<PrivateClient,"id"|"name"|"email">[];}finally{await sql.end();}
+}
+export type ClientLeadSegment = {status:string;development:string;occupation:string;eligible:number;emailReady:number};
+export async function getClientLeadSegments():Promise<ClientLeadSegment[]> {
+  const sql=clientDb();try {
+    return await sql`SELECT l.status,COALESCE(NULLIF(TRIM(l.development_name_text),''),d.name,'') AS development,
+      COALESCE(TRIM(l.occupation),'') AS occupation,
+      COUNT(*) FILTER (WHERE COALESCE(TRIM(l.email),'')<>'' AND l.email NOT ILIKE '%.barrerabrokers.local')::int AS "emailReady",
+      COUNT(*)::int AS eligible FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id
+      WHERE COALESCE(TRIM(l.email),'')<>'' OR COALESCE(TRIM(l.phone),'')<>''
+      GROUP BY l.status,COALESCE(NULLIF(TRIM(l.development_name_text),''),d.name,''),COALESCE(TRIM(l.occupation),'')
+      ORDER BY development,l.status` as unknown as ClientLeadSegment[];
+  }finally{await sql.end();}
 }
 export async function importClientsByLeadStatus(status:string,actor:string) {
+  return importClientsByLeadSegment({status,development:'',listName:status},actor);
+}
+export async function importClientsByLeadSegment(filters:{status:string;development:string;occupation?:string;listName:string},actor:string) {
   const sql=clientDb();try {
     await ensureClients(sql);
     return await sql.begin(async tx=>{
-      const [eligible]=await tx`SELECT COUNT(*)::int AS count FROM crm_leads
-        WHERE status=${status} AND (COALESCE(email,'')<>'' OR COALESCE(phone,'')<>'')`;
-      const updated=await tx`UPDATE crm_private_clients c SET list_name=${status},subscribed=CASE WHEN c.email_status='invalid' THEN false ELSE true END,updated_by=${actor},updated_at=NOW()
-        FROM crm_leads l WHERE c.lead_id=l.id AND l.status=${status} RETURNING c.id`;
+      await tx`SELECT pg_advisory_xact_lock(hashtext(${filters.listName}))`;
+      const matches=tx`SELECT l.* FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id
+        WHERE (${filters.status}='' OR l.status=${filters.status})
+        AND (${filters.development}='' OR lower(COALESCE(NULLIF(TRIM(l.development_name_text),''),d.name,''))=lower(${filters.development}))
+        AND (${filters.occupation || ''}='' OR translate(lower(btrim(COALESCE(l.occupation,''))),'áéíóúü','aeiouu')=translate(lower(btrim(${filters.occupation || ''})),'áéíóúü','aeiouu'))
+        AND (COALESCE(TRIM(l.email),'')<>'' OR COALESCE(TRIM(l.phone),'')<>'')`;
+      const [eligible]=await tx`SELECT COUNT(*)::int AS count FROM (${matches}) l`;
       const added=await tx`INSERT INTO crm_private_clients(name,email,phone,purchase,notes,subscribed,list_name,lead_id,created_by,updated_by)
         SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ',l.first_name,l.last_name)),''),NULLIF(l.email,''),'Cliente sin nombre'),
           COALESCE(l.email,''),CONCAT_WS('',COALESCE(l.country_code,''),COALESCE(l.phone,'')),
-          'Incorporado desde lead «'||l.status||'','Pendiente de completar la compra.',true,l.status,l.id,${actor},${actor}
-        FROM crm_leads l WHERE l.status=${status} AND (COALESCE(l.email,'')<>'' OR COALESCE(l.phone,'')<>'')
-        ON CONFLICT DO NOTHING RETURNING id`;
-      return {eligible:Number(eligible?.count||0),added:added.length,updated:updated.length,skipped:Number(eligible?.count||0)-added.length-updated.length};
+          'Incorporado desde lead «'||l.status||'','Pendiente de completar la compra.',true,${filters.listName},l.id,${actor},${actor}
+        FROM (${matches}) l ON CONFLICT DO NOTHING RETURNING id`;
+      const updated=await tx`UPDATE crm_private_clients c SET
+        email=CASE WHEN btrim(c.email)='' AND NULLIF(btrim(l.email),'') IS NOT NULL
+          AND NOT EXISTS(SELECT 1 FROM crm_private_clients other WHERE lower(other.email)=lower(btrim(l.email)) AND other.id<>c.id)
+          THEN btrim(l.email) ELSE c.email END,
+        phone=CASE WHEN btrim(c.phone)='' AND NULLIF(btrim(l.phone),'') IS NOT NULL
+          THEN CONCAT_WS('',COALESCE(l.country_code,''),l.phone) ELSE c.phone END,
+        subscribed=CASE WHEN c.email_status='invalid' THEN false ELSE true END,updated_by=${actor},updated_at=NOW()
+        FROM (${matches}) l WHERE c.lead_id=l.id RETURNING c.id`;
+      await tx`DELETE FROM crm_client_list_members WHERE list_name=${filters.listName}`;
+      const members=await tx`INSERT INTO crm_client_list_members(list_name,client_id)
+        SELECT ${filters.listName},c.id FROM crm_private_clients c WHERE c.lead_id IN (SELECT id FROM (${matches}) l)
+        ON CONFLICT DO NOTHING RETURNING client_id`;
+      return {listName:filters.listName,eligible:Number(eligible?.count||0),added:added.length,
+        updated:Math.max(0,updated.length-added.length),total:members.length,skipped:Number(eligible?.count||0)-members.length};
     });
   }finally{await sql.end();}
 }

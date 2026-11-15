@@ -70,10 +70,10 @@ export async function removeAudioFromVideoFile(file: File): Promise<File> {
     canvas.width = Math.max(2, Math.round(sourceWidth * ratio));
     canvas.height = Math.max(2, Math.round(sourceHeight * ratio));
 
-    outputStream = canvas.captureStream(30);
+    outputStream = canvas.captureStream(24);
     const recorder = new MediaRecorder(outputStream, {
       mimeType,
-      videoBitsPerSecond: 4_000_000,
+      videoBitsPerSecond: 1_600_000,
     });
     const chunks: BlobPart[] = [];
 

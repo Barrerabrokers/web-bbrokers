@@ -1,4 +1,4 @@
-import { socialConnectionStore } from "@/lib/meta-social-store";
+import { inspectMetaSocialConnection } from "@/lib/meta-social";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -17,16 +17,16 @@ export default async function WhatsAppInboxPage({ searchParams: pendingsearchPar
   if (!session) redirect("/login?from=/admin/crm/marketing/whatsapp");
   if (!canAccessMarketing(session.user.role)) redirect("/admin/crm");
   const isAdmin = canViewAllCrmContacts(session.user.role);
-  const [conversations, allAgents, savedWhatsApp, savedMeta] = await Promise.all([
+  const [conversations, allAgents, savedWhatsApp] = await Promise.all([
     listWhatsAppConversations({ agentId: session.user.id, includeAll: isAdmin }),
     isAdmin ? getAllAgents() : Promise.resolve([]),
     getWhatsAppChannelCredentials(),
-    socialConnectionStore(),
   ]);
-  return <>{isAdmin && <WhatsAppEmbeddedSignup initialConnection={savedWhatsApp ? { displayPhoneNumber: savedWhatsApp.displayPhoneNumber } : undefined} />}<WhatsAppInbox initialChannel={searchParams.channel === "instagram" || searchParams.channel === "facebook" ? searchParams.channel : "all"} initialSelectedId={conversations.find(c => c.leadId === searchParams.lead)?.id} initialConversations={conversations} agents={allAgents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name }))} isAdmin={isAdmin} configured={{
+  const social = await inspectMetaSocialConnection();
+  return <>{isAdmin && <WhatsAppEmbeddedSignup initialConnection={savedWhatsApp ? { displayPhoneNumber: savedWhatsApp.displayPhoneNumber } : undefined} />}<WhatsAppInbox initialChannel={searchParams.channel === "instagram" ? "instagram" : searchParams.channel === "whatsapp" ? "whatsapp" : "all"} initialSelectedId={conversations.find(c => c.leadId === searchParams.lead)?.id} initialConversations={conversations} agents={allAgents.filter((agent) => agent.active).map((agent) => ({ id: agent.id, name: agent.name }))} isAdmin={isAdmin} configured={{
     whatsapp: Boolean((process.env.WHATSAPP_ACCESS_TOKEN || savedWhatsApp?.accessToken || process.env.META_ACCESS_TOKEN) && (process.env.WHATSAPP_PHONE_NUMBER_ID || savedWhatsApp?.phoneNumberId)),
-    instagram: Boolean((savedMeta?.token || process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN) && (savedMeta?.pageId || process.env.META_SOCIAL_PAGE_ID || process.env.META_PAGE_ID)),
-    facebook: Boolean((savedMeta?.token || process.env.META_PAGE_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN) && (savedMeta?.pageId || process.env.META_SOCIAL_PAGE_ID || process.env.META_PAGE_ID)),
-    ai: Boolean(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY),
+    instagram: social.connected && social.canReadInstagram,
+    facebook: social.connected,
+    ai: true,
   }} /></>;
 }

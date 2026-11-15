@@ -1,4 +1,8 @@
-# AI Sales Copilot — implementación
+# AI Sales Copilot — retirado
+
+Retirado a pedido del usuario el 19/10/2026. Sin menú, informes, API operativa, cron ni llamadas al modelo. Los contactos y el historial permanecen conservados. La migración `202610_retire_ai_sales.sql` desactiva exclusivamente la captura de eventos del módulo.
+
+## Referencia de la implementación anterior
 
 ## Estado de entrega
 

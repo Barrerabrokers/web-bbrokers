@@ -16,8 +16,10 @@
     contextLoadedAt: 0,
     featuredSavingIds: new Set(),
     draftSaveTimer: null,
+    uiRevision: 0,
   };
 
+  // User interaction invalidates delayed navigation and draft restoration.
   const DRAFT_KEY = "bbWhatsAppComposerDraft";
 
   const DEFAULT_CONTACT_TABS = [
@@ -31,6 +33,9 @@
 
   const root = document.createElement("aside");
   root.id = "bb-crm-extension-root";
+  for (const eventName of ["pointerdown", "click", "input"]) {
+    root.addEventListener(eventName, () => { state.uiRevision += 1; }, true);
+  }
   root.innerHTML = `
     <nav class="bb-topbar" aria-label="Listas de contactos del CRM">
       <div class="bb-contact-tabs" role="tablist" aria-label="Contactos por estado"></div>
@@ -443,10 +448,12 @@
   }
 
   async function showCrmContactForOpenConversation(sourceRow = null) {
+    const revision = state.uiRevision;
     const identity = visibleConversationIdentity(sourceRow);
     if (!identity.phone && !identity.name) return;
     if (!state.leads.length && !(await loadContext())) return;
 
+    if (revision !== state.uiRevision) return;
     const phone = comparablePhone(identity.phone);
     const name = normalizeText(identity.name);
     const lead = state.leads.find((item) => {
@@ -546,6 +553,20 @@
     } catch (error) { if (state.lead?.id === lead.id) content.textContent = error.message; }
   }
   $(".bb-refresh-history").addEventListener("click", () => { if (state.lead) void loadCommunicationHistory(state.lead); });
+
+  function refreshFeaturedIndicator() {
+    if (!state.lead) return;
+    const button = client.querySelector(".bb-feature-toggle");
+    if (!button) return;
+    const id = String(state.lead.id);
+    const featured = state.featuredLeadIds.includes(id);
+    button.disabled = state.featuredSavingIds.has(id);
+    button.textContent = featured ? "★" : "☆";
+    button.setAttribute("aria-pressed", String(featured));
+    const label = featured ? "Quitar de destacados" : "Agregar a destacados";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
 
   function renderLead(lead) {
     if (state.lead?.id !== lead.id) clearSelectedImage();
@@ -756,7 +777,11 @@
     `).join("");
     clearSelectedImage();
     if (imageUrls[0]) {
+      const leadId = state.lead.id;
+      const revision = state.uiRevision;
       const response = await chrome.runtime.sendMessage({ type: "BB_FETCH_TEMPLATE_IMAGE", url: imageUrls[0] });
+      if (revision !== state.uiRevision || state.lead?.id !== leadId
+          || state.selectedTemplate?.id !== templateId || preview.hidden) return;
       if (response?.ok) {
         const fileName = decodeURIComponent(new URL(imageUrls[0]).pathname.split("/").pop() || "imagen-plantilla.jpg");
         renderSelectedImage(new File([new Uint8Array(response.bytes)], fileName, { type: response.type }));
@@ -794,7 +819,11 @@
   }
 
   async function restoreDraft(lead) {
+    const revision = state.uiRevision;
+    const initialMessage = messageInput.value;
     const stored = await chrome.storage.local.get(DRAFT_KEY);
+    if (revision !== state.uiRevision || state.lead?.id !== lead.id
+        || messageInput.value !== initialMessage || !templateManager.hidden || !createClient.hidden) return;
     const draft = stored?.[DRAFT_KEY];
     if (!draft || String(draft.leadId) !== String(lead.id) || Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) return;
     state.selectedTemplate = state.templates.find((template) => String(template.id) === String(draft.templateId)) || null;
@@ -1167,11 +1196,13 @@
     panel.hidden = !willOpen;
     launcher.setAttribute("aria-expanded", String(willOpen));
     if (!willOpen) return;
+    const revision = state.uiRevision;
     phoneInput.value ||= guessVisiblePhone();
     if (state.leads.length) {
       await showCrmContactForOpenConversation();
       void loadContext({ silent: true, force: true });
     } else if (await loadContext()) {
+      if (revision !== state.uiRevision) return;
       await showCrmContactForOpenConversation();
     }
   });
@@ -1179,11 +1210,13 @@
   $(".bb-topbar-brand").addEventListener("click", async () => {
     panel.hidden = false;
     launcher.setAttribute("aria-expanded", "true");
+    const revision = state.uiRevision;
     phoneInput.value ||= guessVisiblePhone();
     if (state.leads.length) {
       await showCrmContactForOpenConversation();
       void loadContext({ silent: true, force: true });
     } else if (await loadContext()) {
+      if (revision !== state.uiRevision) return;
       await showCrmContactForOpenConversation();
     }
   });
@@ -1192,7 +1225,9 @@
     panel.hidden = false;
     launcher.setAttribute("aria-expanded", "true");
     setStatus("Cargando plantillas…");
+    const revision = state.uiRevision;
     const response = await chrome.runtime.sendMessage({ type: "BB_LOAD_TEMPLATES" });
+    if (revision !== state.uiRevision) return;
     if (!response?.ok || response.templates?.__error) {
       setStatus(response?.error || response.templates?.__error || "No se pudieron cargar las plantillas.", "error");
       return;
@@ -1215,7 +1250,9 @@
   $(".bb-topbar-create").addEventListener("click", async () => {
     panel.hidden = false;
     launcher.setAttribute("aria-expanded", "true");
+    const revision = state.uiRevision;
     if (!state.leads.length) await loadContext();
+    if (revision !== state.uiRevision) return;
     openCreateClient();
   });
 
@@ -1228,7 +1265,10 @@
     templatesSection.hidden = true;
     preview.hidden = true;
     clearTimeout(state.conversationSyncTimer);
-    state.conversationSyncTimer = setTimeout(() => showCrmContactForOpenConversation(conversationRow), 0);
+    const revision = ++state.uiRevision;
+    state.conversationSyncTimer = setTimeout(() => {
+      if (revision === state.uiRevision) void showCrmContactForOpenConversation(conversationRow);
+    }, 0);
   }, true);
 
   contactTabs.addEventListener("click", async (event) => {
@@ -1288,7 +1328,7 @@
     launcher.setAttribute("aria-expanded", "false");
   });
 
-  $(".bb-create-toggle").addEventListener("click", openCreateClient);
+  $(".bb-create-toggle").addEventListener("click", () => openCreateClient());
   $(".bb-cancel-create").addEventListener("click", () => {
     createClient.hidden = true;
     setStatus("Buscá un cliente o seleccioná una conversación de WhatsApp.");
@@ -1372,7 +1412,7 @@
       : [...state.featuredLeadIds, id];
     state.featuredSavingIds.add(id);
     renderContactTabs();
-    renderLead(state.lead);
+    refreshFeaturedIndicator();
     try {
       const response = await chrome.runtime.sendMessage({
         type: "BB_SET_FEATURED",
@@ -1392,7 +1432,7 @@
       state.featuredSavingIds.delete(id);
     }
     renderContactTabs();
-    renderLead(state.lead);
+    refreshFeaturedIndicator();
   });
 
   leadContext.addEventListener("change", async (event) => {
@@ -1843,7 +1883,8 @@
     } finally { syncingHistory = false; chatSyncLabel.textContent = "Sincronizar historial"; }
   });
 
-  // Only the existing Destacados list can be linked, and only via this explicit action.
+  // The WhatsApp list is read passively whenever it is open. Adding CRM contacts
+  // to that native list remains an explicit action because WhatsApp has no API for it.
   const nativeInfo = document.createElement("span");
   nativeInfo.className = "bb-native-list-info";
   nativeInfo.setAttribute("role", "status");
@@ -1873,7 +1914,7 @@
           state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
           await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
           renderContactTabs();
-          if (state.lead) renderLead(state.lead);
+          refreshFeaturedIndicator();
         },
       });
       if (ok) { state.activeTabId = state.contactTabs.find(tab => tab.id === "featured" || tab.kind === "featured")?.id || "all"; renderContactTabs(); }
@@ -1893,6 +1934,7 @@
         state.activeTabId = tab.id;
         nativeInfo.hidden = true;
         renderContactTabs();
+        void importOpenFeatured();
       } else reportFeatured("Esta pestaña no modifica las listas de WhatsApp. Solo Destacados está vinculado.");
     } catch (error) { reportFeatured(error.message); }
     finally { selectingNativeTab = false; }
@@ -1910,10 +1952,40 @@
     captureTimer = setTimeout(() => void syncChat(), 150);
   });
   messageObserver.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-pre-plain-text", "data-icon", "aria-label"] });
+  let featuredImportTimer;
+  let importingFeatured = false;
+  async function importOpenFeatured() {
+    if (importingFeatured || state.featuredSavingIds.size || !featuredBridge.isFeaturedSelected()) return;
+    importingFeatured = true;
+    try {
+      const result = await featuredBridge.syncOpenFeatured({
+        leads: [...state.leads], featured: [...state.featuredLeadIds], phone: whatsAppPhone, fullName,
+        setFeatured: async leadId => {
+          const response = await chrome.runtime.sendMessage({ type: "BB_SET_FEATURED", leadId, featured: true });
+          if (!response?.ok) throw new Error(response?.error || "No se pudo guardar el destacado en el CRM.");
+          state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
+          await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
+        },
+      });
+      if (result.imported) {
+        renderContactTabs();
+        refreshFeaturedIndicator();
+        reportFeatured(`${result.imported} contacto${result.imported === 1 ? "" : "s"} de Destacados sincronizado${result.imported === 1 ? "" : "s"} con el CRM.`);
+      }
+    } catch (error) { reportFeatured(error.message); }
+    finally { importingFeatured = false; }
+  }
+  const featuredObserver = new MutationObserver(() => {
+    if (!featuredBridge.isFeaturedSelected()) return;
+    clearTimeout(featuredImportTimer);
+    featuredImportTimer = setTimeout(() => void importOpenFeatured(), 700);
+  });
+  featuredObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
   window.setInterval(() => void syncChat(), 4000);
   window.addEventListener("online", () => void syncChat());
   loadContactTabs().then(() => { state.activeTabId = "all"; renderContactTabs(); });
   hydrateCachedContext();
+  let featuredPreferencesReady = false;
   const syncFeatured = async () => {
     if (document.hidden || state.featuredSavingIds.size) return;
     try {
@@ -1922,10 +1994,15 @@
       state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
       await chrome.storage.local.set({ bbFeaturedLeadIds: state.featuredLeadIds });
       renderContactTabs();
-      if (state.lead) renderLead(state.lead);
+      refreshFeaturedIndicator();
+      if (featuredPreferencesReady && featuredBridge.isFeaturedSelected()) {
+        clearTimeout(featuredImportTimer);
+        featuredImportTimer = setTimeout(() => void importOpenFeatured(), 150);
+      }
+      featuredPreferencesReady = true;
     } catch {}
   };
-  window.setInterval(syncFeatured, 15_000);
+  window.setInterval(syncFeatured, 3_000);
   window.addEventListener("focus", syncFeatured);
   document.addEventListener("visibilitychange", syncFeatured);
   resumePendingSend();

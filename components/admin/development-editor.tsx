@@ -106,7 +106,7 @@ export function DevelopmentEditor({ development }: Props) {
       .toString(36)
       .substring(7)}.${ext}`;
 
-    const { error: uploadError } = await uploadPublicFile(fileName, file, {
+    const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, file, {
         cacheControl: "3600",
         upsert: false,
         contentType: file.type || "application/octet-stream",
@@ -116,9 +116,7 @@ export function DevelopmentEditor({ development }: Props) {
       throw new Error(`Error subiendo archivo: ${uploadError.message}`);
     }
 
-    const { data: urlData } = supabase.storage
-      .from("properties")
-      .getPublicUrl(fileName);
+    const urlData = { publicUrl: uploadedUrl! };
 
     return urlData.publicUrl;
   };
@@ -724,7 +722,7 @@ export function DevelopmentEditor({ development }: Props) {
               videoIsPrimary={videoIsPrimary}
               onVideoPrimaryChange={setVideoIsPrimary}
               imageLabel="Imágenes del desarrollo"
-              videoLabel="Video del desarrollo"
+              videoLabel="Videos del desarrollo"
               imageHelperText="Agregá fotos, renders y planos. Tocá la estrella para elegir portada. Arrastrá para reordenar."
             />
 

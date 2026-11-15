@@ -1,5 +1,6 @@
 "use client";
 
+import { PressLinksEditor } from "@/components/admin/press-links-editor";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -908,21 +909,14 @@ export function SettingsForm({ initial }: { initial: FullSiteSettings }) {
       </fieldset>
 
       {/* ── Sección Prensa ── */}
-      <fieldset className="bg-cream-100 border border-ink/10 rounded-xl p-5 md:p-6">
+      <fieldset id="prensa" className="scroll-mt-24 bg-cream-100 border border-ink/10 rounded-xl p-5 md:p-6">
         <legend className="px-2 text-[10px] uppercase tracking-[0.2em] text-ink/50 flex items-center gap-2">
           <Newspaper className="h-3.5 w-3.5" />
           Sección &ldquo;Prensa&rdquo;
         </legend>
 
         <div className="space-y-4 mt-2">
-          <TextareaField
-            label="Links de notas en medios"
-            value={data.pressLinks || ""}
-            onChange={update("pressLinks")}
-            placeholder={"https://medio.com/nota-sobre-barrera-brokers\nhttps://otro-medio.com/inversiones-buenos-aires"}
-            rows={6}
-            hint="Pegá un link por línea. Si no cargás links, la sección no se muestra en la web."
-          />
+          <PressLinksEditor value={data.pressLinks || ""} disabled={status === "saving"} onChange={value => setData(previous => ({ ...previous, pressLinks: value }))} />
         </div>
       </fieldset>
 

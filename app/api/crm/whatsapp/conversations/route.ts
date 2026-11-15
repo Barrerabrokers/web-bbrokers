@@ -1,3 +1,5 @@
+import { dispatchMiaAssignment } from '@/lib/mia-sales-dispatch';
+import { getMiaAccess } from '@/lib/mia-access';
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -7,6 +9,8 @@ import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
 import { getWhatsAppConversation, listWhatsAppConversations, updateWhatsAppConversation } from "@/lib/whatsapp-inbox";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const patchSchema = z.object({
   id: z.string().uuid(),
@@ -38,14 +42,15 @@ export async function PATCH(request: NextRequest) {
       case "take": conversation = await updateWhatsAppConversation(current.id, { lockAgentId: session.user.id, markRead: true }); break;
       case "assign":
         if (!isAdmin) return NextResponse.json({ error: "Solo administración puede reasignar chats" }, { status: 403 });
-        conversation = await updateWhatsAppConversation(current.id, { assignedAgentId: parsed.data.agentId || null, aiEnabled: !parsed.data.agentId }); break;
-      case "release": conversation = await updateWhatsAppConversation(current.id, { assignedAgentId: null, aiEnabled: true }); break;
-      case "toggle_ai": conversation = await updateWhatsAppConversation(current.id, { aiEnabled: parsed.data.aiEnabled ?? !current.aiEnabled }); break;
+        conversation = await updateWhatsAppConversation(current.id, { ownerActorId: session.user.id, assignedAgentId: parsed.data.agentId || null, ...(!(await getMiaAccess()).manualPause?{aiEnabled:!parsed.data.agentId}:{}) }); break;
+      case "release": conversation = await updateWhatsAppConversation(current.id, { ownerActorId: session.user.id, assignedAgentId: null, ...(!(await getMiaAccess()).manualPause?{aiEnabled:true}:{}) }); break;
+      case "toggle_ai": { const enabled=parsed.data.aiEnabled ?? !current.aiEnabled;conversation=await updateWhatsAppConversation(current.id,{aiEnabled:enabled,aiAssistAssigned:enabled&&!!current.assignedAgentId?true:undefined});break;}
       case "close": conversation = await updateWhatsAppConversation(current.id, { status: "closed", aiEnabled: false }); break;
       case "open": conversation = await updateWhatsAppConversation(current.id, { status: "open" }); break;
       default: conversation = await updateWhatsAppConversation(current.id, { markRead: true });
     }
-    return NextResponse.json({ conversation });
+    const miaOutreach=parsed.data.action==='assign'&&parsed.data.agentId&&parsed.data.agentId!==current.assignedAgentId&&conversation?.leadId?await dispatchMiaAssignment([conversation.leadId]):undefined;
+    return NextResponse.json({ conversation, miaOutreach });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo actualizar" }, { status: 409 });
   }

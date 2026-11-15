@@ -1,3 +1,4 @@
+import { ViewportVideo } from "@/components/viewport-video";
 import Image from "next/image";
 import { User } from "lucide-react";
 import { getTeamMembers, getFullSiteSettings } from "@/lib/db";
@@ -34,7 +35,7 @@ export async function AboutSection() {
             <div className="col-span-12 md:col-span-7 order-2 md:order-1">
               <div className="relative aspect-[4/5] overflow-hidden bg-cream-200">
                 {settings.aboutVideo ? (
-                  <video
+                  <ViewportVideo
                     src={settings.aboutVideo}
                     muted
                     playsInline

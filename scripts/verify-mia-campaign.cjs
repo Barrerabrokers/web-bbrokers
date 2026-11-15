@@ -1,0 +1,14 @@
+// Synthetic campaign payloads, real sources/provider; no client IDs, writes or sends.
+const fs=require('fs'),path=require('path'),Module=require('module'),ts=require('typescript'),assert=require('node:assert/strict');const resolve=Module._resolveFilename;Module._resolveFilename=function(id,parent,...rest){return resolve.call(this,id.startsWith('@/')?path.join(process.cwd(),id.slice(2)):id,parent,...rest)};require.extensions['.ts']=(m,file)=>m._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,file);
+(async()=>{
+ const {runMiaAgent}=require('../lib/mia-agent.ts'),{getMiaTrialConfig}=require('../lib/mia-project-trial.ts'),config=await getMiaTrialConfig();
+ const form='¡Hola! Completé el formulario y me gustaría obtener más información sobre el negocio.\n¿Cuándo te gustaría realizar la inversión?: En los próximos 3 meses\n¿Con qué presupuesto contás para invertir?: USD 80.000 a 100.000\n¿Cuál es tu principal objetivo?: Comprar para uso personal';
+ const ad=body=>'\n\n[Origen del anuncio]\n'+JSON.stringify({source_id:'synthetic-campaign-test',headline:'Invertí desde USD 80.000',body});
+ const initial=await runMiaAgent([{direction:'inbound',content:form+ad('Departamentos de 1 y 2 ambientes en San Telmo, listos para alquilar.')}],config);
+ assert.equal(initial.memory.preferences.total.amount,100000);assert.equal(initial.memory.preferences.purpose,'living');assert.equal(initial.memory.preferences.rooms.length,0);assert.doesNotMatch(initial.reply,/No pude verificar|USD|garantiz/);assert.match(initial.reply,/San Telmo/);
+ const named=await runMiaAgent([{direction:'inbound',content:'Hola, quiero más información'+ad('Conocé Palazzo Ducale en Palermo.')}],config);
+ assert(named.reply.includes('https://barrerabrokers.com/desarrollos/palazzo-ducale'));assert.match(named.reply,/diciembre de 2026/);
+ const followup=await runMiaAgent([{direction:'inbound',content:form+ad('Departamentos de 1 y 2 ambientes en San Telmo, listos para alquilar.')},{direction:'outbound',content:initial.reply},{direction:'inbound',content:'Sí, en San Telmo, para uso personal. Busco un departamento de dos ambientes.'}],config,'',{memory:initial.memory});
+ assert.doesNotMatch(followup.reply,/No pude verificar ese dato|Para orientarte bien|no encontré una unidad/);assert.equal(followup.memory.preferences.purpose,'living');assert.equal(followup.memory.preferences.total.amount,100000);assert(followup.memory.preferences.neighborhoods.some(n=>/san telmo/i.test(n)));assert(followup.memory.preferences.rooms.includes(2));
+ console.log('MIA_CAMPAIGN_SMOKE',JSON.stringify({initial:initial.reply,named:named.reply,followup:followup.reply,preferences:followup.memory.preferences,customerSends:0,crmWrites:0}));
+})().catch(e=>{console.error('MIA_CAMPAIGN_SMOKE failed:',e.message);process.exitCode=1});

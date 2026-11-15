@@ -106,7 +106,7 @@ export default function NewDevelopmentPage() {
             .toString(36)
             .substring(7)}.${ext}`;
 
-          const { error: uploadError } = await uploadPublicFile(fileName, item.file, {
+          const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, item.file, {
               cacheControl: "3600",
               upsert: false,
               contentType: item.file.type,
@@ -114,9 +114,7 @@ export default function NewDevelopmentPage() {
 
           if (uploadError) throw new Error(uploadError.message);
 
-          const { data: urlData } = supabase.storage
-            .from("properties")
-            .getPublicUrl(fileName);
+          const urlData = { publicUrl: uploadedUrl! };
           url = urlData.publicUrl;
         }
 
@@ -143,7 +141,7 @@ export default function NewDevelopmentPage() {
       .toString(36)
       .substring(7)}.${ext}`;
 
-    const { error: uploadError } = await uploadPublicFile(fileName, priceListFile, {
+    const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, priceListFile, {
         cacheControl: "3600",
         upsert: false,
         contentType: priceListFile.type || "application/octet-stream",
@@ -153,9 +151,7 @@ export default function NewDevelopmentPage() {
       throw new Error(`Error subiendo lista de precios: ${uploadError.message}`);
     }
 
-    const { data: urlData } = supabase.storage
-      .from("properties")
-      .getPublicUrl(fileName);
+    const urlData = { publicUrl: uploadedUrl! };
 
     return urlData.publicUrl;
   };
@@ -284,7 +280,7 @@ export default function NewDevelopmentPage() {
             videoIsPrimary={videoIsPrimary}
             onVideoPrimaryChange={setVideoIsPrimary}
             imageLabel="Imágenes del desarrollo *"
-            videoLabel="Video del desarrollo"
+            videoLabel="Videos del desarrollo"
             imageHelperText="Subí imágenes de la fachada, espacios comunes, amenities, renders, etc."
           />
 

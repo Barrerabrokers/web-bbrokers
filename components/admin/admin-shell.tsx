@@ -29,7 +29,8 @@ export function AdminShell({ children, session }: { children: React.ReactNode; s
 
     const isContactRoute = pathname === "/admin/crm" || /^\/admin\/crm\/[0-9a-f-]{36}$/i.test(pathname);
     const isPrivateClients=pathname==="/admin/crm/clientes" && session.user.role==="admin";
-    if (!isContactRoute && !isPrivateClients && pathname !== "/admin/crm/panel-agentes") router.replace("/admin/crm");
+    const isTasksRoute=["/admin/crm/tareas","/admin/crm/calendario","/admin/crm/correo","/admin/crm/reuniones"].includes(pathname);
+    if (!isContactRoute && !isPrivateClients && !isTasksRoute && pathname !== "/admin/crm/panel-agentes") router.replace("/admin/crm");
   }, [isStandaloneCrm, pathname, router, session.user.role]);
   useEffect(() => {
     const handleEditorMode = (event: Event) => {

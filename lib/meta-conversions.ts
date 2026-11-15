@@ -78,7 +78,7 @@ async function resolveDatasetId() {
 }
 
 export function isInterestedLeadStatus(status?: string) {
-  return normalizedText(status) === "interesado";
+  return ["interesado", "calificado"].includes(normalizedText(status));
 }
 
 export async function sendMetaQualifiedLead(lead: CrmLead): Promise<MetaQualifiedLeadResult> {

@@ -351,7 +351,7 @@ export function MetaCampaignDashboard() {
               <Metric label="Inversión" value={money(data.totals.spend, data.account.currency)} detail={`${data.period.since} al ${data.period.until}`} />
               <Metric label="Leads de Meta" value={compact(data.totals.leads)} detail={`${money(data.totals.costPerLead, data.account.currency)} por lead`} />
               <Metric label="Leads en CRM" value={compact(data.totals.crmLeads)} detail="Con atribución reconocida" />
-              <Metric label="Calificados" value={compact(data.totals.qualifiedLeads)} detail={`${money(data.totals.costPerQualifiedLead, data.account.currency)} por calificado`} />
+              <Metric label="Interesados" value={compact(data.totals.qualifiedLeads)} detail={`${money(data.totals.costPerQualifiedLead, data.account.currency)} por interesado`} />
               <Metric label="Reuniones" value={compact(data.totals.meetings)} detail={`${decimal(data.totals.crmLeads ? data.totals.meetings / data.totals.crmLeads * 100 : 0)}% de los leads CRM`} />
             </div>
           </section>
@@ -370,7 +370,7 @@ export function MetaCampaignDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="bg-cream-50 text-xs font-semibold text-ink/62">
-                  <tr><th className="px-6 py-3">Campaña</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3 text-right">Inversión</th><th className="px-4 py-3 text-right">Leads</th><th className="px-4 py-3 text-right">CPL</th><th className="px-4 py-3 text-right">CTR</th><th className="px-4 py-3 text-right">CRM</th><th className="px-4 py-3 text-right">Calificados</th><th className="px-4 py-3 text-right">Reuniones</th><th className="px-6 py-3 text-right">Acción</th></tr>
+                  <tr><th className="px-6 py-3">Campaña</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3 text-right">Inversión</th><th className="px-4 py-3 text-right">Leads</th><th className="px-4 py-3 text-right">CPL</th><th className="px-4 py-3 text-right">CTR</th><th className="px-4 py-3 text-right">CRM</th><th className="px-4 py-3 text-right">Interesados</th><th className="px-4 py-3 text-right">Reuniones</th><th className="px-6 py-3 text-right">Acción</th></tr>
                 </thead>
                 <tbody className="divide-y divide-ink/8">
                   {data.campaigns.map((campaign) => {
@@ -397,7 +397,7 @@ export function MetaCampaignDashboard() {
           </section>
 
           <section className="grid gap-px overflow-hidden rounded-md bg-ink/10 sm:grid-cols-3">
-            <div className="bg-white p-5"><Target className="h-5 w-5 text-accent" /><h3 className="mt-3 font-semibold text-ink">Optimizar por calidad</h3><p className="mt-1 text-sm leading-6 text-ink/58">Compará CPL con calificados y reuniones antes de aumentar presupuesto.</p></div>
+            <div className="bg-white p-5"><Target className="h-5 w-5 text-accent" /><h3 className="mt-3 font-semibold text-ink">Optimizar por calidad</h3><p className="mt-1 text-sm leading-6 text-ink/58">Compará CPL con interesados y reuniones antes de aumentar presupuesto.</p></div>
             <div className="bg-white p-5"><UsersRound className="h-5 w-5 text-accent" /><h3 className="mt-3 font-semibold text-ink">Atribución CRM</h3><p className="mt-1 text-sm leading-6 text-ink/58">Cada lead debe conservar campaña y anuncio para medir el recorrido completo.</p></div>
             <div className="bg-white p-5"><CalendarRange className="h-5 w-5 text-accent" /><h3 className="mt-3 font-semibold text-ink">Decisión semanal</h3><p className="mt-1 text-sm leading-6 text-ink/58">Revisá siete días completos y evitá decisiones por variaciones de un solo día.</p></div>
           </section>

@@ -1,8 +1,11 @@
+import { canReadListing } from "@/lib/listing-visibility-policy";
+import { hasValidShareToken } from "@/lib/share-token";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
   getUnitsByDevelopment,
+  getDevelopmentById,
   createUnit,
 } from "@/lib/developments-db";
 import { canManageListings } from "@/lib/roles";
@@ -44,8 +47,12 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
+  const session = await getServerSession(authOptions);
+  const development = await getDevelopmentById(developmentId);
+  const shared = hasValidShareToken(request.nextUrl.searchParams.get("share"), "development", developmentId);
+  if (!development || !canReadListing(development.visibility, session?.user.role, shared)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   const units = await getUnitsByDevelopment(developmentId);
-  return NextResponse.json(units);
+  return NextResponse.json(units, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 

@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { CalendarDays, CalendarPlus, Inbox, Mail, Megaphone, PanelsTopLeft, Settings2, UserCog, UsersRound, Workflow } from "lucide-react";
+import { Bot, CalendarCheck, CalendarDays, CalendarPlus, Inbox, Mail, Megaphone, PanelsTopLeft, Settings2, UserCog, UsersRound, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canManageAdminPanel } from "@/lib/roles";
 
 const crmNavItems = [
-  { href: "/admin/crm/ai-sales", label: "AI Sales", description: "Qué hacer ahora", icon: UsersRound },
+  { href: "/admin/crm/mia", label: "MIA", description: "Supervisión y aprendizaje", icon: Bot, administratorOnly: true },
   { href: "/admin/crm/clientes", label: "Correos de Marketing", description: "Listas por estado del lead", icon: Mail, administratorOnly: true },
   { href: "/admin/crm/panel-agentes", label: "Panel de agentes", description: "Actividad y comunicaciones", icon: UsersRound },
+  { href: "/admin/crm/tareas", label: "Mis tareas", description: "Pendientes y vencidas", icon: CalendarCheck },
   {
     href: "/admin/crm/marketing/whatsapp",
     label: "Conversaciones",

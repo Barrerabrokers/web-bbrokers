@@ -1,11 +1,13 @@
+import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { getProperties } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 import { InteractiveShowcaseSection, ShowcaseItem } from "./interactive-showcase-section";
 
 export async function PropertiesSection() {
+  const visibility = await getListingVisibilityFilter();
   const properties = await getProperties({
     status: "disponible",
-    visibility: "public",
+    visibility,
   });
 
   const items: ShowcaseItem[] = properties.slice(0, 8).map((p) => ({

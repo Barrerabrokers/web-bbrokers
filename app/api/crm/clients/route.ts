@@ -2,7 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {z} from "zod";
 import {authOptions} from "@/lib/auth";
-import {findClientContacts,getClientEmailTemplates,getClientLeadStatuses,getClientListRecipients,getClientLists,getPrivateClients,importClientsByLeadStatus,markClientEmailInvalid,saveClient} from "@/lib/crm-clients";
+import {findClientContacts,getClientEmailTemplates,getClientLeadStatuses,getClientLeadSegments,getClientListRecipients,getClientLists,getPrivateClients,importClientsByLeadStatus,importClientsByLeadSegment,markClientEmailInvalid,saveClient} from "@/lib/crm-clients";
 export const dynamic="force-dynamic";
 const schema=z.object({
   id:z.string().uuid().optional(),leadId:z.string().uuid().nullable().optional(),
@@ -16,7 +16,7 @@ export async function GET(request:NextRequest) {
   const listName=(request.nextUrl.searchParams.get("list")||"").trim().slice(0,120);
   try {
     if(request.nextUrl.searchParams.get("contacts")==="1")return NextResponse.json({contacts:q.length>=2?await findClientContacts(q):[]},{headers:{"Cache-Control":"no-store"}});
-    if(request.nextUrl.searchParams.get("statuses")==="1")return NextResponse.json({statuses:await getClientLeadStatuses()},{headers:{"Cache-Control":"no-store"}});
+    if(request.nextUrl.searchParams.get("statuses")==="1")return NextResponse.json({statuses:await getClientLeadStatuses(),segments:await getClientLeadSegments()},{headers:{"Cache-Control":"no-store"}});
     if(request.nextUrl.searchParams.get("templates")==="1")return NextResponse.json({templates:await getClientEmailTemplates()},{headers:{"Cache-Control":"no-store"}});
     if(request.nextUrl.searchParams.get("lists")==="1")return NextResponse.json({lists:await getClientLists()},{headers:{"Cache-Control":"no-store"}});
     if(request.nextUrl.searchParams.get("recipients")==="1")return NextResponse.json({recipients:listName?await getClientListRecipients(listName):[]},{headers:{"Cache-Control":"no-store"}});
@@ -33,6 +33,12 @@ export async function POST(request:NextRequest) {
     try {return NextResponse.json({ok:true,...await importClientsByLeadStatus(importParsed.data.status,session.user.id)});}
     catch{return NextResponse.json({error:"No se pudieron incorporar los contactos de ese estado."},{status:500});}
   }
+  const segmentParsed=z.object({action:z.literal("import-segment"),status:z.string().trim().max(120),development:z.string().trim().max(200),occupation:z.string().trim().max(200).optional().default(""),listName:z.string().trim().min(1).max(120),confirmed:z.literal(true)}).strict().refine(d=>Boolean(d.status||d.development||d.occupation)).safeParse(raw);
+  if(segmentParsed.success) {
+    try {return NextResponse.json({ok:true,...await importClientsByLeadSegment(segmentParsed.data,session.user.id)});}
+    catch{return NextResponse.json({error:"No se pudo crear la lista con esos filtros."},{status:500});}
+  }
+  if(raw?.action==="import-segment")return NextResponse.json({error:"Elegí una actividad, estado o desarrollo y completá el nombre de la lista (hasta 120 caracteres)."},{status:400});
   const invalidParsed=z.object({action:z.literal("mark-email-invalid"),id:z.string().uuid(),reason:z.string().trim().max(500).optional()}).strict().safeParse(raw);
   if(invalidParsed.success) {
     try {await markClientEmailInvalid(invalidParsed.data.id,session.user.id,invalidParsed.data.reason||undefined);return NextResponse.json({ok:true});}

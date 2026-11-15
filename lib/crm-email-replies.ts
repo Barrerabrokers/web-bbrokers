@@ -4,14 +4,14 @@ import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
 
 type GmailHeader = { name?: string; value?: string };
 type GmailPart = { mimeType?: string; body?: { data?: string }; parts?: GmailPart[] };
-type GmailMessage = { id?: string; internalDate?: string; payload?: GmailPart & { headers?: GmailHeader[] } };
+export type GmailMessage = { id?: string; internalDate?: string; payload?: GmailPart & { headers?: GmailHeader[] } };
 
 function decodeBase64Url(value = "") {
   if (!value) return "";
   return Buffer.from(value.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
 }
 
-function findBody(part?: GmailPart): string {
+export function findBody(part?: GmailPart): string {
   if (!part) return "";
   if (part.mimeType === "text/plain" && part.body?.data) return decodeBase64Url(part.body.data);
   for (const child of part.parts || []) {
@@ -24,7 +24,7 @@ function findBody(part?: GmailPart): string {
   return "";
 }
 
-function header(message: GmailMessage, name: string) {
+export function header(message: GmailMessage, name: string) {
   return message.payload?.headers?.find((item) => item.name?.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
@@ -55,7 +55,7 @@ export async function syncLeadEmailReplies({ lead, agentId, origin, since, acces
   let imported = 0;
   const existingIds = new Set((await getCrmActivities([lead.id])).filter((activity) => activity.externalSource === "gmail_inbound").map((activity) => activity.externalId));
   for (const item of list?.messages || []) {
-    if (existingIds.has(item.id)) continue;
+    if (existingIds.has(item.id) || existingIds.has(`gmail:${agentId}:${item.id}`)) continue;
     const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const message = await response.json().catch(() => null) as GmailMessage | null;
     if (!response.ok || !message?.id) continue;
@@ -75,7 +75,7 @@ export async function syncLeadEmailReplies({ lead, agentId, origin, since, acces
       scheduledAt: message.internalDate ? new Date(Number(message.internalDate)).toISOString() : undefined,
       createdBy: agentId,
       externalSource: "gmail_inbound",
-      externalId: message.id,
+      externalId: `gmail:${agentId}:${message.id}`,
     });
     if (activity && !error) imported += 1;
   }

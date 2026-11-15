@@ -1,4 +1,5 @@
 "use client";
+import { hasValidEmailRecipient, MISSING_RECIPIENT_MESSAGE } from "@/lib/crm-email-recipient";
 import { CrmTemplateAuthorFilter } from "@/components/admin/crm-template-author-filter";
 import { templateMatchesAuthor } from "@/lib/crm-template-filters";
 
@@ -37,19 +38,22 @@ type LeadForEmail = {
   assignedAgentPhone?: string;
 };
 
-export function CrmEmailComposer({ lead, templates, history = [], currentAgentId }: { lead: LeadForEmail; templates: CrmEmailTemplate[]; history?: EmailHistoryItem[]; currentAgentId: string }) {
+export type ListingMailDraft = { subject: string; body: string; imageUrls: string[]; contentBlocks: CrmEmailTemplateContentBlock[] };
+
+export function CrmEmailComposer({ lead, templates, history = [], currentAgentId, initialDraft }: { lead: LeadForEmail; templates: CrmEmailTemplate[]; history?: EmailHistoryItem[]; currentAgentId: string; initialDraft?: ListingMailDraft }) {
   const router = useRouter();
+  const validRecipient = hasValidEmailRecipient(lead.email);
   const initialEmailTemplates = useMemo(() => templates.filter((template) => template.channel === "email"), [templates]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [emailTemplates, setEmailTemplates] = useState(initialEmailTemplates);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(initialDraft));
   const [query, setQuery] = useState("");
   const [authorFilter, setAuthorFilter] = useState("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [subject, setSubject] = useState("Barrera Brokers");
-  const [body, setBody] = useState(`Hola ${lead.firstName},\n\n`);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [contentBlocks, setContentBlocks] = useState<CrmEmailTemplateContentBlock[]>([{ id: "crm-draft-text", type: "text", text: `Hola ${lead.firstName},\n\n`, html: `Hola ${lead.firstName},<br><br>`, color: "#1c1a17", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 16, align: "left" }]);
+  const [subject, setSubject] = useState(initialDraft?.subject || "Barrera Brokers");
+  const [body, setBody] = useState(initialDraft?.body || `Hola ${lead.firstName},\n\n`);
+  const [imageUrls, setImageUrls] = useState<string[]>(initialDraft?.imageUrls || []);
+  const [contentBlocks, setContentBlocks] = useState<CrmEmailTemplateContentBlock[]>(initialDraft?.contentBlocks || [{ id: "crm-draft-text", type: "text", text: `Hola ${lead.firstName},\n\n`, html: `Hola ${lead.firstName},<br><br>`, color: "#1c1a17", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 16, align: "left" }]);
   const [sending, setSending] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [showTemplateSave, setShowTemplateSave] = useState(false);
@@ -76,6 +80,12 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
   }, [lead.id, open]);
 
   const newEmail = () => {
+    if (initialDraft) {
+      setSelectedTemplateId(""); setSubject(initialDraft.subject); setBody(initialDraft.body);
+      setImageUrls(initialDraft.imageUrls); setContentBlocks(initialDraft.contentBlocks);
+      setError(""); setNotice("Ficha cargada. Revisá el contenido y el destinatario antes de enviar.");
+      return;
+    }
     const greeting = `Hola ${lead.firstName},\n\n`;
     setSelectedTemplateId("");
     setSubject("Barrera Brokers");
@@ -153,6 +163,7 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
   const send = async (event: FormEvent) => {
     event.preventDefault();
     if (uploadingAttachments) return;
+    if (!validRecipient) { setError(MISSING_RECIPIENT_MESSAGE); return; }
     setSending(true); setError(""); setNotice(""); setReconnectGoogle(false);
     try {
       const response = await fetch("/api/crm/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, subject: applyVariables(subject), body: applyVariables(body), imageUrls, contentBlocks: resolveBlocks(contentBlocks) }) });
@@ -222,7 +233,7 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
     {open && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="crm-email-title" className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-xl bg-white sm:rounded-xl">
         <header className="flex items-start justify-between gap-4 border-b border-ink/10 px-5 py-4 sm:px-6">
-          <div><h2 id="crm-email-title" className="text-lg font-semibold text-ink">Enviar correo desde el CRM</h2><p className="mt-1 text-sm text-ink/60">Para: <span className="font-medium text-ink">{lead.firstName} {lead.lastName}</span> · {lead.email}</p></div>
+          <div><h2 id="crm-email-title" className="text-lg font-semibold text-ink">Enviar correo desde el CRM</h2><p className="mt-1 text-sm text-ink/60">Para: <span className="font-medium text-ink">{lead.firstName} {lead.lastName}</span> · {lead.email || "Sin correo cargado"}</p>{!validRecipient && <p role="alert" className="mt-2 text-sm text-red-700">{MISSING_RECIPIENT_MESSAGE} <a href="#contact-information" onClick={() => setOpen(false)} className="font-semibold underline">Completar correo del contacto</a></p>}</div>
           <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar compositor" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink/60 hover:bg-[#e7f4f2] hover:text-ink"><X className="h-5 w-5" /></button>
         </header>
         <form onSubmit={send} className="grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -248,7 +259,7 @@ export function CrmEmailComposer({ lead, templates, history = [], currentAgentId
             {notice && <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#006b6b]"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
             {error && <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p>}{reconnectGoogle && <a href="/api/crm/google/connect" target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-[#006b6b] px-4 text-sm font-semibold text-white">Reconectar Google para enviar correos</a>}
             {showTemplateSave && <div className="mt-4 rounded-lg bg-[#f3f4f4] p-3 ring-1 ring-ink/10"><label className="block text-xs font-semibold text-ink">Nombre de la nueva plantilla<input autoFocus value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Ej.: Presentación del desarrollo" className="mt-2 h-11 w-full rounded-lg border border-ink/15 bg-white px-3 text-sm font-normal text-ink outline-none placeholder:text-ink/45 focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" /></label><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => { setShowTemplateSave(false); setTemplateName(""); }} className="min-h-10 rounded-lg px-3 text-sm font-medium text-ink/65 hover:bg-white">Cancelar</button><button type="button" onClick={() => void saveAsTemplate()} disabled={savingTemplate || uploadingAttachments} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#006b6b] bg-white px-4 text-sm font-semibold text-[#006b6b] disabled:opacity-50">{savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{savingTemplate ? "Guardando…" : "Guardar plantilla"}</button></div></div>}
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button type="button" onClick={() => setShowTemplateSave(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b] hover:bg-[#e7f4f2]"><Plus className="h-4 w-4" />Guardar como plantilla</button><button disabled={sending || savingTemplate || uploadingAttachments} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar solamente"}</button></div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-ink/15 px-5 text-sm font-medium text-ink hover:bg-[#f3f4f4]">Cancelar</button><button type="button" onClick={() => setShowTemplateSave(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#006b6b] px-5 text-sm font-semibold text-[#006b6b] hover:bg-[#e7f4f2]"><Plus className="h-4 w-4" />Guardar como plantilla</button><button disabled={sending || savingTemplate || uploadingAttachments || !validRecipient} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#006b6b] px-5 text-sm font-semibold text-white hover:bg-[#004949] disabled:cursor-wait disabled:opacity-60">{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{sending ? "Enviando…" : "Enviar solamente"}</button></div>
           </div>
         </form>
       </section>

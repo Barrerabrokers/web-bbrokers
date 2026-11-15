@@ -1,10 +1,12 @@
+import { PUBLIC_NAVIGATION } from "@/lib/public-navigation-links";
+import { getPublicDevelopmentLinks } from "@/lib/public-navigation";
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/db";
 import { SocialLinks } from "@/components/social-links";
 import Image from "next/image";
 
 export async function Footer() {
-  const s = await getSiteSettings();
+  const [s, developments] = await Promise.all([getSiteSettings(), getPublicDevelopmentLinks()]);
 
   // Derivar tel: link sólo con dígitos
   const telLink = `tel:+${s.whatsapp.replace(/[^\d]/g, "")}`;
@@ -49,15 +51,7 @@ export async function Footer() {
           <div>
             <h3 className="label-tracking text-ivory/40 mb-4">Navegación</h3>
             <ul className="space-y-2.5">
-              {[
-                { href: "/#desarrollos", label: "Desarrollos" },
-                { href: "/#mapa", label: "Mapa" },
-                { href: "/#modelo", label: "Inversión" },
-                { href: "/#prensa", label: "Prensa" },
-                { href: "/#rentals", label: "Rentals" },
-                { href: "/#propiedades", label: "Propiedades" },
-                { href: "/#contacto", label: "Contacto" },
-              ].map((item) => (
+              {PUBLIC_NAVIGATION.map((item) => (
                 <li key={item.href}>
                   <a
                     href={item.href}
@@ -70,22 +64,9 @@ export async function Footer() {
             </ul>
           </div>
 
-          {/* Services */}
           <div>
-            <h3 className="label-tracking text-ivory/40 mb-4">Servicios</h3>
-            <ul className="space-y-2.5">
-              {[
-                "Inversión en pozo",
-                "Desarrollos premium",
-                "Rentals",
-                "Administración Airbnb",
-                "Tasaciones",
-              ].map((item) => (
-                <li key={item}>
-                  <span className="text-sm text-ivory/50">{item}</span>
-                </li>
-              ))}
-            </ul>
+            <h3 className="label-tracking text-ivory/70 mb-4">Desarrollos</h3>
+            <ul className="space-y-2.5">{developments.map(development => <li key={development.href}><Link href={development.href} className="text-sm text-ivory/75 hover:text-ivory transition-colors duration-300">{development.name}</Link></li>)}</ul>
           </div>
 
           {/* Contact */}

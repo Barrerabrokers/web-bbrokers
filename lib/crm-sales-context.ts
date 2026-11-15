@@ -2,7 +2,7 @@ import postgres from "postgres";
 import type { SalesEvidence, SalesEvent } from "./crm-sales-priority";
 
 // Ownership is rechecked in SQL. WhatsApp is linked by lead_id only, never by phone suffix.
-export async function getSalesEvidence(ids:string[], actorId:string, includeAll:boolean, focused=false):Promise<SalesEvidence[]> {
+export async function getSalesEvidence(ids:string[], actorId:string, includeAll:boolean, focused=false,focusedLimit=80):Promise<SalesEvidence[]> {
   if(!ids.length)return [];
   const url=process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
   if(!url)throw new Error("No hay conexión al CRM");
@@ -23,7 +23,7 @@ export async function getSalesEvidence(ids:string[], actorId:string, includeAll:
         ${wa}
       ), ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY lead_id ORDER BY fecha DESC,id) AS rn FROM events)
       SELECT l.id,COUNT(r.id)::int AS total,
-        COALESCE(jsonb_agg(to_jsonb(r) - 'lead_id' - 'rn' ORDER BY r.fecha DESC,r.id) FILTER(WHERE rn<=${focused?80:8}), '[]'::jsonb) AS events,
+        COALESCE(jsonb_agg(to_jsonb(r) - 'lead_id' - 'rn' ORDER BY r.fecha DESC,r.id) FILTER(WHERE rn<=${focused?Math.max(80,Math.min(240,focusedLimit)):8}), '[]'::jsonb) AS events,
         COALESCE(jsonb_agg(to_jsonb(r) - 'lead_id' - 'rn' ORDER BY r.programado) FILTER(WHERE r.tipo IN ('reunion','tarea') AND r.programado >= date_trunc('day',NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires') AT TIME ZONE 'America/Argentina/Buenos_Aires' AND r.programado < NOW()+INTERVAL '14 days'), '[]'::jsonb) AS next,
         MAX(r.fecha) FILTER(WHERE r.direccion='inbound' AND r.fecha<=NOW()) AS last_inbound,
         MAX(r.fecha) FILTER(WHERE r.direccion='outbound' AND r.fecha<=NOW()) AS last_outbound,

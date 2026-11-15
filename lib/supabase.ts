@@ -29,9 +29,12 @@ export const supabase = createClient(
   }
 );
 
+let serverClient: ReturnType<typeof createClient<any>> | undefined;
+
 // Cliente con service role key para operaciones del servidor
 // (saltea Row Level Security, usar solo en API routes)
 export function getServerSupabase() {
+  if (serverClient) return serverClient;
   assertSupabaseConfigured();
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,10 +43,11 @@ export function getServerSupabase() {
     throw new Error("Missing server-side Supabase service credentials");
   }
   
-  return createClient(supabaseUrl!, serviceKey, {
+  serverClient = createClient(supabaseUrl!, serviceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
   });
+  return serverClient;
 }

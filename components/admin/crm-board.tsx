@@ -1,4 +1,8 @@
 "use client";
+import { isCrmDevelopmentName } from "@/lib/crm-campaign";
+import { ARGENTINA_PROVINCES } from "@/lib/crm-contact-location";
+import { CrmAudioTranscriber } from "@/components/admin/crm-audio-transcriber";
+import { appendTranscript } from "@/lib/crm-audio";
 import { MeetingClientInvitation } from "@/components/admin/meeting-client-invitation";
 import { isMeetingStatus } from "@/lib/crm-statuses";
 
@@ -30,9 +34,11 @@ import {
   CloudDownload,
   FileSpreadsheet,
   FileText,
+  Globe2,
   GripVertical,
   Loader2,
   Mail,
+  MapPin,
   MessageCircle,
   NotebookPen,
   Phone,
@@ -54,6 +60,7 @@ import {
 } from "@/lib/crm-statuses";
 import { shouldShowHubSpotContactField } from "@/lib/hubspot-fields";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
+import { getArgentinaPhoneLocality } from "@/lib/argentina-phone-origin";
 import { getCrmMetaFormSubmissions } from "@/lib/crm-meta-fields";
 import { getCrmImportedInquiries } from "@/lib/crm-imported-inquiries";
 import { CrmContactAssistant } from "@/components/admin/crm-contact-assistant";
@@ -161,6 +168,7 @@ type CrmBoardProps = {
   initialActivities: CrmActivity[];
   agents: CrmAgent[];
   developments: CrmDevelopment[];
+  occupations?: string[];
   leadStatusOptions: HubSpotImportStatusOption[];
   currentUserId: string;
   canAssignTeam: boolean;
@@ -177,6 +185,7 @@ type LeadFormState = {
   temperature: CrmLeadTemperature;
   source: string;
   developmentId: string;
+  campaignName: string;
   developmentNameText: string;
   assignedAgentId: string;
   notes: string;
@@ -187,6 +196,7 @@ type ActivityFormState = {
   includeLucas?: boolean;
   sendClientInvitation?: boolean;
   reminderMinutes: string;
+  duration: string;
   callOutcomes?: CallOutcome[];
   type: CrmActivityType;
   title: string;
@@ -203,6 +213,7 @@ type LeadFieldPatch = {
   status?: CrmLeadStatus;
   temperature?: CrmLeadTemperature;
   developmentId?: string;
+  campaignName?: string;
   developmentNameText?: string;
   assignedAgentId?: string;
 };
@@ -229,6 +240,7 @@ type CrmColumnKey =
   | "whatsapp"
   | "status"
   | "temperature"
+  | "campaign"
   | "development"
   | "createdAt"
   | "owner";
@@ -249,6 +261,7 @@ const CRM_COLUMN_WIDTHS: Record<CrmColumnKey, number> = {
   status: 170,
   temperature: 140,
   development: 210,
+  campaign: 240,
   createdAt: 130,
   owner: 190,
 };
@@ -262,6 +275,7 @@ const CRM_COLUMN_ORDER: CrmColumnKey[] = [
   "status",
   "temperature",
   "development",
+  "campaign",
   "createdAt",
   "owner",
 ];
@@ -275,6 +289,7 @@ const CRM_COLUMN_LABELS: Record<CrmColumnKey, string> = {
   status: "Estado del lead",
   temperature: "Prioridad",
   development: "Desarrollo",
+  campaign: "Campaña",
   createdAt: "Fecha creación",
   owner: "Propietario",
 };
@@ -295,6 +310,7 @@ const CRM_COLUMN_MIN_WIDTHS: Record<CrmColumnKey, number> = {
   status: 76,
   temperature: 76,
   development: 76,
+  campaign: 76,
   createdAt: 76,
   owner: 76,
 };
@@ -341,10 +357,11 @@ const EMPTY_FORM: LeadFormState = {
   email: "",
   countryCode: "+54",
   phone: "",
-  status: "NEW",
+  status: "Nuevo",
   temperature: "",
   source: "",
   developmentId: "",
+  campaignName: "",
   developmentNameText: "",
   assignedAgentId: "",
   notes: "",
@@ -352,6 +369,7 @@ const EMPTY_FORM: LeadFormState = {
 
 const EMPTY_ACTIVITY: ActivityFormState = {
   reminderMinutes: "60",
+  duration: "60",
   type: "nota",
   title: "",
   body: "",
@@ -419,6 +437,19 @@ function formattedLeadPhone(lead: Pick<CrmLead, "countryCode" | "phone">) {
   return `${normalizeDialCode(lead.countryCode)} ${lead.phone}`.trim();
 }
 
+function socialProfileHref(value: string, source: string) {
+  const profile = value.trim();
+  if (!profile) return "";
+  if (/^https?:\/\//i.test(profile)) return profile;
+  if (/^(?:www\.)?(instagram|facebook)\.com\//i.test(profile)) return `https://${profile.replace(/^www\./i, "")}`;
+
+  const handle = profile.replace(/^@/, "").trim();
+  if (!handle || /\s/.test(handle)) return "";
+  if (/instagram/i.test(source)) return `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+  if (/facebook/i.test(source)) return `https://www.facebook.com/${encodeURIComponent(handle)}`;
+  return "";
+}
+
 function phoneCallUrl(lead: Pick<CrmLead, "countryCode" | "phone">) {
   const digits = `${normalizeDialCode(lead.countryCode)}${lead.phone}`.replace(/[^\d+]/g, "");
   return digits ? `tel:${digits}` : "";
@@ -446,9 +477,14 @@ function formatInteractionDuration(startedAt: string, endedAt: string) {
 
 function formatHubSpotValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "";
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return value.replaceAll("_", " ").replace(/\s+/g, " ").trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return JSON.stringify(value);
+}
+
+function formatHubSpotLabel(key: string) {
+  const label = key.replaceAll("_", " ").replace(/\s+/g, " ").trim();
+  return label ? label.charAt(0).toLocaleUpperCase("es-AR") + label.slice(1) : "Dato";
 }
 
 function paginationItems(currentPage: number, pageCount: number) {
@@ -489,22 +525,13 @@ function mergeDevelopmentOptions(
     seenNames.add(normalizedName);
   }
 
+
   for (const lead of leads) {
-    const rawName = lead.developmentName || lead.developmentNameText || "";
-    const name = rawName.trim();
-    if (!name) continue;
-
-    if (lead.developmentId && !byId.has(lead.developmentId)) {
-      byId.set(lead.developmentId, { id: lead.developmentId, name });
-      seenNames.add(name.toLowerCase());
-      continue;
-    }
-
-    const normalizedName = name.toLowerCase();
-    if (!seenNames.has(normalizedName)) {
-      byId.set(`text:${normalizedName}`, { id: `text:${name}`, name });
-      seenNames.add(normalizedName);
-    }
+    const name = (lead.developmentName || lead.developmentNameText || "").trim();
+    if (!isCrmDevelopmentName(name) || seenNames.has(name.toLowerCase())) continue;
+    const id = lead.developmentId || `text:${name}`;
+    byId.set(id, { id, name });
+    seenNames.add(name.toLowerCase());
   }
 
   return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -531,6 +558,8 @@ function crmLeadSortValue(lead: CrmLead, column: CrmSortState["column"]) {
       return normalizeSortText(leadStatusLabel(lead.status));
     case "temperature":
       return CRM_TEMPERATURE_OPTIONS.findIndex((option) => option.value === lead.temperature);
+    case "campaign":
+      return normalizeSortText(lead.campaignName || "");
     case "development":
       return normalizeSortText(lead.developmentName || lead.developmentNameText || "");
     case "createdAt":
@@ -563,6 +592,7 @@ export function CrmBoard({
   initialActivities,
   agents,
   developments: initialDevelopments,
+  occupations = [],
   leadStatusOptions,
   currentUserId,
   canAssignTeam,
@@ -579,6 +609,9 @@ export function CrmBoard({
   const [emailComposerLeadId, setEmailComposerLeadId] = useState("");
   const [whatsAppComposerLeadId, setWhatsAppComposerLeadId] = useState("");
   const [callSessionLeadId, setCallSessionLeadId] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("");
+  const [localityFilter, setLocalityFilter] = useState("");
+  const [occupationFilter, setOccupationFilter] = useState("");
   const [developmentFilter, setDevelopmentFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState(currentUserId);
   const [statusFilter, setStatusFilter] = useState<CrmLeadStatus | "all">("all");
@@ -624,9 +657,18 @@ export function CrmBoard({
     assignedAgentId: canAssignTeam ? agents[0]?.id || currentUserId : currentUserId,
   });
 
+  const occupationFilterOptions = useMemo(() => Array.from(new Map(occupations.map(value => [value.trim().toLowerCase().replace(/[áéíóúü]/g, letter => "aeiouu"["áéíóúü".indexOf(letter)]), value.trim()])).entries()).filter(([key]) => key).sort((a,b) => a[1].localeCompare(b[1], "es")), [occupations]);
+  const renderOccupationFilter = (mobile = false) => <select aria-label="Filtrar contactos por actividad o profesión" value={occupationFilter} onChange={event => { setOccupationFilter(event.target.value); setCurrentPage(1); setSelectedLeadIds([]); }} className={mobile ? "h-9 min-w-0 w-full rounded-lg border border-ink/14 bg-white px-2 text-xs font-semibold text-ink outline-none focus:border-[#005c5c]" : "h-10 min-w-0 max-w-[240px] rounded-full border border-ink/20 bg-white px-3 text-sm text-ink outline-none focus:border-[#005c5c]"}>
+    <option value="">Actividad / profesión</option><option value="__none">Sin actividad informada</option>
+    {occupationFilterOptions.map(([key,label]) => <option key={key} value={label}>{label}</option>)}
+  </select>;
   const developmentFilterOptions = useMemo(() => Array.from(new Map(crmDevelopments.map(item => [item.name.trim().toLocaleLowerCase("es-AR"), item.name.trim()])).entries()).filter(([key]) => key).sort((a,b) => a[1].localeCompare(b[1],"es-AR")), [crmDevelopments]);
   const developmentFilterControl = <select aria-label="Filtrar contactos por desarrollo" value={developmentFilter} onChange={event => { setDevelopmentFilter(event.target.value); setCurrentPage(1); setSelectedLeadIds([]); }} className="h-10 min-w-0 max-w-[240px] rounded-full border border-ink/20 bg-white px-3 text-sm text-ink outline-none focus:border-[#005c5c]">
     <option value="">Todos los desarrollos</option><option value="__none">Sin desarrollo</option>
+    {developmentFilterOptions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+  </select>;
+  const mobileDevelopmentFilterControl = <select aria-label="Filtrar contactos por desarrollo" value={developmentFilter} onChange={event => { setDevelopmentFilter(event.target.value); setCurrentPage(1); setSelectedLeadIds([]); }} className="h-9 min-w-0 w-full rounded-lg border border-ink/14 bg-white px-2 text-xs font-semibold text-ink outline-none focus:border-[#005c5c]">
+    <option value="">Desarrollo</option><option value="__none">Sin desarrollo</option>
     {developmentFilterOptions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
   </select>;
   const activeAgents = useMemo(() => agents.filter((agent) => agent.active), [agents]);
@@ -642,6 +684,15 @@ export function CrmBoard({
   const selectedActivities = selectedLead
     ? activities.filter((activity) => activity.leadId === selectedLead.id)
     : [];
+  const activityTypesByLead = useMemo(() => {
+    const activityTypes = new Map<string, Set<CrmActivityType>>();
+    for (const activity of activities) {
+      const current = activityTypes.get(activity.leadId) || new Set<CrmActivityType>();
+      current.add(activity.type);
+      activityTypes.set(activity.leadId, current);
+    }
+    return activityTypes;
+  }, [activities]);
 
   const refreshFeaturedLeads = useCallback(async () => {
     if (featuredMutations.current.size) return;
@@ -728,26 +779,38 @@ export function CrmBoard({
     try {
       const saved = JSON.parse(window.localStorage.getItem(`crm-contact-filters:${currentUserId}`) || "null");
       if (saved && typeof saved === "object") {
+        if (typeof saved.province === "string") setProvinceFilter(saved.province);
+        if (typeof saved.locality === "string") setLocalityFilter(saved.locality);
         if (typeof saved.query === "string") setQuery(saved.query);
+        if (typeof saved.occupation === "string") setOccupationFilter(saved.occupation);
         if (typeof saved.development === "string") setDevelopmentFilter(saved.development);
         if (typeof saved.status === "string") setStatusFilter(saved.status as CrmLeadStatus | "all");
         if (canAssignTeam && typeof saved.owner === "string" && (["all", "unassigned", currentUserId].includes(saved.owner) || agents.some(agent => agent.id === saved.owner))) setOwnerFilter(saved.owner);
         if (CRM_PAGE_SIZE_OPTIONS.includes(saved.pageSize)) setPageSize(saved.pageSize);
       }
     } catch { /* Unavailable or invalid browser storage must not block contacts. */ }
+    const requestedOccupation = new URLSearchParams(window.location.search).get("occupation");
+    if (requestedOccupation !== null) {
+      setOccupationFilter(requestedOccupation.trim().slice(0, 200));
+      setStatusFilter("all"); setDevelopmentFilter(""); setProvinceFilter(""); setLocalityFilter(""); setQuery("");
+      setOwnerFilter(canAssignTeam ? "all" : currentUserId);
+    }
     setFiltersReady(true);
   }, [currentUserId, canAssignTeam, agents]);
 
   useEffect(() => {
     if (!filtersReady) return;
     try {
-      window.localStorage.setItem(`crm-contact-filters:${currentUserId}`, JSON.stringify({ query, development: developmentFilter, status: statusFilter, owner: ownerFilter, pageSize }));
+      window.localStorage.setItem(`crm-contact-filters:${currentUserId}`, JSON.stringify({ query, province: provinceFilter, locality: localityFilter, occupation: occupationFilter, development: developmentFilter, status: statusFilter, owner: ownerFilter, pageSize }));
     } catch { /* Contacts remain usable when browser storage is unavailable. */ }
-  }, [filtersReady, currentUserId, query, developmentFilter, statusFilter, ownerFilter, pageSize]);
+  }, [occupationFilter, provinceFilter, localityFilter, filtersReady, currentUserId, query, developmentFilter, statusFilter, ownerFilter, pageSize]);
 
   const clearFilters = () => {
     setQuery("");
+    setProvinceFilter("");
+    setLocalityFilter("");
     setDevelopmentFilter("");
+    setOccupationFilter("");
     setStatusFilter("all");
     setOwnerFilter(canAssignTeam ? "all" : currentUserId);
     setCurrentPage(1);
@@ -760,7 +823,7 @@ export function CrmBoard({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [developmentFilter, ownerFilter, pageSize, query, statusFilter]);
+  }, [occupationFilter, provinceFilter, localityFilter, developmentFilter, ownerFilter, pageSize, query, statusFilter]);
 
   useEffect(() => {
     if (!filtersReady) return;
@@ -772,6 +835,9 @@ export function CrmBoard({
         owner: ownerFilter,
         status: statusFilter,
         development: developmentFilter,
+        occupation: occupationFilter,
+        province: provinceFilter,
+        locality: localityFilter,
         query: query.trim(),
         sort: sortState.column,
         direction: sortState.direction,
@@ -783,13 +849,18 @@ export function CrmBoard({
           signal: controller.signal,
         });
         const data = (await response.json().catch(() => null)) as
-          | { leads?: CrmLead[]; total?: number; error?: string }
+          | { leads?: CrmLead[]; total?: number; activities?: CrmActivity[]; error?: string }
           | null;
         if (!response.ok || !data?.leads || typeof data.total !== "number") {
           throw new Error(data?.error || "No se pudo cargar la lista de contactos");
         }
         setLeads(data.leads);
         setTotalLeads(data.total);
+        const visibleLeadIds = new Set(data.leads.map((lead) => lead.id));
+        setActivities((current) => [
+          ...current.filter((activity) => !visibleLeadIds.has(activity.leadId)),
+          ...(data.activities || []),
+        ]);
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : "No se pudo cargar la lista de contactos");
@@ -802,7 +873,7 @@ export function CrmBoard({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [filtersReady, developmentFilter, ownerFilter, pageSize, query, safeCurrentPage, sortState, statusFilter]);
+  }, [occupationFilter, provinceFilter, localityFilter, filtersReady, developmentFilter, ownerFilter, pageSize, query, safeCurrentPage, sortState, statusFilter]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(pointer: coarse), (max-width: 1023px)");
@@ -933,7 +1004,8 @@ export function CrmBoard({
       temperature: lead.temperature || "",
       source: lead.source || "",
       developmentId: lead.developmentId || "",
-      developmentNameText: lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : ""),
+      campaignName: lead.campaignName || "",
+    developmentNameText: lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : ""),
       assignedAgentId: lead.assignedAgentId || currentUserId,
       notes: lead.notes || "",
     });
@@ -1001,6 +1073,9 @@ export function CrmBoard({
       owner: ownerFilter,
       status: statusFilter,
         development: developmentFilter,
+        occupation: occupationFilter,
+        province: provinceFilter,
+        locality: localityFilter,
       query: query.trim(),
       sort: sortState.column,
       direction: sortState.direction,
@@ -1093,7 +1168,7 @@ export function CrmBoard({
                 selectedDevelopment?.name || form.developmentId.replace(/^text:/, ""),
             }
           : {
-              developmentNameText: selectedDevelopment?.name || form.developmentNameText,
+              developmentNameText: selectedDevelopment?.name || "",
             }),
       };
       const response = await fetch("/api/crm/leads", {
@@ -1135,6 +1210,7 @@ export function CrmBoard({
       const payload = {
         leadId: selectedLead.id,
         ...activityForm,
+        duration: Number(activityForm.duration),
         body: activityForm.type === "llamada" ? [formatCallOutcomes(activityForm.callOutcomes), activityForm.body].filter(Boolean).join("\n\n") : activityForm.body,
         scheduledAt: activityForm.scheduledAt
           ? argentinaLocalDateTimeToIso(activityForm.scheduledAt)
@@ -1167,6 +1243,7 @@ export function CrmBoard({
     const label = ACTIVITY_TYPES.find((item) => item.value === type)?.label || "Actividad";
     setActivityForm({
       reminderMinutes: "60",
+      duration: "60",
       type,
       title: type === "nota" ? "Nueva nota" : `${label} con ${selectedLead?.firstName || "cliente"}`,
       body: "",
@@ -1654,6 +1731,8 @@ export function CrmBoard({
             />
           </td>
         );
+      case "campaign":
+        return <td key={column} className={`${borderClass} truncate px-4 py-3 align-middle text-ink/80`} title={lead.campaignName || ""}>{lead.campaignName || "—"}</td>;
       case "development":
         return (
           <td key={column} className={`${borderClass} px-3 py-2 align-middle`}>
@@ -1661,7 +1740,7 @@ export function CrmBoard({
               value={lead.developmentId || ""}
               disabled={updatingLeadFieldId === `${lead.id}:development`}
               options={[
-                { value: "", label: lead.developmentName || "Sin definir" },
+                { value: "", label: "Sin desarrollo" },
                 ...crmDevelopments.map((development) => ({
                   value: development.id,
                   label: development.name,
@@ -1726,116 +1805,145 @@ export function CrmBoard({
     const developmentName =
       crmDevelopments.find((development) => development.id === lead.developmentId)?.name ||
       lead.developmentNameText ||
-      "Sin definir";
+      "Sin desarrollo";
+    const source = lead.source?.trim() || "Sin origen registrado";
+    const socialProfile = lead.socialProfile?.trim();
+    const socialProfileUrl = socialProfile ? socialProfileHref(socialProfile, source) : "";
+    const linkedinProfile = lead.linkedinProfile?.trim();
+    const linkedinUrl = linkedinProfile && /^https:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/.+/i.test(linkedinProfile)
+      ? linkedinProfile
+      : "";
     const isFeatured = featuredLeadIds.includes(lead.id);
+    const activityTypes = activityTypesByLead.get(lead.id) || new Set<CrmActivityType>();
+    const hasWhatsApp = activityTypes.has("whatsapp");
+    const hasCall = activityTypes.has("llamada");
+    const hasEmail = activityTypes.has("correo");
+    const statusTone = {
+      Nuevo: "border-sky-200 bg-sky-50 text-sky-800",
+      "Intento de contacto": "border-cyan-200 bg-cyan-50 text-cyan-800",
+      Contactado: "border-indigo-200 bg-indigo-50 text-indigo-800",
+      "No contesta": "border-amber-200 bg-amber-50 text-amber-800",
+      Interesado: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      Reunion: "border-violet-200 bg-violet-50 text-violet-800",
+      "En curso": "border-teal-200 bg-teal-50 text-teal-800",
+      Reservado: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800",
+      "No interesado / no califica": "border-rose-200 bg-rose-50 text-rose-800",
+      Reflote: "border-orange-200 bg-orange-50 text-orange-800",
+      Vendido: "border-[#b89145] bg-[#fff8e8] text-[#775514]",
+    }[lead.status] || "border-ink/15 bg-ink/5 text-ink/70";
 
     return (
       <article
         key={lead.id}
-        className="relative border-b border-ink/10 bg-white px-4 py-4 text-ink last:border-b-0"
+        className="relative border-b border-ink/10 bg-white px-3 py-3 text-ink last:border-b-0"
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2">
           {(
             <input
               type="checkbox"
               checked={selectedLeadIds.includes(lead.id)}
               onChange={(event) => toggleLeadSelection(lead.id, event.target.checked)}
-              className="mt-1 h-5 w-5 rounded border-ink/25 bg-white accent-[#005c5c]"
+              className="mt-2 h-4 w-4 shrink-0 rounded border-ink/25 bg-white accent-[#005c5c]"
               aria-label={`Seleccionar ${name}`}
             />
           )}
           <Link
             href={`/admin/crm/${lead.id}`}
             prefetch={false}
-            className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream-100 text-xs font-semibold text-ink"
+            className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cream-100 text-[11px] font-semibold text-ink"
             aria-label={`Abrir contacto ${name}`}
           >
             {initials(name)}
           </Link>
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
               <Link
                 href={`/admin/crm/${lead.id}`}
                 prefetch={false}
-                className="block min-w-0 flex-1 truncate text-left text-[22px] font-semibold leading-tight text-[#005c5c] underline-offset-4 hover:underline"
+                className="block min-w-0 flex-1 truncate text-left text-[18px] font-semibold leading-tight text-[#005c5c] underline-offset-4 hover:underline"
               >
                 {name || "Sin nombre"}
               </Link>
-              <button type="button" onClick={() => void toggleFeaturedLead(lead.id)} disabled={savingFeaturedLeadIds.includes(lead.id)} className={`shrink-0 rounded-full p-2 disabled:cursor-wait disabled:opacity-55 ${isFeatured ? "text-amber-500" : "text-ink/30"}`} aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`} aria-pressed={isFeatured}>
-                <Star className="h-5 w-5" fill={isFeatured ? "currentColor" : "none"} />
+              <button type="button" onClick={() => void toggleFeaturedLead(lead.id)} disabled={savingFeaturedLeadIds.includes(lead.id)} className={`shrink-0 rounded-full p-1.5 disabled:cursor-wait disabled:opacity-55 ${isFeatured ? "text-amber-500" : "text-ink/30"}`} aria-label={isFeatured ? `Quitar ${name} de destacados` : `Destacar ${name}`} aria-pressed={isFeatured}>
+                <Star className="h-4 w-4" fill={isFeatured ? "currentColor" : "none"} />
               </button>
             </div>
-            <dl className="mt-3 divide-y divide-ink/8 border-t border-ink/8 text-[15px] leading-snug text-ink">
-              <div className="flex min-w-0 gap-3 py-2.5">
-                <Mail className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium text-ink/62">Correo</dt>
-                  <dd className="mt-0.5 break-all font-medium">{lead.email || "Sin correo"}</dd>
-                </div>
+            <div className="mt-2 space-y-1.5 text-sm leading-tight">
+              <button type="button" onClick={() => openLeadEmailComposer(lead)} disabled={!lead.email} className={`flex min-w-0 max-w-full items-center gap-1.5 text-left disabled:cursor-not-allowed disabled:opacity-45 ${hasEmail ? "text-emerald-800" : "text-ink/72"}`} aria-label={`Enviar correo a ${name}`}>
+                <Mail className={`h-4 w-4 shrink-0 ${hasEmail ? "text-emerald-700" : "text-[#006b6b]"}`} aria-hidden="true" />
+                <span className="truncate">{lead.email || "Sin correo"}</span>
+              </button>
+              <div className="flex min-w-0 items-start gap-2">
+                <button type="button" onClick={() => openLeadCallSession(lead)} disabled={!lead.phone} className={`inline-flex min-w-0 max-w-full items-center gap-1.5 font-semibold tabular-nums disabled:cursor-not-allowed disabled:opacity-45 ${hasCall ? "text-emerald-800" : "text-ink/78"}`} aria-label={`Llamar a ${name}`}>
+                  <Phone className={`h-4 w-4 shrink-0 ${hasCall ? "text-emerald-700" : "text-[#006b6b]"}`} aria-hidden="true" />
+                  <span className="truncate">{phone || "Sin teléfono"}</span>
+                </button>
+                <span className={`ml-auto shrink-0 rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${statusTone}`} title="Estado del lead">{leadStatusLabel(lead.status)}</span>
               </div>
-              <div className="flex min-w-0 gap-3 py-2.5">
-                <Phone className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium text-ink/62">Teléfono</dt>
-                  <dd className="mt-0.5 font-semibold tabular-nums">{phone || "Sin teléfono"}</dd>
-                </div>
+              <div className="flex min-w-0 items-center gap-1.5 text-ink/62">
+                <Building2 className="h-4 w-4 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                <span className="truncate text-xs font-medium">{developmentName}</span>
               </div>
-              <div className="flex min-w-0 gap-3 py-2.5">
-                <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium text-ink/62">WhatsApp</dt>
-                  <dd className="mt-0.5 font-semibold tabular-nums">{phone || "Sin WhatsApp"}</dd>
-                </div>
-              </div>
-              <div className="flex min-w-0 gap-3 py-2.5">
-                <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#006b6b]" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium text-ink/62">Desarrollo consultado</dt>
-                  <dd className="mt-0.5 break-words font-medium">{developmentName}</dd>
-                </div>
-              </div>
-            </dl>
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-ink/10 pt-3">
+              <p className="truncate text-xs text-ink/75" title={lead.campaignName || ""}><span className="font-medium">Campaña:</span> {lead.campaignName || "Sin campaña informada"}</p>
+              {socialProfile && (
+                socialProfileUrl ? (
+                  <a href={socialProfileUrl} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 text-[#006b6b] hover:underline">
+                    <Globe2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate text-xs font-semibold">{socialProfile}</span>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  </a>
+                ) : (
+                  <div className="flex min-w-0 items-center gap-1.5 text-ink/62">
+                    <Globe2 className="h-4 w-4 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                    <span className="truncate text-xs font-medium">{socialProfile}</span>
+                  </div>
+                )
+              )}
+              {linkedinUrl && (
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-w-0 items-center gap-1.5 text-[#006b6b] hover:underline"
+                >
+                  <Globe2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="truncate text-xs font-semibold">LinkedIn</span>
+                </a>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-ink/10 pt-2">
               <button
                 type="button"
                 onClick={() => openLeadWhatsAppComposer(lead)}
                 disabled={!lead.phone}
-                className="inline-flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg bg-[#e8f5f3] px-2 text-xs font-semibold text-[#005c5c] transition-colors active:bg-[#d7ece9] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={`Enviar WhatsApp a ${name}`}
+                className={`inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${hasWhatsApp ? "bg-emerald-50 text-emerald-800" : "bg-[#f1f4f3] text-[#005c5c] active:bg-[#d7ece9]"}`}
+                aria-label={`${hasWhatsApp ? "WhatsApp ya registrado; enviar otro" : "Enviar WhatsApp"} a ${name}`}
               >
                 <MessageCircle className="h-5 w-5" />
-                WhatsApp
+                <span className="truncate">{hasWhatsApp ? "WhatsApp ✓" : "WhatsApp"}</span>
               </button>
               <button
                 type="button"
                 onClick={() => openLeadCallSession(lead)}
                 disabled={!lead.phone}
-                className="inline-flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg bg-[#e8f5f3] px-2 text-xs font-semibold text-[#005c5c] transition-colors active:bg-[#d7ece9] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={`Llamar a ${name}`}
+                className={`inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${hasCall ? "bg-emerald-50 text-emerald-800" : "bg-[#f1f4f3] text-[#005c5c] active:bg-[#d7ece9]"}`}
+                aria-label={`${hasCall ? "Llamada ya registrada; llamar otra vez" : "Llamar"} a ${name}`}
               >
                 <Phone className="h-5 w-5" />
-                Llamar
+                <span className="truncate">{hasCall ? "Llamada ✓" : "Llamar"}</span>
               </button>
               <button
                 type="button"
                 onClick={() => openLeadEmailComposer(lead)}
                 disabled={!lead.email}
-                className="inline-flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg bg-[#e8f5f3] px-2 text-xs font-semibold text-[#005c5c] transition-colors active:bg-[#d7ece9] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={`Enviar correo a ${name}`}
+                className={`inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${hasEmail ? "bg-emerald-50 text-emerald-800" : "bg-[#f1f4f3] text-[#005c5c] active:bg-[#d7ece9]"}`}
+                aria-label={`${hasEmail ? "Correo ya registrado; enviar otro" : "Enviar correo"} a ${name}`}
               >
                 <Mail className="h-5 w-5" />
-                Correo
+                <span className="truncate">{hasEmail ? "Correo ✓" : "Correo"}</span>
               </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => openLead(lead)}
-            className="mt-1 rounded-full p-2 text-ink/38 transition-colors hover:bg-cream-100 hover:text-ink"
-            aria-label={`Ver detalle de ${name}`}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
         </div>
 
         {phoneEditor?.leadId === lead.id && (
@@ -2070,15 +2178,15 @@ export function CrmBoard({
                 placeholder="Nombre, teléfono o email"
               />
             </label>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               {canAssignTeam && (
                 <select
                   value={ownerFilter}
                   onChange={(event) => setOwnerFilter(event.target.value)}
-                  className="h-11 min-w-[238px] shrink-0 rounded-full border border-ink/18 bg-white px-4 text-sm font-semibold text-ink outline-none focus:border-[#005c5c]"
+                  className="h-9 min-w-0 rounded-lg border border-ink/14 bg-white px-2 text-xs font-semibold text-ink outline-none focus:border-[#005c5c]"
                   aria-label="Filtrar por propietario del contacto"
                 >
-                  <option value="all">Todos</option>
+                  <option value="all">Agente: todos</option>
                   <option value="unassigned">Sin asignar</option>
                   {activeAgents.map((agent) => (
                     <option key={agent.id} value={agent.id}>
@@ -2095,23 +2203,24 @@ export function CrmBoard({
                     direction: current.column === "createdAt" && current.direction === "desc" ? "asc" : "desc",
                   }))
                 }
-                className="inline-flex h-11 min-w-[185px] shrink-0 items-center justify-center gap-2 rounded-full border border-ink/18 bg-white px-4 text-sm font-semibold text-ink/80 shadow-sm"
+                className="inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-lg border border-ink/14 bg-white px-2 text-xs font-semibold text-ink/80"
               >
-                Fecha de creación
+                Fecha
                 {sortState.column === "createdAt" && sortState.direction === "asc" ? (
-                  <ArrowUp className="h-4 w-4" />
+                  <ArrowUp className="h-3.5 w-3.5" />
                 ) : (
-                  <ArrowDown className="h-4 w-4" />
+                  <ArrowDown className="h-3.5 w-3.5" />
                 )}
               </button>
-              {developmentFilterControl}
+              {renderOccupationFilter(true)}
+              {mobileDevelopmentFilterControl}
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as CrmLeadStatus | "all")}
-                className="h-11 min-w-[170px] shrink-0 rounded-full border border-ink/18 bg-white px-4 text-sm font-semibold text-ink/80 outline-none focus:border-[#005c5c]"
+                className="h-9 min-w-0 rounded-lg border border-ink/14 bg-white px-2 text-xs font-semibold text-ink/80 outline-none focus:border-[#005c5c]"
                 aria-label="Filtrar por estado del lead"
               >
-                <option value="all">Estado del lead</option>
+                <option value="all">Estado</option>
                 {effectiveLeadStatusOptions.map((status) => (
                   <option key={status.value} value={status.value}>
                     {status.label}
@@ -2121,8 +2230,18 @@ export function CrmBoard({
             </div>
           </div>
 
-          <div className="px-4 pb-3 lg:hidden"><button type="button" onClick={clearFilters} className="min-h-11 rounded-full border border-ink/20 bg-white px-4 text-sm font-medium">Borrar filtros</button></div>
-          <CrmBulkActions ids={selectedLeadIds} agents={activeAgents} statuses={effectiveLeadStatusOptions} canUnassign={canAssignTeam} onClear={() => setSelectedLeadIds([])} onUpdated={refreshLeads} />
+          <div className="flex flex-wrap items-end gap-3 border-b border-ink/10 px-4 py-3">
+            <label className="min-w-0 flex-1 sm:max-w-[260px]"><span className="mb-1 block text-xs font-medium text-ink/70">Provincia</span>
+              <input aria-label="Filtrar por provincia" value={provinceFilter} onChange={event => { setProvinceFilter(event.target.value); setSelectedLeadIds([]); }} list="crm-province-filter-options" placeholder="Todas las provincias" maxLength={200} className="h-10 w-full rounded-lg border border-ink/20 bg-white px-3 text-sm text-ink outline-none focus:border-[#005c5c]" />
+            </label>
+            <label className="min-w-0 flex-1 sm:max-w-[260px]"><span className="mb-1 block text-xs font-medium text-ink/70">Localidad</span>
+              <input aria-label="Filtrar por localidad" value={localityFilter} onChange={event => { setLocalityFilter(event.target.value); setSelectedLeadIds([]); }} placeholder="Todas las localidades" maxLength={200} className="h-10 w-full rounded-lg border border-ink/20 bg-white px-3 text-sm text-ink outline-none focus:border-[#005c5c]" />
+            </label>
+            <datalist id="crm-province-filter-options">{ARGENTINA_PROVINCES.map(name => <option key={name} value={name} />)}</datalist>
+            {(provinceFilter || localityFilter) && <button type="button" onClick={() => { setProvinceFilter(""); setLocalityFilter(""); setSelectedLeadIds([]); }} className="min-h-10 px-2 text-sm font-medium text-[#005c5c]">Limpiar ubicación</button>}
+          </div>
+          <div className="flex justify-end px-4 pb-2 pt-1 lg:hidden"><button type="button" onClick={clearFilters} className="min-h-8 rounded-lg px-2 text-xs font-semibold text-[#005c5c] hover:bg-white">Limpiar filtros</button></div>
+          <CrmBulkActions ids={selectedLeadIds} agents={activeAgents} statuses={effectiveLeadStatusOptions} canUnassign={canAssignTeam} onClear={(remainingIds = []) => setSelectedLeadIds(remainingIds)} onUpdated={refreshLeads} />
           <label className="flex min-h-11 items-center gap-3 px-4 py-2 text-sm lg:hidden">
             <input type="checkbox" checked={allVisibleSelected} aria-checked={someVisibleSelected ? "mixed" : allVisibleSelected} onChange={e => toggleVisibleSelection(e.target.checked)} className="h-5 w-5 accent-[#005c5c]" />
             Seleccionar esta página
@@ -2154,6 +2273,7 @@ export function CrmBoard({
                   Eliminar {selectedLeadIds.length}
                 </button>
               )}
+              {renderOccupationFilter()}
               {developmentFilterControl}
               <select
                 value={statusFilter}
@@ -2343,7 +2463,7 @@ export function CrmBoard({
         </section>
 
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/12 bg-[#f4efe7] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 text-ink shadow-[0_-4px_8px_rgba(58,29,23,0.08)] lg:hidden" aria-label="Navegación móvil de contactos">
-          <div className="mx-auto grid max-w-md grid-cols-3 gap-2">
+          <div className="mx-auto grid max-w-md grid-cols-4 gap-1.5">
             <button
               type="button"
               className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl bg-white text-[#005c5c] shadow-sm"
@@ -2351,13 +2471,21 @@ export function CrmBoard({
               <UserRound className="h-6 w-6" />
               <span className="text-xs font-semibold">Contactos</span>
             </button>
+            <Link
+              href="/admin/crm/tareas"
+              prefetch={false}
+              className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/60 transition-colors hover:bg-white hover:text-ink"
+            >
+              <ClipboardList className="h-6 w-6" />
+              <span className="text-[11px] font-semibold leading-none">Mis tareas</span>
+            </Link>
             <button
               type="button"
               onClick={() => document.getElementById("crm-mobile-search")?.focus()}
               className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/48 transition-colors hover:bg-white hover:text-ink"
             >
               <Search className="h-6 w-6" />
-              <span className="text-xs font-semibold">Buscar</span>
+              <span className="text-[11px] font-semibold leading-none">Buscar</span>
             </button>
             <button
               type="button"
@@ -2365,7 +2493,7 @@ export function CrmBoard({
               className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-ink/60 transition-colors hover:bg-white hover:text-ink"
             >
               <Plus className="h-6 w-6" />
-              <span className="text-xs font-semibold">Agregar</span>
+              <span className="text-[11px] font-semibold leading-none">Agregar</span>
             </button>
           </div>
         </nav>
@@ -2408,6 +2536,7 @@ export function CrmBoard({
               onWhatsAppComposerStarted={() => setWhatsAppComposerLeadId("")}
               startCallSession={callSessionLeadId === selectedLead.id}
               onCallSessionStarted={() => setCallSessionLeadId("")}
+              onAudioTranscript={(text) => setActivityForm((current) => ({ ...current, body: appendTranscript(current.body, text) }))}
               updateActivity={updateActivity}
               onSaveActivity={saveActivity}
             />
@@ -2442,6 +2571,7 @@ function ContactDetail({
   onWhatsAppComposerStarted,
   startCallSession,
   onCallSessionStarted,
+  onAudioTranscript,
   updateActivity,
   onSaveActivity,
 }: {
@@ -2466,12 +2596,15 @@ function ContactDetail({
   onWhatsAppComposerStarted: () => void;
   startCallSession: boolean;
   onCallSessionStarted: () => void;
+  onAudioTranscript: (text: string) => void;
   updateActivity: (field: keyof ActivityFormState) => (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => void;
   onSaveActivity: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const name = leadFullName(lead);
+  const [activityAudioBusy, setActivityAudioBusy] = useState(false);
+  const [callAudioBusy, setCallAudioBusy] = useState(false);
   const [isSavingFields, setIsSavingFields] = useState(false);
   const [fieldsError, setFieldsError] = useState("");
   const [fieldsNotice, setFieldsNotice] = useState("");
@@ -2507,6 +2640,7 @@ function ContactDetail({
     status: CrmLeadStatus;
     temperature: CrmLeadTemperature;
     developmentId: string;
+    campaignName: string;
     developmentNameText: string;
     assignedAgentId: string;
   }>({
@@ -2518,6 +2652,7 @@ function ContactDetail({
     status: lead.status,
     temperature: lead.temperature || "",
     developmentId: lead.developmentId || "",
+    campaignName: lead.campaignName || "",
     developmentNameText: lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : ""),
     assignedAgentId: lead.assignedAgentId || "",
   });
@@ -2528,6 +2663,7 @@ function ContactDetail({
     .slice(0, 28);
   const metaFormSubmissions = getCrmMetaFormSubmissions(lead.metaProperties);
   const importedInquiries = getCrmImportedInquiries(lead.metaProperties);
+  const phoneLocality = getArgentinaPhoneLocality(contactFields.countryCode, contactFields.phone);
 
   useEffect(() => {
     setContactFields({
@@ -2539,7 +2675,8 @@ function ContactDetail({
       status: lead.status,
       temperature: lead.temperature || "",
       developmentId: lead.developmentId || "",
-      developmentNameText: lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : ""),
+      campaignName: lead.campaignName || "",
+    developmentNameText: lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : ""),
       assignedAgentId: lead.assignedAgentId || "",
     });
     setFieldsError("");
@@ -2681,6 +2818,7 @@ function ContactDetail({
       phone: contactFields.phone,
       status: contactFields.status,
       temperature: contactFields.temperature,
+      campaignName: contactFields.campaignName,
       ...(contactFields.developmentId.startsWith("text:")
         ? {
             developmentId: "",
@@ -2692,7 +2830,7 @@ function ContactDetail({
             developmentId: contactFields.developmentId,
             developmentNameText:
               developments.find((development) => development.id === contactFields.developmentId)?.name ||
-              contactFields.developmentNameText,
+              "",
           }),
       assignedAgentId: contactFields.assignedAgentId,
     });
@@ -2935,7 +3073,7 @@ function ContactDetail({
 
   const saveCallSession = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!callSession) return;
+    if (callAudioBusy || !callSession) return;
 
     const endedAt = callSession.endedAt || new Date().toISOString();
     const duration = formatInteractionDuration(callSession.startedAt, endedAt);
@@ -3059,7 +3197,7 @@ function ContactDetail({
             <InfoRow label="Contacto" value={formattedLeadPhone(lead)} />
           </div>
 
-          <CrmCallOutcomeChecklist value={callSession.outcomes} onChange={(outcomes) => setCallSession((current) => current ? { ...current, outcomes } : current)} disabled={isSavingCallSession} />
+          <CrmCallOutcomeChecklist value={callSession.outcomes} onChange={(outcomes) => setCallSession((current) => current ? { ...current, outcomes } : current)} disabled={isSavingCallSession || callAudioBusy} />
 
           <Field label="Resultado de la llamada">
             <textarea
@@ -3078,6 +3216,8 @@ function ContactDetail({
               placeholder="Interés, presupuesto, objeciones, próximo paso, documentación enviada..."
             />
           </Field>
+
+          <CrmAudioTranscriber key={`call-${lead.id}-${callSession.startedAt}`} leadId={lead.id} disabled={isSavingCallSession} onBusyChange={setCallAudioBusy} onTranscript={(text) => setCallSession((current) => current ? { ...current, notes: appendTranscript(current.notes, text) } : current)} />
 
           {callSessionError && (
             <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
@@ -3101,7 +3241,7 @@ function ContactDetail({
             </button>
             <button
               type="submit"
-              disabled={isSavingCallSession}
+              disabled={isSavingCallSession || callAudioBusy}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#005c5c] px-4 text-sm font-medium text-white transition-colors hover:bg-[#004949] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSavingCallSession ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -3591,6 +3731,13 @@ function ContactDetail({
                   {copiedContactField === "phone" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </button>
               </div>
+              {phoneLocality && (
+                <span className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md border border-[#006b6b]/25 bg-[#e7f4f2] px-2 py-1 text-xs font-semibold text-[#005c5c]" title={`Localidad estimada: ${phoneLocality}`}>
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                  <span className="sr-only">Localidad estimada: </span>
+                  <span className="truncate">{phoneLocality}</span>
+                </span>
+              )}
             </Field>
           </div>
           <Field label="Estado del lead">
@@ -3623,20 +3770,24 @@ function ContactDetail({
             </select>
           </Field>
 
-          <Field label="Desarrollo">
+          <Field label="Desarrollo" fullWidth>
             <select
               value={contactFields.developmentId}
               disabled={isSavingFields}
               onChange={updateContactField("developmentId")}
               className="form-input"
             >
-              <option value="">{lead.developmentName || "Sin definir"}</option>
+              <option value="">Sin desarrollo</option>
               {developments.map((development) => (
                 <option key={development.id} value={development.id}>
                   {development.name}
                 </option>
               ))}
             </select>
+          </Field>
+
+          <Field label="Campaña" fullWidth>
+            <input value={contactFields.campaignName} disabled={isSavingFields} onChange={updateContactField("campaignName")} maxLength={500} placeholder="Ej. Campaña inversores" className="form-input" />
           </Field>
 
           <Field label="Propietario del contacto">
@@ -3684,72 +3835,6 @@ function ContactDetail({
         )}
       </form>
 
-      {importedInquiries.length > 0 && (
-        <section className="rounded-xl border border-ink/12 bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">Información importada desde Excel</h3>
-            <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
-              {importedInquiries.length}
-            </span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {importedInquiries.map((inquiry, index) => (
-              <article key={`${inquiry.file}-${inquiry.row}-${index}`} className="rounded-lg border border-ink/10 bg-[#fafafa] p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-xs font-semibold text-ink">{inquiry.section || inquiry.file || `Importación ${index + 1}`}</h4>
-                  {inquiry.importedAt && !Number.isNaN(Date.parse(inquiry.importedAt)) && (
-                    <time className="text-[10px] font-medium text-ink/45">{formatInteractionDateTime(inquiry.importedAt)}</time>
-                  )}
-                </div>
-                <dl className="mt-3 grid gap-3">
-                  {inquiry.fields.map((field, fieldIndex) => (
-                    <InfoRow key={`${field.label}-${fieldIndex}`} label={field.label} value={field.value} />
-                  ))}
-                </dl>
-                <p className="mt-3 text-[10px] text-ink/45">{inquiry.file || "Excel importado"}{inquiry.row ? ` · Fila ${inquiry.row}` : ""}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {metaFormSubmissions.length > 0 && (
-        <section className="rounded-xl border border-ink/12 bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">Formularios completados en Meta</h3>
-            <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
-              {metaFormSubmissions.length}
-            </span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {metaFormSubmissions.map((submission, index) => (
-              <article key={submission.leadId || `${submission.formId}-${index}`} className="rounded-lg border border-ink/10 bg-[#fafafa] p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-xs font-semibold text-ink">{submission.formName || `Formulario ${index + 1}`}</h4>
-                  {submission.createdTime && <time className="text-[10px] font-medium text-ink/45">{formatInteractionDateTime(submission.createdTime)}</time>}
-                </div>
-                <dl className="mt-3 grid gap-3">
-                  {submission.fields.map((field) => (
-                    <InfoRow key={field.key} label={field.label} value={field.value} />
-                  ))}
-                </dl>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {hubspotFields.length > 0 && (
-        <section className="rounded-xl border border-ink/12 bg-white p-5">
-          <h3 className="text-sm font-semibold text-ink">Datos importados de HubSpot</h3>
-          <dl className="mt-4 grid gap-3">
-            {hubspotFields.map(([key, value]) => (
-              <InfoRow key={key} label={key.replaceAll("_", " ")} value={value} />
-            ))}
-          </dl>
-        </section>
-      )}
-
       <section className="rounded-xl border border-ink/12 bg-white p-5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-ink">Actividades</h3>
@@ -3777,8 +3862,8 @@ function ContactDetail({
           })}
         </div>
 
-        <form onSubmit={onSaveActivity} className="mt-4 space-y-3">
-          {activityForm.type === "llamada" && <CrmCallOutcomeChecklist value={activityForm.callOutcomes} onChange={onCallOutcomesChange} disabled={isSavingActivity} />}
+        <form onSubmit={(event) => { if (activityAudioBusy) event.preventDefault(); else onSaveActivity(event); }} className="mt-4 space-y-3">
+          {activityForm.type === "llamada" && <CrmCallOutcomeChecklist value={activityForm.callOutcomes} onChange={onCallOutcomesChange} disabled={isSavingActivity || activityAudioBusy} />}
           <input
             value={activityForm.title}
             onChange={updateActivity("title")}
@@ -3792,12 +3877,16 @@ function ContactDetail({
               onChange={updateActivity("scheduledAt")}
               className="form-input"
               type="datetime-local"
+              step={1800}
+              min={activityForm.type === "tarea" || activityForm.type === "reunion" ? `${activityForm.scheduledAt.slice(0,10)}T08:00` : undefined}
+              max={activityForm.type === "tarea" || activityForm.type === "reunion" ? `${activityForm.scheduledAt.slice(0,10)}T${activityForm.duration === "30" ? "20:30" : "20:00"}` : undefined}
               required={activityForm.type === "tarea" || activityForm.type === "reunion"}
             />
           )}
-          {activityForm.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink"><input type="checkbox" checked={Boolean(activityForm.includePablo)} onChange={updateActivity("includePablo")} disabled={isSavingActivity} />Invitar a Pablo Barrera</label>}
-          {activityForm.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink"><input type="checkbox" checked={Boolean(activityForm.includeLucas)} onChange={updateActivity("includeLucas")} disabled={isSavingActivity} />Invitar a Lucas Barrera</label>}
-          {activityForm.type === "reunion" && <MeetingClientInvitation value={activityForm.sendClientInvitation} onChange={updateActivity("sendClientInvitation")} email={lead.email} disabled={isSavingActivity} />}
+          {(activityForm.type === "reunion" || activityForm.type === "tarea") && <label className="block text-sm font-medium text-ink">Duración<select value={activityForm.duration} onChange={updateActivity("duration")} className="form-input"><option value="30">30 minutos</option><option value="60">1 hora</option></select><span className="text-xs text-ink/75">Lunes a domingo, de 08:00 a 21:00 (Argentina). Inicios cada media hora.</span></label>}
+          {activityForm.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink"><input type="checkbox" checked={Boolean(activityForm.includePablo)} onChange={updateActivity("includePablo")} disabled={isSavingActivity || activityAudioBusy} />Invitar a Pablo Barrera</label>}
+          {activityForm.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink"><input type="checkbox" checked={Boolean(activityForm.includeLucas)} onChange={updateActivity("includeLucas")} disabled={isSavingActivity || activityAudioBusy} />Invitar a Lucas Barrera</label>}
+          {activityForm.type === "reunion" && <MeetingClientInvitation value={activityForm.sendClientInvitation} onChange={updateActivity("sendClientInvitation")} email={lead.email} disabled={isSavingActivity || activityAudioBusy} />}
           {activityForm.type === "tarea" && <label className="block text-sm font-medium text-ink">
             Avisar al agente asignado al contacto
             <select className="form-input" value={activityForm.reminderMinutes} onChange={updateActivity("reminderMinutes")}>
@@ -3814,9 +3903,10 @@ function ContactDetail({
             placeholder="Detalle, próximos pasos, resumen de la conversación..."
           />
           </label>
+          {(activityForm.type === "nota" || activityForm.type === "llamada") && <CrmAudioTranscriber key={`${lead.id}-${activityForm.type}`} leadId={lead.id} disabled={isSavingActivity} onBusyChange={setActivityAudioBusy} onTranscript={onAudioTranscript} />}
           <button
             type="submit"
-            disabled={isSavingActivity}
+            disabled={isSavingActivity || activityAudioBusy}
             className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-bone transition-colors hover:bg-ink/90 disabled:opacity-60"
           >
             {isSavingActivity ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -3855,6 +3945,74 @@ function ContactDetail({
           )}
         </div>
       </section>
+
+      {importedInquiries.length > 0 && (
+        <section className="rounded-xl border border-ink/12 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">Información importada desde Excel</h3>
+            <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
+              {importedInquiries.length}
+            </span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {importedInquiries.map((inquiry, index) => (
+              <article key={`${inquiry.file}-${inquiry.row}-${index}`} className="rounded-lg border border-ink/10 bg-[#fafafa] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold text-ink">{inquiry.section || inquiry.file || `Importación ${index + 1}`}</h4>
+                  {inquiry.importedAt && !Number.isNaN(Date.parse(inquiry.importedAt)) && (
+                    <time className="text-[10px] font-medium text-ink/45">{formatInteractionDateTime(inquiry.importedAt)}</time>
+                  )}
+                </div>
+                <dl className="mt-3 grid gap-3">
+                  {inquiry.fields.map((field, fieldIndex) => (
+                    <InfoRow key={`${field.label}-${fieldIndex}`} label={field.label} value={field.value} />
+                  ))}
+                </dl>
+                <p className="mt-3 text-[10px] text-ink/45">{inquiry.file || "Excel importado"}{inquiry.row ? ` · Fila ${inquiry.row}` : ""}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+
+      {hubspotFields.length > 0 && (
+        <section className="rounded-xl border border-ink/12 bg-white p-5">
+          <h3 className="text-sm font-semibold text-ink">Información comercial importada</h3>
+          <dl className="mt-4 grid gap-3">
+            {hubspotFields.map(([key, value]) => (
+              <InfoRow key={key} label={formatHubSpotLabel(key)} value={value} />
+            ))}
+          </dl>
+        </section>
+      )}
+
+      {metaFormSubmissions.length > 0 && (
+        <section className="rounded-xl border border-ink/12 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">Respuestas de formularios</h3>
+            <span className="rounded-full bg-[#e7f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#006b6b]">
+              {metaFormSubmissions.length}
+            </span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {metaFormSubmissions.map((submission, index) => (
+              <article key={submission.leadId || `${submission.formId}-${index}`} className="rounded-lg border border-ink/10 bg-[#fafafa] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold text-ink">{submission.formName || `Formulario ${index + 1}`}</h4>
+                  {submission.createdTime && <time className="text-[10px] font-medium text-ink/45">{formatInteractionDateTime(submission.createdTime)}</time>}
+                </div>
+                <dl className="mt-3 grid gap-3">
+                  {submission.fields.map((field) => (
+                    <InfoRow key={field.key} label={field.label} value={field.value} />
+                  ))}
+                </dl>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
     </div>
   );
 }
@@ -3946,7 +4104,7 @@ function ContactForm({
             ))}
           </select>
         </Field>
-        <Field label="Desarrollo que consultó">
+        <Field label="Desarrollo que consultó" fullWidth>
           <select value={form.developmentId} onChange={update("developmentId")} className="form-input">
             <option value="">{form.developmentNameText || "Sin definir"}</option>
             {developments.map((development) => (
@@ -3955,6 +4113,9 @@ function ContactForm({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Campaña" fullWidth>
+          <input value={form.campaignName} onChange={update("campaignName")} maxLength={500} placeholder="Ej. Campaña inversores" className="form-input" />
         </Field>
         <Field label="Origen">
           <input value={form.source} onChange={update("source")} className="form-input" placeholder="Web, WhatsApp, referido..." />
@@ -4102,7 +4263,7 @@ function InlinePhoneEditor({
               onChange({ ...value, phone: event.target.value })
             }
             className="h-10 w-full rounded-md border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
-            placeholder="11 4447-5478"
+            placeholder="11 1234-5678"
             autoFocus
           />
         </label>
@@ -4366,9 +4527,9 @@ function ResizableTh({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children, fullWidth = false }: { label: string; children: ReactNode; fullWidth?: boolean }) {
   return (
-    <label className="block min-w-0">
+    <label className={`block min-w-0 ${fullWidth ? "sm:col-span-2" : ""}`}>
       <span className="label-tracking mb-2 block text-ink/70">{label}</span>
       {children}
     </label>

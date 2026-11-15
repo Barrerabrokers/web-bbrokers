@@ -39,7 +39,9 @@ export function hasValidShareToken(
 ) {
   if (!token) return false;
 
-  const [payload, signature] = token.split(".");
+  const segments = token.split(".");
+  if (segments.length !== 2) return false;
+  const [payload, signature] = segments;
   if (!payload || !signature) return false;
 
   const expected = sign(payload);
@@ -65,4 +67,13 @@ export function withShareParam(path: string, token?: string) {
   const hash = hashIndex >= 0 ? path.slice(hashIndex) : "";
   const separator = base.includes("?") ? "&" : "?";
   return `${base}${separator}share=${encodeURIComponent(token)}${hash}`;
+}
+
+// A new cover produces a new URL so messaging apps can refresh cached cards.
+export function withListingPreviewParam(path: string, cover?: string) {
+  const revision = crypto.createHash("sha256").update(`cover-v3:${cover || ""}`).digest("hex").slice(0, 12);
+  const hashIndex = path.indexOf("#");
+  const base = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+  const hash = hashIndex >= 0 ? path.slice(hashIndex) : "";
+  return `${base}${base.includes("?") ? "&" : "?"}preview=${revision}${hash}`;
 }

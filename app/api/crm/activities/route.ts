@@ -1,3 +1,4 @@
+import { agendaScheduleError } from "@/lib/crm-agenda-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -18,6 +19,7 @@ const activitySchema = z.object({
   title: z.string().trim().min(1),
   body: z.string().trim().optional().default(""),
   scheduledAt: z.string().optional().or(z.literal("")),
+  duration: z.union([z.literal(30),z.literal(60)]).optional(),
   reminderMinutes: z.coerce.number().refine(value => [60,720,1440].includes(value)).optional(),
 });
 
@@ -59,6 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Elegí fecha y hora para agendar la tarea." }, { status: 400 });
   }
 
+  if (parsed.data.type === "tarea") { const error=agendaScheduleError(parsed.data.scheduledAt || "",parsed.data.duration || 30); if(error)return NextResponse.json({error},{status:400}); }
   const lead = await getCrmLeadById(parsed.data.leadId, {
     agentId: session.user.id,
     includeAll: canViewAllCrmContacts(session.user.role),
@@ -119,6 +122,7 @@ const editSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   body: z.string().trim().max(50000).optional(),
   scheduledAt: z.union([z.string().datetime(),z.literal("")]).optional(),
+  duration: z.union([z.literal(30),z.literal(60)]).optional(),
   reminderMinutes: z.number().refine(value => [60,720,1440].includes(value)).optional(),
   outcome: z.string().trim().min(1).max(10000).optional(),
   outcomeStatus: z.enum(["completed", "cancelled"]).optional(),

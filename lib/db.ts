@@ -1,8 +1,16 @@
+import { crmBirthDatePatch } from "@/lib/crm-contact-birth-date";
+import { persistLeadWhatsAppForm } from "@/lib/whatsapp-lead-enrichment";
+import { getCrmCampaign, crmCampaignPatch } from "@/lib/crm-campaign";
+import { crmCompanyPatch } from "@/lib/crm-contact-company";
+import { crmDniPatch } from "@/lib/crm-contact-dni";
+import { crmLocationPatch, type CrmContactLocation } from "@/lib/crm-contact-location";
+import { getSharedDatabase, releaseSharedDatabase } from "@/lib/database-pool";
+import { emailOpenDestination } from "@/lib/crm-email-followup";
 import { Property, Agent } from "@/types";
 import { getServerSupabase } from "@/lib/supabase";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import postgres from "postgres";
-import { leadStatusFilterValues, type CrmLeadStatus } from "@/lib/crm-statuses";
+import { leadStatusFilterValues, normalizeCrmLeadStatus, type CrmLeadStatus } from "@/lib/crm-statuses";
 import { normalizeSmtpPassword } from "@/lib/crm-email-errors";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { getCrmActivityEditDetails } from "@/lib/crm-activity-edit";
@@ -10,27 +18,10 @@ import { ensureTaskSchedules } from "@/lib/crm-task-schedule";
 import { whatsAppMessageDate } from "@/lib/crm-whatsapp-history";
 import { ensureMeetingLifecycle } from "@/lib/crm-meeting-lifecycle";
 import { scheduleSalesAnalysis } from "@/lib/ai-sales/schedule";
+import { shouldRunRuntimeSchemaMigrations } from "@/lib/runtime-schema";
 export type { CrmLeadStatus } from "@/lib/crm-statuses";
 
-// Helper: get raw postgres connection
-function getPgConnection() {
-  const databaseUrl =
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DATABASE_URL ||
-    process.env.SUPABASE_DB_URL;
-
-  if (!databaseUrl) {
-    throw new Error("No database connection URL found");
-  }
-
-  return postgres(databaseUrl, {
-    ssl: "require",
-    max: 1,
-    prepare: false,
-  });
-}
+function getPgConnection() { return getSharedDatabase(); }
 
 // ============================================================
 // PROPERTIES
@@ -108,7 +99,7 @@ export async function createProperty(
     `;
 
     if (!result || result.length === 0) {
-      await sql.end();
+      await releaseSharedDatabase(sql);
       return { property: null, error: "No se pudo insertar la propiedad" };
     }
 
@@ -137,14 +128,14 @@ export async function createProperty(
       }
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const fullProperty = await getPropertyById(propertyId);
     return { property: fullProperty, error: null };
   } catch (error: any) {
     if (sql) {
       try {
-        await sql.end();
+        await releaseSharedDatabase(sql);
       } catch {}
     }
     console.error("Error creating property:", error);
@@ -252,14 +243,14 @@ export async function updateProperty(
       }
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const updated = await getPropertyById(id);
     return { property: updated, error: null };
   } catch (error: any) {
     if (sql) {
       try {
-        await sql.end();
+        await releaseSharedDatabase(sql);
       } catch {}
     }
     console.error("Error updating property:", error);
@@ -277,12 +268,12 @@ export async function deleteProperty(id: string): Promise<boolean> {
     // Borrar la propiedad
     await sql`DELETE FROM properties WHERE id = ${id}`;
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
     return true;
   } catch (error: any) {
     if (sql) {
       try {
-        await sql.end();
+        await releaseSharedDatabase(sql);
       } catch {}
     }
     console.error("Error deleting property:", error);
@@ -423,7 +414,7 @@ async function getPropertiesViaPostgres(filter?: {
         LEFT JOIN property_images pi ON pi.property_id = p.id
         ${where}
         GROUP BY p.id
-        ORDER BY p.created_at DESC
+        ORDER BY p.sort_order ASC NULLS LAST, p.created_at DESC, p.id ASC
       `,
       values
     );
@@ -434,7 +425,7 @@ async function getPropertiesViaPostgres(filter?: {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -469,7 +460,7 @@ async function getPropertyByIdViaPostgres(id: string): Promise<Property | null> 
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -489,7 +480,7 @@ async function getAllAgentsViaPostgres(): Promise<Agent[]> {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -521,7 +512,7 @@ async function getTeamMembersViaPostgres(): Promise<Omit<Agent, "password" | "em
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -533,12 +524,12 @@ export async function deleteAgent(id: string): Promise<{ success: boolean; error
     // Las FKs en properties.agent_id y developments.agent_id estan en ON DELETE SET NULL,
     // asi que basta con eliminar al agente.
     await sql`DELETE FROM agents WHERE id = ${id}`;
-    await sql.end();
+    await releaseSharedDatabase(sql);
     return { success: true, error: null };
   } catch (error: any) {
     if (sql) {
       try {
-        await sql.end();
+        await releaseSharedDatabase(sql);
       } catch {}
     }
     console.error("Error deleting agent:", error);
@@ -604,12 +595,12 @@ export async function updateAgentsOrder(
       `;
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
     return { success: true, error: null };
   } catch (error: any) {
     if (sql) {
       try {
-        await sql.end();
+        await releaseSharedDatabase(sql);
       } catch {}
     }
     return { success: false, error: error.message || "Error al ordenar agentes" };
@@ -669,7 +660,7 @@ export async function createAgentPasswordResetToken(data: {
     return { success: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -723,7 +714,7 @@ export async function updateAgentPasswordWithResetToken(data: {
     return { success: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -767,7 +758,7 @@ export async function createMobileUploadSession(data: {
     return { success: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -803,7 +794,7 @@ export async function getMobileUploadSessionFiles(
     return { files: null, expired: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -842,7 +833,7 @@ export async function appendMobileUploadSessionFile(data: {
     return { success: false, totalFiles: 0, expired: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -864,8 +855,13 @@ export type CrmLead = {
   status: CrmLeadStatus;
   temperature: CrmLeadTemperature;
   source: string;
+  socialProfile?: string;
+  linkedinProfile?: string;
+  occupation?: string;
+  website?: string;
   developmentId?: string;
   developmentName?: string;
+  campaignName?: string;
   developmentNameText?: string;
   assignedAgentId?: string;
   assignedAgentName?: string;
@@ -892,6 +888,7 @@ export type CrmActivityType =
 
 export type CrmActivity = {
   reminderMinutes?: number;
+  duration?: number;
   editVersion?: string;
   meetingOutcome?: string;
   meetingEndsAt?: string;
@@ -947,7 +944,7 @@ export type CrmNotification = {
   recipientAgentName?: string;
   leadId: string;
   leadName: string;
-  type: "email_open" | "email_reply" | "meeting_outcome" | "campaign_recontact" | "ai_sales";
+  type: "email_open" | "email_reply" | "task_reminder" | "meeting_reminder" | "meeting_outcome" | "campaign_recontact" | "ai_sales";
   title: string;
   body: string;
   href: string;
@@ -956,6 +953,10 @@ export type CrmNotification = {
 };
 
 export type CrmLeadInput = {
+  companyName?: string;
+  dni?: string;
+  birthDate?: string;
+  location?: Partial<CrmContactLocation>;
   id?: string;
   firstName: string;
   lastName: string;
@@ -965,7 +966,12 @@ export type CrmLeadInput = {
   status: CrmLeadStatus;
   temperature?: CrmLeadTemperature;
   source?: string;
+  socialProfile?: string;
+  linkedinProfile?: string;
+  occupation?: string;
+  website?: string;
   developmentId?: string;
+  campaignName?: string;
   developmentNameText?: string;
   assignedAgentId?: string;
   notes?: string;
@@ -1034,6 +1040,10 @@ type CrmLeadRow = {
   status: CrmLeadStatus;
   temperature: CrmLeadTemperature | null;
   source: string | null;
+  social_profile: string | null;
+  linkedin_profile: string | null;
+  occupation: string | null;
+  website: string | null;
   development_id: string | null;
   development_name: string | null;
   development_name_text: string | null;
@@ -1069,7 +1079,7 @@ let crmDataPropertiesSchemaPromise: Promise<void> | null = null;
 let crmExtensionPreferencesSchemaReady = false;
 let crmExtensionPreferencesSchemaPromise: Promise<void> | null = null;
 
-export type CrmDataPropertyType = "lead_status" | "development";
+export type CrmDataPropertyType = "lead_status" | "development" | "occupation";
 
 export type CrmDataProperty = {
   id: string;
@@ -1391,6 +1401,40 @@ function formatNamePart(value: string | null | undefined) {
     });
 }
 
+function normalizeHubSpotProperties(value: unknown): CrmHubSpotProperties {
+  const result: CrmHubSpotProperties = {};
+
+  const collect = (candidate: unknown) => {
+    if (typeof candidate === "string") {
+      try {
+        collect(JSON.parse(candidate));
+      } catch {
+        // Ignore malformed legacy payloads rather than rendering their raw
+        // serialized content in the client record.
+      }
+      return;
+    }
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) collect(item);
+      return;
+    }
+    if (!candidate || typeof candidate !== "object") return;
+
+    for (const [key, fieldValue] of Object.entries(candidate as Record<string, unknown>)) {
+      if (["string", "number", "boolean"].includes(typeof fieldValue) || fieldValue === null) {
+        // Prefer the later, populated value when legacy imports contain the
+        // same contact twice in a malformed array.
+        if (fieldValue !== null && fieldValue !== "" || result[key] === undefined) {
+          result[key] = fieldValue as string | number | boolean | null;
+        }
+      }
+    }
+  };
+
+  collect(value);
+  return result;
+}
+
 async function ensureCrmLeadsTable(sql: ReturnType<typeof getPgConnection>) {
   await sql.unsafe(`
     CREATE TABLE IF NOT EXISTS crm_leads (
@@ -1414,6 +1458,9 @@ async function ensureCrmLeadsTable(sql: ReturnType<typeof getPgConnection>) {
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS country_code TEXT DEFAULT '+54';`);
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS temperature TEXT DEFAULT '';`);
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS source TEXT DEFAULT '';`);
+  await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS social_profile TEXT DEFAULT '';`);
+  await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS linkedin_profile TEXT DEFAULT '';`);
+  await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS occupation TEXT DEFAULT '', ADD COLUMN IF NOT EXISTS website TEXT DEFAULT '';`);
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS development_id UUID NULL;`);
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS development_name_text TEXT DEFAULT '';`);
   await sql.unsafe(`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS assigned_agent_id UUID NULL REFERENCES agents(id) ON DELETE SET NULL;`);
@@ -1439,6 +1486,7 @@ export async function upsertCrmLeadFromHubSpot(data: {
   objectId: string;
   properties: CrmHubSpotProperties;
   developmentId?: string;
+  campaignName?: string;
   developmentNameText?: string;
   assignedAgentId?: string;
   createdBy?: string;
@@ -1446,7 +1494,15 @@ export async function upsertCrmLeadFromHubSpot(data: {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
     sql = getPgConnection();
-    const props = data.properties;
+    // A manually consolidated HubSpot identity must never recreate its old contact.
+    const merged = await sql`
+      SELECT l.*, NULL::text AS development_name, NULL::text AS assigned_agent_name, NULL::text AS assigned_agent_phone
+      FROM crm_leads l
+      WHERE l.meta_properties ? ${`crm_merged_hubspot:${data.objectId}`}
+      LIMIT 1
+    `;
+    if (merged[0]) return { lead: mapCrmLead(merged[0] as unknown as CrmLeadRow), created: false, error: null };
+    const props = normalizeHubSpotProperties(data.properties);
     const stringProperty = (value: unknown) => typeof value === "string" ? value : null;
     const normalizedPhone = splitInternationalPhone(
       stringProperty(props.phone) ||
@@ -1475,7 +1531,7 @@ export async function upsertCrmLeadFromHubSpot(data: {
       ) VALUES (
         ${id}, ${formatNamePart(String(props.firstname || ""))}, ${formatNamePart(String(props.lastname || ""))}, ${rawEmail},
         ${normalizedPhone.countryCode}, ${normalizedPhone.phone},
-        ${props.hs_lead_status || props.lifecyclestage || ""}, '',
+        ${normalizeCrmLeadStatus(String(props.hs_lead_status || props.lifecyclestage || ""))}, '',
         ${props.hs_analytics_source || props.hs_latest_source || ""},
         ${data.developmentId || null}, ${data.developmentNameText || ""},
         ${data.assignedAgentId || null}, ${props.notes_last_contacted || ""},
@@ -1503,11 +1559,15 @@ export async function upsertCrmLeadFromHubSpot(data: {
     console.error("Error mirroring HubSpot contact:", error);
     return { lead: null, created: false, error: error instanceof Error ? error.message : "Error al reflejar contacto de HubSpot" };
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
 async function ensureCrmLeadsSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmLeadsSchemaReady = true;
+    return;
+  }
   if (crmLeadsSchemaReady) return;
   if (!crmLeadsSchemaPromise) {
     crmLeadsSchemaPromise = (async () => {
@@ -1518,7 +1578,7 @@ async function ensureCrmLeadsSchema() {
         crmLeadsSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmLeadsSchemaReady) crmLeadsSchemaPromise = null;
       }
@@ -1528,6 +1588,10 @@ async function ensureCrmLeadsSchema() {
 }
 
 async function ensureCrmExtensionPreferencesSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmExtensionPreferencesSchemaReady = true;
+    return;
+  }
   if (crmExtensionPreferencesSchemaReady) return;
   if (!crmExtensionPreferencesSchemaPromise) {
     crmExtensionPreferencesSchemaPromise = (async () => {
@@ -1546,7 +1610,7 @@ async function ensureCrmExtensionPreferencesSchema() {
         crmExtensionPreferencesSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmExtensionPreferencesSchemaReady) crmExtensionPreferencesSchemaPromise = null;
       }
@@ -1577,7 +1641,7 @@ export async function getCrmExtensionPreferences(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1609,7 +1673,7 @@ export async function upsertCrmExtensionPreferences(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1639,7 +1703,7 @@ export async function setCrmExtensionContactTabs(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1680,7 +1744,7 @@ export async function setCrmFeaturedLead(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1712,6 +1776,10 @@ async function ensureCrmDataPropertiesTable(sql: ReturnType<typeof getPgConnecti
 }
 
 async function ensureCrmDataPropertiesSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmDataPropertiesSchemaReady = true;
+    return;
+  }
   if (crmDataPropertiesSchemaReady) return;
   if (!crmDataPropertiesSchemaPromise) {
     crmDataPropertiesSchemaPromise = (async () => {
@@ -1722,7 +1790,7 @@ async function ensureCrmDataPropertiesSchema() {
         crmDataPropertiesSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmDataPropertiesSchemaReady) crmDataPropertiesSchemaPromise = null;
       }
@@ -1785,7 +1853,7 @@ export async function getCrmDataProperties(
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1844,7 +1912,7 @@ export async function upsertCrmDataProperty(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1864,7 +1932,7 @@ export async function deleteCrmDataProperty(id: string) {
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -1880,8 +1948,13 @@ function mapCrmLead(row: CrmLeadRow): CrmLead {
     status: row.status,
     temperature: row.temperature || "",
     source: row.source || "",
+    socialProfile: row.social_profile || undefined,
+    linkedinProfile: row.linkedin_profile || undefined,
+    occupation: row.occupation || undefined,
+    website: row.website || undefined,
+    campaignName: getCrmCampaign(row.meta_properties || undefined),
     developmentId: row.development_id || undefined,
-    developmentName: row.development_name_text || row.development_name || undefined,
+    developmentName: row.development_name || row.development_name_text || undefined,
     developmentNameText: row.development_name_text || undefined,
     assignedAgentId: row.assigned_agent_id || undefined,
     assignedAgentName: row.assigned_agent_name || undefined,
@@ -1939,13 +2012,27 @@ export async function getCrmLeads(options?: {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
 
+export async function getCrmOccupationOptions(options: { agentId: string; includeAll: boolean }): Promise<string[]> {
+  const sql = getPgConnection();
+  try {
+    const rows = await sql`SELECT DISTINCT btrim(occupation) AS occupation FROM crm_leads
+      WHERE NULLIF(btrim(occupation), '') IS NOT NULL
+      AND (${options.includeAll} OR assigned_agent_id=${options.agentId}::uuid)
+      ORDER BY occupation`;
+    return rows.map(row => String(row.occupation));
+  } finally { await releaseSharedDatabase(sql); }
+}
+
 export type CrmLeadPageOptions = {
+  province?: string;
+  locality?: string;
   metaOnly?: boolean;
+  occupation?: string;
   development?: string;
   agentId?: string;
   includeAll?: boolean;
@@ -1954,7 +2041,7 @@ export type CrmLeadPageOptions = {
   query?: string;
   page?: number;
   pageSize?: number;
-  sortColumn?: "name" | "email" | "phone" | "whatsapp" | "status" | "temperature" | "development" | "createdAt" | "owner";
+  sortColumn?: "campaign" | "name" | "email" | "phone" | "whatsapp" | "status" | "temperature" | "development" | "createdAt" | "owner";
   sortDirection?: "asc" | "desc";
 };
 
@@ -1984,11 +2071,24 @@ export async function getCrmLeadsPage(
       const statuses = leadStatusFilterValues(options.status).map(addValue);
       conditions.push(`lower(btrim(l.status)) IN (${statuses.join(", ")})`);
     }
+    if (options.occupation === "__none") {
+      conditions.push("NULLIF(btrim(l.occupation), '') IS NULL");
+    } else if (options.occupation?.trim()) {
+      const occupation = addValue(options.occupation.trim());
+      conditions.push(`translate(lower(btrim(COALESCE(l.occupation, ''))), 'áéíóúü', 'aeiouu') = translate(lower(btrim(${occupation})), 'áéíóúü', 'aeiouu')`);
+    }
     if (options.development === "__none") {
       conditions.push("l.development_id IS NULL AND NULLIF(trim(l.development_name_text), '') IS NULL");
     } else if (options.development?.trim()) {
       const development = addValue(options.development.trim());
       conditions.push(`(lower(trim(d.name)) = lower(${development}) OR lower(trim(l.development_name_text)) = lower(${development}))`);
+    }
+    for (const field of ["province", "locality"] as const) {
+      const value = options[field]?.trim();
+      if (value) {
+        const parameter = addValue(value);
+        conditions.push(`translate(lower(btrim(COALESCE(l.meta_properties->>'crm_${field}', ''))), 'áéíóúü', 'aeiouu') = translate(lower(btrim(${parameter})), 'áéíóúü', 'aeiouu')`);
+      }
     }
     if (options.metaOnly) {
       conditions.push(`(l.meta_lead_id IS NOT NULL OR lower(l.source) IN ('meta lead ads', 'instagram', 'facebook') OR EXISTS (SELECT 1 FROM crm_activities ma WHERE ma.lead_id = l.id AND ma.external_source = 'meta_lead_ads'))`);
@@ -2014,7 +2114,8 @@ export async function getCrmLeadsPage(
       whatsapp: "lower(concat_ws(' ', l.country_code, l.phone))",
       status: "lower(COALESCE(l.status, ''))",
       temperature: "lower(COALESCE(l.temperature, ''))",
-      development: "lower(COALESCE(NULLIF(l.development_name_text, ''), d.name, ''))",
+      campaign: "lower(COALESCE(l.meta_properties->>'crm_campaign_name', l.meta_properties->>'whatsapp_referral_campaign_name', l.meta_properties->>'meta_campaign_name', ''))",
+      development: "lower(COALESCE(NULLIF(d.name, ''), l.development_name_text, ''))",
       createdAt: "l.created_at",
       owner: "lower(COALESCE(a.name, ''))",
     };
@@ -2047,7 +2148,7 @@ export async function getCrmLeadsPage(
     console.error("Error fetching paginated CRM leads:", error);
     return { leads: [], total: 0 };
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -2094,13 +2195,13 @@ export async function getCrmLeadById(
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
 
 export async function upsertCrmLead(
-  data: CrmLeadInput
+  data: CrmLeadInput & { ownerActorId?: string; preserveOwner?: boolean }
 ): Promise<{ lead: CrmLead | null; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
@@ -2115,7 +2216,9 @@ export async function upsertCrmLead(
       data.createdAt && !Number.isNaN(Date.parse(data.createdAt))
         ? new Date(data.createdAt).toISOString()
         : null;
-    const rows = await sql`
+    const rows = await sql.begin(async tx => {
+      await tx`SELECT set_config('crm.owner_actor_id', ${data.ownerActorId || ""}, true)`;
+      return await tx`
       INSERT INTO crm_leads (
         id,
         first_name,
@@ -2126,6 +2229,10 @@ export async function upsertCrmLead(
         status,
         temperature,
         source,
+        social_profile,
+        linkedin_profile,
+        occupation,
+        website,
         development_id,
         development_name_text,
         assigned_agent_id,
@@ -2146,19 +2253,23 @@ export async function upsertCrmLead(
         ${email},
         ${data.countryCode?.trim() || "+54"},
         ${data.phone?.trim() || ""},
-        ${data.status},
+        ${normalizeCrmLeadStatus(data.status)},
         ${data.temperature || ""},
         ${data.source?.trim() || ""},
+        ${data.socialProfile?.trim() || ""},
+        ${data.linkedinProfile?.trim() || ""},
+        ${data.occupation?.trim() || ""},
+        ${data.website?.trim() || ""},
         ${data.developmentId || null},
         ${data.developmentNameText?.trim() || ""},
         ${data.assignedAgentId || null},
         ${data.notes?.trim() || ""},
         ${data.hubspotObjectId || null},
-        ${sql.json(data.hubspotProperties || {})},
+        ${tx.json(data.hubspotProperties || {})},
         ${data.metaLeadId || null},
         ${data.metaFormId || null},
         ${data.metaPageId || null},
-        ${sql.json(data.metaProperties || {})},
+        ${tx.json({ ...(data.metaProperties || {}), ...crmLocationPatch(data.location), ...crmDniPatch(data.dni), ...crmBirthDatePatch(data.birthDate), ...crmCompanyPatch(data.companyName), ...crmCampaignPatch(data.campaignName) })},
         ${data.createdBy || null},
         ${importedCreatedAt || new Date().toISOString()},
         NOW()
@@ -2172,9 +2283,13 @@ export async function upsertCrmLead(
         status = EXCLUDED.status,
         temperature = EXCLUDED.temperature,
         source = EXCLUDED.source,
+        social_profile = EXCLUDED.social_profile,
+        linkedin_profile = EXCLUDED.linkedin_profile,
+        occupation = CASE WHEN ${data.occupation !== undefined} THEN EXCLUDED.occupation ELSE crm_leads.occupation END,
+        website = CASE WHEN ${data.website !== undefined} THEN EXCLUDED.website ELSE crm_leads.website END,
         development_id = EXCLUDED.development_id,
-        development_name_text = COALESCE(NULLIF(EXCLUDED.development_name_text, ''), crm_leads.development_name_text),
-        assigned_agent_id = EXCLUDED.assigned_agent_id,
+        development_name_text = CASE WHEN ${data.developmentNameText !== undefined} THEN EXCLUDED.development_name_text ELSE crm_leads.development_name_text END,
+        assigned_agent_id = CASE WHEN ${data.preserveOwner === true} THEN crm_leads.assigned_agent_id ELSE EXCLUDED.assigned_agent_id END,
         notes = EXCLUDED.notes,
         hubspot_object_id = COALESCE(EXCLUDED.hubspot_object_id, crm_leads.hubspot_object_id),
         hubspot_properties = CASE
@@ -2184,10 +2299,7 @@ export async function upsertCrmLead(
         meta_lead_id = COALESCE(EXCLUDED.meta_lead_id, crm_leads.meta_lead_id),
         meta_form_id = COALESCE(EXCLUDED.meta_form_id, crm_leads.meta_form_id),
         meta_page_id = COALESCE(EXCLUDED.meta_page_id, crm_leads.meta_page_id),
-        meta_properties = CASE
-          WHEN EXCLUDED.meta_properties = '{}'::jsonb THEN crm_leads.meta_properties
-          ELSE EXCLUDED.meta_properties
-        END,
+        meta_properties = COALESCE(crm_leads.meta_properties, '{}'::jsonb) || EXCLUDED.meta_properties,
         created_at = CASE
           WHEN ${Boolean(importedCreatedAt)} THEN EXCLUDED.created_at
           ELSE crm_leads.created_at
@@ -2199,6 +2311,7 @@ export async function upsertCrmLead(
         NULL::text AS assigned_agent_name,
         NULL::text AS assigned_agent_phone
     `;
+    });
 
     return {
       lead: rows[0] ? mapCrmLead(rows[0] as unknown as CrmLeadRow) : null,
@@ -2214,7 +2327,7 @@ export async function upsertCrmLead(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2270,9 +2383,13 @@ export async function upsertCrmLeadByEmail(
       // Older Meta imports used "-" as a missing-phone placeholder. It must
       // not prevent a later form refresh from filling the actual number.
       phone: phoneValueOrExisting(data.phone, existingLead?.phone),
-      status: (preservePopulated ? existingLead.status : keep && !data.status ? existingLead.status : data.status) || "Nuevo",
+      status: normalizeCrmLeadStatus((preservePopulated ? existingLead.status : keep && !data.status ? existingLead.status : data.status) || "Nuevo"),
       temperature: valueOrExisting(data.temperature, existingLead?.temperature) as CrmLeadTemperature,
       source: valueOrExisting(data.source, existingLead?.source),
+      socialProfile: valueOrExisting(data.socialProfile, existingLead?.socialProfile),
+      linkedinProfile: valueOrExisting(data.linkedinProfile, existingLead?.linkedinProfile),
+      occupation: data.occupation === undefined ? existingLead?.occupation : valueOrExisting(data.occupation, existingLead?.occupation),
+      website: data.website === undefined ? existingLead?.website : valueOrExisting(data.website, existingLead?.website),
       assignedAgentId: preservePopulated && existingLead.assignedAgentId
         ? existingLead.assignedAgentId
         : keep && !data.assignedAgentId
@@ -2290,6 +2407,7 @@ export async function upsertCrmLeadByEmail(
         preservePopulated && (existingDevelopmentId || existingDevelopmentNameText?.trim())
           ? existingDevelopmentNameText
           : data.developmentNameText === undefined ? existingDevelopmentNameText : data.developmentNameText,
+      campaignName: data.campaignName === undefined ? existingLead?.campaignName : valueOrExisting(data.campaignName, existingLead?.campaignName),
       metaProperties: mergeMetaProperties(existingLead?.metaProperties, data.metaProperties),
       email,
     });
@@ -2305,7 +2423,7 @@ export async function upsertCrmLeadByEmail(
     return { lead: null, created: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2322,7 +2440,7 @@ export async function deleteCrmLead(id: string): Promise<{ success: boolean; err
     return { success: false, error: message };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2365,6 +2483,10 @@ async function ensureCrmActivitiesTable(sql: ReturnType<typeof getPgConnection>)
 }
 
 async function ensureCrmActivitiesSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmActivitiesSchemaReady = true;
+    return;
+  }
   if (crmActivitiesSchemaReady) return;
   if (!crmActivitiesSchemaPromise) {
     crmActivitiesSchemaPromise = (async () => {
@@ -2375,7 +2497,7 @@ async function ensureCrmActivitiesSchema() {
         crmActivitiesSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmActivitiesSchemaReady) crmActivitiesSchemaPromise = null;
       }
@@ -2424,7 +2546,7 @@ export async function getCrmActivities(leadIds: string[], options: { calendarOnl
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2439,6 +2561,7 @@ export async function createCrmActivity(data: {
   externalSource?: string | null;
   externalId?: string | null;
   reminderMinutes?: number;
+  duration?: number;
 }): Promise<{ activity: CrmActivity | null; error: string | null }> {
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
@@ -2491,11 +2614,11 @@ export async function createCrmActivity(data: {
 
     if (rows[0]) {
       if (data.type === "tarea") {
-        await sql`INSERT INTO crm_task_schedules (id,activity_id,reminder_minutes,calendar_agent_id,calendar_event_id)
-          VALUES (${rows[0].id},${rows[0].id},${data.reminderMinutes ?? 60},
+        await sql`INSERT INTO crm_task_schedules (id,activity_id,reminder_minutes,duration_minutes,calendar_agent_id,calendar_event_id)
+          VALUES (${rows[0].id},${rows[0].id},${data.reminderMinutes ?? 60},${data.duration ?? 30},
             ${data.externalSource === 'google_calendar' ? data.createdBy || null : null},
             ${data.externalSource === 'google_calendar' ? data.externalId || null : null})
-          ON CONFLICT (id) DO UPDATE SET reminder_minutes=EXCLUDED.reminder_minutes`;
+          ON CONFLICT (id) DO UPDATE SET reminder_minutes=EXCLUDED.reminder_minutes,duration_minutes=EXCLUDED.duration_minutes`;
       }
       await sql`
         UPDATE crm_leads
@@ -2505,7 +2628,7 @@ export async function createCrmActivity(data: {
     }
 
     return {
-      activity: rows[0] ? mapCrmActivity(rows[0] as unknown as CrmActivityRow) : null,
+      activity: rows[0] ? { ...mapCrmActivity(rows[0] as unknown as CrmActivityRow), ...(data.type === "tarea" ? {duration: data.duration ?? 30} : {}) } : null,
       error: null,
     };
     });
@@ -2519,7 +2642,7 @@ export async function createCrmActivity(data: {
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2535,6 +2658,8 @@ export async function deleteCrmActivity(
   let sql: ReturnType<typeof getPgConnection> | null = null;
   try {
     sql = getPgConnection();
+    const [signature] = await sql`SELECT id FROM crm_activities WHERE id=${id} AND external_source='reservation_signature'`;
+    if (signature) return {success:false,error:"Eliminá o modificá la firma desde Compras y reservas para actualizar todas las agendas."};
     const [meeting] = await sql`SELECT a.id FROM crm_activities a JOIN crm_leads l ON l.id=a.lead_id
       WHERE a.id=${id} AND a.type='reunion' AND (${Boolean(options.includeAll)} OR l.assigned_agent_id=${options.agentId || null})`;
     if (meeting) return {success:false,error:"Las reuniones no se eliminan: registrá la cancelación y su motivo para conservar el historial."};
@@ -2561,7 +2686,7 @@ export async function deleteCrmActivity(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2651,6 +2776,10 @@ async function ensureCrmEmailTrackingTable(sql: ReturnType<typeof getPgConnectio
 }
 
 async function ensureCrmEmailTrackingSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmEmailTrackingSchemaReady = true;
+    return;
+  }
   if (crmEmailTrackingSchemaReady) return;
   if (!crmEmailTrackingSchemaPromise) {
     crmEmailTrackingSchemaPromise = (async () => {
@@ -2661,7 +2790,7 @@ async function ensureCrmEmailTrackingSchema() {
         crmEmailTrackingSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmEmailTrackingSchemaReady) crmEmailTrackingSchemaPromise = null;
       }
@@ -2744,7 +2873,7 @@ export async function createCrmEmailTracking(data: {
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2766,7 +2895,7 @@ export async function getCrmEmailTrackingsForLead(leadId: string): Promise<CrmEm
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2815,7 +2944,7 @@ export async function createCrmEmailAttachmentTracking(data: {
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2877,9 +3006,9 @@ export async function registerCrmEmailOpen(
           ${tracking.leadId},
           ${`email-open:${tracking.id}`},
           'email_open',
-          ${`${leadName} abrió tu mensaje`},
+          ${`${leadName} abrió tu correo`},
           ${tracking.subject ? `Asunto: ${tracking.subject}` : "El cliente abrió el correo que enviaste."},
-          ${`/admin/crm/${tracking.leadId}?activity=correo`}
+          ${`/admin/crm/${tracking.leadId}?activity=correo&email=${tracking.id}`}
         )
         ON CONFLICT (event_key) DO NOTHING
       `;
@@ -2895,7 +3024,7 @@ export async function registerCrmEmailOpen(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2944,7 +3073,7 @@ export async function registerCrmEmailAttachmentOpen(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -2962,8 +3091,9 @@ export async function getCrmNotifications(options: {
           SELECT n.*, TRIM(CONCAT(l.first_name, ' ', l.last_name)) AS lead_name, a.name AS recipient_agent_name,
             NOT (${options.agentId}::uuid = ANY(n.read_by)) AS unread
           FROM crm_notifications n
-          JOIN crm_leads l ON l.id = n.lead_id
+          LEFT JOIN crm_leads l ON l.id = n.lead_id
           LEFT JOIN agents a ON a.id = n.recipient_agent_id
+          WHERE n.type IS DISTINCT FROM 'ai_sales' AND (n.expires_at IS NULL OR n.expires_at>NOW())
           ORDER BY n.created_at DESC
           LIMIT 50
         `
@@ -2971,9 +3101,9 @@ export async function getCrmNotifications(options: {
           SELECT n.*, TRIM(CONCAT(l.first_name, ' ', l.last_name)) AS lead_name, a.name AS recipient_agent_name,
             NOT (${options.agentId}::uuid = ANY(n.read_by)) AS unread
           FROM crm_notifications n
-          JOIN crm_leads l ON l.id = n.lead_id
+          LEFT JOIN crm_leads l ON l.id = n.lead_id
           LEFT JOIN agents a ON a.id = n.recipient_agent_id
-          WHERE n.recipient_agent_id = ${options.agentId}
+          WHERE n.recipient_agent_id = ${options.agentId} AND n.type IS DISTINCT FROM 'ai_sales' AND (n.expires_at IS NULL OR n.expires_at>NOW())
           ORDER BY n.created_at DESC
           LIMIT 50
         `;
@@ -2981,9 +3111,9 @@ export async function getCrmNotifications(options: {
       id: String(row.id),
       recipientAgentId: row.recipient_agent_id ? String(row.recipient_agent_id) : undefined,
       recipientAgentName: row.recipient_agent_name ? String(row.recipient_agent_name) : undefined,
-      leadId: String(row.lead_id),
+      leadId: row.lead_id ? String(row.lead_id) : "",
       leadName: String(row.lead_name || "Cliente"),
-      type: row.type === "ai_sales" ? "ai_sales" as const : row.type === "campaign_recontact"
+      type: row.type === "task_reminder" ? "task_reminder" as const : row.type === "meeting_reminder" ? "meeting_reminder" as const : row.type === "ai_sales" ? "ai_sales" as const : row.type === "campaign_recontact"
         ? "campaign_recontact" as const
         : row.type === "meeting_outcome"
           ? "meeting_outcome" as const
@@ -2992,7 +3122,7 @@ export async function getCrmNotifications(options: {
             : "email_open" as const,
       title: String(row.title || "El cliente abrió tu mensaje"),
       body: String(row.body || ""),
-      href: String(row.href || `/admin/crm/${row.lead_id}`),
+      href: row.type === "email_open" ? emailOpenDestination(String(row.lead_id), String(row.event_key || ""), String(row.href || `/admin/crm/${row.lead_id}`)) : String(row.href || `/admin/crm/${row.lead_id}`),
       unread: Boolean(row.unread),
       createdAt: String(row.created_at),
     }));
@@ -3000,7 +3130,7 @@ export async function getCrmNotifications(options: {
     console.error("Error loading CRM notifications:", error);
     return [];
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3051,7 +3181,7 @@ export async function notifyCrmCampaignRecontact(options: {
       error: error instanceof Error ? error.message : "No se pudo notificar la nueva consulta",
     };
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3082,7 +3212,7 @@ export async function markCrmNotificationRead(options: {
     console.error("Error marking CRM notification as read:", error);
     return false;
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3113,6 +3243,10 @@ async function ensureCrmEmailAccountsTable(sql: ReturnType<typeof getPgConnectio
 }
 
 async function ensureCrmEmailAccountsSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmEmailAccountsSchemaReady = true;
+    return;
+  }
   if (crmEmailAccountsSchemaReady) return;
   if (!crmEmailAccountsSchemaPromise) {
     crmEmailAccountsSchemaPromise = (async () => {
@@ -3123,7 +3257,7 @@ async function ensureCrmEmailAccountsSchema() {
         crmEmailAccountsSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmEmailAccountsSchemaReady) crmEmailAccountsSchemaPromise = null;
       }
@@ -3167,7 +3301,7 @@ export async function getCrmEmailAccount(agentId: string): Promise<CrmEmailAccou
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3197,7 +3331,7 @@ export async function getCrmEmailAccountWithSecret(
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3266,7 +3400,7 @@ export async function upsertCrmEmailAccount(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3296,6 +3430,10 @@ async function ensureCrmEmailTemplatesTable(sql: ReturnType<typeof getPgConnecti
 }
 
 async function ensureCrmEmailTemplatesSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmEmailTemplatesSchemaReady = true;
+    return;
+  }
   if (crmEmailTemplatesSchemaReady) return;
   if (!crmEmailTemplatesSchemaPromise) {
     crmEmailTemplatesSchemaPromise = (async () => {
@@ -3306,7 +3444,7 @@ async function ensureCrmEmailTemplatesSchema() {
         crmEmailTemplatesSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmEmailTemplatesSchemaReady) crmEmailTemplatesSchemaPromise = null;
       }
@@ -3352,7 +3490,7 @@ export async function getCrmEmailTemplates(): Promise<CrmEmailTemplate[]> {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3377,7 +3515,7 @@ export async function getCrmEmailTemplateById(id: string): Promise<CrmEmailTempl
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3444,7 +3582,7 @@ export async function upsertCrmEmailTemplate(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3464,7 +3602,7 @@ export async function deleteCrmEmailTemplate(id: string): Promise<{ success: boo
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3553,6 +3691,10 @@ async function ensureCrmWorkflowsTable(sql: ReturnType<typeof getPgConnection>) 
 }
 
 async function ensureCrmWorkflowsSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    crmWorkflowsSchemaReady = true;
+    return;
+  }
   if (crmWorkflowsSchemaReady) return;
   if (!crmWorkflowsSchemaPromise) {
     crmWorkflowsSchemaPromise = (async () => {
@@ -3563,7 +3705,7 @@ async function ensureCrmWorkflowsSchema() {
         crmWorkflowsSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!crmWorkflowsSchemaReady) crmWorkflowsSchemaPromise = null;
       }
@@ -3633,7 +3775,7 @@ export async function getCrmWorkflows(): Promise<CrmWorkflow[]> {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3666,7 +3808,7 @@ export async function getActiveCrmWorkflowsForLeadStatus(
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3736,7 +3878,7 @@ export async function upsertCrmWorkflow(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3756,7 +3898,7 @@ export async function deleteCrmWorkflow(id: string): Promise<{ success: boolean;
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3787,7 +3929,7 @@ export async function scheduleCrmWorkflowJob(data: {
   } catch (error) {
     return { scheduled: false, error: error instanceof Error ? error.message : "No se pudo programar el workflow" };
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3804,7 +3946,7 @@ export async function hasPendingCrmWorkflowJob(workflowId: string, leadId: strin
     `;
     return rows.length > 0;
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3836,7 +3978,7 @@ export async function claimDueCrmWorkflowJobs(limit = 25): Promise<CrmWorkflowJo
       attempts: row.attempts,
     }));
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3851,7 +3993,7 @@ export async function completeCrmWorkflowJob(id: string, success: boolean, error
       WHERE id=${id}
     `;
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3866,7 +4008,7 @@ export async function cancelCrmWorkflowJob(id: string, reason = "") {
       WHERE id=${id}
     `;
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -3892,7 +4034,7 @@ export async function hasSuccessfulCrmWorkflowExecution(
     return false;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -3953,7 +4095,7 @@ export async function createCrmWorkflowExecution(data: {
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -4146,6 +4288,10 @@ async function ensureQuotesTable(sql: ReturnType<typeof getPgConnection>) {
 }
 
 async function ensureQuotesSchema() {
+  if (!shouldRunRuntimeSchemaMigrations()) {
+    quotesSchemaReady = true;
+    return;
+  }
   if (quotesSchemaReady) return;
   if (!quotesSchemaPromise) {
     quotesSchemaPromise = (async () => {
@@ -4156,7 +4302,7 @@ async function ensureQuotesSchema() {
         quotesSchemaReady = true;
       } finally {
         try {
-          await sql?.end();
+          await releaseSharedDatabase(sql);
         } catch {}
         if (!quotesSchemaReady) quotesSchemaPromise = null;
       }
@@ -4238,7 +4384,7 @@ export async function getQuotes(options?: {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -4275,7 +4421,7 @@ export async function getQuoteForPublicShare(id: string): Promise<QuoteRecord | 
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -4374,7 +4520,7 @@ export async function upsertQuote(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -4409,7 +4555,7 @@ export async function deleteQuote(
     };
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -4526,7 +4672,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   try {
     sql = getPgConnection();
     const rows = await sql`SELECT * FROM site_settings WHERE id = 1 LIMIT 1`;
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     if (!rows || rows.length === 0) return DEFAULT_SITE_SETTINGS;
 
@@ -4545,7 +4691,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     };
   } catch (err) {
     // DB no disponible o tabla aún no creada → fallback
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
     return DEFAULT_SITE_SETTINGS;
   }
 }
@@ -4573,7 +4719,7 @@ export async function updateSiteSettings(
     if (data.whatsappMessage !== undefined) await sql`UPDATE site_settings SET whatsapp_message = ${data.whatsappMessage} WHERE id = 1`;
 
     const rows = await sql`SELECT * FROM site_settings WHERE id = 1 LIMIT 1`;
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const r = rows[0];
     return {
@@ -4592,7 +4738,7 @@ export async function updateSiteSettings(
       error: null,
     };
   } catch (err: any) {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
     return { settings: null, error: err?.message || "Error al guardar settings" };
   }
 }
@@ -4738,7 +4884,7 @@ export async function getFullSiteSettings(): Promise<FullSiteSettings> {
   try {
     sql = getPgConnection();
     const rows = await sql`SELECT * FROM site_settings WHERE id = 1 LIMIT 1`;
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     if (!rows || rows.length === 0) return DEFAULT_FULL_SETTINGS;
 
@@ -4829,7 +4975,7 @@ export async function getFullSiteSettings(): Promise<FullSiteSettings> {
       pressLinks: r.press_links ?? "",
     };
   } catch {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
     return DEFAULT_FULL_SETTINGS;
   }
 }
@@ -4927,12 +5073,12 @@ export async function updateFullSiteSettings(
     if (data.investmentCtaDescription !== undefined) await sql`UPDATE site_settings SET investment_cta_description = ${data.investmentCtaDescription} WHERE id = 1`;
     if (data.pressLinks               !== undefined) await sql`UPDATE site_settings SET press_links                = ${data.pressLinks}               WHERE id = 1`;
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const settings = await getFullSiteSettings();
     return { settings, error: null };
   } catch (err: any) {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
     return { settings: null, error: err?.message || "Error al guardar settings" };
   }
 }
@@ -5035,7 +5181,7 @@ export const DEFAULT_INVESTMENT_SETTINGS: InvestmentSettings = {
 // (forward declaration arriba; se completa acá ahora que ya cargó todo).
 Object.assign(DEFAULT_FULL_SETTINGS, DEFAULT_INVESTMENT_SETTINGS);
 
-/** Locks the whole selection before checking ownership: a transfer cannot leave a partial batch. */
+/** Lock and authorize the selection first. Status guards isolate blocked contacts; owner transfers remain atomic. */
 export async function updateCrmLeadSelection(input: {
   ids: string[]; actorId: string; includeAll: boolean;
   status?: CrmLeadStatus; assignedAgentId?: string;
@@ -5044,6 +5190,7 @@ export async function updateCrmLeadSelection(input: {
   try {
     await ensureMeetingLifecycle(sql);
     return await sql.begin(async (tx) => {
+      await tx`SELECT set_config('crm.owner_actor_id', ${input.actorId}, true)`;
       const ids = Array.from(new Set(input.ids)).sort();
       const before = await tx`SELECT * FROM crm_leads WHERE id IN ${tx(ids)} ORDER BY id FOR UPDATE`;
       if (before.length !== ids.length || (!input.includeAll && before.some((row) => row.assigned_agent_id !== input.actorId))) {
@@ -5059,11 +5206,32 @@ export async function updateCrmLeadSelection(input: {
       const patch: { updated_at: Date; status?: string; assigned_agent_id?: string | null } = { updated_at: new Date() };
       if (input.status !== undefined) patch.status = input.status;
       if (input.assignedAgentId !== undefined) patch.assigned_agent_id = input.assignedAgentId || null;
-      await tx`UPDATE crm_leads SET ${tx(patch)} WHERE id IN ${tx(ids)}`;
-      const after = await tx`SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name, a.phone AS assigned_agent_phone FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id WHERE l.id IN ${tx(ids)}`;
-      return after.map((row) => ({ lead: mapCrmLead(row as unknown as CrmLeadRow), previousStatus: before.find((old) => old.id === row.id)!.status as CrmLeadStatus }));
+      const failed: { id: string; name: string; error: string }[] = [];
+      let updatedIds = ids;
+      if (input.status !== undefined) {
+        try {
+          // Keep the common case to one UPDATE. Roll back to the savepoint if a meeting guard rejects a row.
+          await tx.savepoint(async batch => { await batch`UPDATE crm_leads SET ${batch(patch)} WHERE id IN ${batch(ids)}`; });
+        } catch (error) {
+          if ((error as { code?: string }).code !== "P0001") throw error;
+          updatedIds = [];
+          for (const row of before) {
+            try {
+              await tx.savepoint(async contact => { await contact`UPDATE crm_leads SET ${contact(patch)} WHERE id=${row.id}`; });
+              updatedIds.push(row.id);
+            } catch (contactError) {
+              if ((contactError as { code?: string }).code !== "P0001") throw contactError;
+              failed.push({ id: row.id, name: [row.first_name, row.last_name].filter(Boolean).join(" ") || "Contacto", error: contactError instanceof Error ? contactError.message : "No se pudo cambiar el estado del contacto." });
+            }
+          }
+        }
+      } else {
+        await tx`UPDATE crm_leads SET ${tx(patch)} WHERE id IN ${tx(ids)}`;
+      }
+      const after = updatedIds.length ? await tx`SELECT l.*, d.name AS development_name, a.name AS assigned_agent_name, a.phone AS assigned_agent_phone FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id WHERE l.id IN ${tx(updatedIds)}` : [];
+      return { changes: after.map((row) => ({ lead: mapCrmLead(row as unknown as CrmLeadRow), previousStatus: before.find((old) => old.id === row.id)!.status as CrmLeadStatus })), failed };
     });
-  } finally { await sql.end(); }
+  } finally { await releaseSharedDatabase(sql); }
 }
 
 export async function syncExtensionWhatsAppMessages(input: {
@@ -5104,7 +5272,10 @@ export async function syncExtensionWhatsAppMessages(input: {
         DO UPDATE SET body=EXCLUDED.body, title=EXCLUDED.title,
           scheduled_at=COALESCE(EXCLUDED.scheduled_at,crm_activities.scheduled_at)
         RETURNING id`;
+      for (const record of records) {
+        if (record.title === "WhatsApp recibido del cliente") await persistLeadWhatsAppForm(tx, input.leadId, record.body, record.external_id, record.scheduled_at || new Date().toISOString());
+      }
       return rows.length;
     });
-  } finally { await sql.end(); }
+  } finally { await releaseSharedDatabase(sql); }
 }

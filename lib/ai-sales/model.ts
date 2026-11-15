@@ -24,7 +24,7 @@ export function provider():AIProvider {
  const key=process.env.GROQ_API_KEY;
  if(!key)throw new Error('AI_PROVIDER_UNAVAILABLE');
  const model=process.env.GROQ_CRM_MODEL||'openai/gpt-oss-120b';
- return {version:`groq:${model}:sales-v3-events`,async analyze(context){
+ return {version:`groq:${model}:sales-v4-meeting-results`,async analyze(context){
    const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{
      method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),
      body:JSON.stringify({model,temperature:0.2,max_completion_tokens:2600,...(model.startsWith('openai/gpt-oss-')?{reasoning_effort:'low'}:{}),response_format:{type:'json_schema',json_schema:{name:'sales_analysis',strict:model.startsWith('openai/gpt-oss-'),schema:salesJsonSchema}},messages:[

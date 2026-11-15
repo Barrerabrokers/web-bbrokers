@@ -1,3 +1,4 @@
+import { acquireWorkerLease, releaseWorkerLease } from "@/lib/database-worker-lease";
 import type { CrmEmailTemplateContentBlock } from "@/lib/db";
 import { clientDb, ensureClients, getClientEmailTemplate } from "@/lib/crm-clients";
 import { sendPrivateClientEmail } from "@/lib/crm-email-sender";
@@ -30,12 +31,11 @@ export function isHardEmailBounce(error: unknown) {
 
 export async function resumeClientCampaign(campaignId:string,limit=15) {
   const sql=clientDb();
-  let sent=0,failed=0,failure="",locked=false;
+  let sent=0,failed=0,failure="",lease: string | null=null;
   try {
     await ensureClients(sql);
-    const [lock]=await sql`SELECT pg_try_advisory_lock(735208446) AS acquired`;
-    locked=Boolean(lock?.acquired);
-    if(!locked)return {sent,failed,remaining:0,busy:true};
+    lease=await acquireWorkerLease(sql,"client-campaigns");
+    if(!lease)return {sent,failed,remaining:0,busy:true};
     await sql`UPDATE crm_client_mail_history SET status='uncertain',last_error='Intento interrumpido; reprogramado automáticamente.'
       WHERE status='sending' AND COALESCE(last_attempt_at,created_at)<NOW()-INTERVAL '15 minutes'`;
     const [campaign]=await sql`SELECT agent_id,template_id FROM crm_client_mail_history WHERE campaign_id=${campaignId} ORDER BY created_at LIMIT 1`;
@@ -79,7 +79,7 @@ export async function resumeClientCampaign(campaignId:string,limit=15) {
     const [{count}]=await sql`SELECT COUNT(*)::int AS count FROM crm_client_mail_history WHERE campaign_id=${campaignId} AND status='uncertain'`;
     return {sent,failed,remaining:Number(count||0),...(failure?{error:failure}:{})};
   } finally {
-    if(locked)await sql`SELECT pg_advisory_unlock(735208446)`;
+    if(lease)await releaseWorkerLease(sql,"client-campaigns",lease);
     await sql.end();
   }
 }

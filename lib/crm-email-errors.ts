@@ -1,3 +1,4 @@
+import { MISSING_RECIPIENT_MESSAGE } from "@/lib/crm-email-recipient";
 export function needsGoogleReconnection(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return /invalid_grant|token has been expired or revoked|token.*(?:expired|revoked)|reconectá tu cuenta de google/i.test(message);
@@ -9,6 +10,7 @@ export function normalizeSmtpPassword(provider: string | undefined, password: st
 
 export function friendlySmtpError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
+  if (/recipient address required|no recipients defined/i.test(message)) return MISSING_RECIPIENT_MESSAGE;
   if (needsGoogleReconnection(error)) return "La autorización de Google venció o fue revocada. Reconectá tu cuenta de Google desde tu sesión del CRM para volver a enviar correos.";
   if (
     message.includes("535-5.7.8") ||

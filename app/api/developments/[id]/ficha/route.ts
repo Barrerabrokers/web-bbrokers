@@ -1,3 +1,4 @@
+import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -23,7 +24,7 @@ export async function GET(
     development?.visibility === "agents" &&
     hasValidShareToken(shareToken, "development", params.id);
 
-  if (!development || (development.visibility === "agents" && !session && !hasSharedAccess)) {
+  if (!development || !canReadListing(development.visibility, session?.user.role, Boolean(hasSharedAccess))) {
     return NextResponse.json({ error: "Desarrollo no encontrado" }, { status: 404 });
   }
 

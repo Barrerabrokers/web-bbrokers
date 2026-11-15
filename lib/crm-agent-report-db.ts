@@ -6,7 +6,8 @@ export const AGENT_REPORT_SQL = `
 WITH activity_events AS (
  SELECT 'activity:' || a.id::text id, a.lead_id, a.created_by agent_id,
    CASE WHEN a.type = 'correo' AND a.external_source = 'gmail_inbound' THEN 'respuesta' ELSE a.type END channel,
-   COALESCE(a.scheduled_at, a.created_at) at, a.title, a.body
+   COALESCE(a.scheduled_at, a.created_at) at, a.title, a.body,
+   COALESCE(a.lead_id::text, 'activity:' || a.id::text) contact_key
  FROM crm_activities a
  WHERE (a.type IN ('llamada','whatsapp','reunion')
     OR (a.type = 'correo' AND (a.external_source = 'gmail_inbound'
@@ -17,7 +18,7 @@ WITH activity_events AS (
 ), booking_events AS (
  SELECT 'booking:' || b.id::text id, NULL::uuid lead_id, b.agent_id,
    'reunion'::text channel, b.starts_at at, 'Reunión con ' || b.guest_name title,
-   b.notes body
+   b.notes body, NULL::text contact_key
  FROM crm_meeting_bookings b
  WHERE NOT EXISTS (
    SELECT 1 FROM crm_activities a LEFT JOIN crm_leads l ON l.id = a.lead_id
@@ -27,17 +28,28 @@ WITH activity_events AS (
  )
 ), inbox_events AS (
  SELECT 'whatsapp:' || m.id::text id, c.lead_id, m.sender_agent_id agent_id,
-   'whatsapp'::text channel, m.created_at at, 'WhatsApp enviado al cliente'::text title, m.content body
+   'whatsapp'::text channel, m.created_at at, 'WhatsApp enviado al cliente'::text title, m.content body,
+   COALESCE(c.lead_id::text, 'conversation:' || c.id::text) contact_key
  FROM crm_whatsapp_messages m JOIN crm_whatsapp_conversations c ON c.id = m.conversation_id
  WHERE c.channel = 'whatsapp' AND m.direction = 'outbound' AND m.sender_type = 'agent'
    AND m.status IN ('sent','delivered','read')
    AND NOT EXISTS (SELECT 1 FROM crm_activities a WHERE a.type = 'whatsapp' AND a.external_id = m.whatsapp_message_id)
 ), events AS (
  SELECT * FROM activity_events UNION ALL SELECT * FROM booking_events UNION ALL SELECT * FROM inbox_events
-), scoped AS (
+), scoped_events AS (
  SELECT e.* FROM events e
  WHERE ($1::uuid IS NULL OR e.agent_id = $1::uuid)
    AND e.at >= $2::timestamptz AND e.at < $3::timestamptz
+), ranked_events AS (
+ SELECT e.*, row_number() OVER (
+   PARTITION BY e.channel, e.agent_id, e.contact_key,
+     (e.at AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
+   ORDER BY e.at, e.id
+ ) conversation_message FROM scoped_events e
+), scoped AS (
+ -- One outbound conversation per agent/contact/Argentina day. Keep every
+ -- original message in the CRM; only the report collapses WhatsApp activity.
+ SELECT * FROM ranked_events WHERE channel <> 'whatsapp' OR conversation_message = 1
 ), emailed AS (
  SELECT agent_id, lead_id, min(at) first_sent FROM scoped WHERE channel = 'correo' GROUP BY agent_id, lead_id
 ), recipients AS (

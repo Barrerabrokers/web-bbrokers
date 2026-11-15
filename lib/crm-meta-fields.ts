@@ -33,7 +33,7 @@ export type CrmMetaFormSubmission = {
   fields: Array<{ key: string; label: string; value: string }>;
 };
 
-export function getCrmMetaFormSubmissions(properties: MetaProperties): CrmMetaFormSubmission[] {
+function getMetaSubmissions(properties: MetaProperties): CrmMetaFormSubmission[] {
   const serialized = properties?.meta_submissions;
   if (typeof serialized === "string" && serialized.trim()) {
     try {
@@ -71,4 +71,12 @@ export function getCrmMetaFormSubmissions(properties: MetaProperties): CrmMetaFo
     createdTime: readableText(properties?.meta_created_time),
     fields,
   }];
+}
+
+
+export function getCrmMetaFormSubmissions(properties: MetaProperties): CrmMetaFormSubmission[] {
+  const meta = getMetaSubmissions(properties);
+  // Keep every WhatsApp form, even when the contact also submitted a Meta form.
+  const whatsapp = getMetaSubmissions({ meta_submissions: properties?.whatsapp_form_submissions });
+  return [...meta, ...whatsapp];
 }

@@ -1,3 +1,6 @@
+import { serializeJsonLd } from "@/lib/seo-structured-data";
+import { InvestmentGuide } from "@/components/investment-guide";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowUpRight, MapPin, TrendingUp } from "lucide-react";
@@ -11,10 +14,10 @@ import { formatPrice } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export const metadata: Metadata = {
-  title: "Inversiones en Real Estate en Buenos Aires | Barrera Brokers",
+const spanishMetadata: Metadata = {
+  title: "Inversión en real estate en Buenos Aires",
   description:
-    "Asesoramiento para invertir en real estate en Buenos Aires: desarrollos en pozo, departamentos para invertir, financiacion en cuotas y oportunidades en Recoleta, Palermo, Belgrano, Nunez y Puerto Madero.",
+    "Evaluá inversiones inmobiliarias en Buenos Aires: desarrollos en pozo, departamentos terminados, financiación y criterios para comparar proyectos por barrio.",
   keywords: [
     ...SEO_KEYWORDS,
     "inversiones en real estate Buenos Aires",
@@ -36,6 +39,8 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(spanishMetadata); }
 
 export default async function InversionesRealEstateBuenosAiresPage() {
   const visibility = await getListingVisibilityFilter();
@@ -77,7 +82,7 @@ export default async function InversionesRealEstateBuenosAiresPage() {
     <div className="min-h-screen bg-bone text-ink">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
       />
       <Header />
       <main>
@@ -95,7 +100,7 @@ export default async function InversionesRealEstateBuenosAiresPage() {
               financiacion, potencial de renta y salida de reventa.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <Link href="/#desarrollos" className="btn-primary">
+              <Link href="/desarrollos" className="btn-primary">
                 Ver desarrollos
               </Link>
               <Link href="/#contacto" className="btn-outline-dark">
@@ -196,6 +201,7 @@ export default async function InversionesRealEstateBuenosAiresPage() {
             </div>
           </div>
         </section>
+        <InvestmentGuide />
       </main>
       <Footer />
     </div>

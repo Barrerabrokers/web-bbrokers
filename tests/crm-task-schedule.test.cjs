@@ -30,7 +30,7 @@ function fixture(overrides = {}, fetchOverride) {
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, Date, Map, Boolean, String, Error, JSON, encodeURIComponent, AbortSignal,
     process: { env: { DATABASE_URL: 'test', RESEND_API_KEY: 'test', CONTACT_EMAIL_FROM: 'crm@example.test' } },
-    require: name => name === 'postgres' ? { default: () => sql } : name === '@/lib/db' ? {
+    require: name => name === '@/lib/database-worker-lease' ? {acquireWorkerLease:async()=> 'test-lease',releaseWorkerLease:async()=>{}} : name === '@/lib/runtime-schema' ? {shouldRunRuntimeSchemaMigrations:()=>false} : name === 'postgres' ? { default: () => sql } : name === '@/lib/db' ? {
       getCrmEmailAccountWithSecret: async agentId => ({ provider: 'google-oauth', agentId }),
     } : name === '@/lib/google-oauth' ? { getAccessTokenForGoogleAccount: async ({ account }) => account.agentId } : require(name),
     fetch: async (url, options) => {
@@ -103,4 +103,10 @@ test('deleted tasks remove their linked Google event without notifying anyone', 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, 'DELETE');
   assert.equal(updates.some(u => u.query.includes('DELETE FROM crm_task_schedules')), true);
+});
+
+ test('task duration controls Google end time and a duration edit causes resynchronization',async()=>{
+ const {api,calls,row}=fixture({duration_minutes:60});await api.processCrmTaskSchedules('task');
+ let event=calls.find(c=>c.url.includes('googleapis'));assert.equal(Date.parse(event.body.end.dateTime)-Date.parse(event.body.start.dateTime),3600000);
+ row.duration_minutes=30;calls.length=0;await api.processCrmTaskSchedules('task');event=calls.find(c=>c.url.includes('googleapis'));assert.ok(event);assert.equal(Date.parse(event.body.end.dateTime)-Date.parse(event.body.start.dateTime),1800000);
 });

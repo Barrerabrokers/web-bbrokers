@@ -607,3 +607,10 @@ select.form-input:disabled {
 .border-ivory\/\[0\.12\] { border-color: rgba(var(--oa-black-rgb),0.1)  !important; }
 .border-ivory\/\[0\.15\] { border-color: rgba(var(--oa-black-rgb),0.12) !important; }
 .border-bone\/15         { border-color: rgba(var(--oa-black-rgb),0.12) !important; }
+
+/* Blog editor placeholders keep the same contrast as supporting labels. */
+.admin-area .blog-editor input::placeholder,
+.admin-area .blog-editor textarea::placeholder {
+  color: #675f5b !important;
+  -webkit-text-fill-color: #675f5b;
+}

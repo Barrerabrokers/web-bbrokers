@@ -1,10 +1,14 @@
 import { createHash, randomUUID } from 'crypto';
 import { aiDb,salesPipelinePriority } from './store';
 import { AIProviderError,calculateScore,provider, type Signals } from './model';
+import { salesMeetingEligibility } from './meetings';
 import { getSalesEvidence } from '@/lib/crm-sales-context';
 
+function salesRetired(): boolean { return true; }
+
 export async function processSales({liveOnly=false}:{liveOnly?:boolean}={}){
- if(process.env.AI_SALES_ENABLED!=='true')return {enabled:false,processed:0};
+ // Retired: stale environment settings must never restart model calls.
+ if(salesRetired())return {enabled:false,processed:0};
  const ai=provider(), sql=aiDb(), deadline=Date.now()+(liveOnly?45000:220000),runToken=randomUUID();
  let processed=0,failed=0,budgetLimited=false,modelCalls=0;
  const dailyLimit=Math.min(1000,Math.max(1,Number(process.env.AI_SALES_DAILY_LIMIT)||200));
@@ -14,20 +18,22 @@ export async function processSales({liveOnly=false}:{liveOnly?:boolean}={}){
   const gate=await sql`UPDATE crm_ai_control SET lease_token=${runToken},lease_until=now()+interval '4 minutes'
     WHERE id=1 AND (lease_until IS NULL OR lease_until<now()) RETURNING id`;
   if(!gate.length)return {enabled:true,processed:0,busy:true};
-  const [tables]=await sql`SELECT to_regclass('public.crm_notifications') IS NOT NULL AS notifications`;
+  const [tables]=await sql`SELECT to_regclass('public.crm_notifications') IS NOT NULL AS notifications,
+    to_regclass('public.crm_activity_results') IS NOT NULL AS results`;
+  const eligible=salesMeetingEligibility(sql,tables.results);
   await sql`INSERT INTO crm_ai_state(lead_id) SELECT DISTINCT lead_id FROM crm_ai_events WHERE processed_at IS NULL ON CONFLICT DO NOTHING`;
   // Time-based review is coalesced and uses saved semantic analysis, not a new model request.
   await sql`INSERT INTO crm_ai_events(lead_id,event_type,source,source_id,dedupe_key)
     SELECT s.lead_id,'followup_due','scheduler',s.lead_id::text,'review:'||s.lead_id::text||':'||date_trunc('hour',now())::text
     FROM crm_ai_state s JOIN crm_leads l ON l.id=s.lead_id
-    WHERE lower(btrim(COALESCE(l.status,'')))='interesados'
+    WHERE ${eligible}
     AND s.next_review_at<=now() AND s.last_analyzed_at IS NOT NULL
     AND s.ai_status NOT IN ('CLOSED_WON','LOST') AND NOT EXISTS(SELECT 1 FROM crm_ai_events e WHERE e.lead_id=s.lead_id AND e.processed_at IS NULL)
     ORDER BY s.next_review_at LIMIT 500 ON CONFLICT(dedupe_key) DO NOTHING`;
   while(Date.now()<deadline&&processed+failed<20){
    const token=randomUUID();
    const [job]=await sql`UPDATE crm_ai_state SET lease_token=${token},lease_until=now()+interval '5 minutes'
-     WHERE lead_id=(SELECT s.lead_id FROM crm_ai_state s JOIN crm_leads l ON l.id=s.lead_id WHERE lower(btrim(COALESCE(l.status,'')))='interesados'
+     WHERE lead_id=(SELECT s.lead_id FROM crm_ai_state s JOIN crm_leads l ON l.id=s.lead_id WHERE ${eligible}
        AND (s.lease_until IS NULL OR s.lease_until<now())
        AND s.attempts<5 AND (s.retry_at IS NULL OR s.retry_at<=now())
        AND EXISTS(SELECT 1 FROM crm_ai_events e WHERE e.lead_id=s.lead_id AND e.processed_at IS NULL)
@@ -59,14 +65,15 @@ export async function processSales({liveOnly=false}:{liveOnly?:boolean}={}){
       FROM developments d ORDER BY name LIMIT 80`;
     const feedback=await sql`SELECT f.action,r.title FROM crm_ai_feedback f JOIN crm_ai_recommendations r ON r.id=f.recommendation_id WHERE r.lead_id=${lead.id} ORDER BY f.created_at DESC LIMIT 10`;
     const recent=evidence.events.filter(e=>Date.parse(e.fecha)>Date.now()-30*86400000);
-    const [hasResults]=await sql`SELECT to_regclass('public.crm_activity_results') IS NOT NULL AS ready`;
-    const visits=hasResults.ready?await sql`SELECT a.id,COALESCE(a.scheduled_at,r.updated_at,a.created_at) AS happened_at
+    // Read outcomes independently of the recent message window, including edited results.
+    const meetingHistory=tables.results?await sql`SELECT a.id,a.title,a.body,
+      a.scheduled_at AS meeting_at,r.outcome,r.outcome_status,r.updated_at AS result_updated_at,
+      COALESCE(a.scheduled_at,a.created_at) AS happened_at
       FROM crm_activities a JOIN crm_activity_results r ON r.activity_id=a.id
-      WHERE a.lead_id=${lead.id} AND a.type='reunion' AND a.title ~* 'visita'
-      AND r.outcome_status='completed' AND length(trim(r.outcome))>0
-      AND COALESCE(a.scheduled_at,r.updated_at,a.created_at)<=now()
-      ORDER BY happened_at DESC LIMIT 1`:[];
-    const visit=visits[0];
+      WHERE a.lead_id=${lead.id} AND a.type='reunion' AND length(trim(r.outcome))>0
+      ORDER BY r.updated_at DESC,a.id DESC LIMIT 3`:[];
+    const visit=meetingHistory.filter(m=>m.outcome_status==='completed'&&+new Date(m.happened_at)<=Date.now())
+      .sort((a,b)=>+new Date(b.happened_at)-+new Date(a.happened_at))[0];
     const signals:Signals={lastInbound:evidence.lastInbound||null,lastOutbound:evidence.lastOutbound||null,lastContact:evidence.lastContact||null,
       inboundCount:recent.filter(e=>e.direccion==='inbound').length,clicks:mail.clicks,opens:mail.opens,createdAt:new Date(lead.created_at).toISOString(),pipeline:lead.status,
       completedVisit:Boolean(visit&&(!evidence.lastOutbound||Date.parse(evidence.lastOutbound)<+new Date(visit.happened_at))),
@@ -74,7 +81,7 @@ export async function processSales({liveOnly=false}:{liveOnly?:boolean}={}){
     const timerOnly=captured.every(e=>e.event_type==='followup_due')&&job.analysis?.semantic&&job.model_version===ai.version;
     const context={now:new Date().toISOString(),lead:{id:'lead',name:lead.first_name,status:lead.status,source:lead.source,hasEmail:Boolean(lead.email),hasPhone:Boolean(lead.phone),phoneCountryCode:lead.country_code,development:lead.development_name||lead.development_name_text,
        notes:(lead.notes||'').slice(0,8000),forms:JSON.stringify(lead.meta_properties||{}).slice(0,12000),imported:JSON.stringify(lead.hubspot_properties||{}).slice(0,12000)},
-       callHistory:{count:callTotals.count,lastCalls},
+       callHistory:{count:callTotals.count,lastCalls},meetingHistory,
        previous:job.analysis?.semantic||null,events:events.map(e=>({id:String(e.id),type:e.event_type,data:{...e.event_data,body:(e.event_data?.body||'').slice(0,1800)}})),
        history:evidence.events.slice(0,job.last_analyzed_at?12:30),historyTruncated:evidence.total>(job.last_analyzed_at?12:30),upcoming:evidence.next.filter(e=>!e.resultado).slice(0,10),signals,inventory,feedback};
     if(!timerOnly){
@@ -96,7 +103,7 @@ export async function processSales({liveOnly=false}:{liveOnly?:boolean}={}){
       modelCalls++;
     }
     const semantic=timerOnly?job.analysis.semantic:await ai.analyze({...context,compactRetry:job.attempts>0});
-    const allowed=new Set(['lead',...events.map(e=>String(e.id)),...evidence.events.map(e=>e.id),...(job.analysis?.semantic?.confirmed||[]).map((f:{evidenceId:string})=>f.evidenceId)]);
+    const allowed=new Set(['lead',...events.map(e=>String(e.id)),...meetingHistory.map(m=>m.id),...evidence.events.map(e=>e.id),...(job.analysis?.semantic?.confirmed||[]).map((f:{evidenceId:string})=>f.evidenceId)]);
     semantic.confirmed=semantic.confirmed.filter((f:{evidenceId:string})=>allowed.has(f.evidenceId));
     semantic.propertyMatches=semantic.propertyMatches.filter((p:{id:string})=>inventory.some(d=>d.id===p.id));
     const calculated=calculateScore(semantic,signals);

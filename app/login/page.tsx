@@ -7,6 +7,7 @@ import { Mail, Lock, AlertCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Loader2 }
 import Link from "next/link";
 import Image from "next/image";
 import { useSiteSettings } from "@/lib/use-site-settings";
+import { loginDestination } from "@/lib/login-destination";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,10 +38,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      const query = new URLSearchParams(window.location.search);
+      const destination = loginDestination(query.get("from") || query.get("callbackUrl"));
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
         redirect: false,
+        callbackUrl: destination,
       });
 
       if (result?.error) {
@@ -50,7 +54,7 @@ export default function LoginPage() {
             : "Credenciales invalidas. Verifica tu email y contrasena."
         );
       } else {
-        router.push("/admin");
+        router.replace(destination);
         router.refresh();
       }
     } catch (error) {

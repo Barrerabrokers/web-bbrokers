@@ -1,3 +1,4 @@
+import { listingVisibilityForRole } from "@/lib/listing-visibility-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -36,15 +37,11 @@ export async function GET(request: NextRequest) {
     const filter: any = {};
     if (category) filter.category = category;
     if (status) filter.status = status;
-    if (visibility) {
-      filter.visibility = visibility;
-    } else if (!session) {
-      filter.visibility = "public";
-    }
+    filter.visibility = listingVisibilityForRole(session?.user.role, visibility);
 
     const properties = await getProperties(filter);
 
-    return NextResponse.json(properties);
+    return NextResponse.json(properties, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return NextResponse.json(
       { error: "Error al obtener propiedades" },

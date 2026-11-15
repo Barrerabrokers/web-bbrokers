@@ -1,83 +1,55 @@
-export const HUBSPOT_LEAD_STATUS_OPTIONS = [
-  { value: "NEW", label: "Nuevo" },
-  { value: "Interesado", label: "Interesado" },
-  { value: "En curso", label: "En curso" },
-  { value: "Reunion", label: "Reunion" },
-  { value: "Reservado", label: "Reservado" },
-  { value: "No Interesado", label: "No Interesado" },
-  { value: "No existe", label: "No existe" },
-  { value: "OPEN", label: "Abierto" },
-  { value: "UNQUALIFIED", label: "No calificado" },
-  { value: "No Contesta", label: "No Contesta" },
-  { value: "Reflote", label: "Reflote" },
+export const CRM_LEAD_STATUS_OPTIONS = [
+  { value: "Nuevo", label: "Nuevo" },
+  { value: "Intento de contacto", label: "Intento de contacto" },
   { value: "Contactado", label: "Contactado" },
-  { value: "IN_PROGRESS", label: "In Progress" },
-  { value: "OPEN_DEAL", label: "Open Deal" },
-  { value: "ATTEMPTED_TO_CONTACT", label: "Intento de contacto" },
-  { value: "CONNECTED", label: "Connected" },
-  { value: "BAD_TIMING", label: "Bad Timing" },
-  { value: "-10000", label: "-10000" },
+  { value: "No contesta", label: "No contesta" },
+  { value: "Interesado", label: "Interesado" },
+  // The database value remains unaccented because the calendar trigger uses it.
+  { value: "Reunion", label: "Reunión" },
+  { value: "En curso", label: "En curso" },
+  { value: "Reservado", label: "Reservado" },
+  { value: "No interesado / no califica", label: "No interesado / no califica" },
+  { value: "Reflote", label: "Reflote" },
   { value: "Vendido", label: "Vendido" },
 ] as const;
 
-const LEGACY_CRM_LEAD_STATUS_OPTIONS = [
-  { value: "nuevo", label: "Nuevo" },
-  { value: "contactado", label: "Contactado" },
-  { value: "calificado", label: "Calificado" },
-  { value: "visita", label: "Visita" },
-  { value: "propuesta", label: "Propuesta" },
-  { value: "reservado", label: "Reservado" },
-  { value: "perdido", label: "Perdido" },
-] as const;
-
-export const CRM_LEAD_STATUS_OPTIONS = [
-  ...HUBSPOT_LEAD_STATUS_OPTIONS,
-  ...LEGACY_CRM_LEAD_STATUS_OPTIONS,
-] as const;
-
-export type CrmLeadStatus = string;
-export function isMeetingStatus(value?: string) {
-  return value?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === "reunion";
-}
-
+// Kept for existing imports; every external value is normalized into this CRM funnel.
+export const HUBSPOT_LEAD_STATUS_OPTIONS = CRM_LEAD_STATUS_OPTIONS;
+export type CrmLeadStatus = typeof CRM_LEAD_STATUS_OPTIONS[number]["value"];
 export const CRM_LEAD_STATUS_VALUES = CRM_LEAD_STATUS_OPTIONS.map((option) => option.value);
 
-export function isCrmLeadStatus(value: string): value is CrmLeadStatus {
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= 120;
+function normalize(value?: string | null) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+const STATUS_ALIASES: Record<string, CrmLeadStatus> = {
+  nuevo: "Nuevo", new: "Nuevo", open: "Nuevo",
+  "intento de contacto": "Intento de contacto", attempted_to_contact: "Intento de contacto", "attempted to contact": "Intento de contacto",
+  contactado: "Contactado", contacted: "Contactado", connected: "Contactado",
+  calificado: "Interesado", interesado: "Interesado", qualified: "Interesado",
+  reunion: "Reunion", visita: "Reunion",
+  "en negociacion": "En curso", "en curso": "En curso", in_progress: "En curso", open_deal: "En curso", propuesta: "En curso",
+  reservado: "Reservado",
+  "no interesado / no califica": "No interesado / no califica", "no interesado": "No interesado / no califica", unqualified: "No interesado / no califica", "no calificado": "No interesado / no califica", "no existe": "No interesado / no califica", "-10000": "No interesado / no califica", complete: "No interesado / no califica", perdido: "No interesado / no califica",
+  "no contesta": "No contesta",
+  reflote: "Reflote", bad_timing: "Reflote", "bad timing": "Reflote",
+  vendido: "Vendido", ganado: "Vendido",
+};
+
+export function normalizeCrmLeadStatus(value?: string | null): CrmLeadStatus {
+  return STATUS_ALIASES[normalize(value)] || "Nuevo";
+}
+
+export function isMeetingStatus(value?: string) { return normalize(value) === "reunion"; }
+export function isCrmLeadStatus(value: string): value is CrmLeadStatus { return CRM_LEAD_STATUS_VALUES.includes(value as CrmLeadStatus); }
 export function leadStatusLabel(value: string) {
-  return CRM_LEAD_STATUS_OPTIONS.find((option) => option.value === value)?.label || value;
+  const canonical = normalizeCrmLeadStatus(value);
+  return CRM_LEAD_STATUS_OPTIONS.find((option) => option.value === canonical)?.label || value;
 }
 
-// Imported codes and their displayed labels represent the same filter option.
-// Keep unrelated/custom statuses distinct, and never rewrite historical data.
+// Existing filter links remain valid until the migration has run.
 export function leadStatusFilterValues(value: string): string[] {
-  const normalize = (text: string) => text.trim().toLowerCase();
-  const values = new Set([normalize(value)]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const option of CRM_LEAD_STATUS_OPTIONS) {
-      const code = normalize(option.value);
-      const label = normalize(option.label);
-      if (values.has(code) || values.has(label)) {
-        const before = values.size;
-        values.add(code);
-        values.add(label);
-        changed ||= values.size !== before;
-      }
-    }
-  }
-  return [...values];
+  const canonical = normalizeCrmLeadStatus(value);
+  return [...new Set(Object.entries(STATUS_ALIASES).filter(([, mapped]) => mapped === canonical).map(([alias]) => alias).concat(normalize(canonical)))];
 }
-
-export function leadStatusOptionsForValue(value?: string) {
-  if (!value || HUBSPOT_LEAD_STATUS_OPTIONS.some((option) => option.value === value)) {
-    return HUBSPOT_LEAD_STATUS_OPTIONS;
-  }
-
-  const current = CRM_LEAD_STATUS_OPTIONS.find((option) => option.value === value);
-  return current ? [current, ...HUBSPOT_LEAD_STATUS_OPTIONS] : HUBSPOT_LEAD_STATUS_OPTIONS;
-}
+export function leadStatusOptionsForValue(_value?: string) { return CRM_LEAD_STATUS_OPTIONS; }

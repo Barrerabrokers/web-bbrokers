@@ -1,3 +1,4 @@
+import { reserveStorageUpload, releaseStorageReservation } from "@/lib/storage-budget";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -30,9 +31,10 @@ export async function POST(request:NextRequest){
       if(!session||!canManageListings(session.user.role))return NextResponse.json({error:'Iniciá sesión para subir archivos.'},{status:401});
     }
     if(size>50*1024*1024)return NextResponse.json({error:'Archivo demasiado grande.'},{status:400});
+    await reserveStorageUpload(path,size);
     const storage=getServerSupabase().storage.from('properties');
     const {data,error}=await storage.createSignedUploadUrl(path,{upsert:false});
-    if(error||!data)return NextResponse.json({error:'No se pudo autorizar la carga.'},{status:500});
+    if(error||!data){await releaseStorageReservation(path);return NextResponse.json({error:'No se pudo autorizar la carga.'},{status:500});}
     return NextResponse.json({path:data.path,token:data.token},{headers:{'Cache-Control':'private, no-store'}});
-  }catch{return NextResponse.json({error:'No se pudo preparar la carga.'},{status:500});}
+  }catch(error){if(error instanceof Error && error.message.startsWith("Se alcanzó"))return NextResponse.json({error:error.message},{status:413});return NextResponse.json({error:'No se pudo preparar la carga.'},{status:500});}
 }

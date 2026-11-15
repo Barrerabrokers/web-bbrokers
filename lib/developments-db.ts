@@ -1,26 +1,9 @@
+import { getSharedDatabase, releaseSharedDatabase } from "@/lib/database-pool";
 import { Development, Unit, DevelopmentImage, UnitImage } from "@/types";
 import { getServerSupabase } from "@/lib/supabase";
 import postgres from "postgres";
 
-// Helper: get raw postgres connection
-function getPgConnection() {
-  const databaseUrl =
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DATABASE_URL ||
-    process.env.SUPABASE_DB_URL;
-
-  if (!databaseUrl) {
-    throw new Error("No database connection URL found");
-  }
-
-  return postgres(databaseUrl, {
-    ssl: "require",
-    max: 1,
-    prepare: false,
-  });
-}
+function getPgConnection() { return getSharedDatabase(); }
 
 // Helper: convert name to slug
 export function slugify(text: string): string {
@@ -63,7 +46,7 @@ export async function getDevelopmentOptions(): Promise<Array<{ id: string; name:
     console.error("Error fetching development options:", error);
     return [];
   } finally {
-    try { await sql?.end(); } catch {}
+    try { await releaseSharedDatabase(sql); } catch {}
   }
 }
 
@@ -124,7 +107,7 @@ async function getDevelopmentsViaPostgres(filter?: {
         LEFT JOIN units u ON u.development_id = d.id
         ${where}
         GROUP BY d.id
-        ORDER BY d.created_at DESC
+        ORDER BY d.sort_order ASC NULLS LAST, d.created_at DESC, d.id ASC
       `,
       values
     );
@@ -140,7 +123,7 @@ async function getDevelopmentsViaPostgres(filter?: {
     return [];
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -225,7 +208,7 @@ async function getDevelopmentViaPostgres(
     return null;
   } finally {
     try {
-      await sql?.end();
+      await releaseSharedDatabase(sql);
     } catch {}
   }
 }
@@ -305,13 +288,13 @@ export async function createDevelopment(data: {
       }
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const fullDev = await getDevelopmentById(developmentId);
     return { development: fullDev, error: null };
   } catch (error: any) {
     if (sql) {
-      try { await sql.end(); } catch {}
+      try { await releaseSharedDatabase(sql); } catch {}
     }
     console.error("Error creating development:", error);
     return { development: null, error: error.message || "Unknown error" };
@@ -395,12 +378,12 @@ export async function updateDevelopment(
       }
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const updated = await getDevelopmentById(id);
     return { development: updated, error: null };
   } catch (error: any) {
-    if (sql) { try { await sql.end(); } catch {} }
+    if (sql) { try { await releaseSharedDatabase(sql); } catch {} }
     console.error("Error updating development:", error);
     return { development: null, error: error.message || "Unknown error" };
   }
@@ -411,10 +394,10 @@ export async function deleteDevelopment(id: string): Promise<boolean> {
   try {
     sql = getPgConnection();
     await sql`DELETE FROM developments WHERE id = ${id}`;
-    await sql.end();
+    await releaseSharedDatabase(sql);
     return true;
   } catch (error: any) {
-    if (sql) { try { await sql.end(); } catch {} }
+    if (sql) { try { await releaseSharedDatabase(sql); } catch {} }
     console.error("Error deleting development:", error);
     return false;
   }
@@ -521,12 +504,12 @@ export async function createUnit(data: {
       }
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
 
     const unit = await getUnitById(unitId);
     return { unit, error: null };
   } catch (error: any) {
-    if (sql) { try { await sql.end(); } catch {} }
+    if (sql) { try { await releaseSharedDatabase(sql); } catch {} }
     console.error("Error creating unit:", error);
     return { unit: null, error: error.message || "Unknown error" };
   }
@@ -595,11 +578,11 @@ export async function updateUnit(
       }
     }
 
-    await sql.end();
+    await releaseSharedDatabase(sql);
     const unit = await getUnitById(id);
     return { unit, error: null };
   } catch (error: any) {
-    if (sql) { try { await sql.end(); } catch {} }
+    if (sql) { try { await releaseSharedDatabase(sql); } catch {} }
     return { unit: null, error: error.message || "Unknown error" };
   }
 }
@@ -609,10 +592,10 @@ export async function deleteUnit(id: string): Promise<boolean> {
   try {
     sql = getPgConnection();
     await sql`DELETE FROM units WHERE id = ${id}`;
-    await sql.end();
+    await releaseSharedDatabase(sql);
     return true;
   } catch (error: any) {
-    if (sql) { try { await sql.end(); } catch {} }
+    if (sql) { try { await releaseSharedDatabase(sql); } catch {} }
     return false;
   }
 }

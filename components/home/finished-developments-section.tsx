@@ -1,3 +1,4 @@
+import { getListingVisibilityFilter } from "@/lib/listing-access";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, MapPin } from "lucide-react";
 import { getDevelopments } from "@/lib/developments-db";
@@ -7,7 +8,8 @@ import { getDevelopmentVideo } from "@/lib/development-media";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 
 export async function FinishedDevelopmentsSection() {
-  const finishedDevelopments = (await getDevelopments({ visibility: "public" })).filter(
+  const visibility = await getListingVisibilityFilter();
+  const finishedDevelopments = (await getDevelopments({ visibility })).filter(
     (development) =>
       development.status === "finalizado" || development.status === "entregado"
   );

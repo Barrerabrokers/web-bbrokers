@@ -19,7 +19,6 @@ export function HeroSection({ videos = [] }: HeroSectionProps) {
     const videoSources = videos.filter(Boolean).slice(0, 3);
     return videoSources.length > 0 ? videoSources : VIDEO_SOURCES;
   }, [videos]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [active, setActive] = useState<"a" | "b">("a");
   const [srcA, setSrcA] = useState(sources[0]);
   const [srcB, setSrcB] = useState(sources[1] || sources[0]);
@@ -42,9 +41,7 @@ export function HeroSection({ videos = [] }: HeroSectionProps) {
   }, [sources]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 120);
     playVideo(refA.current);
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -136,42 +133,36 @@ export function HeroSection({ videos = [] }: HeroSectionProps) {
           <div className="grid w-full grid-cols-12 gap-6">
             <div className="col-span-12 lg:col-span-9 xl:col-span-8">
               <p
-                className={`mb-6 text-[10px] uppercase tracking-[0.34em] text-white/58 transition-all duration-1000 md:mb-8 ${
-                  isLoaded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
-                }`}
+                className={`mb-6 text-[10px] uppercase tracking-[0.34em] text-white/80 transition-all duration-1000 md:mb-8 `}
               >
                 Barrera Brokers · Buenos Aires real estate
               </p>
               <h1
-                className={`oa-hero-title font-display text-[14vw] font-light leading-[0.9] text-[#f8f5ef] transition-all duration-[1600ms] sm:text-[12vw] lg:text-[8.2vw] ${
-                  isLoaded ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
-                }`}
+                className={`oa-hero-title font-display text-[clamp(3rem,7vw,6rem)] font-light leading-[1.02] text-[#f8f5ef] transition-all duration-[1600ms] `}
                 style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
               >
                 <span className="block">
-                  <span>Invertí en </span><em className="italic text-[#d8c4af]">desarrollos</em>
+                  <span>Invertí en tu próximo </span><em className="italic text-[#d8c4af]">departamento.</em>
                 </span>
-                <span className="block"><span> desde el inicio.</span></span>
+                <span className="block"><span>En Buenos Aires.</span></span>
               </h1>
             </div>
 
             <div className="col-span-12 flex flex-col justify-end lg:col-span-3">
               <div
-                className={`max-w-sm border-t border-white/18 pt-6 transition-all delay-300 duration-[1400ms] ${
-                  isLoaded ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-                }`}
+                className={`max-w-sm border-t border-white/18 pt-6 transition-all delay-300 duration-[1400ms] `}
               >
                 <p className="text-lg leading-relaxed text-white/76 md:text-xl">
-                  Ingresá cuando la obra recién empieza, financiá en cuotas con
-                  un anticipo del 35%, y al finalizar revendé con una ganancia
-                  del 30-40% o generá renta pasiva con alquiler temporario.
+                  Conocé desarrollos en pozo y en construcción. Compará ubicaciones
+                  y encontrá un plan de pago acorde a tus objetivos, con el
+                  acompañamiento de Barrera Brokers.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:flex-col">
                   <Link href="#desarrollos" className="btn-primary">
-                    Ver desarrollos
+                    Explorar desarrollos
                   </Link>
-                  <Link href="#contacto" className="bb-hero-link">
-                    Agendar consulta
+                  <Link href="https://wa.me/5491164069668?text=Hola%2C%20quiero%20asesoramiento%20sobre%20desarrollos." className="bb-hero-link">
+                    Hablar con un asesor
                     <ArrowDownRight className="h-4 w-4" />
                   </Link>
                 </div>

@@ -107,6 +107,40 @@
     selected() {
       return [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].some(el => !el.closest('#bb-crm-extension-root') && this.label(el) === this.listName);
     }
+    isFeaturedSelected() {
+      return [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].some(el =>
+        !el.closest('#bb-crm-extension-root') && this.isFeaturedName(this.label(el))
+      );
+    }
+    visibleMembers() {
+      const pane = document.querySelector('#pane-side') || this.find('#side');
+      const grid = pane?.querySelector('[role="grid"]');
+      if (!grid) return [];
+      const names = new Set();
+      grid.querySelectorAll('[role="row"]').forEach(row => {
+        const title = row.querySelector('[data-testid="cell-frame-title"]') || row.querySelector('span[title]');
+        if (title) names.add(this.label(title));
+      });
+      return [...names];
+    }
+    async syncOpenFeatured({ leads, featured, phone, fullName, setFeatured }) {
+      // This is deliberately read-only for WhatsApp: it runs only while the user
+      // is already viewing Destacados and never opens Settings or changes screens.
+      if (this.busy || !this.isFeaturedSelected()) return { imported: 0, unresolved: 0 };
+      this.busy = true;
+      try {
+        const members = this.visibleMembers();
+        const { operations, unresolved } = featuredPlan({ members, leads, featured, phone, fullName });
+        let imported = 0;
+        for (const operation of operations) {
+          for (const id of operation.importIds) {
+            await setFeatured(id);
+            imported++;
+          }
+        }
+        return { imported, unresolved: unresolved.length };
+      } finally { this.busy = false; }
+    }
     async readMembers() {
       const names = new Set(); let previous = -1, stalled = 0;
       const pane = await this.wait(() => document.querySelector('#pane-side') || this.find('#side'), 'leer Destacados');

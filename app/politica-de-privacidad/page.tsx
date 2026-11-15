@@ -1,7 +1,8 @@
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+const spanishMetadata: Metadata = {
   title: "Política de privacidad | Barrera Brokers",
   description:
     "Cómo Barrera Brokers recopila, utiliza y protege los datos personales de clientes y potenciales clientes.",
@@ -9,6 +10,8 @@ export const metadata: Metadata = {
     canonical: "https://barrerabrokers.com/politica-de-privacidad",
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(spanishMetadata); }
 
 const sections = [
   {

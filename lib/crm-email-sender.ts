@@ -1,3 +1,4 @@
+import { hasValidEmailRecipient, MISSING_RECIPIENT_MESSAGE } from "@/lib/crm-email-recipient";
 import nodemailer from "crm-nodemailer";
 import type { CrmEmailTemplateContentBlock, CrmLead } from "@/lib/db";
 import {
@@ -325,12 +326,13 @@ async function sendMailWithAccount({
 
 // Private customer newsletters must not create records in the shared lead activity feed.
 export async function sendPrivateClientEmail(input:{agentId:string;email:string;subject:string;body:string;imageUrls?:string[];contentBlocks?:EmailContentBlock[];replyTo?:string;openTrackingUrl?:string;clickTrackingBaseUrl?:string}) {
+  if (!hasValidEmailRecipient(input.email)) throw new Error(MISSING_RECIPIENT_MESSAGE);
   const account=await getCrmEmailAccountWithSecret(input.agentId);
   if(!account)throw Error("Conectá tu correo de CRM antes de enviar.");
   const rawHtml=input.contentBlocks?.length?blocksToHtml(input.contentBlocks):textToHtml(input.body,input.imageUrls);
   await sendMailWithAccount({account,origin:process.env.NEXTAUTH_URL || "https://barrerabrokers.com",mail:{
     from:account.fromName ? `"${account.fromName.replaceAll('"',"")}" <${account.email}>` : account.email,
-    to:input.email,subject:input.subject,replyTo:input.replyTo||account.email,
+    to:input.email.trim(),subject:input.subject,replyTo:input.replyTo||account.email,
     text:[input.contentBlocks?.length?blocksToText(input.contentBlocks):input.body,brandFooterText()].filter(Boolean).join("\n\n"),
     html:withOpenTrackingPixel(withClickTracking(rawHtml,input.clickTrackingBaseUrl),input.openTrackingUrl),
   }});
@@ -347,6 +349,9 @@ export async function sendCrmEmail({
   activityTitle,
   workflowName,
 }: SendCrmEmailInput) {
+  if (!hasValidEmailRecipient(lead.email)) {
+    return { sent: false, activity: null, error: MISSING_RECIPIENT_MESSAGE };
+  }
   const account = await getCrmEmailAccountWithSecret(agentId);
   if (!account) {
     return {
@@ -420,7 +425,7 @@ export async function sendCrmEmail({
       from: account.fromName
         ? `"${account.fromName.replaceAll('"', "")}" <${account.email}>`
         : account.email,
-      to: lead.email,
+      to: lead.email.trim(),
       subject,
       text: [
         blocksWithSignature.length > 0

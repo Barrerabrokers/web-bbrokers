@@ -6,6 +6,7 @@ import { canManageAdminPanel, canViewAllCrmContacts } from "@/lib/roles";
 import { getCrmLeads, upsertCrmLead } from "@/lib/db";
 import { getDevelopments } from "@/lib/developments-db";
 import { splitInternationalPhone } from "@/lib/phone-countries";
+import { normalizeCrmLeadStatus } from "@/lib/crm-statuses";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -266,7 +267,7 @@ export async function POST(request: NextRequest) {
         email,
         countryCode: splitPhone.countryCode,
         phone: splitPhone.phone,
-        status: cell(row, "Estado", "Estado del lead", "Lead status", "Contact status") || "Nuevo",
+        status: normalizeCrmLeadStatus(cell(row, "Estado", "Estado del lead", "Lead status", "Contact status") || "Nuevo"),
         temperature,
         source: cell(row, "Fuente", "Origen", "Original source", "Lead source") || "Excel",
         developmentId: development?.id,

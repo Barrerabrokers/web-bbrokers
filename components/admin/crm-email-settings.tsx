@@ -116,11 +116,11 @@ export function CrmEmailSettings({ account }: { account: CrmEmailAccount | null 
               Recomendado
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-              Conectar Gmail + Google Calendar
+              Conectar Gmail + Calendar + Contactos
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink/65">
               Autoriza una vez tu cuenta de Google. Desde ese momento el agente puede usar el CRM
-              para enviar correos, preparar reuniones y ver su calendario embebido.
+              para enviar correos, preparar reuniones y ver su calendario embebido. Pablo y Martina también pueden sincronizar sus leads asignados con Google Contactos.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-ink/62">
               <span className="rounded-full bg-white px-3 py-1.5">Gmail enviar</span>
@@ -139,7 +139,14 @@ export function CrmEmailSettings({ account }: { account: CrmEmailAccount | null 
         </div>
         {isGoogleOAuth && (
           <p className="mt-4 rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-800">
-            Google esta conectado para {account.email}. Las reuniones y tareas se crean en Google Calendar.
+            Google está conectado para {account.email}. Las reuniones y tareas se crean en Google Calendar.
+          </p>
+        )}
+        {isGoogleOAuth && ["pablo@barrerabrokers.com", "martina@barrerabrokers.com"].includes(account.email.toLowerCase()) && (
+          <p className="mt-3 text-sm text-ink/65">
+            {account.googleScopes?.split(" ").includes("https://www.googleapis.com/auth/contacts")
+              ? "Los leads asignados a tu agente se sincronizan con Google Contactos cada 5 minutos."
+              : "Para guardar tus leads asignados en Google Contactos, usá Reconectar Google y autorizá el acceso a Contactos."}
           </p>
         )}
       </section>
@@ -174,7 +181,7 @@ export function CrmEmailSettings({ account }: { account: CrmEmailAccount | null 
               }}
               className="form-input"
               type="email"
-              placeholder="pablo@gmail.com"
+              placeholder="contacto@example.com"
               required
             />
           </Field>

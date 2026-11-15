@@ -34,6 +34,7 @@ const EMPTY_FORM: PropertyFormState = {
 const typeLabels: Record<CrmDataPropertyType, string> = {
   lead_status: "Estado del lead",
   development: "Desarrollo",
+  occupation: "Actividad",
 };
 
 export function CrmDataPropertiesManager({
@@ -52,6 +53,7 @@ export function CrmDataPropertiesManager({
     () => ({
       lead_status: properties.filter((property) => property.type === "lead_status"),
       development: properties.filter((property) => property.type === "development"),
+      occupation: properties.filter((property) => property.type === "occupation"),
     }),
     [properties]
   );
@@ -79,6 +81,8 @@ export function CrmDataPropertiesManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          value: form.type === "occupation" ? form.label.trim() : form.value,
+          hubspotValue: form.type === "occupation" ? "" : form.hubspotValue,
           localDevelopmentId: form.type === "development" ? form.localDevelopmentId : "",
         }),
       });
@@ -140,11 +144,11 @@ export function CrmDataPropertiesManager({
                 Propiedades CRM
               </p>
               <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
-                Variables para importar mejor
+                Opciones de los datos del cliente
               </h2>
               <p className="mt-2 text-sm leading-6 text-ink/62">
-                Agregá los valores que existen en HubSpot para que el CRM pueda reconocer estados
-                y desarrollos aunque todavía no estén creados en Barrera Brokers.
+                Administrá las actividades que seleccionan los agentes y los valores de estados
+                y desarrollos usados para importar desde HubSpot.
               </p>
             </div>
           </div>
@@ -164,6 +168,7 @@ export function CrmDataPropertiesManager({
               >
                 <option value="lead_status">Estado del lead</option>
                 <option value="development">Desarrollo</option>
+                <option value="occupation">Actividad</option>
               </select>
             </label>
 
@@ -175,11 +180,13 @@ export function CrmDataPropertiesManager({
                 value={form.label}
                 onChange={(event) => updateForm({ label: event.target.value })}
                 disabled={!canEdit}
-                placeholder={form.type === "lead_status" ? "Ej. Interesado" : "Ej. Alpha Libertador"}
+                maxLength={200}
+                placeholder={form.type === "occupation" ? "Ej. Cirujano" : form.type === "lead_status" ? "Ej. Interesado" : "Ej. Alpha Libertador"}
                 className="mt-2 h-11 w-full rounded-md border border-ink/16 bg-white px-3 text-sm text-ink outline-none placeholder:text-ink/45 focus:border-accent"
               />
             </label>
 
+            {form.type !== "occupation" && <>
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/52">
                 Valor interno
@@ -205,6 +212,8 @@ export function CrmDataPropertiesManager({
                 className="mt-2 h-11 w-full rounded-md border border-ink/16 bg-white px-3 text-sm text-ink outline-none placeholder:text-ink/45 focus:border-accent"
               />
             </label>
+
+            </>}
 
             {form.type === "development" && (
               <label className="block">
@@ -242,7 +251,7 @@ export function CrmDataPropertiesManager({
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
-          {(["lead_status", "development"] as const).map((type) => (
+          {(["occupation", "lead_status", "development"] as const).map((type) => (
             <div key={type} className="rounded-md border border-ink/12 bg-white">
               <div className="border-b border-ink/10 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/45">

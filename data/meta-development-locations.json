@@ -1,0 +1,101 @@
+{
+  "2486aacd-9d3a-472f-86b4-f1665772cfeb": {
+    "address": "Av. Angel Gallardo 537",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1405DJF",
+    "latitude": -34.605097,
+    "longitude": -58.438449,
+    "neighborhood": "Villa Crespo",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Av.+Angel+Gallardo+537%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=GALLARDO%2C+ANGEL+AV.&altura=537"
+  },
+  "36c023d8-50d0-46c9-8e0e-2b22262c0dd7": {
+    "address": "Av Juan B Justo 4098",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1416DJU",
+    "latitude": -34.60523,
+    "longitude": -58.459342,
+    "neighborhood": "Caballito",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Av+Juan+B+Justo+4098%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=JUSTO%2C+JUAN+B.+AV.&altura=4098"
+  },
+  "55f8bd5e-61eb-4e5e-984e-a7a4931418ce": {
+    "address": "Bernardo de Irigoyen 1122",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1072AAX",
+    "latitude": -34.621261,
+    "longitude": -58.380013,
+    "neighborhood": "Constitucion",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Bernardo+de+Irigoyen+1122%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=IRIGOYEN%2C+BERNARDO+DE&altura=1122"
+  },
+  "588929b7-ee8d-42cc-a7de-3bb22fd1ab4d": {
+    "address": "Mannuel Ugarte 1575",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1428BRA",
+    "latitude": -34.551854,
+    "longitude": -58.453361,
+    "neighborhood": "Belgrano",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Manuel+Ugarte+1575%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=UGARTE%2C+MANUEL&altura=1575"
+  },
+  "59fb3036-f3ae-4ad0-82cf-624cbf8015f5": {
+    "address": "Aguilar 2483",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1426DSI",
+    "latitude": -34.57001,
+    "longitude": -58.4481,
+    "neighborhood": "Colegiales",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Aguilar+2483%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=AGUILAR&altura=2483"
+  },
+  "926d82a9-eafe-45c2-9e7c-4731509be0c4": {
+    "address": "Av Luis Maria Campos 1363",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1426BOL",
+    "latitude": -34.563949,
+    "longitude": -58.442045,
+    "neighborhood": "Palermo",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Av+Luis+Maria+Campos+1363%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=CAMPOS%2C+LUIS+M.+AV.&altura=1363"
+  },
+  "afece2cd-7ee5-4ec5-af2d-d6886958d164": {
+    "address": "Av Santa Fe 5022",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1425BHZ",
+    "latitude": -34.576956,
+    "longitude": -58.430798,
+    "neighborhood": "Palermo",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Av+Santa+Fe+5022%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=SANTA+FE+AV.&altura=5022"
+  },
+  "ef0589ea-8f90-4356-b55f-cecb8a0c9a2f": {
+    "address": "Av Pueyrredon 1940",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1119ACP",
+    "latitude": -34.588831,
+    "longitude": -58.399549,
+    "neighborhood": "Recoleta",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Av+Pueyrredon+1940%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=PUEYRREDON+AV.&altura=1940"
+  },
+  "f49bbc8f-3345-43e5-abb0-5e140e14203f": {
+    "address": "Paraguay 3000",
+    "city": "Ciudad Autónoma de Buenos Aires",
+    "region": "Ciudad Autónoma de Buenos Aires",
+    "country": "Argentina",
+    "postalCode": "C1425BRJ",
+    "latitude": -34.595774,
+    "longitude": -58.409496,
+    "neighborhood": "Recoleta",
+    "source": "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=Paraguay+3000%2C+CABA&geocodificar=TRUE | https://ws.usig.buenosaires.gob.ar/datos_utiles?calle=PARAGUAY&altura=3000"
+  }
+}

@@ -1,10 +1,13 @@
+import { acquireWorkerLease, releaseWorkerLease } from "@/lib/database-worker-lease";
 import postgres from "postgres";
 import { createHash } from "crypto";
 import { getCrmEmailAccountWithSecret } from "@/lib/db";
 import { getAccessTokenForGoogleAccount } from "@/lib/google-oauth";
+import { shouldRunRuntimeSchemaMigrations } from "@/lib/runtime-schema";
 
 type Sql = ReturnType<typeof postgres>;
 export async function ensureTaskSchedules(sql: Sql) {
+  if (!shouldRunRuntimeSchemaMigrations()) return;
   await sql`CREATE TABLE IF NOT EXISTS crm_task_schedules (
     id UUID PRIMARY KEY, activity_id UUID UNIQUE REFERENCES crm_activities(id) ON DELETE SET NULL,
     reminder_minutes INTEGER NOT NULL DEFAULT 60 CHECK (reminder_minutes IN (60,720,1440)),
@@ -12,6 +15,7 @@ export async function ensureTaskSchedules(sql: Sql) {
     assignment_version TEXT, reminder_version TEXT, checked_at TIMESTAMPTZ,
     last_error TEXT
   )`;
+  await sql`ALTER TABLE crm_task_schedules ADD COLUMN IF NOT EXISTS duration_minutes INTEGER NOT NULL DEFAULT 30 CHECK (duration_minutes IN (30,60))`;
   await sql`ALTER TABLE crm_task_schedules ENABLE ROW LEVEL SECURITY`;
 }
 
@@ -34,8 +38,8 @@ export async function processCrmTaskSchedules(activityId?: string) {
   let synced = 0, sent = 0, failed = 0;
   try {
     await ensureTaskSchedules(sql);
-    const [lock] = await sql`SELECT pg_try_advisory_lock(735208442) AS acquired`;
-    if (!lock.acquired) return { synced, sent, failed, pending: true };
+    const lease = await acquireWorkerLease(sql,"task-schedule");
+    if (!lease) return { synced, sent, failed, pending: true };
     try {
       // Recover existing dated tasks too, preserving the calendar where older events were created.
       await sql`INSERT INTO crm_task_schedules (id,activity_id,calendar_agent_id,calendar_event_id)
@@ -100,14 +104,14 @@ export async function processCrmTaskSchedules(activityId?: string) {
           }
           if (active) {
             const start = new Date(row.scheduled_at).toISOString();
-            const version = taskVersion([row.agent_id,row.title,row.body,start,row.reminder_minutes]);
+            const version = taskVersion([row.agent_id,row.title,row.body,start,row.reminder_minutes,row.duration_minutes || 30]);
             if (row.calendar_version !== version) {
               const id = row.calendar_event_id || `bb${String(row.id).replace(/-/g, "")}`;
               const payload = {
                 summary: row.title,
                 description: `${row.body || ""}\nContacto: ${row.contact_name}\n${origin}/admin/crm/${row.lead_id}?activity=tarea`,
                 start: { dateTime: start, timeZone: "America/Argentina/Buenos_Aires" },
-                end: { dateTime: new Date(new Date(start).getTime()+30*60000).toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
+                end: { dateTime: new Date(new Date(start).getTime()+(row.duration_minutes || 30)*60000).toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
                 reminders: { useDefault: false, overrides: [{ method: "popup", minutes: row.reminder_minutes }] },
                 // Tasks are internal. Never invite the contact as an attendee.
                 attendees: [],
@@ -144,6 +148,6 @@ export async function processCrmTaskSchedules(activityId?: string) {
         await sql`UPDATE crm_task_schedules SET last_error=${errors.join(" ") || null} WHERE id=${row.id}`;
       }
       return { synced, sent, failed, pending: failed > 0 || processed < rows.length };
-    } finally { await sql`SELECT pg_advisory_unlock(735208442)`; }
+    } finally { await releaseWorkerLease(sql,"task-schedule",lease); }
   } finally { await sql.end(); }
 }

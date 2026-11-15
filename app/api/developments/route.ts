@@ -1,3 +1,4 @@
+import { listingVisibilityForRole } from "@/lib/listing-visibility-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -64,11 +65,12 @@ export async function GET(request: NextRequest) {
     const developments = await getDevelopments({
       status,
       highlight,
-      visibility: visibility || (!session ? "public" : undefined),
+      visibility: listingVisibilityForRole(session?.user.role, visibility),
     });
 
     return NextResponse.json(
-      session ? developments : developments.map(hidePrivateDevelopmentFields)
+      session && canManageListings(session.user.role) ? developments : developments.map(hidePrivateDevelopmentFields),
+      { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error: any) {
     return NextResponse.json(

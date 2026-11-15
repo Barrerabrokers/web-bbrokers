@@ -34,3 +34,24 @@ export async function deliverWhatsAppText(sender: { token: string; phoneNumberId
   if (typeof result.messages?.[0]?.id !== "string") throw new Error("Meta no confirmó un identificador de envío. Revisá el teléfono antes de reintentar.");
   return result.messages[0].id as string;
 }
+
+/** Upload the binary to Meta, then send by media ID; no public CRM file URL is required. */
+export async function deliverWhatsAppAttachment(sender:{token:string;phoneNumberId:string},phone:string,file:File,info:{type:'image'|'document';mimeType:string;filename:string},caption='',version='v23.0') {
+  if(!/^v\d+\.\d+$/.test(version))throw new Error('La versión de la API de WhatsApp no está configurada correctamente.');
+  const data=new FormData();data.set('messaging_product','whatsapp');data.set('type',info.mimeType);data.set('file',new File([file],info.filename,{type:info.mimeType}));
+  let upload:Response;
+  try{upload=await fetch(`https://graph.facebook.com/${version}/${sender.phoneNumberId}/media`,{method:'POST',headers:{Authorization:`Bearer ${sender.token}`},body:data,redirect:'error',signal:AbortSignal.timeout(20000)});}
+  catch{throw new Error('No se pudo cargar el archivo en WhatsApp. No se envió el mensaje.');}
+  const media=await upload.json().catch(()=>null);
+  if(!upload.ok||typeof media?.id!=='string')throw new Error(`WhatsApp rechazó el archivo (código ${Number(media?.error?.code)||upload.status}). No se envió el mensaje.`);
+  const recipient=sender.phoneNumberId===WHATSAPP_TEST_PHONE_ID&&/^549\d{10}$/.test(phone)?`54${phone.slice(3)}`:phone;
+  const payload={messaging_product:'whatsapp',recipient_type:'individual',to:recipient,type:info.type,[info.type]:{id:media.id,...(caption?{caption}:{}),...(info.type==='document'?{filename:info.filename}:{})}};
+  let sent:Response;
+  try{sent=await fetch(`https://graph.facebook.com/${version}/${sender.phoneNumberId}/messages`,{method:'POST',headers:{Authorization:`Bearer ${sender.token}`,'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'error',signal:AbortSignal.timeout(20000)});}
+  catch{throw new Error('No se pudo confirmar el envío con Meta. Revisá el teléfono antes de reintentar para evitar duplicados.');}
+  const result=await sent.json().catch(()=>null);
+  if(!result)throw new Error('Meta no confirmó el envío del archivo. Revisá el teléfono antes de reintentar.');
+  if(!sent.ok){if(result.error?.code===131047)throw new Error('La ventana para responder por WhatsApp está cerrada. Pedile al contacto que envíe un nuevo mensaje.');throw new Error(`WhatsApp rechazó el mensaje (código ${Number(result.error?.code)||sent.status}). No se registró como enviado.`);}
+  if(typeof result.messages?.[0]?.id!=='string')throw new Error('Meta no confirmó un identificador de envío. Revisá el teléfono antes de reintentar.');
+  return {messageId:result.messages[0].id as string,mediaId:media.id as string};
+}

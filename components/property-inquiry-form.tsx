@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 interface PropertyInquiryFormProps {
   propertyId: string;
@@ -47,6 +48,7 @@ export function PropertyInquiryForm({
 
       if (!response.ok) throw new Error("No se pudo enviar");
 
+      trackMetaEvent("Lead", { content_name: "Consulta web" });
       setStatus("success");
       setForm({ name: "", email: "", phone: "", message: "" });
       setTimeout(() => setStatus("idle"), 5000);

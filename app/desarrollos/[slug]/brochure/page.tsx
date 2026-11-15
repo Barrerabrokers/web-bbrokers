@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download, FileText } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getDevelopmentBySlug } from "@/lib/developments-db";
+
+export const metadata: Metadata = { title: "Brochure del desarrollo", robots: { index: false, follow: true } };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

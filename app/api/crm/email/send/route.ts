@@ -1,3 +1,4 @@
+import { hasValidEmailRecipient, MISSING_RECIPIENT_MESSAGE } from "@/lib/crm-email-recipient";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -125,6 +126,10 @@ export async function POST(request: NextRequest) {
 
   if (!lead) {
     return NextResponse.json({ error: "No podés enviar correo a este contacto." }, { status: 403 });
+  }
+
+  if (!hasValidEmailRecipient(lead.email)) {
+    return NextResponse.json({ error: MISSING_RECIPIENT_MESSAGE }, { status: 400 });
   }
 
   const result = await sendCrmEmail({

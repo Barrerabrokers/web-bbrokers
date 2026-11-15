@@ -8,6 +8,7 @@ export const GOOGLE_CRM_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/contacts",
 ];
 
 export function getGoogleOAuthConfig(origin: string) {
@@ -30,16 +31,18 @@ export function getGoogleOAuthConfig(origin: string) {
 export function buildGoogleOAuthUrl({
   origin,
   state,
+  scopes,
 }: {
   origin: string;
   state: string;
+  scopes?: string[];
 }) {
   const { clientId, redirectUri } = getGoogleOAuthConfig(origin);
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: GOOGLE_CRM_SCOPES.join(" "),
+    scope: (scopes || GOOGLE_CRM_SCOPES).join(" "),
     access_type: "offline",
     prompt: "consent",
     include_granted_scopes: "true",

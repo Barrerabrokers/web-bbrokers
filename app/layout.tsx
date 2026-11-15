@@ -1,4 +1,10 @@
+import { Suspense } from "react";
+import { MetaWebsiteTracking } from "@/components/meta-website-tracking";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { cachedSiteEnglish } from "@/lib/i18n/translation";
+import { SiteLanguageProvider } from "@/components/i18n/site-language";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -32,7 +38,7 @@ const cormorant = Cormorant_Garamond({
   style: ["normal", "italic"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
+async function spanishMetadata(): Promise<Metadata> {
   const settings = await getCachedSiteSettings();
   return {
   metadataBase: new URL(SITE_URL),
@@ -43,6 +49,10 @@ export async function generateMetadata(): Promise<Metadata> {
   description: DEFAULT_SEO_DESCRIPTION,
   keywords: SEO_KEYWORDS,
   applicationName: SITE_NAME,
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {}),
+  },
   manifest: "/manifest.webmanifest",
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
@@ -82,17 +92,24 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(await spanishMetadata()); }
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const language=(await headers()).get("x-public-language")==="en"?"en":"es";
+  const translations=language==='en'?await cachedSiteEnglish().catch(()=>({})):undefined;
   return (
-    <html lang="es" className={`${plusJakarta.variable} ${cormorant.variable}`}>
+    <html lang={language} className={`${plusJakarta.variable} ${cormorant.variable}`}>
       <body className="font-sans bg-obsidian text-ivory antialiased">
         <Providers>
+          <Suspense fallback={null}><MetaWebsiteTracking /></Suspense>
+          <SiteLanguageProvider initialLanguage={language} initialTranslations={translations}>
           {children}
           <WhatsAppButton />
+                  </SiteLanguageProvider>
         </Providers>
         <ObsidianMotion />
         <CursorTrail />

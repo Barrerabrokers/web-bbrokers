@@ -156,7 +156,7 @@ export default function NewPropertyPage() {
           .toString(36)
           .substring(7)}.${ext}`;
 
-        const { error: uploadError } = await uploadPublicFile(fileName, file, {
+        const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, file, {
             cacheControl: "3600",
             upsert: false,
             contentType: file.type,
@@ -168,9 +168,7 @@ export default function NewPropertyPage() {
           );
         }
 
-        const { data: urlData } = supabase.storage
-          .from("properties")
-          .getPublicUrl(fileName);
+        const urlData = { publicUrl: uploadedUrl! };
 
         urls.push(urlData.publicUrl);
       }

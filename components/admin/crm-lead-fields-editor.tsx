@@ -1,11 +1,17 @@
 "use client";
 
+import { getCrmContactCompany } from "@/lib/crm-contact-company";
+import { getArgentinaPhoneProvince, getArgentinaPhoneLocalitySuggestion } from "@/lib/argentina-phone-origin";
+import { ARGENTINA_PROVINCES, getCrmContactLocation, getPhoneCountryName } from "@/lib/crm-contact-location";
+import { getCrmContactBirthDate } from "@/lib/crm-contact-birth-date";
+import { getCrmContactDni } from "@/lib/crm-contact-dni";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { CheckCircle2, Copy, Loader2, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, Loader2, MapPin, Trash2 } from "lucide-react";
 import type { CrmLead, CrmLeadStatus } from "@/lib/db";
 import { isMeetingStatus, leadStatusOptionsForValue } from "@/lib/crm-statuses";
 import { PHONE_COUNTRIES, normalizeDialCode } from "@/lib/phone-countries";
+import { getArgentinaPhoneLocality } from "@/lib/argentina-phone-origin";
 
 type DevelopmentOption = {
   id: string;
@@ -21,14 +27,29 @@ type AgentOption = {
 type CrmLeadFieldsEditorProps = {
   lead: CrmLead;
   developments: DevelopmentOption[];
+  occupations?: { value: string; label: string }[];
   agents?: AgentOption[];
   canAssignOwner?: boolean;
   canDelete?: boolean;
 };
 
+function socialProfileHref(value: string, source: string) {
+  const profile = value.trim();
+  if (!profile) return "";
+  if (/^https?:\/\//i.test(profile)) return profile;
+  if (/^(?:www\.)?(instagram|facebook)\.com\//i.test(profile)) return `https://${profile.replace(/^www\./i, "")}`;
+
+  const handle = profile.replace(/^@/, "").trim();
+  if (!handle || /\s/.test(handle)) return "";
+  if (/instagram/i.test(source)) return `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+  if (/facebook/i.test(source)) return `https://www.facebook.com/${encodeURIComponent(handle)}`;
+  return "";
+}
+
 export function CrmLeadFieldsEditor({
   lead,
   developments,
+  occupations = [],
   agents = [],
   canAssignOwner = false,
   canDelete = false,
@@ -36,11 +57,20 @@ export function CrmLeadFieldsEditor({
   const router = useRouter();
   const [firstName, setFirstName] = useState(lead.firstName);
   const [lastName, setLastName] = useState(lead.lastName);
+  const [companyName, setCompanyName] = useState(() => getCrmContactCompany(lead.metaProperties));
+  const [birthDate, setBirthDate] = useState(() => getCrmContactBirthDate(lead.metaProperties));
+  const [dni, setDni] = useState(() => getCrmContactDni(lead.metaProperties));
   const [email, setEmail] = useState(lead.email);
+  const [occupation, setOccupation] = useState(lead.occupation || "");
+  const [website, setWebsite] = useState(lead.website || "");
+  const websiteHref = /^https?:\/\//i.test(website.trim()) ? website.trim() : "";
   const [countryCode, setCountryCode] = useState(normalizeDialCode(lead.countryCode || "+54"));
   const [phone, setPhone] = useState(lead.phone);
+  const [socialProfile, setSocialProfile] = useState(lead.socialProfile || "");
+  const [linkedinProfile, setLinkedinProfile] = useState(lead.linkedinProfile || "");
   const [status, setStatus] = useState<CrmLeadStatus>(lead.status);
   useEffect(() => setStatus(lead.status), [lead.status]);
+  const [campaignName, setCampaignName] = useState(lead.campaignName || "");
   const [developmentId, setDevelopmentId] = useState(lead.developmentId || "");
   const [developmentNameText, setDevelopmentNameText] = useState(
     lead.developmentNameText || (!lead.developmentId ? lead.developmentName || "" : "")
@@ -52,15 +82,46 @@ export function CrmLeadFieldsEditor({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const socialProfileUrl = socialProfileHref(socialProfile, lead.source);
+  const linkedinProfileUrl = /^https:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/.+/i.test(linkedinProfile)
+    ? linkedinProfile
+    : "";
+  const phoneLocality = getArgentinaPhoneLocality(countryCode, phone);
+  const [initialLocation] = useState(() => getCrmContactLocation(lead.metaProperties));
+  const [address, setAddress] = useState(initialLocation.address);
+  const [locality, setLocality] = useState(initialLocation.locality);
+  const [province, setProvince] = useState(initialLocation.province);
+  const [country, setCountry] = useState(initialLocation.country || "");
+  const [localityEdited, setLocalityEdited] = useState(false);
+  const localitySuggestion = getArgentinaPhoneLocalitySuggestion(countryCode, phone) || "";
+  const displayedLocality = localityEdited ? locality : locality || localitySuggestion;
+  const [provinceEdited, setProvinceEdited] = useState(false);
+  const [countryEdited, setCountryEdited] = useState(false);
+  const provinceSuggestion = getArgentinaPhoneProvince(countryCode, phone) || "";
+  const countrySuggestion = getPhoneCountryName(countryCode, phone) || "";
+  const displayedProvince = provinceEdited ? province : province || provinceSuggestion;
+  const displayedCountry = countryEdited ? country : country || countrySuggestion;
 
   const save = async (payload: {
+    companyName?: string;
+    country?: string;
+    dni?: string;
+    birthDate?: string;
+    address?: string;
+    locality?: string;
+    province?: string;
     firstName?: string;
     lastName?: string;
     email?: string;
+    occupation?: string;
+    website?: string;
     countryCode?: string;
     phone?: string;
+    socialProfile?: string;
+    linkedinProfile?: string;
     status?: CrmLeadStatus;
     developmentId?: string;
+    campaignName?: string;
     developmentNameText?: string;
     assignedAgentId?: string;
   }) => {
@@ -155,12 +216,18 @@ export function CrmLeadFieldsEditor({
       onSubmit={(event) => {
         event.preventDefault();
         void save({
+          dni, birthDate, companyName, address, locality: displayedLocality, province: displayedProvince, country: displayedCountry,
           firstName,
           lastName,
           email,
+          occupation,
+          website,
           countryCode: normalizeDialCode(countryCode),
           phone,
+          socialProfile,
+          linkedinProfile,
           status,
+          campaignName,
           ...(developmentId.startsWith("text:")
             ? {
                 developmentId: "",
@@ -212,12 +279,37 @@ export function CrmLeadFieldsEditor({
               value={lastName}
               onChange={(event) => setLastName(event.target.value)}
               className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
-              required
             />
           </label>
         </div>
 
-        <label className="block">
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/60">Empresa</span>
+          <input type="text" autoComplete="organization" maxLength={200} value={companyName} onChange={event => setCompanyName(event.target.value)} placeholder="Nombre de la empresa o comercio" className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" />
+        </label>
+
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/60">Número de DNI</span>
+          <input type="text" inputMode="numeric" maxLength={30} value={dni} onChange={event => setDni(event.target.value)} placeholder="Número de documento"
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" />
+        </label>
+
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/60">Fecha de nacimiento</span>
+          <input type="date" autoComplete="bday" min="0001-01-01" value={birthDate} onChange={event => setBirthDate(event.target.value)}
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" />
+        </label>
+
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/60">Actividad</span>
+          <select value={occupation} onChange={event => setOccupation(event.target.value)} className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15">
+            <option value="">Seleccionar actividad</option>
+            {occupation && !occupations.some(option => option.value === occupation) && <option value={occupation}>{occupation}</option>}
+            {occupations.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
           <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
             Correo
           </span>
@@ -227,7 +319,6 @@ export function CrmLeadFieldsEditor({
               onChange={(event) => setEmail(event.target.value)}
               className="h-9 min-w-0 flex-1 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
               type="email"
-              required
             />
             <button
               type="button"
@@ -242,10 +333,68 @@ export function CrmLeadFieldsEditor({
           </div>
         </label>
 
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/60">Página web</span>
+          <div className="flex gap-2"><input type="url" value={website} onChange={event => setWebsite(event.target.value)} maxLength={2048} placeholder="https://www.ejemplo.com" className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" />
+          {websiteHref && <a href={websiteHref} target="_blank" rel="noopener noreferrer" aria-label="Abrir página web" title="Abrir página web" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/14 text-[#006b6b] hover:bg-[#e7f4f2]"><ExternalLink className="h-4 w-4" /></a>}</div>
+        </label>
+
+        <div className="block">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
+              Perfil de LinkedIn
+            </span>
+            <span className="flex items-center gap-2">
+              {linkedinProfileUrl && (
+                <a href={linkedinProfileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#006b6b] hover:underline">
+                  Abrir perfil <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              <a
+                href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${firstName} ${lastName}`.trim())}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#006b6b] hover:underline"
+              >
+                Buscar <ExternalLink className="h-3 w-3" />
+              </a>
+            </span>
+          </div>
+          <input
+            value={linkedinProfile}
+            onChange={(event) => setLinkedinProfile(event.target.value)}
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+            placeholder="Pegá el enlace al perfil confirmado"
+            inputMode="url"
+          />
+        </div>
+
+        <label className="block">
+          <span className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
+            Perfil en redes
+            {socialProfileUrl && (
+              <a
+                href={socialProfileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 normal-case tracking-normal text-[#006b6b] hover:underline"
+              >
+                Abrir perfil <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </span>
+          <input
+            value={socialProfile}
+            onChange={(event) => setSocialProfile(event.target.value)}
+            className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
+            placeholder="@usuario o enlace al perfil"
+          />
+        </label>
+
         <div className="grid min-w-0 grid-cols-[92px_minmax(0,1fr)] gap-2.5 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
           <label className="block">
             <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
-              País
+              Prefijo
             </span>
             <select
               value={countryCode}
@@ -269,7 +418,6 @@ export function CrmLeadFieldsEditor({
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 className="h-9 min-w-0 flex-1 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
-                required
               />
               <button
                 type="button"
@@ -282,8 +430,28 @@ export function CrmLeadFieldsEditor({
                 {copiedField === "phone" ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
+            {phoneLocality && (
+              <span className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md border border-[#006b6b]/25 bg-[#e7f4f2] px-2 py-1 text-xs font-semibold text-[#005c5c]" title={`Localidad estimada: ${phoneLocality}`}>
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-[#006b6b]" aria-hidden="true" />
+                <span className="sr-only">Localidad estimada: </span>
+                <span className="truncate">{phoneLocality}</span>
+              </span>
+            )}
           </label>
         </div>
+
+        {([
+          { label: "Dirección", value: address, setter: setAddress, maxLength: 500, placeholder: "Calle, número, piso y departamento", autocomplete: "street-address" },
+          { label: "Provincia", value: displayedProvince, setter: (value: string) => { setProvince(value); setProvinceEdited(true); }, maxLength: 200, placeholder: "Ej. Córdoba", autocomplete: "address-level1" },
+          { label: "País", value: displayedCountry, setter: (value: string) => { setCountry(value); setCountryEdited(true); }, maxLength: 200, placeholder: "Confirmar país", autocomplete: "country-name" },
+          { label: "Localidad", value: displayedLocality, setter: (value: string) => { setLocality(value); setLocalityEdited(true); }, maxLength: 200, placeholder: "Ej. Villa Carlos Paz", autocomplete: "address-level2" },
+        ]).map(field => <label key={field.label} className="block">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">{field.label}</span>
+          <input value={field.value} onChange={event => field.setter(event.target.value)} maxLength={field.maxLength} autoComplete={field.autocomplete}
+            list={field.label === "Provincia" ? `provinces-${lead.id}` : undefined} placeholder={field.placeholder}
+            className="h-10 w-full rounded-lg border border-ink/15 bg-white px-3 text-sm text-ink outline-none focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" />
+        </label>)}
+        <datalist id={`provinces-${lead.id}`}>{ARGENTINA_PROVINCES.map(name => <option key={name} value={name} />)}</datalist>
 
         <label className="block">
           <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
@@ -303,15 +471,16 @@ export function CrmLeadFieldsEditor({
           </select>
         </label>
 
-        <label className="block">
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
           <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/50">
-            Desarrollo / campaña de origen
+            Desarrollo
           </span>
           <select
             value={developmentId}
             onChange={(event) => {
               const nextDevelopmentId = event.target.value;
               setDevelopmentId(nextDevelopmentId);
+              setDevelopmentNameText(developments.find(d => d.id === nextDevelopmentId)?.name || "");
               if (nextDevelopmentId.startsWith("text:")) {
                 setDevelopmentNameText(
                   developments.find((development) => development.id === nextDevelopmentId)?.name ||
@@ -321,13 +490,18 @@ export function CrmLeadFieldsEditor({
             }}
             className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none transition-colors focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15"
           >
-            <option value="">{developmentNameText || "Sin definir"}</option>
+            <option value="">{!developmentId && developmentNameText ? developmentNameText : "Sin desarrollo"}</option>
             {developments.map((development) => (
               <option key={development.id} value={development.id}>
                 {development.name}
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="block sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+          <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink/60">Campaña</span>
+          <input value={campaignName} onChange={event => setCampaignName(event.target.value)} maxLength={500} placeholder="Ej. Campaña inversores" className="h-9 w-full min-w-0 rounded-lg border border-ink/14 bg-white px-3 text-sm font-medium text-ink outline-none focus:border-[#006b6b] focus:ring-2 focus:ring-[#006b6b]/15" />
         </label>
 
         <label className="block">

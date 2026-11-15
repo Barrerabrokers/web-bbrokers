@@ -13,7 +13,7 @@ import { canManageAdminPanel, canManageListings } from "@/lib/roles";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const propertyTypes = ["lead_status", "development"] as const;
+const propertyTypes = ["lead_status", "development", "occupation"] as const;
 
 const propertySchema = z.object({
   id: z.string().uuid().or(z.literal("")).optional(),
@@ -24,7 +24,7 @@ const propertySchema = z.object({
   localDevelopmentId: z.string().uuid().or(z.literal("")).optional(),
   active: z.boolean().optional().default(true),
   sortOrder: z.number().int().optional().default(0),
-});
+}).refine(data => data.type !== "occupation" || (data.value.length <= 200 && data.label.length <= 200), { message: "La actividad admite hasta 200 caracteres" });
 
 async function requireCrmAccess() {
   const session = await getServerSession(authOptions);

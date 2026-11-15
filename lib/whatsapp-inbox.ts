@@ -1,3 +1,12 @@
+import { recordMiaSalesWhatsAppInteraction } from "@/lib/mia-sales-interactions";
+import { getMiaAccess, miaAccessAllows } from '@/lib/mia-access';
+import { persistWhatsAppLeadForm } from "@/lib/whatsapp-lead-enrichment";
+import { deliverMetaSocialText } from '@/lib/meta-social-send';
+import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
+import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
+import type { WhatsAppAttachment } from '@/lib/whatsapp-attachments';
+import { requestsHuman } from "@/lib/whatsapp-sales-policy";
+import { firstContactWhatsAppPhoneId } from "@/lib/whatsapp-inbox-scope";
 import crypto from "crypto";
 import { getWhatsAppAppSecret } from "@/lib/meta-app-config";
 import { getMetaSocialCredentials, getMetaSocialContactName } from "@/lib/meta-social";
@@ -5,7 +14,7 @@ import postgres from "postgres";
 import { splitInternationalPhone } from "@/lib/phone-countries";
 import { upsertCrmLead, upsertCrmLeadByEmail } from "@/lib/db";
 import { getWhatsAppChannelCredentials } from "@/lib/whatsapp-credentials";
-import { selectWhatsAppSender, deliverWhatsAppText, WHATSAPP_TEST_PHONE_ID } from "@/lib/whatsapp-send";
+import { selectWhatsAppSender, deliverWhatsAppText, deliverWhatsAppAttachment, WHATSAPP_TEST_PHONE_ID } from "@/lib/whatsapp-send";
 
 export type WhatsAppConversation = {
   id: string;
@@ -16,6 +25,7 @@ export type WhatsAppConversation = {
   assignedAgentId?: string;
   assignedAgentName?: string;
   aiEnabled: boolean;
+  aiAssistAssigned?: boolean;
   status: "open" | "closed";
   unreadCount: number;
   lastMessage: string;
@@ -31,13 +41,14 @@ export type WhatsAppMessage = {
   id: string;
   conversationId: string;
   whatsappMessageId?: string;
-  direction: "inbound" | "outbound";
-  senderType: "customer" | "ai" | "agent";
+  direction: "inbound" | "outbound" | "unknown";
+  senderType: "customer" | "ai" | "agent" | "history";
   senderAgentId?: string;
   senderName?: string;
   content: string;
   status: string;
   createdAt: string;
+  attachment?: WhatsAppAttachment;
 };
 
 function connection() {
@@ -69,6 +80,7 @@ export async function ensureWhatsAppInboxSchema() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS ai_assist_assigned BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'whatsapp';
         ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS external_contact_id TEXT NULL;
         ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS business_phone_number_id TEXT NULL;
@@ -83,10 +95,13 @@ export async function ensureWhatsAppInboxSchema() {
           status TEXT NOT NULL DEFAULT 'sent',
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE crm_whatsapp_messages ADD COLUMN IF NOT EXISTS attachment JSONB NULL;
+        ALTER TABLE crm_whatsapp_conversations ADD COLUMN IF NOT EXISTS reply_send_token UUID NULL;
         CREATE INDEX IF NOT EXISTS idx_wa_conversations_owner ON crm_whatsapp_conversations(assigned_agent_id, last_message_at DESC);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_conversations_channel_contact ON crm_whatsapp_conversations(channel, external_contact_id) WHERE external_contact_id IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_wa_messages_conversation ON crm_whatsapp_messages(conversation_id, created_at);
       `);
+      await ensureContactIdentitySchema(sql);
     } finally {
       await sql.end();
     }
@@ -107,6 +122,7 @@ function mapConversation(row: any): WhatsAppConversation {
     assignedAgentId: row.assigned_agent_id || undefined,
     assignedAgentName: row.assigned_agent_name || undefined,
     aiEnabled: Boolean(row.ai_enabled),
+    aiAssistAssigned: Boolean(row.ai_assist_assigned),
     status: row.status === "closed" ? "closed" : "open",
     unreadCount: Number(row.unread_count || 0),
     lastMessage: row.last_message || "",
@@ -132,11 +148,15 @@ export async function listWhatsAppConversations(options: { agentId: string; incl
   await ensureWhatsAppInboxSchema();
   const sql = connection();
   try {
-    const rows = options.includeAll
-      ? await sql.unsafe(`${conversationSelect} ORDER BY c.last_message_at DESC`)
-      : await sql.unsafe(`${conversationSelect} WHERE c.assigned_agent_id = $1 ORDER BY c.last_message_at DESC`, [options.agentId]);
+    const query = conversationSelect.replace("SELECT c.*,", "SELECT c.*, inbox.content AS last_message, inbox.created_at AS last_message_at,") + `
+      JOIN LATERAL (SELECT content,created_at FROM crm_whatsapp_messages WHERE conversation_id=c.id
+        AND status <> 'historical' AND (sender_type IN ('customer','ai','agent') OR status='cleared') ORDER BY created_at DESC,id DESC LIMIT 1) inbox ON TRUE
+      WHERE ((c.channel='whatsapp' AND c.business_phone_number_id=$1) OR c.channel IN ('instagram','facebook'))
+        AND ($2::boolean OR c.assigned_agent_id=$3::uuid)
+      ORDER BY inbox.created_at DESC`;
+    const rows=await sql.unsafe(query,[firstContactWhatsAppPhoneId(),options.includeAll,options.agentId]);
     return rows.map(mapConversation);
-  } finally { await sql.end(); }
+  } finally {await sql.end();}
 }
 
 export async function getWhatsAppConversation(id: string) {
@@ -150,54 +170,57 @@ export async function getWhatsAppConversation(id: string) {
 
 export async function ensureWhatsAppContact(phoneValue: string, contactName = "", businessPhoneNumberId?: string) {
   await ensureWhatsAppInboxSchema();
+  const allowNewAi=(await getMiaAccess()).mode==='all';
   const phone = phoneValue.replace(/\D/g, "");
   const sql = connection();
   try {
-    let leadRows = await sql`
-      SELECT id FROM crm_leads
-      WHERE RIGHT(REGEXP_REPLACE(COALESCE(country_code, '') || COALESCE(phone, ''), '\\D', '', 'g'), 10) = RIGHT(${phone}, 10)
-      LIMIT 1
-    `;
-    let leadId = leadRows[0]?.id as string | undefined;
-    if (!leadId) {
-      const parts = contactName.trim().split(/\s+/).filter(Boolean);
-      const firstName = parts.shift() || "Contacto";
-      const lastName = parts.join(" ") || "WhatsApp";
-      const split = splitInternationalPhone(`+${phone}`);
-      const result = await upsertCrmLead({
-        firstName,
-        lastName,
-        email: `whatsapp-${phone}@sin-email.barrerabrokers.local`,
-        countryCode: split.countryCode || "+54",
-        phone: split.phone || phone,
-        status: "NEW",
-        source: "WhatsApp IA",
-        assignedAgentId: undefined,
-      });
-      leadId = result.lead?.id;
-    }
-    const rows = await sql`
-      INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, lead_id, business_phone_number_id, ai_enabled)
-      VALUES (${crypto.randomUUID()}, ${phone}, ${contactName.trim()}, ${leadId || null}, ${businessPhoneNumberId || null}, ${businessPhoneNumberId !== WHATSAPP_TEST_PHONE_ID})
-      ON CONFLICT (phone) DO UPDATE SET
-        contact_name = COALESCE(NULLIF(EXCLUDED.contact_name, ''), crm_whatsapp_conversations.contact_name),
-        lead_id = COALESCE(crm_whatsapp_conversations.lead_id, EXCLUDED.lead_id),
-        business_phone_number_id = COALESCE(EXCLUDED.business_phone_number_id, crm_whatsapp_conversations.business_phone_number_id),
-        updated_at = NOW()
-      RETURNING id
-    `;
-    return getWhatsAppConversation(rows[0].id);
+    const identity=phoneIdentityVariants(phone);
+    const id=await sql.begin(async tx=>{
+      // Serialize competing webhook deliveries before searching or creating the lead.
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${'wa-contact:'+identity.key},0))`;
+      // The Business App may echo +54 while Cloud API receives +549.
+      // Reuse the same thread under the identity lock, preserving its routing number.
+      const [existing]=await tx`SELECT phone FROM crm_whatsapp_conversations
+        WHERE channel='whatsapp' AND phone=ANY(${identity.international}::text[])
+          AND (business_phone_number_id=${businessPhoneNumberId||null} OR business_phone_number_id IS NULL)
+        ORDER BY (business_phone_number_id=${businessPhoneNumberId||null}) DESC NULLS LAST,last_message_at DESC,id LIMIT 1`;
+      const conversationPhone=existing?.phone||phone;
+      let lead=await findContactLead(tx,conversationPhone);
+      if(!lead){
+        const parts=contactName.trim().split(/\s+/).filter(Boolean);
+        const split=splitInternationalPhone('+'+phone);
+        const created=await tx`INSERT INTO crm_leads(id,first_name,last_name,email,country_code,phone,status,source)
+          VALUES(${crypto.randomUUID()},${parts.shift()||'Contacto'},${parts.join(' ')||'WhatsApp'},NULL,
+            ${split.countryCode||'+54'},${split.phone||phone},'Nuevo','WhatsApp IA') RETURNING id,assigned_agent_id`;
+        lead=created[0];
+      }
+      await tx`INSERT INTO crm_whatsapp_phone_aliases(phone_key,lead_id) VALUES(${identity.key},${lead.id}) ON CONFLICT(phone_key) DO NOTHING`;
+      const rows=await tx`
+        INSERT INTO crm_whatsapp_conversations (id,phone,contact_name,lead_id,business_phone_number_id,ai_enabled,assigned_agent_id,ai_assist_assigned)
+        VALUES (${crypto.randomUUID()},${conversationPhone},${contactName.trim()},${lead.id},${businessPhoneNumberId||null},${allowNewAi&&businessPhoneNumberId!==WHATSAPP_TEST_PHONE_ID},${lead.assigned_agent_id||null},${allowNewAi&&Boolean(lead.assigned_agent_id)})
+        ON CONFLICT(phone) DO UPDATE SET
+          contact_name=COALESCE(NULLIF(EXCLUDED.contact_name,''),crm_whatsapp_conversations.contact_name),
+          lead_id=EXCLUDED.lead_id,
+          ai_enabled=CASE WHEN crm_whatsapp_conversations.business_phone_number_id IS NULL AND crm_whatsapp_conversations.id=md5('history-contact:'||crm_whatsapp_conversations.lead_id::text)::uuid THEN EXCLUDED.ai_enabled ELSE crm_whatsapp_conversations.ai_enabled END,
+          ai_assist_assigned=CASE WHEN crm_whatsapp_conversations.business_phone_number_id IS NULL AND crm_whatsapp_conversations.id=md5('history-contact:'||crm_whatsapp_conversations.lead_id::text)::uuid THEN EXCLUDED.ai_assist_assigned ELSE crm_whatsapp_conversations.ai_assist_assigned END,
+          assigned_agent_id=COALESCE(EXCLUDED.assigned_agent_id,crm_whatsapp_conversations.assigned_agent_id),
+          business_phone_number_id=COALESCE(EXCLUDED.business_phone_number_id,crm_whatsapp_conversations.business_phone_number_id),updated_at=NOW()
+        RETURNING id`;
+      return rows[0].id;
+    });
+    return getWhatsAppConversation(id);
   } finally { await sql.end(); }
 }
 
-export async function ensureSocialContact(channel: "instagram" | "facebook", externalContactId: string, contactName = "") {
+export async function ensureSocialContact(channel: "instagram" | "facebook", externalContactId: string, contactName = "", options: { enableAi?: boolean } = {}) {
   await ensureWhatsAppInboxSchema();
+  const allowNewAi=(await getMiaAccess()).mode==='all';
   const sql = connection();
   try {
     const id = await sql.begin(async (tx) => {
       const rows = await tx`
-        INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, channel, external_contact_id, ai_enabled)
-        VALUES (${crypto.randomUUID()}, ${`${channel}:${externalContactId}`}, ${contactName.trim() || (channel === "instagram" ? "Consulta de Instagram" : "Consulta de Facebook")}, ${channel}, ${externalContactId}, FALSE)
+        INSERT INTO crm_whatsapp_conversations (id, phone, contact_name, channel, external_contact_id, ai_enabled, ai_assist_assigned)
+        VALUES (${crypto.randomUUID()}, ${`${channel}:${externalContactId}`}, ${contactName.trim() || (channel === "instagram" ? "Consulta de Instagram" : "Consulta de Facebook")}, ${channel}, ${externalContactId}, ${allowNewAi&&options.enableAi === true}, ${allowNewAi&&options.enableAi === true})
         ON CONFLICT (channel, external_contact_id) WHERE external_contact_id IS NOT NULL DO UPDATE SET
           contact_name = CASE WHEN ${contactName.trim()} <> '' THEN ${contactName.trim()} ELSE crm_whatsapp_conversations.contact_name END,
           updated_at = NOW()
@@ -210,7 +233,7 @@ export async function ensureSocialContact(channel: "instagram" | "facebook", ext
         const result = await upsertCrmLeadByEmail({
           firstName: profileName || current.contact_name, lastName: "-",
           email: `${channel}-${externalContactId}@sin-email.barrerabrokers.local`,
-          countryCode: "+54", phone: "", status: "NEW", source: channel === "instagram" ? "Instagram" : "Facebook",
+          countryCode: "+54", phone: "", status: "Nuevo", source: channel === "instagram" ? "Instagram" : "Facebook",
           assignedAgentId: current.assigned_agent_id || undefined,
           notes: `Contacto recibido por ${channel === "instagram" ? "Instagram" : "Facebook"}. Todavía no informó teléfono ni correo.`,
         }, { preservePopulatedFields: true, leaveUnassignedOnCreate: true });
@@ -223,7 +246,7 @@ export async function ensureSocialContact(channel: "instagram" | "facebook", ext
   } finally { await sql.end(); }
 }
 
-export async function listWhatsAppMessages(conversationId: string, limit = 100) {
+export async function listWhatsAppMessages(conversationId: string, limit: number | null = 100, beforeId?: string, inboxOnly = false) {
   await ensureWhatsAppInboxSchema();
   const sql = connection();
   try {
@@ -231,12 +254,14 @@ export async function listWhatsAppMessages(conversationId: string, limit = 100) 
       SELECT m.*, a.name AS sender_name FROM crm_whatsapp_messages m
       LEFT JOIN agents a ON a.id = m.sender_agent_id
       WHERE m.conversation_id = ${conversationId}
-      ORDER BY m.created_at DESC LIMIT ${Math.min(Math.max(limit, 1), 200)}
+        AND (${!inboxOnly} OR (m.status <> 'historical' AND (m.sender_type IN ('customer','ai','agent') OR m.status='cleared')))
+        AND (${beforeId || null}::uuid IS NULL OR (m.created_at,m.id)<(SELECT created_at,id FROM crm_whatsapp_messages WHERE id=${beforeId || null}::uuid AND conversation_id=${conversationId}))
+      ORDER BY m.created_at DESC,m.id DESC LIMIT ${limit === null ? null : Math.min(Math.max(limit, 1), 200)}
     `;
     return rows.reverse().map((row: any): WhatsAppMessage => ({
       id: row.id, conversationId: row.conversation_id, whatsappMessageId: row.whatsapp_message_id || undefined,
       direction: row.direction, senderType: row.sender_type, senderAgentId: row.sender_agent_id || undefined,
-      senderName: row.sender_name || undefined, content: row.content, status: row.status,
+      senderName: row.sender_name || undefined, content: row.content, status: row.status, attachment: row.attachment || undefined,
       createdAt: new Date(row.created_at).toISOString(),
     }));
   } finally { await sql.end(); }
@@ -258,27 +283,30 @@ export async function listWhatsAppMessagesForLead(leadId: string, phoneValue: st
     return rows.reverse().map((row: any): WhatsAppMessage => ({
       id: row.id, conversationId: row.conversation_id, whatsappMessageId: row.whatsapp_message_id || undefined,
       direction: row.direction, senderType: row.sender_type, senderAgentId: row.sender_agent_id || undefined,
-      senderName: row.sender_name || undefined, content: row.content, status: row.status,
+      senderName: row.sender_name || undefined, content: row.content, status: row.status, attachment: row.attachment || undefined,
       createdAt: new Date(row.created_at).toISOString(),
     }));
   } finally { await sql.end(); }
 }
 
 export async function saveWhatsAppMessage(data: {
-  conversationId: string; whatsappMessageId?: string; direction: "inbound" | "outbound";
-  senderType: "customer" | "ai" | "agent"; senderAgentId?: string; content: string; status?: string;
-  createdAt?: string; historical?: boolean;
+  conversationId: string; whatsappMessageId?: string; direction: "inbound" | "outbound" | "unknown";
+  senderType: "customer" | "ai" | "agent" | "history"; senderAgentId?: string; content: string; status?: string;
+  createdAt?: string; historical?: boolean; attachment?: WhatsAppAttachment;
 }) {
   await ensureWhatsAppInboxSchema();
   const sql = connection();
   const createdAt = data.createdAt || new Date().toISOString();
   try {
     return await sql.begin(async tx => {
+      // Keep conversation → lead lock order consistent with Mía's commit and human controls.
+      await tx`SELECT id FROM crm_whatsapp_conversations WHERE id=${data.conversationId} FOR UPDATE`;
       const rows = await tx`
-        INSERT INTO crm_whatsapp_messages (id, conversation_id, whatsapp_message_id, direction, sender_type, sender_agent_id, content, status, created_at)
-        VALUES (${crypto.randomUUID()}, ${data.conversationId}, ${data.whatsappMessageId || null}, ${data.direction}, ${data.senderType}, ${data.senderAgentId || null}, ${data.content}, ${data.status || "sent"}, ${createdAt})
+        INSERT INTO crm_whatsapp_messages (id, conversation_id, whatsapp_message_id, direction, sender_type, sender_agent_id, content, status, created_at, attachment)
+        VALUES (${crypto.randomUUID()}, ${data.conversationId}, ${data.whatsappMessageId || null}, ${data.direction}, ${data.senderType}, ${data.senderAgentId || null}, ${data.content}, ${data.status || "sent"}, ${createdAt}, ${data.attachment ? tx.json(data.attachment) : null})
         ON CONFLICT (whatsapp_message_id) DO NOTHING RETURNING id
       `;
+      if (data.direction === "inbound") await persistWhatsAppLeadForm(tx, data.conversationId, data.content, data.whatsappMessageId || String(rows[0]?.id || ""), createdAt);
       if (!rows[0]) return false;
       await tx`
         UPDATE crm_whatsapp_conversations SET
@@ -287,6 +315,9 @@ export async function saveWhatsAppMessage(data: {
           unread_count = CASE WHEN ${data.direction} = 'inbound' AND ${!data.historical} THEN unread_count + 1 ELSE unread_count END,
           updated_at = NOW() WHERE id = ${data.conversationId}
       `;
+      if(data.direction==='inbound'&&data.senderType==='customer'&&!data.historical&&data.status!=='historical')
+        await notifyCompanyWhatsAppReply(tx,data.conversationId,data.whatsappMessageId||String(rows[0].id));
+      if(!data.historical&&data.status!=="historical"&&data.status!=="cleared"&&data.direction!=="unknown")await recordMiaSalesWhatsAppInteraction(tx,{conversationId:data.conversationId,messageId:data.whatsappMessageId||String(rows[0].id),direction:data.direction,content:data.content,ai:data.senderType==="ai"});
       return true;
     });
   } finally { await sql.end(); }
@@ -306,31 +337,37 @@ export async function recordWhatsAppRead(messageId:string,businessPhoneNumberId:
 }
 
 export async function updateWhatsAppConversation(id: string, data: {
-  assignedAgentId?: string | null; aiEnabled?: boolean; status?: "open" | "closed";
-  lockAgentId?: string; markRead?: boolean;
+  assignedAgentId?: string | null; aiEnabled?: boolean; aiAssistAssigned?:boolean; status?: "open" | "closed";
+  ownerActorId?: string; lockAgentId?: string; markRead?: boolean;
 }) {
   await ensureWhatsAppInboxSchema();
   const sql = connection();
   try {
+    await sql.begin(async tx => {
+    const access=await getMiaAccess(tx);
+    if((data.aiEnabled===true||data.aiAssistAssigned===true)&&!miaAccessAllows(access,id))throw new Error('Mía está en modo de prueba: solo está autorizada la conversación con Pablo Barrera.');
+    await tx`SELECT set_config('crm.owner_actor_id', ${data.ownerActorId || data.lockAgentId || ""}, true)`;
     if (data.lockAgentId) {
-      const locked = await sql`
+      const locked = await tx`
         UPDATE crm_whatsapp_conversations SET locked_by = ${data.lockAgentId}, locked_until = NOW() + INTERVAL '2 minutes',
-          assigned_agent_id = COALESCE(assigned_agent_id, ${data.lockAgentId}), ai_enabled = FALSE, updated_at = NOW()
-        WHERE id = ${id} AND (locked_by IS NULL OR locked_by = ${data.lockAgentId} OR locked_until < NOW()) RETURNING id
+          assigned_agent_id = COALESCE(assigned_agent_id, ${data.lockAgentId}), ai_enabled = CASE WHEN ${access.manualPause===true} THEN ai_enabled ELSE FALSE END, updated_at = NOW()
+        WHERE id = ${id} AND (reply_send_token IS NULL OR locked_until<NOW()) AND (locked_by IS NULL OR locked_by = ${data.lockAgentId} OR locked_until < NOW()) RETURNING id
       `;
       if (!locked[0]) throw new Error("Otro agente está atendiendo esta conversación.");
-      await sql`
+      await tx`
         UPDATE crm_leads SET assigned_agent_id = (SELECT assigned_agent_id FROM crm_whatsapp_conversations WHERE id = ${id}), updated_at = NOW()
         WHERE id = (SELECT lead_id FROM crm_whatsapp_conversations WHERE id = ${id})
       `;
     }
     if (data.assignedAgentId !== undefined) {
-      await sql`UPDATE crm_whatsapp_conversations SET assigned_agent_id = ${data.assignedAgentId}, locked_by = NULL, locked_until = NULL, updated_at = NOW() WHERE id = ${id}`;
-      await sql`UPDATE crm_leads SET assigned_agent_id = ${data.assignedAgentId}, updated_at = NOW() WHERE id = (SELECT lead_id FROM crm_whatsapp_conversations WHERE id = ${id})`;
+      await tx`UPDATE crm_whatsapp_conversations SET assigned_agent_id = ${data.assignedAgentId}, locked_by = NULL, locked_until = NULL, updated_at = NOW() WHERE id = ${id}`;
+      await tx`UPDATE crm_leads SET assigned_agent_id = ${data.assignedAgentId}, updated_at = NOW() WHERE id = (SELECT lead_id FROM crm_whatsapp_conversations WHERE id = ${id})`;
     }
-    if (data.aiEnabled !== undefined) await sql`UPDATE crm_whatsapp_conversations SET ai_enabled = ${data.aiEnabled}, updated_at = NOW() WHERE id = ${id}`;
-    if (data.status) await sql`UPDATE crm_whatsapp_conversations SET status = ${data.status}, updated_at = NOW() WHERE id = ${id}`;
-    if (data.markRead) await sql`UPDATE crm_whatsapp_conversations SET unread_count = 0, updated_at = NOW() WHERE id = ${id}`;
+    if (data.aiEnabled !== undefined) await tx`UPDATE crm_whatsapp_conversations SET ai_enabled = ${data.aiEnabled}, updated_at = NOW() WHERE id = ${id}`;
+    if(data.aiAssistAssigned!==undefined)await tx`UPDATE crm_whatsapp_conversations SET ai_assist_assigned=${data.aiAssistAssigned},updated_at=NOW() WHERE id=${id}`;
+    if (data.status) await tx`UPDATE crm_whatsapp_conversations SET status = ${data.status}, updated_at = NOW() WHERE id = ${id}`;
+    if (data.markRead) await tx`UPDATE crm_whatsapp_conversations SET unread_count = 0, updated_at = NOW() WHERE id = ${id}`;
+    });
     return getWhatsAppConversation(id);
   } finally { await sql.end(); }
 }
@@ -351,62 +388,42 @@ export async function sendWhatsAppText(phone: string, text: string, businessPhon
   return deliverWhatsAppText(sender, phone, text, process.env.WHATSAPP_GRAPH_VERSION || "v23.0");
 }
 
+export async function sendWhatsAppAttachment(phone:string,file:File,attachment:WhatsAppAttachment,caption='',businessPhoneNumberId?:string) {
+  const saved=await getWhatsAppChannelCredentials();
+  const token=process.env.WHATSAPP_ACCESS_TOKEN||saved?.accessToken||process.env.META_ACCESS_TOKEN;
+  const phoneNumberId=process.env.WHATSAPP_PHONE_NUMBER_ID||saved?.phoneNumberId;
+  const sender=selectWhatsAppSender(businessPhoneNumberId,{token,phoneNumberId},process.env.WHATSAPP_TEST_ACCESS_TOKEN);
+  return deliverWhatsAppAttachment(sender,phone,file,attachment,caption,process.env.WHATSAPP_GRAPH_VERSION||'v23.0');
+}
+
 export async function sendMetaSocialText(channel: "instagram" | "facebook", recipientId: string, text: string) {
-  const { token, pageId } = await getMetaSocialCredentials();
-  const version = process.env.META_GRAPH_VERSION || "v23.0";
-  const response = await fetch(`https://graph.facebook.com/${version}/${pageId}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ recipient: { id: recipientId }, messaging_type: "RESPONSE", message: { text } }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result?.error?.message || `Meta rechazó el mensaje de ${channel}.`);
-  return String(result?.message_id || "") || undefined;
+  return deliverMetaSocialText(channel, await getMetaSocialCredentials(), recipientId, text, process.env.META_GRAPH_VERSION || 'v26.0');
 }
 
 export function shouldEscalateConversation(text: string) {
-  return /\b(asesor|agente|persona|humano|hablar con|llamar|llamada|visita|reuni[oó]n|reservar|se[ñn]ar)\b/i.test(text);
+  return requestsHuman(text);
 }
 
-export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const input = messages.slice(-20).map((message) => ({
-    role: message.direction === "inbound" ? "user" : "assistant",
-    content: message.content,
-  }));
-  const instructions = process.env.WHATSAPP_AI_INSTRUCTIONS || `Sos el asistente comercial de Barrera Brokers. Respondé en español rioplatense, con mensajes breves y amables. Tu objetivo es entender si busca comprar, vender o invertir; zona, presupuesto, ambientes y plazo. No inventes propiedades, precios, disponibilidad, rentabilidad ni condiciones. Si falta información real, decí que un asesor lo confirmará. Pedí nombre y email si aún no figuran. Cuando solicite una persona, visita, negociación o información sensible, indicá que lo derivás al equipo. Nunca brindes asesoramiento legal o financiero definitivo.`;
-  if (!apiKey && process.env.GROQ_API_KEY) {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.GROQ_CRM_MODEL || "openai/gpt-oss-120b",
-        temperature: 0.3,
-        max_completion_tokens: 350,
-        messages: [{ role: "system", content: instructions }, ...input],
-      }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result?.error?.message || "No se pudo generar la respuesta con Groq.");
-    const text = result?.choices?.[0]?.message?.content;
-    if (!text) throw new Error("Groq no devolvió una respuesta.");
-    return String(text).trim();
-  }
-  if (!apiKey) throw new Error("Falta configurar OPENAI_API_KEY o GROQ_API_KEY.");
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env.OPENAI_WHATSAPP_MODEL || "gpt-5.4",
-      store: false,
-      max_output_tokens: 350,
-      instructions,
-      input,
-    }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result?.error?.message || "No se pudo generar la respuesta de IA.");
-  const text = result.output_text || result.output?.flatMap((item: any) => item.content || []).find((item: any) => item.type === "output_text")?.text;
-  if (!text) throw new Error("La IA no devolvió una respuesta.");
-  return String(text).trim();
+async function loadWhatsAppLeadContext(conversationId?: string): Promise<Record<string, unknown>> {
+  if (!conversationId) return {};
+  const sql = connection();
+  try {
+    const [row] = await sql`SELECT c.channel, c.contact_name, l.first_name, l.last_name, l.email, l.development_name_text,
+      l.meta_properties, d.name AS development_name FROM crm_whatsapp_conversations c
+      LEFT JOIN crm_leads l ON l.id = c.lead_id LEFT JOIN developments d ON d.id = l.development_id
+      WHERE c.id = ${conversationId} LIMIT 1`;
+    if (!row) return {};
+    const properties = row.meta_properties || {};
+    const fields = Object.fromEntries(Object.entries(properties).filter(([key]) => key.startsWith("meta_field_") || ["meta_form_name", "meta_campaign_name", "meta_ad_name", "meta_created_time"].includes(key)).slice(0, 40).map(([key,value])=>[key, String(value || "").slice(0,1000)]));
+    return { channel: row.channel, nombre: [row.first_name, row.last_name].filter(Boolean).join(" ") || row.contact_name,
+      email: row.email?.endsWith(".barrerabrokers.local") ? undefined : row.email,
+      desarrollo: row.development_name || row.development_name_text || undefined, formularioMeta: fields };
+  } finally { await sql.end(); }
+}
+
+export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Promise<string | null> {
+  const id = messages[0]?.conversationId;
+  if (!id || !miaAccessAllows(await getMiaAccess(), id)) return null;
+  const history = await listWhatsAppMessages(id, null);
+  return generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
 }

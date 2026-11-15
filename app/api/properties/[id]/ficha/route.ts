@@ -1,3 +1,4 @@
+import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -22,7 +23,7 @@ export async function GET(
     property?.visibility === "agents" &&
     hasValidShareToken(shareToken, "property", params.id);
 
-  if (!property || (property.visibility === "agents" && !session && !hasSharedAccess)) {
+  if (!property || !canReadListing(property.visibility, session?.user.role, Boolean(hasSharedAccess))) {
     return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
   }
 

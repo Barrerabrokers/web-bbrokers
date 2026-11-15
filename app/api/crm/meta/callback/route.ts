@@ -13,6 +13,10 @@ function finish(result: string, errorCode?: number) {
   response.cookies.set("crm_meta_social_state", "", { path: "/api/crm/meta", maxAge: 0 });
   return response;
 }
+function denied(stage: string, response: Response, data: { error?: { code?: number; error_subcode?: number; fbtrace_id?: string } }) {
+  console.warn("meta_lead_connection_denied", { stage, status: response.status, code: data.error?.code, subcode: data.error?.error_subcode, traceId: data.error?.fbtrace_id });
+  return finish("leads_denied", data.error?.code);
+}
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const state = request.nextUrl.searchParams.get("state");
@@ -39,20 +43,29 @@ export async function GET(request: NextRequest) {
     // A partial consent must never replace the existing working Lead Ads token.
     const permissionsResponse = await fetch(`${base}/me/permissions`, { headers: { Authorization: `Bearer ${longToken.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const permissions = await permissionsResponse.json();
-    if (!permissionsResponse.ok || !Array.isArray(permissions.data) || !permissions.data.some((item: { permission?: string; status?: string }) => item.permission === "leads_retrieval" && item.status === "granted")) return finish("leads_denied");
+    if (!permissionsResponse.ok || !Array.isArray(permissions.data) || !permissions.data.some((item: { permission?: string; status?: string }) => item.permission === "leads_retrieval" && item.status === "granted")) return denied("permissions", permissionsResponse, permissions);
     // Resolve only the Page already configured for this CRM, never another business.
     const pageId = process.env.META_CRM_PAGE_ID || process.env.META_PAGE_ID || process.env.META_SOCIAL_PAGE_ID;
     if (!pageId) return finish("unavailable");
     const pageResponse = await fetch(`${base}/${pageId}?fields=id,name,access_token`, { headers: { Authorization: `Bearer ${longToken.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const page = await pageResponse.json();
     if (!pageResponse.ok || !page.access_token) return finish("page_denied");
-    const formsResponse = await fetch(`${base}/${pageId}/leadgen_forms?fields=id&limit=1`, { headers: { Authorization: `Bearer ${page.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const formsResponse = await fetch(`${base}/${pageId}/leadgen_forms?fields=id&limit=10`, { headers: { Authorization: `Bearer ${page.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
     const forms = await formsResponse.json();
-    if (!formsResponse.ok || !Array.isArray(forms.data)) return finish("leads_denied");
-    if (forms.data[0]?.id) {
-      const leadsResponse = await fetch(`${base}/${encodeURIComponent(forms.data[0].id)}/leads?fields=id&limit=1`, { headers: { Authorization: `Bearer ${page.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
-      const leads = await leadsResponse.json();
-      if (!leadsResponse.ok || !Array.isArray(leads.data)) return finish("leads_denied");
+    if (!formsResponse.ok || !Array.isArray(forms.data)) return denied("forms", formsResponse, forms);
+    if (forms.data.length) {
+      // A form belonging to another integration may be unreadable. Verify a
+      // positive read on this page before replacing the existing credential.
+      const probes = await Promise.allSettled(forms.data.slice(0, 10).map(async (form: { id: string }) => {
+        const response = await fetch(`${base}/${encodeURIComponent(form.id)}/leads?fields=id&limit=1`, { headers: { Authorization: `Bearer ${page.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15000) });
+        const data = await response.json();
+        return { ok: response.ok && Array.isArray(data.data), response, data };
+      }));
+      if (!probes.some(p => p.status === "fulfilled" && p.value.ok)) {
+        const failure = probes.find(p => p.status === "fulfilled");
+        if (failure?.status === "fulfilled") return denied("form_leads", failure.value.response, failure.value.data);
+        return finish("unavailable");
+      }
     }
     await socialConnectionStore({ token: page.access_token, pageId, appId, userToken: longToken.access_token });
     resetMetaSocialCredentials();

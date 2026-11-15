@@ -1,7 +1,8 @@
+import { isCrmDevelopmentName } from "@/lib/crm-campaign";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getAllAgents, getCrmDataProperties, getCrmLeadsPage } from "@/lib/db";
+import { getAllAgents, getCrmActivities, getCrmDataProperties, getCrmLeadsPage, getCrmOccupationOptions } from "@/lib/db";
 import { HUBSPOT_LEAD_STATUS_OPTIONS } from "@/lib/crm-statuses";
 import { getDevelopmentOptions } from "@/lib/developments-db";
 import { canManageListings, canViewAllCrmContacts } from "@/lib/roles";
@@ -19,7 +20,7 @@ export default async function AdminCrmPage() {
   }
 
   const canAssignTeam = canViewAllCrmContacts(session.user.role);
-  const [leadPage, developments, agents, customProperties] = await Promise.all([
+  const [leadPage, developments, agents, customProperties, occupations] = await Promise.all([
     getCrmLeadsPage({
       agentId: session.user.id,
       includeAll: canAssignTeam,
@@ -32,22 +33,19 @@ export default async function AdminCrmPage() {
     getDevelopmentOptions(),
     getAllAgents(),
     getCrmDataProperties(),
+    getCrmOccupationOptions({ agentId: session.user.id, includeAll: canAssignTeam }),
   ]);
 
-  const customLeadStatuses = customProperties.filter((property) => property.type === "lead_status");
   const customDevelopments = customProperties.filter((property) => property.type === "development");
+  const initialActivities = await getCrmActivities(leadPage.leads.map((lead) => lead.id));
 
   const crmDevelopmentOptions = [
+    ...customDevelopments.filter(property => property.active && isCrmDevelopmentName(property.localDevelopmentName || property.label) && !developments.some(d => d.id === property.localDevelopmentId || d.name.trim().toLowerCase() === (property.localDevelopmentName || property.label).trim().toLowerCase())).map(property => ({ id: property.localDevelopmentId || `text:${property.label}`, name: property.localDevelopmentName || property.label })),
     ...developments.map((development) => ({
       id: development.id,
       name: development.name,
     })),
-    ...customDevelopments
-      .filter((property) => property.active)
-      .map((property) => ({
-        id: property.localDevelopmentId || `text:${property.label}`,
-        name: property.localDevelopmentName || property.label,
-      })),
+
   ];
 
   const safeAgents = agents.filter(agent => agent.active && canManageListings(agent.role)).map(agent => ({
@@ -60,18 +58,11 @@ export default async function AdminCrmPage() {
       <CrmBoard
         initialLeads={leadPage.leads}
         initialTotal={leadPage.total}
-        initialActivities={[]}
+        initialActivities={initialActivities}
         agents={safeAgents}
         developments={crmDevelopmentOptions}
-        leadStatusOptions={[
-          ...HUBSPOT_LEAD_STATUS_OPTIONS,
-          ...customLeadStatuses
-            .filter((property) => property.active)
-            .map((property) => ({
-              value: property.hubspotValue || property.value,
-              label: property.label,
-            })),
-        ]}
+        occupations={occupations}
+        leadStatusOptions={[...HUBSPOT_LEAD_STATUS_OPTIONS]}
         currentUserId={session.user.id}
         canAssignTeam={canAssignTeam}
       />

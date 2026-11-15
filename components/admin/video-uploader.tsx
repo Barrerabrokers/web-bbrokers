@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Video, Upload, X, Loader2, Film } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useId, useRef, useState } from "react";
+import { Video, X, Loader2, Film } from "lucide-react";
+import { PortraitVideo } from "@/components/viewport-video";
+import { normalizeYouTubeVideoUrl, getYouTubeVideoId } from "@/lib/youtube-video";
 import { uploadPublicFile } from "@/lib/authorized-upload";
 import { removeAudioFromVideoFile } from "@/lib/video-utils";
 
@@ -25,6 +26,8 @@ export function VideoUploader({
   label = "Video del desarrollo",
   maxSizeMB = MAX_VIDEO_SIZE_MB,
 }: VideoUploaderProps) {
+  const youtubeInputId = useId();
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -37,6 +40,21 @@ export function VideoUploader({
   const emitChange = (nextUrls: string[]) => {
     if (onUrlsChange) onUrlsChange(nextUrls);
     else onChange?.(nextUrls[0] || null);
+  };
+
+  const addYouTubeVideo = (value = youtubeUrl) => {
+    const normalized = normalizeYouTubeVideoUrl(value);
+    if (!normalized) {
+      setError("Pegá un enlace válido de un video de YouTube (normal, compartido o Shorts).");
+      return;
+    }
+    if (urls.some((url) => getYouTubeVideoId(url) === getYouTubeVideoId(normalized))) {
+      setError("Ese video de YouTube ya está agregado.");
+      return;
+    }
+    emitChange(allowsMultiple ? [...urls, normalized] : [normalized]);
+    setYoutubeUrl("");
+    setError("");
   };
 
   const handleFile = async (file: File, currentUrls = urls): Promise<string | null> => {
@@ -68,7 +86,7 @@ export function VideoUploader({
       const ext = silentFile.name.split(".").pop() || "webm";
       const fileName = `video-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-      const { error: uploadError } = await uploadPublicFile(fileName, silentFile, {
+      const { error: uploadError, url: uploadedUrl } = await uploadPublicFile(fileName, silentFile, {
           cacheControl: "3600",
           upsert: false,
           contentType: silentFile.type,
@@ -76,9 +94,7 @@ export function VideoUploader({
 
       if (uploadError) throw new Error(uploadError.message);
 
-      const { data: urlData } = supabase.storage
-        .from("properties")
-        .getPublicUrl(fileName);
+      const urlData = { publicUrl: uploadedUrl! };
 
       emitChange([...currentUrls, urlData.publicUrl]);
       setProgress(100);
@@ -109,26 +125,35 @@ export function VideoUploader({
 
   return (
     <div>
-      <label className="label-tracking text-ink/85 block mb-3">{label}</label>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="label-tracking text-ink/85">{label}</span>
+        {allowsMultiple && urls.length > 0 && (
+          <span className="text-xs text-ink/70" aria-live="polite">{urls.length} {urls.length === 1 ? "video agregado" : "videos agregados"}</span>
+        )}
+      </div>
+      {allowsMultiple && (
+        <p className="mb-4 text-sm text-ink/70">Agregá avances de obra y videos de marketing. Cada video nuevo se suma a los anteriores.</p>
+      )}
 
       {error && (
-        <div className="mb-3 bg-red-50 border-l-4 border-red-500 text-red-700 px-3 py-2 text-sm">
+        <div role="alert" className="mb-3 bg-red-50 border-l-4 border-red-500 text-red-700 px-3 py-2 text-sm">
           {error}
         </div>
       )}
 
       {urls.length > 0 && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <div className="mb-4 flex flex-wrap gap-4">
           {urls.map((url, index) => (
-            <div key={url} className="relative overflow-hidden rounded-lg border border-ink/15 bg-ink/5">
-              <video
+            <div key={url} className="relative w-full max-w-[220px] overflow-hidden rounded-lg border border-ink/15 bg-ink/5">
+              <PortraitVideo
                 src={url}
+                aria-label={`Video ${index + 1}`}
+                controls
                 muted
                 playsInline
                 preload="metadata"
-                className="aspect-video w-full object-cover"
               />
-              <span className="absolute bottom-2 left-2 rounded-full bg-ink/75 px-2 py-1 text-[10px] text-white">
+              <span className="pointer-events-none absolute bottom-12 left-2 rounded-full bg-ink/75 px-2 py-1 text-[10px] text-white">
                 Video {index + 1}
               </span>
               <button
@@ -147,6 +172,44 @@ export function VideoUploader({
       {/* Botones de upload */}
       {(allowsMultiple || urls.length === 0) && (
         <div className="space-y-3">
+          <div className="space-y-2">
+            <label htmlFor={youtubeInputId} className="block text-sm font-medium text-ink">Enlace de YouTube</label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                id={youtubeInputId}
+                type="url"
+                value={youtubeUrl}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setYoutubeUrl(value);
+                  event.target.setCustomValidity(value.trim() && !normalizeYouTubeVideoUrl(value) ? "Pegá un enlace válido de YouTube." : "");
+                }}
+                onPaste={(event) => {
+                  const value = event.clipboardData.getData("text");
+                  if (normalizeYouTubeVideoUrl(value)) {
+                    event.preventDefault();
+                    event.currentTarget.setCustomValidity("");
+                    addYouTubeVideo(value);
+                  }
+                }}
+                onBlur={() => {
+                  if (youtubeUrl.trim() && !isUploading) addYouTubeVideo();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (youtubeUrl.trim() && !isUploading) addYouTubeVideo();
+                  }
+                }}
+                placeholder="https://www.youtube.com/watch?v=..."
+                disabled={isUploading}
+                className="min-w-0 flex-1 rounded-lg border border-ink/20 bg-white px-3 py-2 text-sm text-ink placeholder:text-ink/60"
+                aria-describedby={`${youtubeInputId}-help`}
+              />
+              <button type="button" onClick={() => addYouTubeVideo()} disabled={isUploading || !youtubeUrl.trim()} className="rounded-lg bg-ink px-4 py-2 text-sm text-white disabled:opacity-50">Agregar video</button>
+            </div>
+            <p id={`${youtubeInputId}-help`} className="text-xs text-ink/70">Al pegar un enlace válido, el video se agrega automáticamente. Guardá la ficha para conservarlo.</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {/* Grabar video desde cámara */}
             <button
@@ -171,7 +234,7 @@ export function VideoUploader({
             >
               <Video className="h-5 w-5 text-ink/70" />
               <span className="label-tracking text-xs text-ink">
-                Elegir video
+                {allowsMultiple ? "Elegir videos" : "Elegir video"}
               </span>
               <span className="text-[10px] text-ink/50">Galería / archivos</span>
             </button>
@@ -206,6 +269,7 @@ export function VideoUploader({
             ref={fileInputRef}
             type="file"
             accept="video/*"
+            multiple={allowsMultiple}
             onChange={handleSelect}
             className="hidden"
           />
@@ -213,7 +277,7 @@ export function VideoUploader({
       )}
 
       <p className="text-xs text-ink/50 mt-3">
-        MP4, MOV, WebM. Máx {maxSizeMB}MB por video. Se sube una copia sin audio.
+        Enlaces de YouTube sin subir archivos. MP4, MOV, WebM: máx {maxSizeMB}MB por archivo; se guarda una copia sin audio.
       </p>
     </div>
   );

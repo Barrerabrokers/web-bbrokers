@@ -1,3 +1,8 @@
+import { SortableCatalog } from "@/components/admin/sortable-catalog";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { canManageSiteSettings } from "@/lib/roles";
+import { ViewportVideo } from "@/components/viewport-video";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus, Building2 } from "lucide-react";
@@ -9,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function PropertiesAdminPage() {
-  const properties = await getProperties();
+  const [session, properties] = await Promise.all([getServerSession(authOptions), getProperties()]);
 
   const statusStyles: Record<string, string> = {
     disponible: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
@@ -38,7 +43,7 @@ export default async function PropertiesAdminPage() {
       </div>
 
       {/* Properties List */}
-      <div className="space-y-3">
+      <SortableCatalog key={properties.map(item => item.id).join(",")} kind="properties" canEdit={canManageSiteSettings(session?.user.role)} items={properties.map(property => ({ id: property.id, label: property.title }))} className="space-y-3">
         {properties.map((property) => (
           <div
             key={property.id}
@@ -46,7 +51,7 @@ export default async function PropertiesAdminPage() {
           >
             <div className="md:w-56 h-44 md:h-auto relative bg-cream-100 flex-shrink-0">
               {property.videoIsPrimary && property.videoUrls?.[0] ? (
-                <video
+                <ViewportVideo
                   src={property.videoUrls[0]}
                   muted
                   playsInline
@@ -141,7 +146,7 @@ export default async function PropertiesAdminPage() {
             </div>
           </div>
         ))}
-      </div>
+      </SortableCatalog>
 
       {properties.length === 0 && (
         <div className="card p-16 text-center">

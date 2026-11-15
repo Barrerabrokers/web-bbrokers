@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { PUBLIC_NAVIGATION } from "@/lib/public-navigation-links";
+import { LanguageSwitcher } from "@/components/i18n/site-language";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,15 +20,7 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navItems = [
-    { href: "/#desarrollos", label: "Desarrollos" },
-    { href: "/#desarrollos-terminados", label: "Terminados" },
-    { href: "/#mapa", label: "Mapa" },
-    { href: "/#modelo", label: "Inversión" },
-    { href: "/#prensa", label: "Prensa" },
-    { href: "/#rentals", label: "Rentals" },
-    { href: "/#propiedades", label: "Propiedades" },
-  ];
+  const navItems = PUBLIC_NAVIGATION;
 
   // Render del wordmark: primera palabra normal, resto en italic
   const [firstWord, ...rest] = settings.companyName.split(" ");
@@ -49,9 +43,9 @@ export function Header() {
           transitionTimingFunction: "var(--f-drawer)",
         }}
       >
-        <div className="mx-auto flex w-full max-w-[1880px] items-center justify-between gap-5 px-5 md:px-8 xl:px-12 2xl:px-16">
+        <div className="mx-auto flex w-full max-w-[1880px] items-center justify-between gap-3 px-5 md:gap-5 md:px-8 xl:px-12 2xl:px-16">
           {/* Logo — siempre blanco sobre el hero */}
-          <Link href="/" className="flex shrink-0 items-center gap-4">
+          <Link href="/" className="flex shrink-0 items-center gap-2 md:gap-4">
             <Image
               src={settings.logoUrl}
               alt={settings.companyName}
@@ -60,8 +54,8 @@ export function Header() {
               priority
               className="h-11 w-11 object-contain md:h-12 md:w-12 xl:h-14 xl:w-14"
             />
-            <span className="flex flex-col">
-              <span className="whitespace-nowrap font-display text-2xl tracking-[-0.04em] leading-none md:text-3xl xl:text-[2rem]" style={{ color: "#f8f5ef" }}>
+            <span className="flex flex-col max-[380px]:hidden">
+              <span className="whitespace-nowrap font-display text-xl tracking-[-0.04em] sm:text-2xl leading-none md:text-3xl xl:text-[2rem]" style={{ color: "#f8f5ef" }}>
                 {firstWord}
                 {restWords && (
                   <>
@@ -105,6 +99,7 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex shrink-0 items-center gap-2 xl:gap-3">
+            <LanguageSwitcher />
             <SocialLinks
               iconOnly
               className="hidden flex-nowrap gap-1.5 xl:flex [&_a]:h-8 [&_a]:w-8 [&_svg]:h-3.5 [&_svg]:w-3.5 2xl:[&_a]:h-9 2xl:[&_a]:w-9 2xl:[&_svg]:h-4 2xl:[&_svg]:w-4"
@@ -186,11 +181,7 @@ export function Header() {
 
             {/* Nav links */}
             <nav className="flex-1 flex flex-col items-center justify-center gap-1 px-5 py-10">
-              {[
-                ...navItems,
-                { href: "/#nosotros", label: "Nosotros" },
-                { href: "/#contacto", label: "Contacto" },
-              ].map((item, idx) => (
+              {navItems.map((item, idx) => (
                 <motion.a
                   key={item.href}
                   href={item.href}

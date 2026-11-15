@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useSiteSettings } from "@/lib/use-site-settings";
 import { SocialLinks } from "@/components/social-links";
 
@@ -52,7 +53,8 @@ export function ContactSection() {
       });
 
       if (response.ok) {
-        setStatus("success");
+        trackMetaEvent("Lead", { content_name: "Consulta web" });
+      setStatus("success");
         setFormData({ name: "", email: "", phone: "", interestZone: "", message: "" });
         setTimeout(() => setStatus("idle"), 5000);
       } else {

@@ -1,0 +1,1502 @@
+[
+  {
+    "code": "11",
+    "locality": "Amba",
+    "province": null
+  },
+  {
+    "code": "220",
+    "locality": "Merlo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "221",
+    "locality": "La Plata",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "223",
+    "locality": "Mar Del Plata",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "230",
+    "locality": "Pilar",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "236",
+    "locality": "Junin",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "237",
+    "locality": "Moreno",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "249",
+    "locality": "Tandil",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "260",
+    "locality": "San Rafael",
+    "province": "Mendoza"
+  },
+  {
+    "code": "261",
+    "locality": "Mendoza",
+    "province": "Mendoza"
+  },
+  {
+    "code": "263",
+    "locality": "San Martin",
+    "province": "Mendoza"
+  },
+  {
+    "code": "264",
+    "locality": "San Juan",
+    "province": "San Juan"
+  },
+  {
+    "code": "266",
+    "locality": "San Luis",
+    "province": "San Luis"
+  },
+  {
+    "code": "280",
+    "locality": "Trelew",
+    "province": "Chubut"
+  },
+  {
+    "code": "291",
+    "locality": "Bahia Blanca",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "294",
+    "locality": "San Carlos De Bariloche",
+    "province": "Río Negro"
+  },
+  {
+    "code": "297",
+    "locality": "Comodoro Rivadavia",
+    "province": "Chubut"
+  },
+  {
+    "code": "298",
+    "locality": "General Roca",
+    "province": "Río Negro"
+  },
+  {
+    "code": "299",
+    "locality": "Neuquen",
+    "province": "Neuquén"
+  },
+  {
+    "code": "336",
+    "locality": "San Nicolas",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "341",
+    "locality": "Rosario",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "342",
+    "locality": "Santa Fe",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "343",
+    "locality": "Parana",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "345",
+    "locality": "Concordia",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "348",
+    "locality": "Escobar",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "351",
+    "locality": "Cordoba",
+    "province": "Córdoba"
+  },
+  {
+    "code": "353",
+    "locality": "Villa Maria",
+    "province": "Córdoba"
+  },
+  {
+    "code": "358",
+    "locality": "Rio Cuarto",
+    "province": "Córdoba"
+  },
+  {
+    "code": "362",
+    "locality": "Resistencia",
+    "province": "Chaco"
+  },
+  {
+    "code": "364",
+    "locality": "Presidencia Roque Saenz Peña",
+    "province": "Chaco"
+  },
+  {
+    "code": "370",
+    "locality": "Formosa",
+    "province": "Formosa"
+  },
+  {
+    "code": "376",
+    "locality": "Posadas",
+    "province": "Misiones"
+  },
+  {
+    "code": "379",
+    "locality": "Corrientes",
+    "province": "Corrientes"
+  },
+  {
+    "code": "380",
+    "locality": "La Rioja",
+    "province": "La Rioja"
+  },
+  {
+    "code": "381",
+    "locality": "San Miguel De Tucuman",
+    "province": "Tucumán"
+  },
+  {
+    "code": "383",
+    "locality": "Catamarca",
+    "province": "Catamarca"
+  },
+  {
+    "code": "385",
+    "locality": "Santiago Del Estero",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "387",
+    "locality": "Salta",
+    "province": "Salta"
+  },
+  {
+    "code": "388",
+    "locality": "San Salvador De Jujuy",
+    "province": "Jujuy"
+  },
+  {
+    "code": "2202",
+    "locality": "Gonzalez Catan",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2221",
+    "locality": "Magdalena",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2223",
+    "locality": "Coronel Brandsen",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2224",
+    "locality": "Glew",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2225",
+    "locality": "Alejandro Korn",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2226",
+    "locality": "Cañuelas",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2227",
+    "locality": "Lobos",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2229",
+    "locality": "Juan Maria Gutierrez",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2241",
+    "locality": "Chascomus",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2242",
+    "locality": "Lezama",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2243",
+    "locality": "General Belgrano",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2244",
+    "locality": "Las Flores",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2245",
+    "locality": "Dolores",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2246",
+    "locality": "Santa Teresita",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2252",
+    "locality": "San Clemente Del Tuyu",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2254",
+    "locality": "Pinamar",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2255",
+    "locality": "Villa Gesell",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2257",
+    "locality": "Mar De Ajo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2261",
+    "locality": "Loberia",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2262",
+    "locality": "Necochea",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2264",
+    "locality": "La Dulce",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2265",
+    "locality": "Coronel Vidal",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2266",
+    "locality": "Balcarce",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2267",
+    "locality": "General Madariaga",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2268",
+    "locality": "Maipu",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2271",
+    "locality": "Monte",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2272",
+    "locality": "Navarro",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2273",
+    "locality": "Carmen De Areco",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2274",
+    "locality": "Carlos Spegazzini",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2281",
+    "locality": "Azul",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2283",
+    "locality": "Tapalque",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2284",
+    "locality": "Olavarria",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2285",
+    "locality": "Laprida",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2286",
+    "locality": "General Lamadrid",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2291",
+    "locality": "Miramar",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2292",
+    "locality": "Benito Juarez",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2296",
+    "locality": "Ayacucho",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2297",
+    "locality": "Rauch",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2302",
+    "locality": "General Pico",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2314",
+    "locality": "Bolívar",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2316",
+    "locality": "Daireaux",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2317",
+    "locality": "9 De Julio",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2320",
+    "locality": "Jose C. Paz",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2323",
+    "locality": "Lujan",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2324",
+    "locality": "Mercedes",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2325",
+    "locality": "San Andres De Giles",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2326",
+    "locality": "San Antonio De Areco",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2331",
+    "locality": "Realico",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2333",
+    "locality": "Quemu Quemu",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2334",
+    "locality": "Eduardo Castex",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2335",
+    "locality": "Caleufu",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2336",
+    "locality": "Huinca Renanco",
+    "province": "Córdoba"
+  },
+  {
+    "code": "2337",
+    "locality": "America",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2338",
+    "locality": "Victorica",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2342",
+    "locality": "Bragado",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2343",
+    "locality": "Norberto De La Riestra",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2344",
+    "locality": "Saladillo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2345",
+    "locality": "25 De Mayo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2346",
+    "locality": "Chivilcoy",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2352",
+    "locality": "Chacabuco",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2353",
+    "locality": "General Arenales",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2354",
+    "locality": "Vedia",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2355",
+    "locality": "Lincoln",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2356",
+    "locality": "General Pinto",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2357",
+    "locality": "Carlos Tejedor",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2358",
+    "locality": "Los Toldos",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2392",
+    "locality": "Trenque Lauquen",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2393",
+    "locality": "Salazar",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2394",
+    "locality": "Tres Lomas",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2395",
+    "locality": "Carlos Casares",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2396",
+    "locality": "Pehuajo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2473",
+    "locality": "Colon",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2474",
+    "locality": "Salto",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2475",
+    "locality": "Rojas",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2477",
+    "locality": "Pergamino",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2478",
+    "locality": "Arrecifes",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2622",
+    "locality": "Tunuyan",
+    "province": "Mendoza"
+  },
+  {
+    "code": "2624",
+    "locality": "Uspallata",
+    "province": "Mendoza"
+  },
+  {
+    "code": "2625",
+    "locality": "General Alvear",
+    "province": "Mendoza"
+  },
+  {
+    "code": "2626",
+    "locality": "La Paz",
+    "province": "Mendoza"
+  },
+  {
+    "code": "2646",
+    "locality": "San Agustin Del Valle Fertil",
+    "province": "San Juan"
+  },
+  {
+    "code": "2647",
+    "locality": "Jachal",
+    "province": "San Juan"
+  },
+  {
+    "code": "2648",
+    "locality": "Calingasta",
+    "province": "San Juan"
+  },
+  {
+    "code": "2651",
+    "locality": "San Francisco Del Monte De Oro",
+    "province": "San Luis"
+  },
+  {
+    "code": "2655",
+    "locality": "La Toma",
+    "province": "San Luis"
+  },
+  {
+    "code": "2656",
+    "locality": "Tilisarao",
+    "province": "San Luis"
+  },
+  {
+    "code": "2657",
+    "locality": "Mercedes",
+    "province": "San Luis"
+  },
+  {
+    "code": "2658",
+    "locality": "Buena Esperanza",
+    "province": "San Luis"
+  },
+  {
+    "code": "2901",
+    "locality": "Ushuaia",
+    "province": "Tierra del Fuego"
+  },
+  {
+    "code": "2902",
+    "locality": "Rio Turbio",
+    "province": "Santa Cruz"
+  },
+  {
+    "code": "2903",
+    "locality": "Rio Mayo",
+    "province": "Chubut"
+  },
+  {
+    "code": "2920",
+    "locality": "Viedma",
+    "province": "Río Negro"
+  },
+  {
+    "code": "2921",
+    "locality": "Coronel Dorrego",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2922",
+    "locality": "Coronel Pringles",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2923",
+    "locality": "Pigüe",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2924",
+    "locality": "Darregueira",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2925",
+    "locality": "Villa Iris",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2926",
+    "locality": "Coronel Suarez",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2927",
+    "locality": "Medanos",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2928",
+    "locality": "Pedro Luro",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2929",
+    "locality": "Guamini",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2931",
+    "locality": "Rio Colorado",
+    "province": "Río Negro"
+  },
+  {
+    "code": "2932",
+    "locality": "Punta Alta",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2933",
+    "locality": "Huanguelen Sur",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2934",
+    "locality": "San Antonio Oeste",
+    "province": "Río Negro"
+  },
+  {
+    "code": "2935",
+    "locality": "Rivera",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2936",
+    "locality": "Carhue",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2940",
+    "locality": "Ingeniero Jacobacci",
+    "province": "Río Negro"
+  },
+  {
+    "code": "2942",
+    "locality": "Zapala",
+    "province": "Neuquén"
+  },
+  {
+    "code": "2945",
+    "locality": "Esquel",
+    "province": "Chubut"
+  },
+  {
+    "code": "2946",
+    "locality": "Choele Choel",
+    "province": "Río Negro"
+  },
+  {
+    "code": "2948",
+    "locality": "Chos Malal",
+    "province": "Neuquén"
+  },
+  {
+    "code": "2952",
+    "locality": "General Acha",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2953",
+    "locality": "Macachin",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2954",
+    "locality": "Santa Rosa",
+    "province": "La Pampa"
+  },
+  {
+    "code": "2962",
+    "locality": "San Julian",
+    "province": "Santa Cruz"
+  },
+  {
+    "code": "2963",
+    "locality": "Perito Moreno",
+    "province": "Santa Cruz"
+  },
+  {
+    "code": "2964",
+    "locality": "Rio Grande",
+    "province": "Tierra del Fuego"
+  },
+  {
+    "code": "2966",
+    "locality": "Rio Gallegos",
+    "province": "Santa Cruz"
+  },
+  {
+    "code": "2972",
+    "locality": "San Martin De Los Andes",
+    "province": "Neuquén"
+  },
+  {
+    "code": "2982",
+    "locality": "Orense",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "2983",
+    "locality": "Tres Arroyos",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3327",
+    "locality": "Lopez Camelo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3329",
+    "locality": "San Pedro",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3382",
+    "locality": "Rufino",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3385",
+    "locality": "Laboulaye",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3387",
+    "locality": "Bouchard",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3388",
+    "locality": "General Villegas",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3400",
+    "locality": "Villa Constitucion",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3401",
+    "locality": "El Trebol",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3402",
+    "locality": "Arroyo Seco",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3404",
+    "locality": "San Carlos Centro",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3405",
+    "locality": "San Javier",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3406",
+    "locality": "San Jorge",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3407",
+    "locality": "Ramallo",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3408",
+    "locality": "San Cristobal",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3409",
+    "locality": "Moises Ville",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3435",
+    "locality": "Nogoya",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3436",
+    "locality": "Victoria",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3437",
+    "locality": "La Paz",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3438",
+    "locality": "Bovril",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3442",
+    "locality": "Concepcion Del Uruguay",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3444",
+    "locality": "Gualeguay",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3445",
+    "locality": "Rosario Del Tala",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3446",
+    "locality": "Gualeguaychu",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3447",
+    "locality": "Colon",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3454",
+    "locality": "Federal",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3455",
+    "locality": "Villaguay",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3456",
+    "locality": "Chajari",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3458",
+    "locality": "San Jose De Feliciano",
+    "province": "Entre Ríos"
+  },
+  {
+    "code": "3460",
+    "locality": "Santa Teresa",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3462",
+    "locality": "Venado Tuerto",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3463",
+    "locality": "Canals",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3464",
+    "locality": "Casilda",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3465",
+    "locality": "Firmat",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3466",
+    "locality": "Barrancas",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3467",
+    "locality": "Cruz Alta",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3468",
+    "locality": "Corral De Bustos",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3469",
+    "locality": "Acebal",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3471",
+    "locality": "Cañada De Gomez",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3472",
+    "locality": "Marcos Juarez",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3476",
+    "locality": "San Lorenzo",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3482",
+    "locality": "Reconquista",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3483",
+    "locality": "Vera",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3487",
+    "locality": "Zarate",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3489",
+    "locality": "Campana",
+    "province": "Buenos Aires"
+  },
+  {
+    "code": "3491",
+    "locality": "Ceres",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3492",
+    "locality": "Rafaela",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3493",
+    "locality": "Sunchales",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3496",
+    "locality": "Esperanza",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3497",
+    "locality": "Llambi Campbell",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3498",
+    "locality": "San Justo",
+    "province": "Santa Fe"
+  },
+  {
+    "code": "3521",
+    "locality": "Dean Funes",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3522",
+    "locality": "Villa De Maria De Rio Seco",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3524",
+    "locality": "Villa Del Totoral",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3525",
+    "locality": "Jesus Maria",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3532",
+    "locality": "Oliva",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3533",
+    "locality": "Las Varillas",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3537",
+    "locality": "Bell Ville",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3541",
+    "locality": "Villa Carlos Paz",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3542",
+    "locality": "Salsacate",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3543",
+    "locality": "Argüello",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3544",
+    "locality": "Villa Dolores",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3546",
+    "locality": "Santa Rosa De Calamuchita",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3547",
+    "locality": "Alta Gracia",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3548",
+    "locality": "La Falda",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3549",
+    "locality": "Cruz Del Eje",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3562",
+    "locality": "Morteros",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3563",
+    "locality": "Balnearia",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3564",
+    "locality": "San Francisco",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3571",
+    "locality": "Rio Tercero",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3572",
+    "locality": "Rio Segundo",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3573",
+    "locality": "Villa Del Rosario",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3574",
+    "locality": "Rio Primero",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3575",
+    "locality": "La Puerta",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3576",
+    "locality": "Arroyito",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3582",
+    "locality": "Sampacho",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3583",
+    "locality": "Vicuña Mackenna",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3584",
+    "locality": "La Carlota",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3585",
+    "locality": "Adelia Maria",
+    "province": "Córdoba"
+  },
+  {
+    "code": "3711",
+    "locality": "Ingeniero Guillermo N. Juarez",
+    "province": "Formosa"
+  },
+  {
+    "code": "3715",
+    "locality": "Las Lomitas",
+    "province": "Formosa"
+  },
+  {
+    "code": "3716",
+    "locality": "Ibarreta",
+    "province": "Formosa"
+  },
+  {
+    "code": "3718",
+    "locality": "Clorinda",
+    "province": "Formosa"
+  },
+  {
+    "code": "3721",
+    "locality": "Charadai",
+    "province": "Chaco"
+  },
+  {
+    "code": "3725",
+    "locality": "General Jose De San Martin",
+    "province": "Chaco"
+  },
+  {
+    "code": "3731",
+    "locality": "Charata",
+    "province": "Chaco"
+  },
+  {
+    "code": "3734",
+    "locality": "Presidencia De La Plaza",
+    "province": "Chaco"
+  },
+  {
+    "code": "3735",
+    "locality": "Villa Angela",
+    "province": "Chaco"
+  },
+  {
+    "code": "3741",
+    "locality": "Bernardo De Irigoyen",
+    "province": "Misiones"
+  },
+  {
+    "code": "3743",
+    "locality": "Puerto Rico",
+    "province": "Misiones"
+  },
+  {
+    "code": "3751",
+    "locality": "Eldorado",
+    "province": "Misiones"
+  },
+  {
+    "code": "3754",
+    "locality": "Leandro N. Alem",
+    "province": "Misiones"
+  },
+  {
+    "code": "3755",
+    "locality": "Obera",
+    "province": "Misiones"
+  },
+  {
+    "code": "3756",
+    "locality": "Santo Tome",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3757",
+    "locality": "Puerto Iguazu",
+    "province": "Misiones"
+  },
+  {
+    "code": "3758",
+    "locality": "Apostoles",
+    "province": "Misiones"
+  },
+  {
+    "code": "3772",
+    "locality": "Paso De Los Libres",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3773",
+    "locality": "Mercedes",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3774",
+    "locality": "Curuzu Cuatia",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3775",
+    "locality": "Monte Caseros",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3777",
+    "locality": "Goya",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3781",
+    "locality": "Caa Cati",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3782",
+    "locality": "Saladas",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3786",
+    "locality": "Ituzaingo",
+    "province": "Corrientes"
+  },
+  {
+    "code": "3821",
+    "locality": "Chepes",
+    "province": "La Rioja"
+  },
+  {
+    "code": "3825",
+    "locality": "Chilecito",
+    "province": "La Rioja"
+  },
+  {
+    "code": "3826",
+    "locality": "Chamical",
+    "province": "La Rioja"
+  },
+  {
+    "code": "3827",
+    "locality": "Aimogasta",
+    "province": "La Rioja"
+  },
+  {
+    "code": "3832",
+    "locality": "Recreo",
+    "province": "Catamarca"
+  },
+  {
+    "code": "3835",
+    "locality": "Andalgala",
+    "province": "Catamarca"
+  },
+  {
+    "code": "3837",
+    "locality": "Tinogasta",
+    "province": "Catamarca"
+  },
+  {
+    "code": "3838",
+    "locality": "Santa Maria",
+    "province": "Catamarca"
+  },
+  {
+    "code": "3841",
+    "locality": "Monte Quemado",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3843",
+    "locality": "Quimili",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3844",
+    "locality": "Añatuya",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3845",
+    "locality": "Loreto",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3846",
+    "locality": "Tintina",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3854",
+    "locality": "Frias",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3855",
+    "locality": "Suncho Corral",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3856",
+    "locality": "Ojo De Agua",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3857",
+    "locality": "Bandera",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3858",
+    "locality": "Termas De Rio Hondo",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3861",
+    "locality": "Nueva Esperanza",
+    "province": "Santiago del Estero"
+  },
+  {
+    "code": "3862",
+    "locality": "Trancas",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3863",
+    "locality": "Monteros",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3865",
+    "locality": "Concepcion",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3867",
+    "locality": "Tafi Del Valle",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3868",
+    "locality": "Cafayate",
+    "province": "Salta"
+  },
+  {
+    "code": "3869",
+    "locality": "Ranchillos",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3873",
+    "locality": "Tartagal",
+    "province": "Salta"
+  },
+  {
+    "code": "3876",
+    "locality": "Metan",
+    "province": "Salta"
+  },
+  {
+    "code": "3877",
+    "locality": "Joaquin V. Gonzalez",
+    "province": "Salta"
+  },
+  {
+    "code": "3878",
+    "locality": "Oran",
+    "province": "Salta"
+  },
+  {
+    "code": "3885",
+    "locality": "La Quiaca",
+    "province": "Jujuy"
+  },
+  {
+    "code": "3886",
+    "locality": "Libertador General San Martin",
+    "province": "Jujuy"
+  },
+  {
+    "code": "3887",
+    "locality": "Humahuaca",
+    "province": "Jujuy"
+  },
+  {
+    "code": "3888",
+    "locality": "San Pedro",
+    "province": "Jujuy"
+  },
+  {
+    "code": "3891",
+    "locality": "La Madrid",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3892",
+    "locality": "Amaicha Del Valle",
+    "province": "Tucumán"
+  },
+  {
+    "code": "3894",
+    "locality": "Burruyacu",
+    "province": "Tucumán"
+  }
+]

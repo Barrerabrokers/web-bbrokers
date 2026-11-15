@@ -59,7 +59,7 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
         try { payload = JSON.parse(payload); } catch { return; }
       }
       if (payload?.type !== "WA_EMBEDDED_SIGNUP") return;
-      if (payload.event === "FINISH") {
+      if (payload.event === "FINISH" || payload.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
         signupResult.current = {
           wabaId: payload.data?.waba_id,
           phoneNumberId: payload.data?.phone_number_id,
@@ -67,12 +67,12 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
         setSignupSignal((value) => value + 1);
         setState("finishing");
         setMessage("Meta autorizó el número. Estamos terminando la conexión con el CRM…");
+      } else if (payload.event === "ERROR" || (payload.event === "CANCEL" && payload.data?.error_message)) {
+        setState("error");
+        setMessage([payload.data?.error_message || "Meta no pudo completar la vinculación.", payload.data?.error_code ? `Código: ${payload.data.error_code}.` : "", payload.data?.session_id ? `Sesión: ${payload.data.session_id}.` : ""].filter(Boolean).join(" "));
       } else if (payload.event === "CANCEL") {
         setState("idle");
         setMessage("La vinculación quedó pendiente. Podés retomarla cuando quieras.");
-      } else if (payload.event === "ERROR") {
-        setState("error");
-        setMessage(payload.data?.error_message || "Meta no pudo completar la vinculación.");
       }
     }
 
@@ -96,7 +96,8 @@ export function WhatsAppEmbeddedSignup({ initialConnection }: { initialConnectio
   }, []);
 
   useEffect(() => {
-    if (!authCode.current || !signupResult.current.wabaId || !signupResult.current.phoneNumberId || completing.current) return;
+    // Coexistence can return only waba_id; the server resolves the authorized phone.
+    if (!authCode.current || !signupResult.current.wabaId || completing.current) return;
     completing.current = true;
     const code = authCode.current;
     setState("finishing");

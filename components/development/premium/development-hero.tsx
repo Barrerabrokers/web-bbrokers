@@ -1,3 +1,4 @@
+import { PortraitVideo } from "@/components/viewport-video";
 import Link from "next/link";
 import { ArrowDown, ArrowLeft, ArrowRight, FileText, LockKeyhole, MapPin } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
@@ -10,49 +11,11 @@ interface DevelopmentHeroProps {
 export function DevelopmentHero({ model }: DevelopmentHeroProps) {
   const { development, primaryImage, coverVideo, priceFrom, statusLabel } = model;
 
+
   return (
     <section className="relative isolate min-h-[92svh] overflow-hidden bg-[#070707] text-[#f8f5ef]">
       <div className="absolute inset-0 -z-10">
-        {coverVideo ? (
-          <>
-            {primaryImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={primaryImage}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-32 blur-xl"
-              />
-            )}
-            <div className="absolute inset-0 bg-[#070707]" />
-            {primaryImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={primaryImage}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-28 blur-2xl"
-              />
-            )}
-            <div
-              className="absolute inset-x-4 top-[16svh] h-[44svh] overflow-hidden border border-white/14 bg-black shadow-[0_34px_120px_rgba(0,0,0,0.55)] md:inset-x-auto md:bottom-[12svh] md:right-[4vw] md:top-auto md:h-[66svh] md:w-[min(58vw,980px)] lg:right-[5vw] lg:w-[min(54vw,1040px)]"
-              data-dev-parallax
-            >
-              <video
-                src={coverVideo}
-                poster={primaryImage}
-                autoPlay
-                muted
-                loop
-                playsInline
-                disablePictureInPicture
-                preload="metadata"
-                aria-label={`Video sin audio de ${development.name}`}
-                className="h-full w-full object-contain"
-              />
-            </div>
-          </>
-        ) : primaryImage ? (
+        {primaryImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={primaryImage}
@@ -81,6 +44,18 @@ export function DevelopmentHero({ model }: DevelopmentHeroProps) {
             {development.location}
           </div>
         </div>
+
+        {coverVideo && (
+          <div className="relative z-10 my-8 flex w-full justify-center md:justify-end">
+            <PortraitVideo
+              src={coverVideo}
+              autoPlay
+              muted
+              loop
+              aria-label={`Video de ${development.name}`}
+            />
+          </div>
+        )}
 
         <div className="mt-auto grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="max-w-6xl">

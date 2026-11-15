@@ -1,3 +1,4 @@
+import { reserveStorageUpload, releaseStorageReservation } from "@/lib/storage-budget";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { randomUUID } from "crypto";
@@ -18,8 +19,9 @@ export async function POST(request: NextRequest) {
   try {
     const storage = getServerSupabase().storage.from("properties");
     const path = `templates/email-attachments/${randomUUID()}.${ext}`;
+    await reserveStorageUpload(path,parsed.data.size);
     const { data, error } = await storage.createSignedUploadUrl(path);
-    if (error || !data) throw new Error("No se pudo preparar la carga del adjunto.");
+    if (error || !data) { await releaseStorageReservation(path); throw new Error("No se pudo preparar la carga del adjunto."); }
     return NextResponse.json({path:data.path,token:data.token,url:storage.getPublicUrl(path).data.publicUrl},{headers:{"Cache-Control":"private, no-store"}});
-  } catch { return NextResponse.json({error:"No se pudo preparar la carga del adjunto. Volvé a intentar."},{status:500}); }
+  } catch (error) { if(error instanceof Error && error.message.startsWith("Se alcanzó"))return NextResponse.json({error:error.message},{status:413});return NextResponse.json({error:"No se pudo preparar la carga del adjunto. Volvé a intentar."},{status:500}); }
 }

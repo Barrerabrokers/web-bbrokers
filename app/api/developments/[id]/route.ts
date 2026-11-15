@@ -1,3 +1,4 @@
+import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -21,7 +22,7 @@ export async function GET(
   const params = await pendingparams;
   const session = await getServerSession(authOptions);
   const development = await getDevelopmentById(params.id);
-  if (!development || (development.visibility === "agents" && !session)) {
+  if (!development || !canReadListing(development.visibility, session?.user.role)) {
     return NextResponse.json(
       { error: "No encontrado" },
       { status: 404 }

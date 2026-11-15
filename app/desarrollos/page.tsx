@@ -1,3 +1,5 @@
+import { developmentListingSchema, serializeJsonLd } from "@/lib/seo-structured-data";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import Link from "next/link";
 import { DevelopmentCoverMedia } from "@/components/development/development-cover-media";
 import { getDevelopmentVideo } from "@/lib/development-media";
@@ -9,13 +11,13 @@ import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import type { Metadata } from "next";
-import { absoluteUrl, SEO_KEYWORDS, SITE_NAME, truncateDescription } from "@/lib/seo";
+import { absoluteUrl, SEO_KEYWORDS, SITE_NAME } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export const metadata: Metadata = {
-  title: "Desarrollos en pozo para invertir en Buenos Aires",
+const spanishMetadata: Metadata = {
+  title: "Todos los Desarrollos en Buenos Aires",
   description:
     "Conocé desarrollos inmobiliarios en pozo para invertir en Buenos Aires. Departamentos con financiación y oportunidades en Recoleta, Palermo, Belgrano, Nuñez y Puerto Madero.",
   keywords: [
@@ -31,15 +33,17 @@ export const metadata: Metadata = {
   },
 };
 
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(spanishMetadata); }
+
 export default async function DesarrollosPage() {
   const visibility = await getListingVisibilityFilter();
   const developments = await getDevelopments({ visibility });
   const itemListSchema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "Desarrollos en pozo para invertir en Buenos Aires",
+    name: "Desarrollos inmobiliarios en Buenos Aires",
     description:
-      "Catálogo de desarrollos inmobiliarios en pozo, departamentos para invertir y oportunidades de real estate en Buenos Aires.",
+      "Catálogo de desarrollos en preventa, construcción y terminados en la Ciudad de Buenos Aires.",
     url: absoluteUrl("/desarrollos"),
     isPartOf: {
       "@type": "WebSite",
@@ -57,26 +61,7 @@ export default async function DesarrollosPage() {
           "@type": "ListItem",
           position: index + 1,
           url: absoluteUrl(`/desarrollos/${dev.slug}`),
-          item: {
-            "@type": "Product",
-            name: dev.name,
-            description: truncateDescription(
-              dev.shortDescription || dev.description,
-              180
-            ),
-            image,
-            category: "Desarrollo inmobiliario en pozo",
-            areaServed: dev.location,
-            offers: priceFrom
-              ? {
-                  "@type": "Offer",
-                  priceCurrency: dev.currency || "USD",
-                  price: priceFrom,
-                  availability: "https://schema.org/InStock",
-                  url: absoluteUrl(`/desarrollos/${dev.slug}`),
-                }
-              : undefined,
-          },
+          item: developmentListingSchema(dev, image, priceFrom),
         };
       }),
     },
@@ -104,7 +89,7 @@ export default async function DesarrollosPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(itemListSchema),
+          __html: serializeJsonLd(itemListSchema),
         }}
       />
       <Header />
@@ -127,14 +112,13 @@ export default async function DesarrollosPage() {
               Catálogo
             </p>
             <h1 className="font-display font-light text-[44px] md:text-[80px] lg:text-[100px] tracking-[-0.025em] leading-[0.96] text-bone max-w-5xl">
-              Todos nuestros{" "}
-              <span className="italic">desarrollos</span>.
+              Todos los <span className="italic">Desarrollos</span> en Buenos Aires.
             </h1>
             <p className="mt-8 max-w-2xl text-bone/70 text-lg leading-relaxed">
               {developments.length} proyecto
-              {developments.length !== 1 ? "s" : ""} en Buenos Aires con
-              financiación flexible y retornos del 30-40%.
+              {developments.length !== 1 ? "s" : ""} en preventa, en construcción y terminados. Compará ubicación, unidades disponibles, precios publicados y condiciones de financiación.
             </p>
+            <Link href="/inversiones-real-estate-buenos-aires" className="mt-6 inline-flex min-h-11 items-center text-sm text-bone underline underline-offset-4">Cómo evaluar una inversión inmobiliaria</Link>
           </div>
         </section>
 
@@ -205,9 +189,9 @@ export default async function DesarrollosPage() {
                           {dev.location}
                         </div>
 
-                        <h3 className="font-display font-light text-2xl text-bone tracking-tight group-hover:italic transition-all duration-500 line-clamp-2">
+                        <h2 className="font-display font-light text-2xl text-bone tracking-tight group-hover:italic transition-all duration-500 line-clamp-2">
                           {dev.name}
-                        </h3>
+                        </h2>
 
                         <div className="flex items-baseline justify-between pt-3 border-t border-bone/15">
                           <span className="font-display text-lg text-accent">

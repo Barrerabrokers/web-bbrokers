@@ -1,3 +1,5 @@
+import { serializeJsonLd } from "@/lib/seo-structured-data";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
@@ -5,8 +7,8 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { absoluteUrl, SEO_KEYWORDS, SITE_NAME } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Invertir en Real Estate en Argentina | Barrera Brokers",
+const spanishMetadata: Metadata = {
+  title: "Invertir en Real Estate en Argentina",
   description:
     "Guia para invertir en real estate en Argentina desde Buenos Aires: desarrollos en pozo, departamentos para invertir, renta temporaria y estrategia de reventa.",
   keywords: [
@@ -30,6 +32,8 @@ export const metadata: Metadata = {
     type: "article",
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> { return localizePublicMetadata(spanishMetadata); }
 
 export default function InvertirEnRealEstateArgentinaPage() {
   const pageUrl = absoluteUrl("/invertir-en-real-estate-argentina");
@@ -57,7 +61,7 @@ export default function InvertirEnRealEstateArgentinaPage() {
     <div className="min-h-screen bg-bone text-ink">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
       />
       <Header />
       <main>
@@ -67,7 +71,7 @@ export default function InvertirEnRealEstateArgentinaPage() {
               Real estate Argentina
             </p>
             <h1 className="mt-6 max-w-5xl font-display text-5xl font-light leading-[0.95] tracking-[-0.04em] md:text-7xl lg:text-8xl">
-              Como invertir en real estate en Argentina.
+              Cómo invertir en real estate en Argentina.
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-relaxed text-bone/70">
               La inversion inmobiliaria en Argentina requiere mirar ubicacion,

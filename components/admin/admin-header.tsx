@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useSiteSettings } from "@/lib/use-site-settings";
 import { PwaInstaller } from "@/components/pwa-installer";
 import { CrmNotifications } from "@/components/admin/crm-notifications";
+import { canManageSiteSettings } from "@/lib/roles";
 import { disableDevicePush } from "@/lib/crm-push-client";
 
 export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
@@ -76,7 +77,7 @@ export function AdminHeader({ crmOnly = false }: { crmOnly?: boolean }) {
         </div>
       </div>
       <nav aria-label="Accesos del CRM" className={`${crmOnly ? "flex" : "flex md:hidden"} gap-2 overflow-x-auto px-4 pb-2`}>
-        {[{ href: "/admin/crm", label: "Contactos" }, ...(session?.user?.role === "admin" ? [{href: "/admin/crm/clientes", label: "Correos de Marketing"}] : []), { href: "/admin/crm/panel-agentes", label: session?.user?.role === "admin" ? "Panel de agentes" : "Mi actividad" }].map(item => <Link key={item.href} href={item.href} prefetch={false} aria-current={pathname === item.href ? "page" : undefined} className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-3 text-sm font-medium ${pathname === item.href ? "bg-[#006b6b] text-white" : "text-ink hover:bg-white/60"}`}>{item.label}</Link>)}
+        {[...(canManageSiteSettings(session?.user?.role) ? [{href: "/admin/blog", label: "Prensa"}] : []), { href: "/admin/crm", label: "Contactos" }, { href: "/admin/crm/tareas", label: "Mis tareas" }, { href: "/admin/crm/calendario", label: "Calendario" }, { href: "/admin/crm/correo", label: "Mi correo" }, ...(session?.user?.role === "admin" ? [{href: "/admin/crm/clientes", label: "Correos de Marketing"}] : []), { href: "/admin/crm/panel-agentes", label: session?.user?.role === "admin" ? "Panel de agentes" : "Mi actividad" }].map(item => <Link key={item.href} href={item.href} prefetch={false} aria-current={pathname === item.href ? "page" : undefined} className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-3 text-sm font-medium ${pathname === item.href ? "bg-[#006b6b] text-white" : "text-ink hover:bg-white/60"}`}>{item.label}</Link>)}
       </nav>
     </header>
   );

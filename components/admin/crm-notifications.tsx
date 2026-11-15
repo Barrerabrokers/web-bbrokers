@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Check, MailOpen, Megaphone, X } from "lucide-react";
+import { Bell, CalendarDays, ClipboardList, Check, MailOpen, Megaphone, X } from "lucide-react";
+import { refreshDevicePush } from "@/lib/crm-push-client";
 import { CrmPushSettings } from "./crm-push-settings";
 
 type NotificationItem = {
   id: string;
-  type?: "email_open" | "email_reply" | "meeting_outcome" | "campaign_recontact" | "ai_sales";
+  type?: "email_open" | "email_reply" | "task_reminder" | "meeting_reminder" | "meeting_outcome" | "campaign_recontact" | "ai_sales";
   recipientAgentName?: string;
   title: string;
   body: string;
@@ -19,6 +20,7 @@ type NotificationItem = {
 export function CrmNotifications() {
   const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [needsActivation, setNeedsActivation] = useState(false);
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<NotificationItem | null>(null);
   const initialized = useRef(false);
@@ -37,11 +39,20 @@ export function CrmNotifications() {
       next.forEach((item) => knownIds.current.add(item.id));
       initialized.current = true;
       setItems(next);
+      const badge = navigator as Navigator & {setAppBadge?: (count: number) => Promise<void>;clearAppBadge?: () => Promise<void>};
+      const unread = next.filter(item => item.unread).length;
+      if (unread) void badge.setAppBadge?.(unread).catch(() => undefined);
+      else void badge.clearAppBadge?.().catch(() => undefined);
     } catch {}
   }, []);
 
   useEffect(() => {
     void load();
+    void refreshDevicePush().then(active => setNeedsActivation(!active)).catch(() => setNeedsActivation(true));
+    const onPushStatus = (event: Event) => setNeedsActivation(!(event as CustomEvent<{active: boolean}>).detail.active);
+    const onPushMessage = (event: MessageEvent) => { if(event.data?.type === "crm-notification") void load(); };
+    window.addEventListener("crm-push-status",onPushStatus);
+    navigator.serviceWorker?.addEventListener("message",onPushMessage);
     const timer = window.setInterval(() => {
       if (!document.hidden) void load();
     }, 30_000);
@@ -50,6 +61,8 @@ export function CrmNotifications() {
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("crm-push-status",onPushStatus);
+      navigator.serviceWorker?.removeEventListener("message",onPushMessage);
     };
   }, [load]);
 
@@ -74,11 +87,12 @@ export function CrmNotifications() {
   }
 
   const unreadCount = items.filter((item) => item.unread).length;
-  const icon = (item: NotificationItem) => item.type === "ai_sales" ? <Bell className="h-4 w-4" /> : item.type === "campaign_recontact"
+  const icon = (item: NotificationItem) => item.type === "task_reminder" ? <ClipboardList className="h-4 w-4" /> : item.type === "meeting_reminder" || item.type === "meeting_outcome" ? <CalendarDays className="h-4 w-4" /> : item.type === "ai_sales" ? <Bell className="h-4 w-4" /> : item.type === "campaign_recontact"
     ? <Megaphone className="h-4 w-4" />
     : <MailOpen className="h-4 w-4" />;
 
-  return <div className="relative">
+  return <div className="relative flex items-center gap-1">
+    {needsActivation && <button type="button" onClick={() => setOpen(true)} className="min-h-10 rounded-md px-2 text-xs font-medium text-[#005c5c] hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#006b6b]">Activar avisos</button>}
     <button type="button" onClick={() => setOpen((value) => !value)} aria-label={unreadCount ? `${unreadCount} notificaciones sin leer` : "Notificaciones"} aria-expanded={open} className="relative flex h-10 w-10 items-center justify-center rounded-lg text-ink/65 transition-colors hover:bg-white/70 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]/35">
       <Bell className="h-[18px] w-[18px]" />
       {unreadCount > 0 && <span className="absolute right-0.5 top-0.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[#006b6b] px-1 text-[9px] font-bold leading-none text-white">{Math.min(unreadCount, 99)}</span>}
@@ -95,13 +109,13 @@ export function CrmNotifications() {
           <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg ${item.unread ? "bg-[#006b6b] text-white" : "bg-cream-100 text-ink/55"}`}>{icon(item)}</span>
           <span className="min-w-0 flex-1"><strong className="block text-sm font-semibold text-ink">{item.title}</strong><span className="mt-1 block truncate text-xs text-ink/58">{item.body}</span>{item.recipientAgentName && <span className="mt-1 block text-[10px] text-ink/45">Agente: {item.recipientAgentName}</span>}</span>
           {item.unread && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#006b6b]" aria-label="Sin leer" />}
-        </button>) : <div className="px-5 py-8 text-center"><Check className="mx-auto h-5 w-5 text-[#006b6b]" /><p className="mt-2 text-sm font-medium text-ink">Todo al día</p><p className="mt-1 text-xs text-ink/52">Las nuevas aperturas aparecerán acá.</p></div>}
+        </button>) : <div className="px-5 py-8 text-center"><Check className="mx-auto h-5 w-5 text-[#006b6b]" /><p className="mt-2 text-sm font-medium text-ink">Todo al día</p><p className="mt-1 text-xs text-ink/52">Tus tareas, reuniones y avisos de correo aparecerán acá.</p></div>}
       </div>
     </section>}
 
     {toast && <div role="status" aria-live="polite" className="fixed right-4 top-20 z-50 flex w-[min(380px,calc(100vw-32px))] items-start gap-3 rounded-xl bg-[#132f2d] p-4 text-white shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/12">{toast.type === "campaign_recontact" ? <Megaphone className="h-5 w-5" /> : <MailOpen className="h-5 w-5" />}</span>
-      <button type="button" onClick={() => void openNotification(toast)} className="min-w-0 flex-1 text-left"><strong className="block text-sm font-semibold">{toast.title}</strong><span className="mt-1 block text-xs leading-relaxed text-white/75">{toast.body}</span><span className="mt-2 block text-xs font-semibold text-[#8de1d4]">Ver cliente</span></button>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/12">{icon(toast)}</span>
+      <button type="button" onClick={() => void openNotification(toast)} className="min-w-0 flex-1 text-left"><strong className="block text-sm font-semibold">{toast.title}</strong><span className="mt-1 block text-xs leading-relaxed text-white/75">{toast.body}</span><span className="mt-2 block text-xs font-semibold text-[#8de1d4]">Ver detalle</span></button>
       <button type="button" onClick={() => setToast(null)} aria-label="Cerrar aviso" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
     </div>}
   </div>;

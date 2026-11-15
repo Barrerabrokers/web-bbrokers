@@ -1,0 +1,27 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const ts=require('typescript');const sharp=require('sharp');const {PDFDocument}=require('pdf-lib');
+function load(file,mocks={}){const mod={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:mod,exports:mod.exports,require:n=>mocks[n]||require(n),File,Buffer,Uint8Array,TextDecoder,process});return mod.exports;}
+const pdf=load('lib/pdf-optimize.ts');const media=load('lib/server-upload-optimize.ts',{'@/lib/pdf-optimize':pdf,sharp:{default:sharp}});
+test('large images are resized and reduced; alpha survives WebP conversion',async()=>{
+ const width=2048,height=1100,data=Buffer.alloc(width*height*3);let seed=1;for(let i=0;i<data.length;i++){seed=(seed*1664525+1013904223)>>>0;data[i]=seed>>>24;}
+ const original=await sharp(data,{raw:{width,height,channels:3}}).png().toBuffer();
+ const output=await media.optimizeServerUpload(new File([original],'photo.png',{type:'image/png'}));
+ const info=await sharp(Buffer.from(await output.arrayBuffer())).metadata();assert.equal(info.format,'webp');assert.equal(info.width,1920);assert.ok(output.size<original.length*0.6);
+ const alpha=await sharp({create:{width:2200,height:1000,channels:4,background:{r:100,g:160,b:30,alpha:0.4}}}).png().toBuffer();
+ const transparent=await media.optimizeServerUpload(new File([alpha],'logo.png',{type:'image/png'}));assert.equal((await sharp(Buffer.from(await transparent.arrayBuffer())).metadata()).hasAlpha,true);
+});
+test('lossless PDF optimization preserves pages and document metadata; signed PDFs are untouched',async()=>{
+ const doc=await PDFDocument.create();doc.setTitle('Brochure comercial');for(let n=0;n<350;n++)doc.addPage([200,200]).drawText('Texto de brochure '+n);
+ const input=await doc.save({useObjectStreams:false});assert.ok(input.length>100000);const result=await pdf.optimizePdfBytes(input);assert.ok(result.length<input.length);const reopened=await PDFDocument.load(result);assert.equal(reopened.getPageCount(),350);assert.equal(reopened.getTitle(),'Brochure comercial');
+ const signed=Buffer.concat([Buffer.from('%PDF /ByteRange [0 100 200 300]'),Buffer.alloc(120000)]);assert.equal(await pdf.optimizePdfBytes(signed),signed);
+});
+test('one pool is reused and request cleanup cannot close another request connection',async()=>{
+ let created=0,ended=0,options;const connection=()=>{};connection.end=()=>{ended++};const pool=load('lib/database-pool.ts',{postgres:{default:(url,o)=>{created++;options=o;return connection;}}});const original=process.env.POSTGRES_PRISMA_URL;process.env.POSTGRES_PRISMA_URL='postgres://test';try{const a=pool.getSharedDatabase();const b=pool.getSharedDatabase();assert.equal(a,b);await pool.releaseSharedDatabase(a);assert.equal(pool.getSharedDatabase(),b);assert.equal(created,1);assert.equal(ended,0);assert.equal(options.prepare,false);assert.equal(options.max,3);assert.equal(options.idle_timeout,5);}finally{if(original)process.env.POSTGRES_PRISMA_URL=original;else delete process.env.POSTGRES_PRISMA_URL;}
+});
+test('build workers close isolated pools without closing the live shared pool',async()=>{
+ let ended=0,created=0;const pool=load('lib/database-pool.ts',{postgres:{default:()=>{created++;return {end:async()=>{ended++;}};}}});const oldUrl=process.env.POSTGRES_PRISMA_URL,oldPhase=process.env.NEXT_PHASE;process.env.POSTGRES_PRISMA_URL='postgres://test';try{delete process.env.NEXT_PHASE;const live=pool.getSharedDatabase();process.env.NEXT_PHASE='phase-production-build';const a=pool.getSharedDatabase(),b=pool.getSharedDatabase();assert.notEqual(a,b);await pool.releaseSharedDatabase(a);await pool.releaseSharedDatabase(b);assert.equal(ended,2);delete process.env.NEXT_PHASE;assert.equal(pool.getSharedDatabase(),live);assert.equal(created,3);}finally{if(oldUrl)process.env.POSTGRES_PRISMA_URL=oldUrl;else delete process.env.POSTGRES_PRISMA_URL;if(oldPhase)process.env.NEXT_PHASE=oldPhase;else delete process.env.NEXT_PHASE;}
+});
+test('authorized upload uses the optimized extension, MIME, size and returned public URL',async()=>{
+ const optimized=new File(['smaller'],'photo.webp',{type:'image/webp'});let authorized,uploaded;const mod={exports:{}};const source=ts.transpileModule(fs.readFileSync('lib/authorized-upload.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+ vm.runInNewContext(source,{module:mod,exports:mod.exports,File,fetch:async(url,options)=>{authorized=JSON.parse(options.body);return {ok:true,json:async()=>({path:authorized.path,token:'test-only-token'})};},require:n=>n==='@/lib/upload-optimize'?{optimizeUploadFile:async()=>optimized}:{supabase:{storage:{from:()=>({uploadToSignedUrl:async(path,token,file,options)=>{uploaded={path,file,options};return {error:null};},getPublicUrl:path=>({data:{publicUrl:'https://storage.example/'+path}})})}}}});
+ const result=await mod.exports.uploadPublicFile('mobile-123.jpg',new File(['original'],'photo.jpg',{type:'image/jpeg'}),{contentType:'image/jpeg'});assert.equal(result.error,null);assert.equal(result.url,'https://storage.example/mobile-123.webp');assert.equal(authorized.size,optimized.size);assert.equal(uploaded.options.contentType,'image/webp');assert.equal(uploaded.options.cacheControl,'31536000');assert.equal(uploaded.file,optimized);
+});

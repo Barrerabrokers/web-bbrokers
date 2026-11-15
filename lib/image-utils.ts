@@ -14,8 +14,8 @@ export interface CompressOptions {
 const DEFAULTS: Required<CompressOptions> = {
   maxWidth: 1920,
   maxHeight: 1920,
-  quality: 0.85,
-  mimeType: "image/jpeg",
+  quality: 0.8,
+  mimeType: "image/webp",
 };
 
 /**
@@ -37,6 +37,8 @@ export async function compressImage(
   if (file.type === "image/gif" || file.type === "image/svg+xml") {
     return file;
   }
+  // Images already prepared by the image picker must not be encoded twice.
+  if (!Object.keys(opts).length && file.type === "image/webp" && file.size <= 500_000) return file;
 
   const dataUrl = await readAsDataURL(file);
   const img = await loadImage(dataUrl);
@@ -70,12 +72,12 @@ export async function compressImage(
     return file;
   }
 
-  const ext = options.mimeType === "image/webp" ? "webp" : "jpg";
+  const ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
   const baseName = file.name.replace(/\.[^.]+$/, "");
   const newName = `${baseName}.${ext}`;
 
   return new File([blob], newName, {
-    type: options.mimeType,
+    type: blob.type,
     lastModified: Date.now(),
   });
 }

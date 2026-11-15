@@ -12,6 +12,7 @@ import {
   Settings,
   ContactRound,
   CalendarDays,
+  CalendarCheck,
   CalendarPlus,
   Mail,
   Megaphone,
@@ -21,6 +22,7 @@ import {
   Settings2,
   Workflow,
   Files,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAccessMarketing, canManageAdminPanel } from "@/lib/roles";
@@ -33,8 +35,9 @@ const baseMenuItems = [
 ];
 
 const crmSubmenuItems = [
-  { href: "/admin/crm/ai-sales", label: "AI Sales", icon: LayoutDashboard },
+  { href: "/admin/crm/mia", label: "MIA", icon: Bot, strictAdminOnly: true },
   { href: "/admin/crm/panel-agentes", label: "Panel de agentes", icon: LayoutDashboard },
+  { href: "/admin/crm/tareas", label: "Mis tareas", icon: CalendarCheck },
   { href: "/admin/crm", label: "Contactos", icon: Users },
   { href: "/admin/crm/clientes", label: "Correos de Marketing", icon: Mail, strictAdminOnly: true },
   { href: "/admin/crm/calendario", label: "Calendario", icon: CalendarDays },
@@ -48,6 +51,7 @@ const crmSubmenuItems = [
 ];
 
 const adminMenuItems = [
+  { href: "/admin/blog", label: "Prensa", icon: Files },
   { href: "/admin/settings", label: "Configuración", icon: Settings },
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
 ];

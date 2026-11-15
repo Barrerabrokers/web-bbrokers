@@ -1,3 +1,9 @@
+import { Suspense } from "react";
+import { MetaCatalogEvent } from "@/components/meta-website-tracking";
+import { localizePublicMetadata } from "@/lib/i18n/metadata";
+import { canReadListing } from "@/lib/listing-visibility-policy";
+import { canManageListings } from "@/lib/roles";
+import { PortraitVideo } from "@/components/viewport-video";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { PropertyGallery } from "@/components/property-gallery";
@@ -22,20 +28,25 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ShareListingPdf } from "@/components/share-listing-pdf";
 import { PropertyInquiryForm } from "@/components/property-inquiry-form";
-import { createShareToken, hasValidShareToken, withShareParam } from "@/lib/share-token";
+import { createShareToken, hasValidShareToken, withShareParam, withListingPreviewParam } from "@/lib/share-token";
 import { RestorePageScroll } from "@/components/restore-page-scroll";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function generateMetadata({
+async function spanishMetadata({
   params: pendingparams,
+  searchParams: pendingSearchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ share?: string }>;
 }): Promise<Metadata> {
   const params = await pendingparams;
   const property = await getPropertyById(params.id);
-  if (!property || property.visibility === "agents") {
+  const session = await getServerSession(authOptions);
+  const searchParams = await pendingSearchParams;
+  const shared = property ? hasValidShareToken(searchParams?.share, "property", property.id) : false;
+  if (!property || !canReadListing(property.visibility, session?.user.role, shared)) {
     return {
       title: "Propiedad no encontrada",
       robots: { index: false, follow: false },
@@ -46,9 +57,17 @@ export async function generateMetadata({
     `${property.description} ${property.location ? `Ubicada en ${property.location}.` : ""}`
   );
   const url = absoluteUrl(`/propiedades/${property.id}`);
-  const primaryImage = property.images[0];
+  const primaryImage = property.images[0] ? absoluteUrl(withListingPreviewParam(withShareParam(
+    `/api/properties/${property.id}/portada`,
+    shared ? searchParams?.share : undefined
+  ), property.images[0])) : undefined;
+  const previewUrl = absoluteUrl(withListingPreviewParam(withShareParam(
+    `/propiedades/${property.id}`,
+    shared ? searchParams?.share : undefined
+  ), property.images[0]));
 
   return {
+    ...(property.visibility === "agents" ? { robots: { index: false, follow: false } } : {}),
     title: `${property.title} en ${property.location} | Comprar departamento`,
     description,
     keywords: [
@@ -65,11 +84,11 @@ export async function generateMetadata({
     openGraph: {
       title: property.title,
       description,
-      url,
+      url: previewUrl,
       siteName: SITE_NAME,
       locale: "es_AR",
       type: "article",
-      images: primaryImage ? [{ url: primaryImage, alt: property.title }] : undefined,
+      images: primaryImage ? [{ url: primaryImage, width: 1200, height: 630, type: "image/jpeg", alt: property.title }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
@@ -79,6 +98,8 @@ export async function generateMetadata({
     },
   };
 }
+
+export async function generateMetadata(props: Parameters<typeof spanishMetadata>[0]): Promise<Metadata> { return localizePublicMetadata(await spanishMetadata(props)); }
 
 export default async function PropertyDetailPage({
   params: pendingparams,
@@ -96,7 +117,7 @@ export default async function PropertyDetailPage({
     property?.visibility === "agents" &&
     hasValidShareToken(searchParams?.share, "property", property.id);
 
-  if (!property || (property.visibility === "agents" && !session && !hasSharedAccess)) {
+  if (!property || !canReadListing(property.visibility, session?.user.role, Boolean(hasSharedAccess))) {
     notFound();
   }
 
@@ -114,7 +135,7 @@ export default async function PropertyDetailPage({
     `/api/properties/${property.id}/ficha`,
     property.visibility === "agents" ? shareToken : undefined
   );
-  const pageUrl = absoluteUrl(sharedPath);
+  const pageUrl = absoluteUrl(withListingPreviewParam(sharedPath, property.images[0]));
   const pdfUrl = absoluteUrl(sharedPdfPath);
   const coverVideo = property.videoIsPrimary ? property.videoUrls?.[0] : undefined;
   const galleryVideoUrls = coverVideo
@@ -161,6 +182,7 @@ export default async function PropertyDetailPage({
   return (
     <div className="min-h-screen bg-cream-200">
       <RestorePageScroll />
+      {property.visibility === "public" && <Suspense fallback={null}><MetaCatalogEvent name="ViewContent" data={{ content_ids: [property.id], content_type: "home_listing" }} /></Suspense>}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -169,7 +191,7 @@ export default async function PropertyDetailPage({
       />
       <Header />
 
-      <main className="pt-28 pb-32">
+      <main data-no-translate={property.visibility === "agents" ? "" : undefined} className="pt-28 pb-32">
         <div className="container-custom">
           {/* Breadcrumb */}
           <div className="mb-8">
@@ -263,10 +285,10 @@ export default async function PropertyDetailPage({
             <div className="lg:col-span-2 space-y-10">
               {coverVideo && (
                 <section
-                  className="overflow-hidden rounded-lg bg-ink"
-                  aria-label={`Video principal sin audio de ${property.title}`}
+                  className="flex justify-center"
+                  aria-label={`Video principal de ${property.title}`}
                 >
-                  <video
+                  <PortraitVideo
                     src={coverVideo}
                     autoPlay
                     muted
@@ -275,7 +297,6 @@ export default async function PropertyDetailPage({
                     preload="metadata"
                     poster={property.images[0]}
                     disablePictureInPicture
-                    className="aspect-[16/10] w-full object-cover md:aspect-video"
                   />
                 </section>
               )}
@@ -289,11 +310,11 @@ export default async function PropertyDetailPage({
 
               {galleryVideoUrls.length > 0 && (
                 <section
-                  className="grid gap-4 md:grid-cols-2"
+                  className="flex flex-wrap justify-center gap-5 md:justify-start"
                   aria-label={`Videos de ${property.title}`}
                 >
                   {galleryVideoUrls.map((url, index) => (
-                    <video
+                    <PortraitVideo
                       key={url}
                       src={url}
                       autoPlay
@@ -304,9 +325,6 @@ export default async function PropertyDetailPage({
                       poster={property.images[0]}
                       disablePictureInPicture
                       aria-label={`Video ${index + 1} sin audio de ${property.title}`}
-                      className={`aspect-video w-full rounded-lg bg-ink object-cover ${
-                        galleryVideoUrls.length === 1 ? "md:col-span-2" : ""
-                      }`}
                     />
                   ))}
                 </section>
@@ -449,6 +467,11 @@ export default async function PropertyDetailPage({
                     title={property.title}
                     pdfUrl={pdfUrl}
                     pageUrl={pageUrl}
+                    coverUrl={absoluteUrl(withListingPreviewParam(withShareParam(
+                      `/api/properties/${property.id}/portada`,
+                      property.visibility === "agents" ? shareToken : undefined
+                    ), property.images[0]))}
+                    mailComposerUrl={`/admin/crm/correo/propiedad/${property.id}`}
                     typeLabel="propiedad"
                   />
                 </div>

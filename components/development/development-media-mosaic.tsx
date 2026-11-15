@@ -1,5 +1,6 @@
 "use client";
 
+import { PortraitVideo } from "@/components/viewport-video";
 import Image from "next/image";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Images, X } from "lucide-react";
@@ -42,12 +43,12 @@ export function DevelopmentMediaMosaic({ images, name, video }: Props) {
     <>
       <div
         className={`grid gap-3 ${
-          secondaryImages.length > 0 ? "lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]" : "grid-cols-1"
+          secondaryImages.length > 0 ? (video ? "lg:grid-cols-[minmax(0,420px)_minmax(300px,1fr)]" : "lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]") : "grid-cols-1"
         }`}
       >
-        <div className="relative min-h-[380px] overflow-hidden rounded-xl bg-ink md:min-h-[620px]">
+        <div className={video ? "relative flex justify-center lg:justify-start" : "relative min-h-[380px] overflow-hidden rounded-xl bg-ink md:min-h-[620px]"}>
           {video ? (
-            <video
+            <PortraitVideo
               src={video}
               poster={primaryImage?.url}
               autoPlay
@@ -56,7 +57,6 @@ export function DevelopmentMediaMosaic({ images, name, video }: Props) {
               playsInline
               disablePictureInPicture
               aria-label={`Video sin audio de ${name}`}
-              className="h-full w-full object-cover"
             />
           ) : primaryImage ? (
             <button

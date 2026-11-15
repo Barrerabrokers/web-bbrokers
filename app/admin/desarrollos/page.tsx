@@ -1,3 +1,7 @@
+import { SortableCatalog } from "@/components/admin/sortable-catalog";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { canManageSiteSettings } from "@/lib/roles";
 import Link from "next/link";
 import { Plus, Building2, MapPin, Edit3 } from "lucide-react";
 import { getDevelopments } from "@/lib/developments-db";
@@ -18,7 +22,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default async function AdminDevelopmentsPage() {
-  const developments = await getDevelopments();
+  const [session, developments] = await Promise.all([getServerSession(authOptions), getDevelopments()]);
 
   return (
     <div>
@@ -53,7 +57,7 @@ export default async function AdminDevelopmentsPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SortableCatalog key={developments.map(item => item.id).join(",")} kind="developments" canEdit={canManageSiteSettings(session?.user.role)} items={developments.map(item => ({ id: item.id, label: item.name }))} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {developments.map((dev) => {
             const primaryImage =
               dev.images.find((i) => i.isPrimary)?.url || dev.images[0]?.url;
@@ -61,7 +65,7 @@ export default async function AdminDevelopmentsPage() {
               <Link
                 key={dev.id}
                 href={`/admin/desarrollos/${dev.id}/editar`}
-                className="group card overflow-hidden hover:border-accent/40 transition-all"
+                className="group block card overflow-hidden hover:border-accent/40 transition-all"
               >
                 <div className="relative aspect-[4/3] bg-cream-200 overflow-hidden">
                   {primaryImage || getDevelopmentVideo(dev.name, dev.videoUrl, dev.videoIsPrimary) ? (
@@ -166,7 +170,7 @@ export default async function AdminDevelopmentsPage() {
               </Link>
             );
           })}
-        </div>
+        </SortableCatalog>
       )}
     </div>
   );

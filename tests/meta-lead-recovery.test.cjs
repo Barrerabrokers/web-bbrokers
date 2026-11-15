@@ -22,6 +22,7 @@ function fixture({ saved = { appId: "crm-app", pageId: "saved-page", token: "pag
   const calls = [], imports = [], records = [], effects = [], splitPhones = [];
   const module = load("lib/meta-leads.ts", {
     "@/lib/developments-db": { getDevelopments: async () => [] },
+    "@/lib/meta-recontact": { isNewMetaRecontact: () => true, reopenMetaContact: async () => { effects.push("notification"); if(notificationFailure)throw new Error("notification failed"); } },
     "@/lib/db": {
       getAllAgents: async () => [{ id: "admin", email: "pablo@barrerabrokers.com", name: "Pablo", role: "admin" }],
       upsertCrmLeadByEmail: async (data, options) => {
@@ -71,6 +72,21 @@ test("imports the phone when Meta uses the Número De Teléfono field label", as
   await f.module.importMetaLeadgenId("lead-phone");
   assert.equal(f.splitPhones[0], "+54 9 226 256 4857");
   assert.equal(f.imports[0].data.metaProperties.meta_field_numero_de_telefono, "+54 9 226 256 4857");
+});
+
+test("imports the plural Nombre y apellidos field instead of using the email alias", async () => {
+  const f = fixture({ handler: path => path === "lead-plural-name" ? Response.json({
+    id: "lead-plural-name", form_id: "form-new", created_time: new Date().toISOString(),
+    field_data: [
+      { name: "email", values: ["matiasc@agrotrac.com.ar"] },
+      { name: "Nombre y apellidos", values: ["Matias Cavalieri"] },
+      { name: "phone_number", values: ["+54 9 2346 551372"] },
+    ],
+  }) : undefined });
+  await f.module.importMetaLeadgenId("lead-plural-name");
+  assert.equal(f.imports[0].data.firstName, "Matias");
+  assert.equal(f.imports[0].data.lastName, "Cavalieri");
+  assert.equal(f.imports[0].data.phone, "123");
 });
 
 test("a recontact notification is persisted before the recovery completion marker", async () => {

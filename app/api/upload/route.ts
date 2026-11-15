@@ -1,3 +1,5 @@
+import { optimizeServerUpload } from "@/lib/server-upload-optimize";
+import { reserveStorageUpload, releaseStorageReservation } from "@/lib/storage-budget";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -67,7 +69,8 @@ export async function POST(request: NextRequest) {
     ];
     const allowedExtensions = ["pdf", "xls", "xlsx", "csv", "jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "m4v", "webm"];
 
-    for (const file of files) {
+    for (const originalFile of files) {
+      const file = await optimizeServerUpload(originalFile);
       // Validar que sea imagen, PDF o planilla
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
       const isPriceListUpload = safeFolder === "price-lists";
@@ -116,15 +119,19 @@ export async function POST(request: NextRequest) {
       // Convertir File a ArrayBuffer
       const buffer = await file.arrayBuffer();
 
+      await reserveStorageUpload(filePath, buffer.byteLength);
+
       // Subir a Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("properties")
         .upload(filePath, buffer, {
           contentType: file.type,
           upsert: false,
+          cacheControl: "31536000",
         });
 
       if (uploadError) {
+        await releaseStorageReservation(filePath);
         console.error("Upload error:", uploadError);
         return NextResponse.json(
           { error: `Error subiendo archivo: ${uploadError.message}` },
@@ -149,9 +156,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Upload error:", error);
+    const budgetExceeded = error instanceof Error && error.message.includes("límite preventivo");
     return NextResponse.json(
-      { error: "Error al subir archivos" },
-      { status: 500 }
+      { error: budgetExceeded ? error.message : "Error al subir archivos" },
+      { status: budgetExceeded ? 413 : 500 }
     );
   }
 }

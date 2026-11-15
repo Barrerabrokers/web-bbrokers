@@ -4,22 +4,27 @@ import { useState } from "react";
 export function CrmBulkActions({ ids, agents, statuses, canUnassign, onClear, onUpdated }: {
   ids: string[]; agents: { id: string; name: string; email: string }[];
   statuses: { value: string; label: string }[]; canUnassign: boolean;
-  onClear: () => void; onUpdated: () => Promise<void>;
+  onClear: (remainingIds?: string[]) => void; onUpdated: () => Promise<void>;
 }) {
   const [action, setAction] = useState("status");
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [failures, setFailures] = useState<{ id: string; name: string; error: string }[]>([]);
   const [message, setMessage] = useState("");
   async function apply() {
     if (!value || !ids.length || busy) return;
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage(""); setFailures([]);
     try {
       const response = await fetch("/api/crm/leads/bulk", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, ...(action === "status" ? { status: value } : { assignedAgentId: value === "unassigned" ? "" : value }) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudieron guardar los cambios.");
-      onClear(); setValue("");
-      setMessage(`${data.updated} contactos actualizados.${data.automationWarning ? " Revisá las automatizaciones: alguna no pudo ejecutarse." : ""}`);
-      try { await onUpdated(); } catch { setMessage(`${data.updated} contactos actualizados. Recargá la página para ver la lista actualizada.`); }
+      const failed = Array.isArray(data.failed) ? data.failed : [];
+      setFailures(failed);
+      onClear(failed.map((contact: { id: string }) => contact.id));
+      if (!failed.length) setValue("");
+      const summary = `${data.updated} de ${ids.length} contactos actualizados.${failed.length ? ` ${failed.length} no pudieron cambiar; revisá los motivos debajo.` : ""}${data.automationWarning ? " Revisá las automatizaciones: alguna no pudo ejecutarse." : ""}`;
+      setMessage(summary);
+      try { await onUpdated(); } catch { setMessage(`${summary} Recargá la página para ver la lista actualizada.`); }
     } catch (error) { setMessage(error instanceof Error ? error.message : "No se pudieron guardar los cambios."); }
     finally { setBusy(false); }
   }
@@ -42,9 +47,10 @@ export function CrmBulkActions({ ids, agents, statuses, canUnassign, onClear, on
         </select>
       </label>
       <button type="button" disabled={busy || !value} onClick={() => void apply()} className="min-h-11 rounded-lg bg-[#005c5c] px-4 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Guardando…" : `Aplicar a ${ids.length}`}</button>
-      <button type="button" disabled={busy} onClick={onClear} className="min-h-11 px-3 text-sm underline">Cancelar selección</button>
+      <button type="button" disabled={busy} onClick={() => onClear()} className="min-h-11 px-3 text-sm underline">Cancelar selección</button>
       {action === "owner" && !canUnassign && <p className="w-full text-sm text-ink/70">Al transferirlos, dejarás de ver estos contactos y pasarán al agente elegido.</p>}
     </div>}
-    {message && <p role="status" className="mt-2 text-sm text-ink">{message}</p>}
+    {message && <p role={failures.length ? "alert" : "status"} className="mt-2 text-sm text-ink">{message}</p>}
+    {failures.length > 0 && <ul className="mt-3 space-y-2 text-sm text-ink">{failures.map(contact => <li key={contact.id}><a href={`/admin/crm/${contact.id}`} className="font-semibold underline underline-offset-4">{contact.name}</a>: {contact.error}</li>)}</ul>}
   </section>;
 }

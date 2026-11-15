@@ -1,112 +1,36 @@
 import Link from "next/link";
-import { ArrowUpRight, Newspaper } from "lucide-react";
+import { listBlogPosts } from "@/lib/blog-store";
+import { PressCarousel } from "@/components/home/press-carousel";
 import { getFullSiteSettings } from "@/lib/db";
 
-type PressItem = {
-  url: string;
-  host: string;
-  label: string;
-};
-
-function parsePressLinks(value?: string): PressItem[] {
-  const seen = new Set<string>();
-
-  return (value || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      try {
-        const url = new URL(line);
-        return url;
-      } catch {
-        try {
-          return new URL(`https://${line}`);
-        } catch {
-          return null;
-        }
-      }
-    })
-    .filter((url): url is URL => Boolean(url))
-    .filter((url) => {
-      const normalized = url.toString();
-      if (seen.has(normalized)) return false;
-      seen.add(normalized);
-      return true;
-    })
-    .map((url) => {
-      const host = url.hostname.replace(/^www\./, "");
-      const readablePath = url.pathname
-        .split("/")
-        .filter(Boolean)
-        .slice(-1)[0]
-        ?.replace(/[-_]+/g, " ")
-        .trim();
-
-      return {
-        url: url.toString(),
-        host,
-        label: readablePath || "Ver nota completa",
-      };
-    });
-}
+import { parsePressLinks } from "@/lib/press-links";
 
 export async function PressSection() {
-  const settings = await getFullSiteSettings();
-  const items = parsePressLinks(settings.pressLinks);
+  const [settings, posts] = await Promise.all([getFullSiteSettings(), listBlogPosts(false, true).catch(() => [])]);
+  const items = posts.length ? posts.map(post => ({ title: post.title, label: post.title, image: post.image, url: `/blog/${post.slug}`, host: "Barrera Brokers" })) : parsePressLinks(settings.pressLinks).map(item => ({ ...item, url: "/blog#en-los-medios" }));
 
-  if (!items.length) return null;
 
   return (
-    <section id="prensa" className="bg-[#F8F5EF] py-16 text-[#151415] md:py-20">
-      <div className="container-custom">
-        <div className="mb-8 grid gap-5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-end">
+    <section id="prensa" className="relative overflow-hidden bg-[#070707] py-20 text-[#f8f5ef] md:py-28 lg:py-36">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(216,196,175,0.16),transparent_28%),linear-gradient(180deg,#151415_0%,#070707_62%,#151415_100%)]" />
+      <div className="container-custom relative z-10">
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[#3A1D17]/55">
+            <p className="mb-5 text-[11px] uppercase tracking-[0.28em] text-[#d8c4af]/70">
               Prensa
             </p>
-            <h2 className="mt-3 font-display text-4xl font-light leading-[0.92] tracking-[-0.035em] md:text-5xl">
-              Barrera Brokers en medios.
+            <h2 className="max-w-3xl font-display text-[clamp(2.8rem,6.5vw,6rem)] font-light leading-[0.92] tracking-[-0.04em]">
+              Prensa y novedades.
             </h2>
           </div>
-          <p className="max-w-xl text-sm leading-relaxed text-[#151415]/62 md:justify-self-end">
-            Notas, entrevistas y menciones sobre desarrollos, inversión
-            inmobiliaria y oportunidades en Buenos Aires.
+          <p className="max-w-xl text-base leading-relaxed text-[#f8f5ef]/75 md:text-lg lg:justify-self-end">
+            Artículos y novedades de Barrera Brokers sobre desarrollos,
+            barrios y mercado inmobiliario en Buenos Aires.
           </p>
         </div>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item, index) => (
-            <Link
-              key={item.url}
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group rounded-[28px] border border-[#151415]/10 bg-white/58 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#151415]/25 hover:bg-white"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#151415] text-[#F8F5EF]">
-                  <Newspaper className="h-4 w-4" />
-                </div>
-                <span className="text-[10px] uppercase tracking-[0.18em] text-[#151415]/35">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-              </div>
-
-              <p className="mt-6 text-[10px] uppercase tracking-[0.2em] text-[#3A1D17]/55">
-                {item.host}
-              </p>
-              <h3 className="mt-2 font-display text-2xl font-light leading-[1] tracking-[-0.02em] text-[#151415]">
-                {item.label}
-              </h3>
-              <div className="mt-5 inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[#151415]/60 transition-colors group-hover:text-[#151415]">
-                Ver nota
-                <ArrowUpRight className="h-4 w-4" />
-              </div>
-            </Link>
-          ))}
-        </div>
       </div>
+      <PressCarousel items={items} />
+      <div className="container-custom relative z-10 mt-8"><Link href="/blog" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/30 px-6 text-sm text-white transition-colors hover:bg-white/10">Ver todas las publicaciones ↗</Link></div>
     </section>
   );
 }

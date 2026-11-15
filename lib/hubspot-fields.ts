@@ -80,6 +80,10 @@ const HIDDEN_HUBSPOT_CONTACT_FIELDS = new Set([
 
 export function shouldShowHubSpotContactField(key: string) {
   if (HIDDEN_HUBSPOT_CONTACT_FIELDS.has(key)) return false;
+  // HubSpot's internal telemetry is useful for migration diagnostics, not for
+  // a commercial contact file. Keep it stored, but never render it as client
+  // information.
+  if (/^(hs_|ip_|cooby_|eazybe_|engagements_|webinarevent|surveymonkeyevent)/.test(key)) return false;
   if (key.startsWith("hs_analytics_")) return false;
   if (key.startsWith("hs_latest_source_")) return false;
   if (key.startsWith("hs_marketable_")) return false;

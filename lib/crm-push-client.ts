@@ -17,3 +17,15 @@ export async function disableDevicePush() {
     if(!removed&&!unsubscribed)throw new Error("No se pudo desactivar este dispositivo.");
   }
 }
+
+// Restore an existing subscription on every app visit without asking permission.
+// Permission and first-time subscription still require a deliberate user click.
+export async function refreshDevicePush(): Promise<boolean> {
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window) || Notification.permission !== "granted") return false;
+  const registration = await navigator.serviceWorker.register("/sw.js");
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return false;
+  await pushRequest({action:"subscribe",...subscription.toJSON()});
+  const status = await pushRequest({action:"status",endpoint:subscription.endpoint});
+  return status.subscribed === true;
+}

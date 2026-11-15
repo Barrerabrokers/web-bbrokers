@@ -4,11 +4,13 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const ts=require('typescript');
 const crypto=require('node:crypto');
+const policyBox={exports:{},Intl,Date};vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/crm-agenda-policy.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,policyBox);
 const leadId='00000000-0000-4000-8000-000000000001';
 async function scenario(input={},options={}) {
  const sent=[],saved=[];
  const lead={id:leadId,firstName:'Cliente',lastName:'Prueba',email:options.noEmail?'':'cliente@example.com',phone:'123',countryCode:'+54'};
  const mocks={
+  '@/lib/crm-agenda-policy':policyBox.exports,
   'next/server':{NextResponse:{json:(data,init)=>Response.json(data,init)}},
   'next-auth':{getServerSession:async()=>({user:{id:'agent',role:'agent'}})},
   '@/lib/auth':{authOptions:{}},
@@ -25,7 +27,7 @@ async function scenario(input={},options={}) {
   module,exports:module.exports,require:id=>id in mocks?mocks[id]:require(id),process,console,crypto,URL,
   fetch:async(url,init)=>{sent.push({url,body:JSON.parse(init.body)});return Response.json({id:'google-event',htmlLink:'https://calendar.google.com/event'});}
  });
- const response=await module.exports.POST(new Request('https://crm.example.com/api/crm/calendar/events',{method:'POST',body:JSON.stringify({leadId,type:'reunion',title:'Reunión comercial',body:'NOTA PRIVADA: presupuesto y estrategia',scheduledAt:new Date(Date.now()+86400000).toISOString(),meetingMode:'in_person',location:'Oficina',...input})}));
+ const response=await module.exports.POST(new Request('https://crm.example.com/api/crm/calendar/events',{method:'POST',body:JSON.stringify({leadId,type:'reunion',title:'Reunión comercial',body:'NOTA PRIVADA: presupuesto y estrategia',scheduledAt:'2030-07-01T12:30:00.000Z',meetingMode:'in_person',location:'Oficina',...input})}));
  return {response,sent,saved};
 }
 test('meetings allow only 30 or 60 minutes and default to 60',async()=>{

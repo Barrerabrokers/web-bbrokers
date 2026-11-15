@@ -2,6 +2,7 @@
 import { MeetingClientInvitation } from "@/components/admin/meeting-client-invitation";
 
 import Link from "next/link";
+import { agendaTime, agendaHour, agendaTimes } from "@/lib/crm-agenda-policy";
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -28,7 +29,7 @@ type CalendarLeadOption = Pick<
 
 type CalendarActivity = Pick<
   CrmActivity,
-  "id" | "leadId" | "type" | "title" | "body" | "scheduledAt" | "createdAt"
+  "id" | "leadId" | "type" | "title" | "body" | "scheduledAt" | "createdAt" | "externalSource" | "duration" | "meetingEndsAt"
 > & {
   lead?: CalendarLeadOption;
 };
@@ -41,6 +42,7 @@ type DraftEvent = {
   includeLucas?: boolean;
   sendClientInvitation?: boolean;
   reminderMinutes: number;
+  duration: number;
   leadId: string;
   type: CalendarEventType;
   date: string;
@@ -49,7 +51,7 @@ type DraftEvent = {
   body: string;
 };
 
-const calendarHours = Array.from({ length: 13 }, (_, index) => index + 8);
+const calendarHours = Array.from({ length: 26 }, (_, index) => 8 + index / 2);
 
 const eventTypes: { value: CalendarEventType; label: string; tone: string }[] = [
   { value: "reunion", label: "Reunión", tone: "border-[#0f766e]/20 bg-[#e8f5f1] text-[#0f4f4a]" },
@@ -81,7 +83,7 @@ function todayValue() {
 }
 
 function timeValue(hour = 10) {
-  return `${String(hour).padStart(2, "0")}:00`;
+  return agendaTime(hour);
 }
 
 function startOfWeek(date: Date) {
@@ -173,6 +175,7 @@ function createDraft(leads: CalendarLeadOption[], date: Date, hour = 10): DraftE
     title: "",
     body: "",
     reminderMinutes: 60,
+    duration: hour >= 20.5 ? 30 : 60,
   };
 }
 
@@ -245,6 +248,7 @@ export function CrmCalendarView({
     return new Date(activity.scheduledAt).getTime() >= new Date().setHours(0, 0, 0, 0);
   });
 
+  const signatures = upcoming.filter(activity => activity.externalSource === "reservation_signature");
   const selectedLead = leads.find((lead) => lead.id === draft?.leadId);
   const googleEmbedUrl = isGoogleConnected ? googleCalendarEmbedUrl(email) : "";
 
@@ -296,6 +300,7 @@ export function CrmCalendarView({
           title,
           body: draft.body,
           reminderMinutes: draft.reminderMinutes,
+          duration: draft.duration,
           scheduledAt: argentinaLocalDateTimeToIso(draft.date, draft.time),
         }),
       });
@@ -386,8 +391,13 @@ export function CrmCalendarView({
           </div>
         </section>
 
-        <section className="min-h-0 overflow-hidden rounded-md border border-ink/12 bg-white">
-          <GoogleCalendarFrame key={calendarFrameKey} email={email} embedUrl={googleEmbedUrl} />
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-md border border-ink/12 bg-white lg:flex-row">
+          <div className="min-h-0 flex-1"><GoogleCalendarFrame key={calendarFrameKey} email={email} embedUrl={googleEmbedUrl} /></div>
+          {signatures.length > 0 && <aside aria-label="Próximas firmas" className="max-h-60 overflow-y-auto border-t border-ink/10 p-4 lg:max-h-none lg:w-72 lg:border-l lg:border-t-0">
+            <h2 className="text-sm font-semibold text-ink">Próximas firmas</h2>
+            <p className="mt-1 text-xs leading-relaxed text-ink/65">Guardadas en el CRM. Google Calendar se actualiza automáticamente cuando la cuenta está conectada.</p>
+            <ul className="mt-3 divide-y divide-ink/10">{signatures.map(activity => <li key={activity.id} className="py-3"><Link href={`/admin/crm/${activity.leadId}#purchase-information`} className="block rounded text-sm font-medium text-[#006b6b] hover:underline focus-visible:outline focus-visible:outline-2"><span className="block">{activity.title}</span><span className="mt-1 block text-xs text-ink/75">{leadName(activity.lead)}</span><time dateTime={activity.scheduledAt} className="mt-1 block text-xs tabular-nums text-ink/75">{new Date(activity.scheduledAt!).toLocaleString("es-AR", { timeZone: ARGENTINA_TIME_ZONE, dateStyle: "short", timeStyle: "short", hourCycle: "h23" })} (Argentina)</time></Link></li>)}</ul>
+          </aside>}
         </section>
       </div>
 
@@ -501,7 +511,7 @@ function DayView({
             key={hour}
             date={date}
             hour={hour}
-            events={(activitiesByDate[key] || []).filter((activity) => argentinaHour(activity.scheduledAt || activity.createdAt) === hour)}
+            events={(activitiesByDate[key] || []).filter((activity) => Math.floor(agendaHour(activity.scheduledAt || activity.createdAt)*2)/2 === hour)}
             openDraft={openDraft}
             deleteEvent={deleteEvent}
             isDeletingId={isDeletingId}
@@ -549,11 +559,11 @@ function WeekView({ date, activitiesByDate, openDraft, deleteEvent, isDeletingId
             className="grid min-h-[76px] grid-cols-[58px_repeat(7,minmax(0,1fr))] border-b border-ink/10 last:border-b-0"
           >
             <div className="border-r border-ink/10 bg-cream-50 p-2 text-[11px] font-semibold text-ink/50">
-              {String(hour).padStart(2, "0")}:00
+              {agendaTime(hour)}
             </div>
             {weekDays.map((day) => {
               const events = (activitiesByDate[dateKey(day)] || []).filter(
-                (activity) => argentinaHour(activity.scheduledAt || activity.createdAt) === hour
+                (activity) => Math.floor(agendaHour(activity.scheduledAt || activity.createdAt)*2)/2 === hour
               );
               return (
                 <div
@@ -598,7 +608,7 @@ function HourRow({
   return (
     <>
       <div className="min-h-[78px] border-b border-r border-ink/10 bg-cream-50 p-2 text-[11px] font-semibold text-ink/50">
-        {String(hour).padStart(2, "0")}:00
+        {agendaTime(hour)}
       </div>
       <div
         onClick={() => openDraft(date, hour)}
@@ -775,12 +785,12 @@ function CalendarEventPill({
     >
       <span className="min-w-0">
         <span className="block truncate text-[11px] font-semibold">
-          {activity.scheduledAt && !compact ? `${formatTime(activity.scheduledAt)} · ` : ""}
+          {activity.scheduledAt && !compact ? `${formatTime(activity.scheduledAt)}–${formatTime(activity.meetingEndsAt || new Date(new Date(activity.scheduledAt).getTime()+(activity.duration || (activity.type === "tarea" ? 30 : 60))*60000).toISOString())} · ` : ""}
           {activity.title}
         </span>
         {!compact && <span className="block truncate text-[10px] opacity-75">{leadName(activity.lead)}</span>}
       </span>
-      {deleteEvent && (
+      {deleteEvent && activity.externalSource !== "reservation_signature" && (
         <button
           type="button"
           onClick={(event) => {
@@ -890,15 +900,16 @@ function EventDialog({
           </label>
 
           <label>
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/48">Hora</span>
-            <input
-              type="time"
-              value={draft.time}
-              onChange={(event) => setDraft({ ...draft, time: event.target.value })}
-              className="mt-2 w-full rounded-md border border-ink/14 bg-white px-3 py-3 text-sm text-ink outline-none transition-colors focus:border-accent"
-              required
-            />
+            <span className="text-xs font-semibold text-ink/75">Hora de inicio (Argentina)</span>
+            <select value={draft.time} onChange={event=>setDraft({...draft,time:event.target.value})} className="form-input mt-2" required>
+              <option value="">Elegí un horario</option>
+              {agendaTimes(draft.duration).map(time=><option key={time} value={time}>{time}</option>)}
+            </select>
           </label>
+          <label><span className="text-xs font-semibold text-ink/75">Duración</span>
+            <select value={draft.duration} onChange={event=>{const duration=Number(event.target.value);setDraft({...draft,duration,time:agendaTimes(duration).includes(draft.time)?draft.time:""});}} className="form-input mt-2"><option value={30}>30 minutos</option><option value={60}>1 hora</option></select>
+          </label>
+          <p className="text-sm text-ink/75 sm:col-span-2">Lunes a domingo, de 08:00 a 21:00. {draft.time && `Finaliza a las ${agendaTime(Number(draft.time.slice(0,2))+Number(draft.time.slice(3))/60+draft.duration/60)}.`}</p>
 
           {draft.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={Boolean(draft.includePablo)} onChange={(event) => setDraft({ ...draft, includePablo: event.target.checked })} disabled={isSaving} />Invitar a Pablo Barrera</label>}
           {draft.type === "reunion" && <label className="flex min-h-11 items-center gap-3 text-sm text-ink sm:col-span-2"><input type="checkbox" checked={Boolean(draft.includeLucas)} onChange={(event) => setDraft({ ...draft, includeLucas: event.target.checked })} disabled={isSaving} />Invitar a Lucas Barrera</label>}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import { ArrowUpRight, Check, MessageCircle } from "lucide-react";
 import { useSiteSettings } from "@/lib/use-site-settings";
 
@@ -30,6 +31,7 @@ export function DevelopmentInquiryPanel({ developmentName, location }: Props) {
         }),
       });
       if (!response.ok) throw new Error("No se pudo enviar");
+      trackMetaEvent("Lead", { content_name: "Consulta web" });
       setStatus("success");
       setForm({ name: "", email: "", phone: "" });
     } catch {

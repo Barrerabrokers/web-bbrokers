@@ -92,25 +92,31 @@ test('list orders by known score then pipeline; worker retains pipeline priority
  assert.ok(ui.indexOf('Detalles<span')<ui.indexOf('{l.last_error&&'));
  for(const color of ['red','orange','amber','blue','slate'])assert.ok(ui.includes(`bg-${color}-100`));
 });
-test('contact AI report is at the bottom, lazy and closed until requested',()=>{
- const page=fs.readFileSync('app/admin/crm/[id]/page.tsx','utf8');
- const report=fs.readFileSync('components/admin/ai-sales-report.tsx','utf8');
- assert.ok(page.indexOf('<AiSalesReport key=')>page.indexOf('<DevelopmentPanel name='));
- assert.match(page,/<AiSalesReportButton leadId=\{activity.leadId\}/);
- assert.match(page,/<AiSalesReportButton leadId=\{lead.id\}/);
- assert.match(report,/useState\(false\)/);
- assert.match(report,/open && <AiSales/);
- assert.match(report,/aria-expanded=\{open\}/);
- assert.match(report,/removeEventListener\(openEvent, show\)/);
- assert.doesNotMatch(report,/fetch\(|reanalyze/);
+test('retired AI Sales has no CRM entry points or scheduled job',()=>{
+ for(const file of ['app/admin/crm/[id]/page.tsx','components/admin/crm-nav.tsx','components/admin/admin-sidebar.tsx']){
+  assert.doesNotMatch(fs.readFileSync(file,'utf8'),/AiSalesReport|\/admin\/crm\/ai-sales/);
+ }
+ assert.equal(JSON.parse(fs.readFileSync('vercel.json','utf8')).crons.some(c=>c.path==='/api/cron/ai-sales'),false);
+ const scheduler=load('lib/ai-sales/schedule.ts',{require:()=>{throw Error('Retired scheduler must not import a worker');}});
+ assert.equal(scheduler.scheduleSalesAnalysis(),undefined);
 });
-test('read and write endpoints preserve ownership and filter validation',()=>{
- const {filtersSchema}=load('lib/ai-sales/store.ts');
- assert.equal(filtersSchema.safeParse({score:101}).success,false);
- assert.equal(filtersSchema.safeParse({page:-1}).success,false);
- assert.equal(filtersSchema.safeParse({category:'waiting',score:80,page:2}).success,true);
- const source=fs.readFileSync('app/api/crm/ai-sales/route.ts','utf8');
- assert.match(source,/assigned_agent_id=\$\{user.id\}/);assert.match(source,/canViewAllCrmContacts/);
+test('retired API returns Gone for reads and manual reanalysis',async()=>{
+ for(const file of ['app/api/crm/ai-sales/route.ts','app/api/cron/ai-sales/route.ts']){
+  const api=load(file,{require:id=>{
+   assert.equal(id,'next/server');
+   return {NextResponse:{json:(data,options)=>({data,status:options.status})}};
+  }});
+  assert.equal((await api.GET()).status,410);
+  assert.equal((await api.POST()).status,410);
+ }
+});
+test('retired worker stays inert even when old environment enables it',async()=>{
+ const prior=process.env.AI_SALES_ENABLED; process.env.AI_SALES_ENABLED='true';
+ try{
+  const worker=load('lib/ai-sales/worker.ts',{require:id=>id==='crypto'?require(id):new Proxy({},{get(){return ()=>{throw Error('Retired worker used dependency');};}})});
+  const result=await worker.processSales();
+  assert.equal(result.enabled,false);assert.equal(result.processed,0);
+ }finally{if(prior===undefined)delete process.env.AI_SALES_ENABLED;else process.env.AI_SALES_ENABLED=prior;}
 });
 test('provider quota errors expose only safe codes and preserve retry-after',async()=>{
  const prior=process.env.GROQ_API_KEY;process.env.GROQ_API_KEY='test-not-a-real-key';
@@ -121,4 +127,20 @@ test('provider quota errors expose only safe codes and preserve retry-after',asy
    assert.equal(error.message,'AI_PROVIDER_429_rate_limit_exceeded');return true;
   });
  }finally{if(prior===undefined)delete process.env.GROQ_API_KEY;else process.env.GROQ_API_KEY=prior;}
+});
+
+test('meeting outcomes survive compaction and retries with evidence and attendance',()=>{
+ const {compactSalesContext}=load('lib/ai-sales/provider-format.ts');
+ for(const compactRetry of [false,true]){
+  const packed=compactSalesContext({now:new Date(now).toISOString(),compactRetry,
+   meetingHistory:[{id:'meeting-proof',title:'Reunión virtual',happened_at:'2026-09-21T10:00:00Z',outcome_status:'completed',outcome:'Quiere avanzar con dos unidades; enviar propuesta el viernes.'},
+    {id:'cancelled',happened_at:'2026-09-21T10:00:00Z',outcome_status:'cancelled',outcome:'Cancelada'},
+    {id:'future',happened_at:'2026-09-30T10:00:00Z',outcome_status:'completed',outcome:'Pendiente'}],
+   history:Array.from({length:100},()=>({detalle:'Otra conversación '.repeat(1000)}))});
+  const result=JSON.parse(packed);
+  assert.equal(result.meetingHistory[0].id,'meeting-proof');
+  assert.ok(result.meetingHistory[0].outcome.includes('enviar propuesta el viernes'));
+  assert.equal(result.meetingHistory[0].attended,true);
+  if(!compactRetry){assert.equal(result.meetingHistory[1].attended,false);assert.equal(result.meetingHistory[2].attended,false);}
+ }
 });
