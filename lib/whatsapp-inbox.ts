@@ -5,6 +5,7 @@ import { deliverMetaSocialText } from '@/lib/meta-social-send';
 import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
 import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
+import { routesToMiaMeeting } from '@/mia/lib/meeting-routing';
 import { newMiaEngineAllows } from '@/mia/lib/rollout';
 import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
 import type { WhatsAppAttachment } from '@/lib/whatsapp-attachments';
@@ -440,7 +441,13 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
     MIA_TEST_EMAILS: process.env.MIA_TEST_EMAILS,
   })) return legacy();
   if (!contact.aiEnabled || contact.status === 'closed') return null;
-  const meeting = await replyMiaMeeting(id, history);
-  if (meeting) return meeting.reply;
+  const activeHistory = history.filter(message => !['historical', 'cleared'].includes(message.status));
+  const inbound = activeHistory.at(-1);
+  if (inbound?.direction !== 'inbound') return null;
+  const previousReply = activeHistory.findLast(message => message.direction === 'outbound')?.content ?? '';
+  if (routesToMiaMeeting(inbound.content, previousReply)) {
+    const meeting = await replyMiaMeeting(id, activeHistory);
+    if (meeting) return meeting.reply;
+  }
   return generateMiaWhatsAppReply(contact, history);
 }
