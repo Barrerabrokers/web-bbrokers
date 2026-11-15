@@ -1,217 +1,225 @@
-# Barrera Brokers - Plataforma Inmobiliaria
+# Barrera Brokers — sitio inmobiliario, CRM y MIA
 
-Sitio web moderno de bienes raíces construido con **Next.js 14+, TypeScript y Tailwind CSS**. Incluye gestión completa de propiedades y sistema de autenticación para agentes.
+**Documentación actualizada al 15 de noviembre de 2026.**
 
-## 🚀 Características
+Barrera Brokers reúne el sitio público de desarrollos y propiedades, un CRM para el equipo comercial y MIA, la asistente comercial integrada con WhatsApp, correo y Google Calendar.
 
-### Frontend Público
-- ✅ Landing page moderna con hero section y animaciones
-- ✅ Sección de servicios (desarrollo, pozo, usados, rentals, inversiones, oportunidades)
-- ✅ Catálogo de propiedades con filtros por categoría
-- ✅ Página de detalle de propiedad individual
-- ✅ Sección "Sobre Nosotros" con equipo
-- ✅ Formulario de contacto funcional
-- ✅ SEO optimizado con metadata
-- ✅ Totalmente responsive (móvil, tablet, desktop)
-- ✅ Performance optimizado
+- Sitio: https://barrerabrokers.com
+- Acceso al equipo: https://barrerabrokers.com/login
+- Centro administrativo de MIA: https://barrerabrokers.com/admin/crm/mia
 
-### Panel de Administración
-- ✅ Sistema de autenticación seguro con NextAuth.js
-- ✅ Dashboard con estadísticas
-- ✅ CRUD completo de propiedades
-- ✅ Subida y gestión de imágenes
-- ✅ Categorización por tipo (desarrollo, pozo, usados, rentals, inversiones, oportunidades)
-- ✅ Control de estado (disponible, reservada, vendida)
-- ✅ Gestión de características y detalles
-- ✅ Vista previa en tiempo real
+## Alcance de esta documentación
 
-## 🛠 Stack Tecnológico
+Este documento describe la implementación operativa revisada al corte indicado. **Producción y la rama `main` de GitHub no deben asumirse sincronizadas:** los últimos cambios del CRM y MIA se publicaron en Vercel mediante conjuntos de archivos seleccionados, y hay código local pendiente de incorporar a Git. Por eso algunos archivos del mapa siguiente pueden faltar en una copia de `main`.
 
-- **Framework**: Next.js 14+ (App Router)
-- **Lenguaje**: TypeScript
-- **Estilos**: Tailwind CSS
-- **Autenticación**: NextAuth.js
-- **Validación**: Zod
-- **Formularios**: React Hook Form
-- **Iconos**: Lucide React
+Actualizar este README no incorpora esos archivos ni despliega la aplicación. Antes de desplegar desde GitHub, reconciliar el código con la versión productiva; no sustituir producción por una revisión anterior.
 
-## 📦 Instalación
+Las integraciones dependen de credenciales, permisos, configuración y disponibilidad de cada proveedor. Su presencia en el código no garantiza que todas las cuentas estén conectadas ni que un mensaje haya sido entregado.
+
+## Sitio público y catálogo
+
+- Páginas de desarrollos, propiedades y sus fichas individuales.
+- Unidades por desarrollo, tipologías, precios, financiación y estado comercial.
+- Imágenes, videos, brochures, listas de precios y fichas compartibles.
+- Formularios de consulta y entradas desde campañas.
+- Contenido institucional, prensa y blog.
+- Integración de medición con Meta y endpoint de catálogo `/api/feed/facebook`.
+
+El feed publicitario y el catálogo comercial de MIA tienen alcances distintos. La existencia del endpoint no confirma que Meta haya aceptado la importación: debe comprobarse en Commerce Manager. La publicación de unidades depende de las políticas de visibilidad y los datos vigentes; no publicar una unidad vendida o reservada no implica necesariamente borrar su registro interno.
+
+## CRM comercial
+
+| Módulo | Función |
+| --- | --- |
+| Contactos | Leads, asignación a agentes, estado comercial, datos del formulario, notas e historial de actividad. |
+| Pipeline | Seguimiento por estado del lead; el grado de interés se trata por separado. |
+| Panel de agentes | Resumen del trabajo, contactos, tareas, reuniones e indicadores. El agente consulta su ámbito; los administradores pueden consultar el equipo. |
+| Mis tareas | Actividades pendientes, vencidas y programadas. |
+| Conversaciones | Bandeja de WhatsApp y canales sociales integrados, con intervención humana y controles de IA. |
+| Correo de CRM | Conexión de cuentas, envío, respuestas y registro de interacciones. |
+| Calendario y links de reuniones | Agenda comercial, coordinación y conexión con Google Calendar. |
+| Marketing | Campañas, audiencias, integración con Meta y recuperación de leads. |
+| Plantillas y workflows | Contenido reutilizable y automatizaciones comerciales. |
+| Operaciones y agentes | Configuración operativa, equipo y accesos según rol. |
+| Precios y brochures | Administración de documentación comercial de desarrollos. |
+
+La autorización se comprueba también en el servidor. La visibilidad de un menú no sustituye los controles de acceso de sus endpoints.
+
+## MIA: funcionamiento actual
+
+MIA atiende WhatsApp entrantes según los controles de activación, pausa e intervención humana. El seguimiento comercial saliente utiliza los contactos asignados a MIA y la configuración habilitada para ese flujo. No equivale a autorizar campañas masivas sobre todos los contactos.
+
+### Conversación y asesoramiento
+
+1. Recupera el mensaje, formulario, contexto del CRM y memoria disponible.
+2. Identifica intención, preferencias y datos que faltan, evitando volver a preguntar lo informado.
+3. Consulta las fuentes comerciales autorizadas. El flujo de venta de valor utiliza BA Opportunities; precios y financiación requieren sus fuentes verificadas.
+4. Combina interpretación mediante el proveedor de IA con reglas y respuestas deterministas.
+5. Registra memoria, interacciones y observaciones de aprendizaje cuando corresponde.
+
+Las reglas comerciales incluyen tono argentino, respuestas breves, una pregunta por mensaje, hasta dos opciones compatibles y respeto por pedidos de retomar más adelante. La espera mínima configurada es de diez segundos; la latencia real puede ser mayor por agrupación de mensajes, proveedor o reintentos. No debe inventar precios, disponibilidad, testimonios ni resultados de acciones.
+
+### Centro administrativo
+
+`/admin/crm/mia` está reservado a administradores y organiza:
+
+- Conversaciones y datos del cliente.
+- Memoria y preferencias registradas.
+- Aprendizaje, correcciones e informes.
+- Reuniones y verificación de conexión con Google Calendar.
+- Configuración, simulador y controles del seguimiento comercial.
+
+La supervisión de MIA tiene una sección propia. La antigua ruta de configuración en Marketing redirige al centro MIA; Marketing conserva sus funciones de campañas y bandeja general.
+
+### Qué significa «aprender»
+
+Hay dos mecanismos diferentes:
+
+- **Memoria del cliente:** preferencias, opciones presentadas, datos conocidos y pendientes de la conversación.
+- **Aprendizaje supervisado:** observaciones registradas y reglas administrativas aprobadas para conversaciones futuras.
+
+Las reglas activas se consultan desde `mia_learnings`, con `aplicar_en_futuro = true` y aprobación administrativa. Guardar un chat no reentrena automáticamente el modelo ni convierte lo que dice un cliente en una instrucción global.
+
+`data/mia/mia_learnings.json` es una copia versionable de reglas importadas. La fuente operativa es la base de datos; la exportación administrativa acumulativa está en `/api/crm/mia/learnings/export`.
+
+### Reuniones confirmadas
+
+El flujo implementado verifica las agendas de los organizadores habilitados, Pablo Barrera y Lucas Barrera, antes de asignar un horario. La política habitual es lunes a sábado de 10:00 a 20:00, con reuniones de 60 minutos. Los pedidos fuera de ese horario quedan pendientes de aprobación administrativa.
+
+Tras la confirmación del cliente:
+
+1. Crear o recuperar un único evento en Google Calendar.
+2. Solicitar Google Meet para la modalidad virtual e invitaciones por correo a los participantes.
+3. Registrar actividad y agenda en el CRM.
+4. Cambiar el estado del lead a `Reunion`.
+5. Cerrar el tema de coordinación para no volver a pedir el mismo día y horario.
+
+El identificador del evento permite recuperar intentos inciertos sin duplicar reservas. Si Calendar tuvo éxito y el registro posterior en el CRM falló, el proceso de recuperación reintenta la sincronización. Una invitación solicitada a Google no acredita su entrega en la bandeja del destinatario.
+
+Los cambios o cancelaciones solicitados por el cliente se registran para revisión; no deben anunciarse como ejecutados sin comprobar el cambio efectivo en Calendar. Pedir un recordatorio por WhatsApp registra una preferencia: no implica por sí solo que exista un envío automático programado.
+
+## Arquitectura y persistencia
+
+| Capa | Responsabilidad |
+| --- | --- |
+| Repositorio | Código, integraciones, validaciones, pruebas y documentación. |
+| Vercel | Aplicación Next.js, endpoints, ejecución programada y variables de entorno. |
+| PostgreSQL | Datos persistentes del CRM, conversaciones, memoria, reglas y estados de trabajo. |
+| Supabase | Integración de almacenamiento y servicios asociados a los archivos del catálogo. |
+| Google | OAuth, correo y Calendar, según permisos de cada cuenta. |
+| Meta | Campañas, formularios de leads y mensajería mediante las integraciones configuradas. |
+| Proveedor de IA | Generación e interpretación; el flujo de WhatsApp utiliza el adaptador de Groq. |
+
+El CRM utiliza **PostgreSQL real mediante el cliente `postgres`**, no una base de datos simulada en memoria. `lib/db.ts` contiene acceso a datos y lógica del CRM. La conexión se resuelve por variables de entorno; no hace falta introducir Prisma o MongoDB para ponerlo en producción.
+
+### Datos principales de MIA
+
+| Información | Ubicación actual |
+| --- | --- |
+| Leads y perfil comercial | `crm_leads`, incluyendo datos estructurados en `meta_properties`. |
+| Conversaciones y mensajes | `crm_whatsapp_conversations` y `crm_whatsapp_messages`. |
+| Notas y actividades | `crm_activities`. |
+| Memoria por conversación | `crm_whatsapp_agent_settings`, claves `mia-agent-memory-v1:<conversationId>`. |
+| Instrucciones administrativas | `crm_whatsapp_agent_settings`, clave `mia-guidance-v1` y revisiones. |
+| Reglas y observaciones | `mia_learnings`. |
+| Estado de coordinación | `crm_mia_meeting_sessions`. |
+| Agenda vinculada al CRM | `crm_meeting_schedules` y actividad asociada. |
+
+Los documentos externos y las listas requieren control de vigencia. Actualizar una unidad en el CRM no actualiza automáticamente una planilla externa, ni una planilla sustituye automáticamente todos los registros del catálogo.
+
+## Mapa del código operativo
+
+Estas rutas describen la implementación revisada; comprobar su presencia en la rama utilizada antes de ejecutar o desplegar.
+
+| Ruta | Responsabilidad |
+| --- | --- |
+| `app/desarrollos/`, `app/propiedades/` | Catálogo público. |
+| `app/admin/crm/`, `components/admin/` | Interfaz del CRM y permisos. |
+| `app/admin/crm/mia/`, `lib/mia-admin-workspace.ts` | Centro administrativo de MIA. |
+| `app/api/whatsapp/webhook/`, `lib/whatsapp-inbox.ts` | Entrada de mensajes y procesamiento. |
+| `lib/mia-project-trial.ts`, `lib/mia-value-first.ts` | Entrada al flujo comercial y conversación de valor. |
+| `lib/mia-agent.ts`, `lib/mia-agent-search.ts` | Componentes de planificación, búsqueda y memoria. |
+| `lib/mia-agent-memory.ts`, `lib/mia-commercial-profile.ts` | Persistencia de preferencias y perfil del lead. |
+| `lib/mia-form-profile.ts`, `lib/whatsapp-form-context.ts` | Recuperación de datos del formulario. |
+| `lib/mia-learnings.ts`, `lib/mia-learning-import.ts`, `lib/mia-guidance.ts` | Aprendizaje supervisado e instrucciones. |
+| `lib/mia-opportunities.ts`, `lib/whatsapp-mia-sources.ts` | Fuentes comerciales y lectura de documentos. |
+| `lib/mia-meetings.ts`, `lib/mia-meeting-policy.ts` | Coordinación y política de reuniones. |
+| `lib/mia-meeting-recovery.ts`, `lib/mia-meeting-reconciliation.ts` | Recuperación y sincronización Calendar/CRM. |
+| `lib/mia-sales-worker.ts`, `lib/mia-sales-followup.ts` | Seguimiento comercial en segundo plano. |
+| `lib/whatsapp-ai-provider.ts` | Adaptador de IA y alternativas de modelo. |
+| `lib/database-pool.ts`, `lib/db.ts`, `lib/supabase.ts` | Conexiones y acceso a datos/almacenamiento. |
+| `lib/google-oauth.ts`, `lib/crm-email-sender.ts` | Google y envío de correo. |
+| `tests/`, `scripts/`, `data/mia/` | Pruebas, utilidades operativas y copias de reglas. |
+
+## Stack y desarrollo local
+
+Implementación revisada: Next.js **15.5.25** con App Router, React **18.3.1**, TypeScript, Tailwind CSS, NextAuth.js 4, Zod, PostgreSQL, Supabase, herramientas de correo y procesamiento de documentos. El `package.json` operativo declara Node.js **22.x**. Verificar la revisión y su lockfile antes de instalar.
 
 ```bash
-# Instalar dependencias
-npm install
-
-# Copiar variables de entorno
-cp .env.example .env
-
-# Configurar NEXTAUTH_SECRET
-# Genera uno con: openssl rand -base64 32
-# Y agrégalo a .env
-
-# Ejecutar en desarrollo
+npm ci
+cp .env.example .env.local
+# Completar la configuración de desarrollo autorizada.
 npm run dev
+```
 
-# Construir para producción
+El ejemplo de entorno es una referencia inicial y puede no enumerar todas las integraciones. Usar una base de desarrollo y cuentas de prueba; los scripts operativos pueden modificar datos o enviar comunicaciones reales.
+
+### Configuración por servicio
+
+| Servicio | Variables o configuración relevante |
+| --- | --- |
+| Sesión | `NEXTAUTH_URL`, `NEXTAUTH_SECRET`. |
+| PostgreSQL | `POSTGRES_PRISMA_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `DATABASE_URL` o `SUPABASE_DB_URL`, según la precedencia del código. |
+| Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`; credenciales privilegiadas solo del lado servidor. |
+| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, callback OAuth y autorización de cada cuenta. |
+| Cifrado de cuentas | `CRM_EMAIL_SECRET` o la clave alternativa prevista por el código. Cambiar la clave sin migrar los datos cifrados puede impedir leer las conexiones existentes. |
+| IA de WhatsApp | `GROQ_API_KEY`; modelos configurables mediante `GROQ_WHATSAPP_MODEL` y alternativas. |
+| Meta/WhatsApp | Tokens, identificadores, permisos y suscripción del webhook; algunas credenciales se administran cifradas en el CRM. |
+| Procesos programados | `CRON_SECRET` y las rutas de `vercel.json`. |
+
+No hay credenciales de demo que deban utilizarse para entrar en producción. Los usuarios se administran mediante el sistema de agentes y autenticación. No publicar secretos, exportaciones de contactos, chats reales, archivos `.env` ni copias de credenciales.
+
+### Verificación
+
+```bash
+npm run lint
 npm run build
-
-# Ejecutar en producción
-npm start
 ```
 
-## 🔐 Credenciales de Demo
-
-Para acceder al panel de administración:
-
-- **Email**: admin@barrerabrokers.com
-- **Password**: admin123
-
-⚠️ **Importante**: Cambia estas credenciales en producción editando `/lib/db.ts`
-
-## 📁 Estructura del Proyecto
-
-```
-web-bbrokers/
-├── app/                          # App Router de Next.js
-│   ├── (public)/                 # Rutas públicas
-│   │   ├── page.tsx              # Home page
-│   │   ├── propiedades/          # Catálogo y detalle
-│   │   └── login/                # Login de agentes
-│   ├── admin/                    # Panel de administración
-│   │   ├── layout.tsx            # Layout con auth
-│   │   ├── page.tsx              # Dashboard
-│   │   └── propiedades/          # Gestión de propiedades
-│   ├── api/                      # API Routes
-│   │   ├── auth/                 # NextAuth
-│   │   ├── properties/           # CRUD propiedades
-│   │   └── contact/              # Formulario contacto
-│   ├── layout.tsx                # Root layout
-│   └── globals.css               # Estilos globales
-├── components/                   # Componentes reutilizables
-│   ├── home/                     # Secciones del home
-│   ├── layout/                   # Header, Footer
-│   ├── admin/                    # Componentes del admin
-│   └── property-card.tsx         # Card de propiedad
-├── lib/                          # Utilidades
-│   ├── db.ts                     # Base de datos mock
-│   └── utils.ts                  # Funciones helper
-├── types/                        # Tipos TypeScript
-│   ├── index.ts                  # Tipos principales
-│   └── next-auth.d.ts            # Tipos de NextAuth
-├── middleware.ts                 # Middleware de auth
-├── next.config.js                # Configuración Next.js
-├── tailwind.config.ts            # Configuración Tailwind
-└── package.json                  # Dependencias
-```
-
-## 🎨 Categorías de Propiedades
-
-1. **En Desarrollo**: Proyectos en construcción
-2. **En Pozo**: Proyectos en etapa inicial
-3. **Usados**: Propiedades listas para escriturar
-4. **Alquileres**: Propiedades para renta
-5. **Inversiones**: Oportunidades de inversión
-6. **Oportunidades**: Propiedades con precios especiales
-
-## 💾 Base de Datos
-
-Actualmente usa un sistema mock en memoria (`/lib/db.ts`). Para producción, se recomienda:
-
-### Opción 1: Prisma + PostgreSQL
-```bash
-npm install @prisma/client prisma
-npx prisma init
-# Definir schema en prisma/schema.prisma
-npx prisma migrate dev
-```
-
-### Opción 2: MongoDB + Mongoose
-```bash
-npm install mongodb mongoose
-# Configurar en /lib/mongodb.ts
-```
-
-### Opción 3: Supabase
-```bash
-npm install @supabase/supabase-js
-# Configurar en /lib/supabase.ts
-```
-
-## 🔒 Seguridad
-
-- ✅ Autenticación con NextAuth.js
-- ✅ Middleware de protección de rutas
-- ✅ Validación con Zod
-- ✅ Hashing de contraseñas con bcryptjs
-- ✅ Variables de entorno para secretos
-- ⚠️ NEXTAUTH_SECRET debe ser único en producción
-
-## 📧 Configurar Email (Opcional)
-
-Para que el formulario de contacto envíe emails reales:
+Las pruebas específicas están en `tests/*.test.cjs`. Cuando esos archivos estén presentes en la revisión:
 
 ```bash
-npm install nodemailer
+node --test tests/mia-meetings.test.cjs tests/mia-meeting-recovery.test.cjs tests/mia-calendar-status.test.cjs
 ```
 
-Configurar en `.env`:
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=tu-email@gmail.com
-SMTP_PASSWORD=tu-app-password
-SMTP_FROM=noreply@barrerabrokers.com
-```
+Las pruebas con proveedores simulados no verifican credenciales reales ni entrega de correos o WhatsApp. Una validación de integración debe comprobar el evento, los registros del CRM y los estados del proveedor sin enviar comunicaciones de prueba a clientes sin autorización.
 
-Actualizar `/app/api/contact/route.ts` con la implementación de nodemailer.
+## Producción y procesos programados
 
-## 🚀 Deployment
+La aplicación opera en Vercel. El `vercel.json` operativo configura:
 
-### Vercel (Recomendado)
-```bash
-# Instalar Vercel CLI
-npm i -g vercel
+| Ruta | Frecuencia |
+| --- | --- |
+| `/api/cron/meta-leads` | Cada 5 minutos. |
+| `/api/cron/crm-email-notifications` | Cada 5 minutos. |
+| `/api/cron/crm-client-campaigns` | Cada 5 minutos. |
+| `/api/cron/crm-device-notifications` | Cada minuto. |
+| `/api/cron/whatsapp-ai-retry` | Cada 5 minutos. |
+| `/api/cron/mia-sales-pilot` | Cada 5 minutos; incluye recuperación de reuniones. |
 
-# Deploy
-vercel
+La frecuencia del proceso no es la frecuencia de contacto al cliente: cada flujo evalúa sus condiciones, pausas y vencimientos. No ejecutar scripts de envío o migraciones indiscriminadamente.
 
-# Configurar variables de entorno en Vercel Dashboard
-```
+Antes de una publicación, comprobar la versión productiva, las diferencias pendientes, las variables del entorno y las pruebas correspondientes. Un build exitoso no comprueba por sí solo las integraciones externas.
 
-### Otras Plataformas
-- **Netlify**: Compatible con Next.js
-- **Railway**: Soporta Next.js + PostgreSQL
-- **AWS Amplify**: Deploy automático desde GitHub
+## Limitaciones y trabajo pendiente
 
-## 📱 Responsive Design
+- Reconciliar y versionar en GitHub el código operativo que todavía se encuentra fuera del historial de `main`.
+- MIA combina múltiples módulos y respuestas fijas. Una regla administrativa nueva no garantiza que todas las ramas deterministas cambien su texto.
+- La lectura de memoria puede retornar una memoria vacía ante un error; falta mejorar la visibilidad y el tratamiento de esa situación.
+- El flujo comercial depende de fuentes externas: una lectura fallida puede producir una respuesta genérica de confirmación pendiente.
+- La memoria está vinculada a conversaciones y se complementa con el perfil del CRM; una memoria unificada de todos los canales sigue siendo una mejora propuesta.
+- La reorganización del conocimiento en una fuente comercial central y la reducción de respuestas rígidas son propuestas de mejora, no una migración ya terminada.
 
-El sitio está optimizado para:
-- 📱 Móvil (< 768px)
-- 📱 Tablet (768px - 1024px)
-- 💻 Desktop (> 1024px)
+## Propiedad y mantenimiento
 
-## 🎯 Próximas Mejoras
-
-- [ ] Integración con base de datos real
-- [ ] Subida de imágenes a CDN (Cloudinary, AWS S3)
-- [ ] Sistema de notificaciones por email
-- [ ] Chat en vivo con agentes
-- [ ] Búsqueda avanzada con filtros
-- [ ] Comparador de propiedades
-- [ ] Tours virtuales 360°
-- [ ] Integración con Google Maps
-- [ ] Panel de analytics
-- [ ] Multi-idioma (i18n)
-
-## 📝 Licencia
-
-Este proyecto es privado y propiedad de Barrera Brokers.
-
-## 🤝 Soporte
-
-Para soporte técnico:
-- Email: dev@barrerabrokers.com
-- Teléfono: +54 11 1234-5678
-
----
-
-**Desarrollado con ❤️ para Barrera Brokers**
+Proyecto de Barrera Brokers. La visibilidad del repositorio no implica una licencia de uso libre. Coordinar accesos y mantenimiento con los administradores del proyecto; no se publican contactos de soporte de ejemplo ni credenciales operativas.
