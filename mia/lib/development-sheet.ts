@@ -53,7 +53,26 @@ function rows(workbook: XLSX.WorkBook) {
 
 function deliveryValue(value: string) {
   const months = /^(\d+)\s*(?:mes(?:es)?|months?)$/i.exec(value.trim());
+  if (/^0$|^(?:entrega )?inmediata$|^immediate(?: delivery)?$/i.test(value.trim())) return '0 meses';
   return months ? `${months[1]} meses` : value.trim();
+}
+
+export function deliveryMonths(value: string | null) {
+  const match = /^(\d{1,4}) meses$/.exec(value ? deliveryValue(value) : '');
+  return match ? Number(match[1]) : null;
+}
+
+function brochureFile(value: string | undefined) {
+  const href = https(value);
+  if (!href) return null;
+  const url = new URL(href);
+  if (url.hostname === 'drive.google.com') {
+    return /^\/file\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(url.pathname) ? href : null;
+  }
+  if (url.hostname === 'docs.google.com') {
+    return /^\/(?:document|presentation)\/d\/[A-Za-z0-9_-]+(?:\/|$)/.test(url.pathname) ? href : null;
+  }
+  return /\.pdf$/i.test(url.pathname) ? href : null;
 }
 
 export function parseDevelopmentProjects(workbook: XLSX.WorkBook) {
@@ -67,9 +86,9 @@ export function parseDevelopmentProjects(workbook: XLSX.WorkBook) {
       deliveries: new Set<string>(), lists: new Set<string>(), brochures: new Set<string>(),
     };
     const listUrl = https(cell(4)?.l?.Target ?? list);
-    const brochureUrl = https(cell(5)?.l?.Target ?? brochure);
+    const brochureUrl = brochureFile(cell(5)?.l?.Target ?? brochure);
     if (listUrl && sheetId(listUrl)) current.lists.add(listUrl);
-    if (brochureUrl && !/\/drive\/(?:u\/\d+\/)?home\/?$/.test(new URL(brochureUrl).pathname)) current.brochures.add(brochureUrl);
+    if (brochureUrl) current.brochures.add(brochureUrl);
     if (delivery && !/^[-\s]+$|^(?:n\/a|no confirmado)$/i.test(delivery)) current.deliveries.add(deliveryValue(delivery));
     catalog.set(id, current);
   }

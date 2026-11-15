@@ -24,11 +24,12 @@ async function run() {
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_brochure_state.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_options_state.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_cache.sql', 'utf8'));
+    await tx.unsafe(fs.readFileSync('migrations/20261115_mia_catalog_delivery_months.sql', 'utf8'));
     tx.begin = callback => callback(tx);
     let sourceProjects = [];
     let sourceOptions = [];
     const mocks = {
-      './development-sheet': {getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async (_projects, _zone, _rooms, saveList) => {
+      './development-sheet': {deliveryMonths: value => value === '0 meses' ? 0 : null, getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async (_projects, _zone, _rooms, saveList) => {
         if (sourceOptions.length) await saveList(sourceOptions[0].project.id, sourceOptions);
         return sourceOptions;
       }},
@@ -81,7 +82,7 @@ async function run() {
     assert.equal(unverifiedCatalogClaim('Te preparo dos opciones con disponibilidad inmediata.'), true);
     assert.equal(unverifiedCatalogClaim('¿Qué es lo más importante para vos?'), false);
     const project = {id:randomUUID(),name:'Prueba Parque de la Innovación',address:'Prueba 150',
-      location:'Núñez',delivery:'12 meses',listUrl:'https://example.invalid/lista',brochure_url:'https://example.invalid/brochure'};
+      location:'Núñez',delivery:'0 meses',listUrl:'https://example.invalid/lista',brochure_url:null};
     sourceProjects = [project];
     sourceOptions = [
       {project,originalType:'Studio',roomCount:1,price:'USD 120.000',currency:'USD',availability:'Disponible'},
@@ -95,8 +96,12 @@ async function run() {
     assert.match(options, /Opción 1: .*1 ambiente.*USD.*Disponible/);
     assert.match(options, /Opción 2: .*2 ambientes.*USD.*Disponible/);
     assert.doesNotMatch(options, /Reservado-test|Sin-precio-test|disponibilidad inmediata|te preparo/i);
-    const cached = await tx`select moneda from mia_catalog_cache where proyecto=${project.id}`;
+    const cached = await tx`select moneda, entrega_meses from mia_catalog_cache where proyecto=${project.id}`;
     assert.deepEqual(cached.map(row => row.moneda), ['USD','USD']);
+    assert.deepEqual(cached.map(row => row.entrega_meses), [0,0]);
+    assert.equal((options.match(/Entrega inmediata/g) ?? []).length, 2);
+    assert.equal((options.match(/brochure de este proyecto está pendiente/g) ?? []).length, 1);
+    assert.doesNotMatch(options, /0 meses/);
     assert.equal(options.split('\n').length, 3);
     assert.equal((options.match(/\?/g) ?? []).length, 1);
     await markMiaOptionsSent(request.whatsappMessageId, options);
@@ -106,6 +111,9 @@ async function run() {
       (select count(*)::int from mia_messages m where m.conversation_id=v.id and m.direccion='outbound') as replies
       from mia_clients c join mia_conversations v on v.client_id=c.id where c.whatsapp=${optionsContact.phone}`;
     assert.deepEqual({...sent}, {opciones_enviadas:true, conversation_sent:true, replies:1});
+    const [pending] = await tx`select count(*)::int as n from mia_observations o join mia_clients c on c.id=o.client_id
+      where c.whatsapp=${optionsContact.phone} and o.que_paso='Brochure pendiente' and o.propuesta like '%Prueba 150'`;
+    assert.equal(pending.n, 1);
     console.log('PASS opciones: dos unidades con precio y disponibilidad, un mensaje, ningún loop.');
     throw rollback;
   });

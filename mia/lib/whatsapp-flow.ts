@@ -2,7 +2,7 @@ import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
 import { brochureAccepted, brochureRequested, lastQuestion, questionIntent, resolveBrochureProject, verifiedBrochureUrl } from './brochure';
 import { catalogFactsRequested, optionsRequested, optionsZone, renderVerifiedOptions, requestedRoomCounts, unverifiedCatalogClaim } from './catalog-options';
-import { getDevelopmentProjects, getVerifiedSheetOptions } from './development-sheet';
+import { deliveryMonths, getDevelopmentProjects, getVerifiedSheetOptions } from './development-sheet';
 import { MIA_CONVERSATION_INSTRUCTIONS } from './conversation-instructions';
 
 type Message = { direction: string; content: string; whatsappMessageId?: string; status: string };
@@ -112,7 +112,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const evidence = [...recentInbound, String(client.zona ?? '')];
         const zone = optionsZone(evidence);
         const requestedRooms = evidence.map(requestedRoomCounts).find(rooms => rooms.length) ?? [];
-        const key = `planilla-usd:${zone ?? 'sin-zona'}:${requestedRooms.join(',') || 'sin-ambientes'}`;
+        const key = `planilla-entrega:${zone ?? 'sin-zona'}:${requestedRooms.join(',') || 'sin-ambientes'}`;
         const handled = conversation.opciones_proyecto === key || client.opciones_proyecto === key;
         if (handled) return null;
 
@@ -127,8 +127,8 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
               await tx`delete from public.mia_catalog_cache where proyecto=${projectId}`;
               if (units.length) {
                 await tx`insert into public.mia_catalog_cache ${tx(units.map((unit, index) => ({
-                  proyecto: projectId, registro: String(index), moneda: unit.currency, datos: tx.json(unit),
-                })), 'proyecto', 'registro', 'moneda', 'datos')}`;
+                  proyecto: projectId, registro: String(index), moneda: unit.currency, entrega_meses: deliveryMonths(unit.project.delivery), datos: tx.json(unit),
+                })), 'proyecto', 'registro', 'moneda', 'entrega_meses', 'datos')}`;
               }
             }, async project => {
               const observation = 'Lista no accesible: ' + project.name + ' · ' + project.address;
@@ -150,9 +150,13 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
             values (${client.id}, 'Pedido de opciones sin inventario verificado en planilla',
             ${`Verificar ${missing.join(' y ')} ambientes en ${zone}`}, 'pendiente')`;
         }
-        for (const project of new Set(options.filter(option => !option.project.brochure_url).map(option => option.project.name))) {
+        const missingBrochures = new Set(options.filter(option => !option.project.brochure_url)
+          .map(({project}) => 'Brochure pendiente de ' + project.name + ' · ' + project.address));
+        for (const observation of missingBrochures) {
           await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
-            values (${client.id}, 'Brochure no confirmado en la planilla', ${'Verificar brochure de ' + project}, 'pendiente')`;
+            select ${client.id}, 'Brochure pendiente', ${observation}, 'pendiente'
+            where not exists(select 1 from public.mia_observations
+              where client_id=${client.id} and propuesta=${observation} and estado='pendiente')`;
         }
         await tx`update public.mia_clients set opciones_enviadas=false, opciones_proyecto=${key},
           opciones_fecha=now(), ultima_pregunta=${lastQuestion(reply)}, proximo_paso=${nextStep}, updated_at=now()

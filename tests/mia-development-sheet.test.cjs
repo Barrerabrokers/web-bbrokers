@@ -42,3 +42,20 @@ test('unit lists preserve original typology and missing facts', () => {
   assert.equal(normalizedRooms('Monoambiente'),1);
   assert.equal(normalizedRooms('1 dormitorio'),1);
 });
+
+test('zero delivery and generic Drive URLs are handled without inventing a brochure', () => {
+  const {deliveryMonths}=exportsObject;
+  assert.equal(deliveryMonths('0 meses'),0);
+  assert.equal(deliveryMonths('0'),0);
+  assert.equal(deliveryMonths('24 months'),24);
+  assert.equal(deliveryMonths(null),null);
+  const workbook=xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook,xlsx.utils.aoa_to_sheet([
+    ['Edificio','Dirección','Barrio','','Lista','Brochure','Entrega'],
+    ['Alpha Núñez','Vuelta de Obligado 3928','Núñez','','','https://drive.google.com/drive/u/2/home','0 meses'],
+    ['Otro','Prueba 100','Núñez','','','https://drive.google.com/drive/folders/example','12 meses'],
+    ['Otro más','Prueba 200','Núñez','','','https://drive.google.com/file/d/example/view','15 meses'],
+  ]),'Español');
+  const projects=parseDevelopmentProjects(workbook);
+  assert.deepEqual(projects.map(p=>p.brochure_url),[null,null,'https://drive.google.com/file/d/example/view']);
+});

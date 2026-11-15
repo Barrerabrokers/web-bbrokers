@@ -1,4 +1,4 @@
-import type { SheetUnit } from './development-sheet';
+import { deliveryMonths, type SheetUnit } from './development-sheet';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -41,14 +41,22 @@ export function unverifiedCatalogClaim(text: string) {
 }
 
 export function renderVerifiedOptions(options: SheetUnit[], missing: number[] = []) {
-  return options.map((option, index) => {
+  const pending = new Set<string>();
+  const lines = options.map((option, index) => {
     const {project} = option;
     const originalType = /\bstudio\b/i.test(option.originalType ?? '') ? 'Studio' : option.originalType;
     const rooms = option.roomCount === 1
       ? `1 ambiente tipo ${originalType}` : `${option.roomCount} ambientes`;
-    const link = project.brochure_url ? 'Brochure ' + project.brochure_url : 'Brochure no confirmado, un asesor lo revisa - Lista ' + project.listUrl;
-    return `Opción ${index + 1}: ${project.name} - ${project.address} - ${project.location} - ${rooms} - ${option.price} - ${option.availability} - Entrega ${project.delivery} - ${link}`;
-  }).join('\n') + (options.length === 2
+    const link = project.brochure_url ? 'Brochure ' + project.brochure_url : 'Lista de precios ' + project.listUrl;
+    if (!project.brochure_url) pending.add(project.id);
+    const delivery = deliveryMonths(project.delivery) === 0 ? 'Entrega inmediata' : 'Entrega ' + project.delivery;
+    const availability = /^disponible|^available/i.test(option.availability ?? '') ? 'Disponible' : option.availability;
+    return `Opción ${index + 1}: ${project.name} - ${project.address}, ${project.location} - ${rooms} - ${option.price} - ${availability} - ${delivery} - ${link}`;
+  });
+  if (pending.size) lines[lines.length - 1] += pending.size === 1
+    ? ' — El brochure de este proyecto está pendiente, te comparto la lista de precios.'
+    : ' — Los brochures de estos proyectos están pendientes, te comparto las listas de precios.';
+  return lines.join('\n') + (options.length === 2
     ? '\n¿Cuál querés que te detalle primero, la de 1 o la de 2?'
     : missing.length
       ? `\nLa opción de ${missing[0]} ${missing[0] === 1 ? 'ambiente' : 'ambientes'} queda para que la verifique un agente.\n¿Qué te gustaría saber de la opción disponible?`
