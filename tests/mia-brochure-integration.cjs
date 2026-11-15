@@ -24,7 +24,10 @@ async function run() {
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_brochure_state.sql', 'utf8'));
     await tx.unsafe(fs.readFileSync('migrations/20261115_mia_options_state.sql', 'utf8'));
     tx.begin = callback => callback(tx);
+    let sourceProjects = [];
+    let sourceOptions = [];
     const mocks = {
+      './development-sheet': {getDevelopmentProjects: async () => sourceProjects, getVerifiedSheetOptions: async () => sourceOptions},
       '@/lib/database-pool': {getSharedDatabase: () => tx, releaseSharedDatabase: async () => {}},
       '@/lib/whatsapp-ai-provider': {
         generateGroqCustomerReply: async () => {
@@ -39,8 +42,8 @@ async function run() {
 
     for (const url of ['https://example.invalid/folleto.pdf?version=2', null]) {
       const project = 'Proyecto de prueba ' + randomUUID();
-      await tx`insert into developments(name,slug,description,location,address,visibility,brochure_url)
-        values(${project},${'test-' + randomUUID()},'Sintético','Núñez','Sintética','public',${url})`;
+      sourceProjects = [{id:randomUUID(),name:project,address:'Prueba 100',location:'Núñez',
+        brochure_url:url,delivery:'12 meses',listUrl:'https://example.invalid/lista'}];
       const contact = {phone: '54911' + String(BigInt('0x' + randomUUID().replace(/-/g, '')) % 10000000000n), contactName:'Sintético'};
       const history = [{direction:'inbound', content:'Estoy viendo ' + project, status:'received'}];
       const inbound = text => ({direction:'inbound', content:text, status:'received', whatsappMessageId:'wamid.test.' + randomUUID()});
@@ -73,21 +76,20 @@ async function run() {
     const {unverifiedCatalogClaim} = load('mia/lib/catalog-options.ts', mocks);
     assert.equal(unverifiedCatalogClaim('Te preparo dos opciones con disponibilidad inmediata.'), true);
     assert.equal(unverifiedCatalogClaim('¿Qué es lo más importante para vos?'), false);
-    const [project] = await tx`insert into developments(name,slug,description,location,address,visibility)
-      values('Prueba Parque de la Innovación',${'test-' + randomUUID()},'Sintético','Núñez','Sintética','public')
-      returning id`;
-    await tx`insert into units(development_id,unit_number,bedrooms,area,price,currency,status)
-      values (${project.id},'M-test',0,31,120000,'USD','disponible'),
-             (${project.id},'D-test',1,45,145000,'USD','disponible'),
-             (${project.id},'Reservado-test',0,30,1000,'USD','reservada'),
-             (${project.id},'Sin-precio-test',1,42,0,'USD','disponible')`;
+    const project = {id:randomUUID(),name:'Prueba Parque de la Innovación',address:'Prueba 150',
+      location:'Núñez',delivery:'12 meses',listUrl:'https://example.invalid/lista',brochure_url:'https://example.invalid/brochure'};
+    sourceProjects = [project];
+    sourceOptions = [
+      {project,originalType:'Studio',roomCount:1,price:'USD 120000',availability:'Disponible'},
+      {project,originalType:'2 ambientes',roomCount:2,price:'USD 145000',availability:'Disponible'},
+    ];
     const optionsContact = {phone:'549118' + String(Date.now()).slice(-7),contactName:'Sintético'};
     const inbound = content => ({direction:'inbound', content, status:'received', whatsappMessageId:'wamid.test.' + randomUUID()});
     const request = inbound('Pásame dos opciones 1 ambiente y dos ambientes');
     const history = [inbound('La ubicación por el parque de la innovación'), inbound('Si'), request];
     const options = await generateMiaWhatsAppReply(optionsContact, history);
-    assert.match(options, /Opción 1: .*1 ambiente.*USD.*Disponible según CRM/);
-    assert.match(options, /Opción 2: .*2 ambientes.*USD.*Disponible según CRM/);
+    assert.match(options, /Opción 1: .*1 ambiente.*USD.*Disponible/);
+    assert.match(options, /Opción 2: .*2 ambientes.*USD.*Disponible/);
     assert.doesNotMatch(options, /Reservado-test|Sin-precio-test|disponibilidad inmediata|te preparo/i);
     assert.equal(options.split('\n').length, 3);
     assert.equal((options.match(/\?/g) ?? []).length, 1);
