@@ -22,3 +22,10 @@ export function unverifiedMeetingClaim(text: string) {
     || /\b(?:queda|quedo|ya la)\b.{0,25}\b(?:confirmad[ao]|agendad[ao]|coordinad[ao]|reservad[ao])\b/.test(reply)
     || /\b(?:te (?:contacto|contactare|llamo|llamare|escribo|escribire)|un agente te (?:contactara|llamara))\b/.test(reply) && /\b(?:manana|hoy|horas|hs|a las|a la)\b/.test(reply);
 }
+
+export function socialClosing(text: string) {
+  const value = tokens(text).join(' ');
+  return /^(?:ok(?: gracias)?|gracias|muchas gracias|perfecto(?: gracias)?|listo(?: gracias)?)$/.test(value)
+    ? value.includes('gracias') ? 'De nada, seguimos por acá.' : 'Perfecto, quedamos así.'
+    : null;
+}

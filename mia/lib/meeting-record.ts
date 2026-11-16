@@ -8,7 +8,7 @@ export async function recordConfirmedMiaMeeting(state: MeetingState, config: Mee
   }
   const whatsapp = phone.replace(/\D/g, '');
   if (!whatsapp) throw new Error('Missing WhatsApp number');
-  const location = state.mode === 'google_meet' ? state.meetUrl : state.mode === 'in_person' ? config.location : phone;
+  const location = state.mode === 'google_meet' ? state.meetUrl ?? 'Enlace de Meet en la invitación por mail' : state.mode === 'in_person' ? config.location : phone;
   if (!location) throw new Error('Missing confirmed meeting location');
 
   const sql = getSharedDatabase();

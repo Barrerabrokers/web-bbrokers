@@ -5,7 +5,7 @@ import { deliverMetaSocialText } from '@/lib/meta-social-send';
 import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
 import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
-import { repeatsLastMessage } from '@/mia/lib/reply-safety';
+import { repeatsLastMessage, socialClosing } from '@/mia/lib/reply-safety';
 import { meetingIntent } from '@/lib/mia-meeting-policy';
 import { routesToMiaMeeting } from '@/mia/lib/meeting-routing';
 import { newMiaEngineAllows } from '@/mia/lib/rollout';
@@ -447,7 +447,8 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   const inbound = activeHistory.at(-1);
   if (inbound?.direction !== 'inbound') return null;
   const previousReply = activeHistory.findLast(message => message.direction === 'outbound')?.content ?? '';
-  if (routesToMiaMeeting(inbound.content, previousReply)) {
+  const closingAfterBooking = previousReply.startsWith('Listo, reunión coordinada') && socialClosing(inbound.content);
+  if (!closingAfterBooking && routesToMiaMeeting(inbound.content, previousReply)) {
     const meeting = await replyMiaMeeting(id, activeHistory).catch(error => {
       console.warn('mia-pilot-meeting-route-failed', {name: error instanceof Error ? error.name : 'unknown'});
       return null;

@@ -3,7 +3,7 @@ import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
 import { brochureAccepted, brochureRequested, lastQuestion, questionIntent, resolveBrochureProject, verifiedBrochureUrl } from './brochure';
 import { catalogBudget, rankBudgetOptions, ugarteAddress, financingRequested, financingTerms, selectedOption, catalogFactsRequested, optionsRequested, optionsZone, renderVerifiedOptions, requestedRoomCounts, unverifiedCatalogClaim } from './catalog-options';
 import { type SheetProject, type SheetUnit, deliveryMonths, getDevelopmentProjects, getVerifiedSheetOptions, loadAvailableSheetUnits } from './development-sheet';
-import { repeatsLastMessage, unverifiedMeetingClaim } from './reply-safety';
+import { repeatsLastMessage, socialClosing, unverifiedMeetingClaim } from './reply-safety';
 import { MIA_CONVERSATION_INSTRUCTIONS } from './conversation-instructions';
 
 type Message = { direction: string; content: string; whatsappMessageId?: string; status: string };
@@ -57,6 +57,16 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         return reply;
       };
       const priorQuestion = conversation.ultima_pregunta ?? lastQuestion(previousReply);
+      const social = inbound.content.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase()
+        .replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' ');
+      const closing = socialClosing(inbound.content);
+      if (closing) {
+        if (previousMessage === 'De nada, seguimos por acá.' || previousMessage === 'Perfecto, quedamos así.') return null;
+        return recordReply(closing);
+      }
+      if (/^(?:hola|buen dia|buenos dias|buenas tardes|buenas noches|buenas)$/.test(social)) {
+        return recordReply('¡Hola! ¿En qué te puedo ayudar?');
+      }
       const choice = selectedOption(inbound.content);
       const asksFinancing = financingRequested(inbound.content);
       const previouslySent = conversation.opciones_enviadas && Array.isArray(conversation.opciones_detalle)
@@ -271,7 +281,8 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         }
       }
       if (!result) {
-        const reply = 'Prefiero que un agente verifique ese dato. ¿Querés que revisemos alguna otra duda?';
+        if (!catalogFactsRequested(inbound.content) && !financingRequested(inbound.content)) return null;
+        const reply = 'Prefiero que un agente verifique ese dato.';
         return recordReply(reply);
       }
       const reply = result.respuesta;

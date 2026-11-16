@@ -77,7 +77,7 @@ export async function createMiaGoogleMeeting(token:string,state:MeetingState,c:M
 }
 function bookedReply(state:MeetingState,c:MeetingConfig,preview=false){return `${preview?'Simulación: la reunión quedaría agendada':'Reunión confirmada'} con un agente comercial el ${meetingSummary(state,c)}.${state.mode==='google_meet'&&state.meetUrl?`\nGoogle Meet: ${state.meetUrl}`:state.mode==='google_meet'?'\nEl enlace de Google Meet está pendiente de generarse; no hace falta volver a reservar.':''}${preview?' No se creó ninguna cita ni se envió una invitación.':state.email?' La invitación fue solicitada a Google Calendar para '+state.email+'.':' Te llamaremos al teléfono de esta conversación.'}`;}
 function bookedClosing(state:MeetingState,c:MeetingConfig){
- return `Listo, reunión coordinada con ${state.organizerName||'un agente comercial'}. ${meetingSummary(state,c)}.${state.meetUrl ? '\nGoogle Meet: ' + state.meetUrl : ''}`;
+ return `Listo, reunión coordinada con ${state.organizerName||'un agente comercial'}. ${meetingSummary(state,c)}.${state.meetUrl ? '\nGoogle Meet: ' + state.meetUrl : state.mode==='google_meet' ? '\nLa invitación llega por mail con el link de Meet.' : ''}`;
 }
 const meetingHandoff = 'Un agente te confirma el horario en el día.';
 async function observeMeetingFailure(leadId?: string) {
@@ -164,7 +164,6 @@ async function book(conversationId:string,state:MeetingState,version:number,c:Me
   // Persist Calendar success before CRM enrichment so an enrichment failure cannot duplicate the event.
   version=await save(conversationId,state,version);
   if(!person.leadId)throw Error('Missing CRM lead');
-  if(state.mode==='google_meet'&&!state.meetUrl)throw Error('Missing Google Meet URL');
   await recordConfirmedMiaMeeting(state,c,person.leadId,person.phone);
   if (!(await hasConfirmedRecord(state))) throw Error('Missing appointment reminders');
   state=await syncMiaMeetingToCrm(state,person.leadId);

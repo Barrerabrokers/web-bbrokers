@@ -17,3 +17,11 @@ test('blocks unavailable appointment promises and repeated closings', () => {
   assert.equal(repeatsLastMessage(first,near),true);
   assert.equal(repeatsLastMessage(first,'¿Cuánto querés destinar al anticipo?'),false);
 });
+
+test('short thanks close without an advisor fallback or another question', () => {
+  const {socialClosing}=exportsObject;
+  assert.equal(socialClosing('Ok gracias'), 'De nada, seguimos por acá.');
+  assert.equal(socialClosing('Perfecto'), 'Perfecto, quedamos así.');
+  assert.equal(socialClosing('Gracias, ¿cuánto sale?'), null);
+  assert.equal(socialClosing('Sí confirmado'), null);
+});
