@@ -17,6 +17,10 @@ function list(value: string | undefined, normalize: (value: string) => string) {
 
 export function newMiaEngineAllows(phone: string, email: string, config: RolloutConfig) {
   if (config.MIA_NEW_ENGINE_ENABLED?.trim().toLowerCase() === 'true') return true;
+  return newMiaPilotAllows(phone, email, config);
+}
+
+export function newMiaPilotAllows(phone: string, email: string, config: RolloutConfig) {
   return list(config.MIA_TEST_NUMBERS, argentinePhone).includes(argentinePhone(phone)) &&
     list(config.MIA_TEST_EMAILS, value => value.toLowerCase()).includes(email.trim().toLowerCase());
 }

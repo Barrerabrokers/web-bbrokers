@@ -1,4 +1,7 @@
-import { markMiaMeetingClosed, recordConfirmedMiaMeeting } from '@/mia/lib/meeting-record';
+import { meetingTimeLabel, pilotSlotLabel } from './meeting-date';
+import { asksMeetingStatus } from './meeting-routing';
+import { newMiaPilotAllows } from './rollout';
+import { commitMiaReschedule, markMiaMeetingClosed, readMiaMeetingStatus, recordConfirmedMiaMeeting } from '@/mia/lib/meeting-record';
 import { readMiaLearnings } from '@/lib/mia-learnings';
 import { requestMiaMeetingAdmin } from '@/lib/mia-meeting-admin';
 import { miaContactDeferred } from '@/lib/mia-deferred-contact';
@@ -15,7 +18,7 @@ import { getBookedRanges } from '@/lib/meeting-scheduler';
 import { syncMiaMeetingToCrm } from '@/lib/mia-meeting-reconciliation';
 import { acquireWorkerLease, releaseWorkerLease } from '@/lib/database-worker-lease';
 import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
-import { explicitMeetingClock, meetingRestart, meetingConversationState, allowedMeetingSlot, argentinaDay, explicitlyConfirmsMeeting, meetingConfigSchema, meetingIntent, meetingSummary, meetingTurnSchema, overlaps, proposeMeetingSlots, slotLabel, type MeetingConfig, type MeetingState, type MeetingTurn, type Slot } from '@/lib/mia-meeting-policy';
+import { MIA_MEETING_ZONE, explicitMeetingClock, meetingRestart, meetingConversationState, allowedMeetingSlot, argentinaDay, explicitlyConfirmsMeeting, meetingConfigSchema, meetingIntent, meetingSummary, meetingTurnSchema, overlaps, proposeMeetingSlots, slotLabel, type MeetingConfig, type MeetingState, type MeetingTurn, type Slot } from '@/lib/mia-meeting-policy';
 
 type Message={direction:string;content:string;whatsappMessageId?:string};
 type Client={leadId?:string;name:string;email:string;phone:string;channel?:string};
@@ -97,7 +100,7 @@ async function hasConfirmedRecord(state: MeetingState) {
  try {
   const [row] = await sql`select count(distinct r.tipo)::int as reminders
     from public.mia_meetings m join public.mia_reminders r on r.meeting_id=m.id
-    where m.google_event_id=${state.eventId} and m.estado='confirmada'
+    where m.google_event_id=${state.eventId} and m.estado in ('confirmada', 'reprogramada') and r.estado <> 'cancelado'
       and r.tipo in ('1_dia_antes','1_hora_antes')`;
   return row?.reminders === 2;
  } finally { await releaseSharedDatabase(sql); }
@@ -177,14 +180,143 @@ async function book(conversationId:string,state:MeetingState,version:number,c:Me
   return {reply:meetingHandoff,state};
  }finally{if(lease)await releaseWorkerLease(sql,'mia-pablo-meeting-calendar',lease);if(sendToken)await releaseWhatsAppSend(conversationId,sendToken);await releaseSharedDatabase(sql);}
 }
+function sameCalendarSlot(event: any, slot: Slot) {
+ return Date.parse(event.start?.dateTime) === Date.parse(slot.start)
+   && Date.parse(event.end?.dateTime) === Date.parse(slot.end);
+}
+
+function nextFreeSlots(config: MeetingConfig, busy: Slot[], start: number, count: number) {
+ const slots: Slot[] = [];
+ const step = 30 * 60_000;
+ const now = new Date();
+ for (let time = Math.ceil(Math.max(start, now.getTime()) / step) * step;
+      time <= now.getTime() + 31 * 86_400_000 && slots.length < count; time += step) {
+  const slot = {start: new Date(time).toISOString(), end: new Date(time + 60 * 60_000).toISOString()};
+  if (allowedMeetingSlot(slot, config, now) && !overlaps(slot, busy)) slots.push(slot);
+ }
+ return slots;
+}
+
+async function rescheduleMiaMeeting(conversationId: string, state: MeetingState, version: number,
+ config: MeetingConfig, person: Client, inboundId?: string) {
+ const request = state.changeRequest!;
+ const slot = request.selected!;
+ const eventId = state.eventId;
+ if (!eventId || !state.selected || !state.organizerId || !person.leadId || !inboundId || state.mode !== 'google_meet') {
+  return {reply:'No pude verificar el evento original en Calendar. El cambio todavía no está confirmado.',state};
+ }
+
+ const sql = getSharedDatabase();
+ const calendarKey = 'mia-pablo-meeting-calendar';
+ const reminderKey = 'mia-meeting-reminder:' + eventId;
+ let sendToken: string | null = null, calendarLease: string | null = null, reminderLease: string | null = null;
+ let started = request.moving === true;
+ try {
+  sendToken = await claimWhatsAppAiSend(conversationId, inboundId);
+  if (!sendToken) throw new Error('Stale customer turn');
+  calendarLease = await acquireWorkerLease(sql, calendarKey);
+  reminderLease = calendarLease ? await acquireWorkerLease(sql, reminderKey) : null;
+  if (!reminderLease) throw new Error('Meeting or reminder in progress');
+  const current = await session(conversationId);
+  if (current?.version !== version) throw new Error('Stale meeting version');
+
+  const [storage] = await sql`
+   select exists(select 1 from public.mia_meetings m join public.mia_clients c on c.id = m.client_id
+     join public.crm_activities a on a.external_source = 'google_calendar' and a.external_id = m.google_event_id
+       and a.lead_id = c.crm_lead_id
+     join public.crm_meeting_schedules s on s.activity_id = a.id and s.cancelled_at is null
+     where m.google_event_id = ${eventId} and c.crm_lead_id = ${person.leadId}
+       and m.estado in ('confirmada', 'reprogramada'))
+   and to_regclass('public.mia_reminders_meeting_type_active_key') is not null as ready`;
+  if (!storage?.ready) throw new Error('Reschedule storage unavailable');
+  const token = await miaMeetingCalendar({...config, organizerId: state.organizerId});
+  let event = await googleEvent(token, eventId);
+  if (!event || event.status === 'cancelled' || event.extendedProperties?.private?.miaBooking !== state.id) {
+   throw new Error('Unverified calendar event');
+  }
+  if (!started || !sameCalendarSlot(event, slot)) {
+   if (!sameCalendarSlot(event, state.selected)) throw new Error('Calendar changed outside MIA');
+   const now = new Date();
+   const team = await teamCalendars(config, new Date(Math.max(now.getTime(), Date.parse(slot.start))),
+     new Date(now.getTime() + 32 * 86_400_000), state.id);
+   const busy = team.flatMap(member => member.busy);
+   if (!allowedMeetingSlot(slot, config, now) || overlaps(slot, busy)) {
+    const offers = nextFreeSlots(config, busy, Date.parse(slot.start) + 30 * 60_000, 1);
+    const reason = 'el horario elegido ya no está disponible';
+    state = {...state, changeRequest:{...request, moving:false, selected:undefined, offers, failure:reason}};
+    await save(conversationId, state, version);
+    return {reply:offers.length ? `Ese horario ya no está libre. ¿Te sirve ${pilotSlotLabel(offers[0])}, hora Argentina?` :
+      'Ese horario ya no está libre. ¿Qué otro día te sirve?',state};
+   }
+   const originalMeet = event.hangoutLink ?? event.conferenceData?.entryPoints?.find((entry: any) => entry.entryPointType === 'video')?.uri;
+   if (typeof originalMeet !== 'string' || !/^https:\/\/meet\.google\.com\/[a-z-]+$/.test(originalMeet) ||
+       typeof event.etag !== 'string') throw new Error('Missing Calendar meeting details');
+   if (!started) {
+    state = {...state, changeRequest:{...request, moving:true}};
+    version = await save(conversationId, state, version);
+    started = true;
+   }
+   const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+    method:'PATCH', signal:AbortSignal.timeout(12_000),
+    headers:{Authorization:`Bearer ${token}`, 'Content-Type':'application/json', 'If-Match':event.etag},
+    body:JSON.stringify({start:{dateTime:slot.start,timeZone:MIA_MEETING_ZONE},end:{dateTime:slot.end,timeZone:MIA_MEETING_ZONE}}),
+   });
+   if (!response.ok) throw new Error('Calendar update failed');
+   event = await response.json();
+  }
+  const meet = event.hangoutLink ?? event.conferenceData?.entryPoints?.find((entry: any) => entry.entryPointType === 'video')?.uri;
+  if (event.id !== eventId || event.status === 'cancelled' || !sameCalendarSlot(event, slot)
+    || typeof meet !== 'string' || !/^https:\/\/meet\.google\.com\/[a-z-]+$/.test(meet)) {
+   throw new Error('Calendar did not verify reschedule');
+  }
+  const moved = {...state, selected:slot, meetUrl:meet, changeRequest:undefined, updatedAt:new Date().toISOString()};
+  await commitMiaReschedule(sql, conversationId, version, moved, person.leadId);
+  return {reply:`Listo, reunión reprogramada para ${pilotSlotLabel(slot)}, hora Argentina, con ${state.organizerName} por Google Meet.\nLink: ${meet}`, state:moved};
+ } catch (error) {
+  console.warn('mia-pilot-reschedule-failed', {code:error instanceof Error ? error.name : 'unknown'});
+  if (started) return {reply:'Todavía no pude verificar el cambio de la reunión en Calendar y el CRM. ¿Querés que vuelva a revisar el mismo evento?',state};
+  const failure = 'no pude verificar la disponibilidad o el evento original en Calendar';
+  const failed = {...state, changeRequest:{...request, failure}};
+  if (reminderLease) await save(conversationId, failed, version).catch(() => {});
+  return {reply:'No pude verificar la disponibilidad o el evento original en Calendar. El cambio todavía no está confirmado.',state:failed};
+ } finally {
+  if (reminderLease) await releaseWorkerLease(sql, reminderKey, reminderLease);
+  if (calendarLease) await releaseWorkerLease(sql, calendarKey, calendarLease);
+  if (sendToken) await releaseWhatsAppSend(conversationId, sendToken);
+  await releaseSharedDatabase(sql);
+ }
+}
+
 export async function replyMiaMeeting(conversationId:string,messages:Message[],options:{preview?:boolean;state?:MeetingState|null;offerOnly?:boolean}={}):Promise<{reply:string;state:MeetingState}|null>{
- if(miaContactDeferred(messages)&&!/(?:cancel|cambiar|reprogram)/i.test(messages.filter(m=>m.direction==='inbound').at(-1)?.content||''))return null;
  const inbound=messages.filter(m=>m.direction==='inbound').at(-1);const latest=inbound?.content||'';
+ const statusQuestion = asksMeetingStatus(latest);
+ const personForPilot = options.preview ? null : await client(conversationId);
+ const pilot = !!options.preview || !!personForPilot && newMiaPilotAllows(personForPilot.phone, personForPilot.email, {
+  MIA_TEST_NUMBERS: process.env.MIA_TEST_NUMBERS, MIA_TEST_EMAILS: process.env.MIA_TEST_EMAILS,
+ });
+ if(miaContactDeferred(messages) && !statusQuestion && !meetingChangeIntent(latest) && !(pilot && explicitlyConfirmsMeeting(latest))) return null;
  const c=await getMiaMeetingConfig();if(!c)return null;
  // Resolve all active administrative rules before any meeting response, including deterministic branches.
  if(!options.preview)await readMiaLearnings('sin_definir');
  await ensureMiaMeetingSchema();
  const previous=options.preview?null:await session(conversationId);let state=options.preview?options.state||null:previous?.state||null;let version=previous?.version??-1;
+ if (pilot && statusQuestion && !options.preview && !options.offerOnly) {
+  const record = await readMiaMeetingStatus(conversationId, state?.eventId);
+  state ??= {id:randomUUID(), phase:'offered', offers:[], updatedAt:new Date().toISOString()};
+  if (state.changeRequest?.moving) {
+   return {reply:'Todavía estoy verificando el cambio en Calendar y el CRM. Aún no puedo confirmar el nuevo horario.',state};
+  }
+  if (record?.estado === 'cancelada') return {reply:'La reunión figura cancelada.',state};
+  if (!record?.day || !record?.time || !['confirmada','reprogramada'].includes(record.estado)) {
+   return {reply:'No figura una reunión confirmada en la agenda de MIA.',state};
+  }
+  const when = pilotSlotLabel({start:record.day + 'T' + record.time + ':00-03:00',end:''});
+  const pending = state.changeRequest?.kind === 'reschedule';
+  const reason = state.changeRequest?.failure || (state.changeRequest?.selected ? 'falta confirmar la alternativa elegida' : 'todavía falta elegir otro horario');
+  return {reply:pending
+   ? `Sigue confirmada para ${when}, hora Argentina, con ${record.agente}. El cambio todavía no se pudo confirmar porque ${reason}.`
+   : `Sí, quedó confirmada para ${when}, hora Argentina, con ${record.agente}.`,state};
+ }
  if(!options.preview && state?.phase==='booked' && state.eventId && meetingIntent(latest)
     && !meetingChangeIntent(latest) && await hasCancelledRecord(state.eventId)){
   state=null;
@@ -196,7 +328,7 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
  }
  const active=state&&!['booked','cancelled'].includes(state.phase);
  const lastQuestion=(messages.filter(m=>m.direction==='outbound').at(-1)?.content.match(/[^.!?]*\?/g)||[]).at(-1)||'';
- const changing=meetingChangeIntent(latest)||!!state?.changeRequest&&/lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mediod[ií]a|\d{1,2}(?:hs|:|\s*horas)|^(?:si|sí|dale|ok|la primera|la segunda)$/i.test(latest);
+ const changing=meetingChangeIntent(latest)||!!state?.changeRequest && explicitlyConfirmsMeeting(latest)||!!state?.changeRequest&&/lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mediod[ií]a|\d{1,2}(?:hs|:|\s*horas)|^(?:si|sí|dale|ok|la primera|la segunda)$/i.test(latest);
  const acceptingInvitation=/agend|coordin|reuni[oó]n|visita(?:r)?.*showroom|vernos|juntarnos|d[ií]a.*horario/i.test(lastQuestion)&&(explicitlyConfirmsMeeting(latest)||/lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[nñ]ana|tarde|\d{1,2}[:/]\d{2}/i.test(latest));
  if(!options.offerOnly&&!changing&&!meetingIntent(latest)&&!active&&!acceptingInvitation&&!(state?.phase==='booked'&&explicitlyConfirmsMeeting(latest)))return null;
  if(options.offerOnly&&state?.phase==='booked')return null;
@@ -210,6 +342,58 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
    return {reply:'La reserva estaba pendiente de verificación cuando pediste cancelarla. El equipo debe revisar si llegó a crearse; no voy a generar otra cita.',state};
   }
   if(state?.phase==='creating'){if(options.preview)return {reply:'Esta simulación no puede recuperar ni crear reservas reales.',state};return await book(conversationId,state,version,c,await client(conversationId),false,inbound?.whatsappMessageId);}
+  if (pilot && state?.phase === 'booked' && changing &&
+      !(/cancel/i.test(latest) && !/cambiar|pasar|reprogram|mover/i.test(latest))) {
+   const request = state.changeRequest?.kind === 'reschedule' ? state.changeRequest : undefined;
+   const confirm = explicitlyConfirmsMeeting(latest);
+   if (request?.moving && !confirm) {
+    return {reply:'El cambio anterior sigue en verificación. ¿Querés que vuelva a revisar ese mismo horario?',state};
+   }
+   if (confirm && request?.selected) {
+    if (options.preview) return {reply:'Simulación: el cambio se ejecutaría al verificar ambas agendas.',state};
+    return await rescheduleMiaMeeting(conversationId, state, version, c, personForPilot!, inbound?.whatsappMessageId);
+   }
+   const offers = request?.offers ?? [];
+   const mentionedWeekday = latest.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+     .match(/\b(domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b/)?.[1];
+   const weekdays = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+   const time = explicitMeetingClock(latest.replace(/(\d{2})(?=hs?\b)/gi, '$1 '))?.time;
+   const ordinal = /^(?:la\s+)?(primera|segunda|[12])[.!\s]*$/i.exec(latest.trim())?.[1];
+   const matched = time ? offers.filter(slot =>
+    meetingTimeLabel(new Date(slot.start)) === time && (!mentionedWeekday ||
+      weekdays[new Date(argentinaDay(new Date(slot.start)) + 'T12:00:00-03:00').getUTCDay()] === mentionedWeekday)) : [];
+   const selected = ordinal ? offers[/primera|1/i.test(ordinal) ? 0 : 1] :
+    matched.length === 1 ? matched[0] : confirm && offers.length === 1 ? offers[0] : undefined;
+   const persistChange = async (nextOffers: Slot[], nextSelected?: Slot, failure?: string) => {
+    state = {...state!, changeRequest:{kind:'reschedule',text:latest.slice(0,1000),
+      requestedAt:new Date().toISOString(),offers:nextOffers,selected:nextSelected,failure}};
+    if (!options.preview) await save(conversationId, state, version);
+    return state;
+   };
+   if (selected) return {reply:`¿Confirmás cambiar la reunión al ${pilotSlotLabel(selected)}, hora Argentina?`,
+     state:await persistChange(offers, selected)};
+   if (confirm && offers.length > 1) return {reply:`¿Cuál de estos horarios preferís: ${offers.map(pilotSlotLabel).join(' o ')}?`,state};
+   try {
+    const turn = await parseMiaMeetingTurn(messages, {...state, offers});
+    const now = new Date();
+    const team = await teamCalendars(c, now, new Date(now.getTime() + 32 * 86_400_000), state.id);
+    const busy = team.flatMap(member => member.busy);
+    const mediodia = /mediod[ií]a/i.test(latest);
+    const day = new Date(argentinaDay(now) + 'T12:00:00-03:00');
+    const offset = mentionedWeekday ? (weekdays.indexOf(mentionedWeekday) - day.getUTCDay() + 7) % 7 : 0;
+    const date = mentionedWeekday && !turn.date ? argentinaDay(new Date(day.getTime() + offset * 86_400_000)) : turn.date;
+    const preference = {...turn, date, weekdays:mentionedWeekday ? [] : turn.weekdays};
+    const choices = mediodia
+     ? ['12:00','12:30'].flatMap(time => proposeMeetingSlots(c,busy,{...preference,time,period:'any'},now).slice(0,1))
+     : proposeMeetingSlots(c,busy,{...preference,time:time || turn.time},now);
+    return {reply:choices.length ? `Para cambiar la reunión, ¿te sirve ${choices.map(pilotSlotLabel).join(' o ')}, hora Argentina?`
+      : 'No encontré disponibilidad para ese cambio. ¿Qué otro día u horario te sirve?',
+     state:await persistChange(choices, undefined, choices.length ? undefined : 'no encontré disponibilidad en ese horario')};
+   } catch {
+    return {reply:'Todavía no pude consultar ambas agendas. ¿Querés que vuelva a intentar?',
+     state:await persistChange([], undefined, 'no pude consultar ambas agendas')};
+   }
+  }
   if(state?.phase==='booked'&&changing){
    const original=state;
    try{
@@ -238,6 +422,7 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
    }catch{return {reply:'No pude registrar el cambio ni avisar al equipo. Tu reunión no fue modificada; podés reintentar el pedido por acá.',state:original};}
   }
   if(state?.phase==='booked'&&explicitlyConfirmsMeeting(latest)){
+   if (pilot && /^(?:Listo, reunión reprogramada|Sí, quedó confirmada)/.test(messages.findLast(m=>m.direction==='outbound')?.content||'')) return null;
    if(!/recordemos 1 hora antes/.test(lastQuestion)||state.reminderRequested!==undefined) return null;
    if(!options.preview && !(await verifiedBookedMeeting(state,c).catch(()=>false))) {
     return {reply:'Un agente te confirma el horario. ¿Querés que te avise por acá?',state};

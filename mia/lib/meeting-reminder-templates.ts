@@ -18,7 +18,7 @@ Si necesitás cambiarla, respondé este mail o escribinos por WhatsApp y la move
 Nos vemos mañana,
 Equipo Barrera Brokers.`,
       },
-      whatsapp: 'Hola {{nombre_cliente}}, te recordamos que mañana a las {{hora}} tenés tu reunión con {{agente}} por {{propiedad_de_interes}}. Es {{modalidad}} - {{link_meet_o_direccion}}. ¿Te sigue sirviendo ese horario?',
+      whatsapp: 'Hola {{nombre_cliente}}, te recordamos que mañana, {{dia}}, tenés tu reunión con {{agente}} a las {{hora}}, hora Argentina. Modalidad: {{modalidad}}. Link o dirección: {{link_meet_o_direccion}}. ¿Te sigue sirviendo ese horario?',
     },
     agente: {
       email: {
@@ -52,7 +52,7 @@ Modalidad: {{modalidad}} - {{link_meet_o_direccion}}
 Nos vemos en un rato,
 Equipo Barrera Brokers`,
       },
-      whatsapp: 'Hola {{nombre_cliente}}, en 1 hora tenés tu reunión con {{agente}} - {{dia}} {{hora}}. Link: {{link_meet_o_direccion}}. ¿Llegás bien?',
+      whatsapp: 'Hola {{nombre_cliente}}, en 1 hora tenés tu reunión con {{agente}} el {{dia}} a las {{hora}}, hora Argentina, por {{modalidad}}. Link: {{link_meet_o_direccion}}. ¿Llegás bien?',
     },
     agente: {
       email: {

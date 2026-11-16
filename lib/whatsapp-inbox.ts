@@ -7,7 +7,7 @@ import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
 import { repeatsLastMessage, socialClosing } from '@/mia/lib/reply-safety';
 import { meetingIntent } from '@/lib/mia-meeting-policy';
-import { routesToMiaMeeting } from '@/mia/lib/meeting-routing';
+import { asksMeetingStatus, routesToMiaMeeting } from '@/mia/lib/meeting-routing';
 import { newMiaEngineAllows } from '@/mia/lib/rollout';
 import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
 import type { WhatsAppAttachment } from '@/lib/whatsapp-attachments';
@@ -453,7 +453,7 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
       return null;
     });
     if (meeting) {
-      if (/^(?:Listo, reunión coordinada|Un agente te confirma el horario en el día)/.test(meeting.reply)) {
+      if (asksMeetingStatus(inbound.content) || /^(?:Listo, reunión (?:coordinada|reprogramada)|Un agente te confirma el horario en el día)/.test(meeting.reply)) {
         return repeatsLastMessage(meeting.reply, previousReply) ? null : meeting.reply;
       }
       const reply = meeting.reply.includes('?') ? meeting.reply : meeting.reply + ' ¿Querés que te ayude con algo más?';
