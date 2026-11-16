@@ -1,3 +1,4 @@
+import { MEET_EMAIL_NOTICE, verifiedMeetUrl } from './meeting-links';
 import { acquireWorkerLease, releaseWorkerLease } from '@/lib/database-worker-lease';
 import { meetingDayLabel } from './meeting-date';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
@@ -64,15 +65,19 @@ export async function processMiaReminders() {
             await sql`update public.mia_reminders set estado = 'cancelado' where id = ${job.id}`;
             continue;
           }
-          if (!meeting.agent_id || !meeting.whatsapp || !meeting.lugar_link) throw new Error('Missing reminder data');
+          if (!meeting.agent_id || !meeting.whatsapp || (!meeting.lugar_link && meeting.modalidad !== 'google_meet')) throw new Error('Missing reminder data');
           const timing = job.tipo === '1_dia_antes' ? '1d' : '1h';
           const builtIn = meetingReminderTemplates[timing];
+          const isMeet = meeting.modalidad === 'google_meet';
+          const meetLink = isMeet ? verifiedMeetUrl(meeting.lugar_link) : null;
+          const details = isMeet ? (meetLink ? 'Link: ' + meetLink + '.' : MEET_EMAIL_NOTICE)
+            : meeting.modalidad === 'phone' ? 'Teléfono: ' + meeting.lugar_link + '.' : 'Dirección: ' + meeting.lugar_link + '.';
           const values = {
             nombre_cliente: meeting.nombre, whatsapp_cliente: meeting.whatsapp, email_cliente: meeting.email,
             agente: meeting.agente,
             dia: meetingDayLabel(new Date(meeting.meeting_day + 'T12:00:00-03:00')),
             hora: meeting.meeting_time,
-            modalidad: meeting.modalidad === 'google_meet' ? 'Google Meet' : meeting.modalidad === 'phone' ? 'teléfono' : 'presencial', link_meet_o_direccion: meeting.lugar_link,
+            detalles: details, modalidad: meeting.modalidad === 'google_meet' ? 'Google Meet' : meeting.modalidad === 'phone' ? 'teléfono' : 'presencial', link_meet_o_direccion: isMeet ? meetLink ?? MEET_EMAIL_NOTICE : meeting.lugar_link,
             propiedad_de_interes: meeting.propiedad_de_interes, zona: meeting.zona, para_que: meeting.para_que,
             presupuesto: meeting.presupuesto, entrega: meeting.entrega, boton_caliente: meeting.boton_caliente,
             resumen_conversacion: meeting.resumen,
@@ -90,8 +95,13 @@ export async function processMiaReminders() {
               : 'En una hora tenés reunión con {{nombre_cliente}}, {{dia}} {{hora}}, {{modalidad}}.'},
           });
 
+          let needsReview = false;
           for (const delivery of deliveries) {
-            if (job.entregas[delivery.key]) continue;
+            if (job.entregas[delivery.key] === true) continue;
+            if (job.entregas[delivery.key] === 'en_envio') {
+              needsReview = true;
+              continue;
+            }
             if (!delivery.address) throw new Error('Missing reminder recipient');
             const [eligible] = await sql`select r.id from public.mia_reminders r
               join public.mia_meetings m on m.id = r.meeting_id
@@ -101,6 +111,12 @@ export async function processMiaReminders() {
               break;
             }
             const body = render(delivery.template.body, values);
+            // A provider timeout can happen after accepting the message. Preserve
+            // ambiguous deliveries for review instead of dispatching them twice.
+            const [dispatch] = await sql`update public.mia_reminders
+              set entregas = entregas || ${sql.json({[delivery.key]: 'en_envio'})}
+              where id = ${job.id} and estado = 'procesando' and not (entregas ? ${delivery.key}) returning id`;
+            if (!dispatch) throw new Error('Reminder delivery claim changed');
             if (delivery.template.subject) {
               await sendPrivateClientEmail({agentId: meeting.agent_id, email: delivery.address,
                 subject: render(delivery.template.subject, values), body});
@@ -110,6 +126,7 @@ export async function processMiaReminders() {
             await sql`update public.mia_reminders set entregas = entregas || ${sql.json({[delivery.key]: true})}
               where id = ${job.id}`;
           }
+          if (needsReview) throw new Error('Reminder delivery requires review');
           const updated = await sql`update public.mia_reminders set estado = 'enviado', enviado_en = now()
             where id = ${job.id} and estado = 'procesando' returning id`;
           result.sent += updated.length;

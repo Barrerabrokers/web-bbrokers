@@ -1,3 +1,4 @@
+import { MEET_EMAIL_NOTICE } from './meeting-links';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import type { MeetingConfig, MeetingState } from '@/lib/mia-meeting-policy';
 
@@ -8,7 +9,7 @@ export async function recordConfirmedMiaMeeting(state: MeetingState, config: Mee
   }
   const whatsapp = phone.replace(/\D/g, '');
   if (!whatsapp) throw new Error('Missing WhatsApp number');
-  const location = state.mode === 'google_meet' ? state.meetUrl ?? 'Enlace de Meet en la invitación por mail' : state.mode === 'in_person' ? config.location : phone;
+  const location = state.mode === 'google_meet' ? state.meetUrl ?? MEET_EMAIL_NOTICE : state.mode === 'in_person' ? config.location : phone;
   if (!location) throw new Error('Missing confirmed meeting location');
 
   const sql = getSharedDatabase();
@@ -75,14 +76,14 @@ export async function commitMiaReschedule(
   state: MeetingState, leadId: string,
 ) {
   const { eventId, selected, meetUrl } = state;
-  if (!eventId || !selected || !meetUrl) throw new Error('Incomplete reschedule');
+  if (!eventId || !selected) throw new Error('Incomplete reschedule');
 
   await sql.begin(async tx => {
     const [meeting] = await tx`
       update public.mia_meetings set
         dia = (${selected.start}::timestamptz at time zone 'America/Argentina/Buenos_Aires')::date,
         hora = (${selected.start}::timestamptz at time zone 'America/Argentina/Buenos_Aires')::time,
-        estado = 'reprogramada', lugar_link = ${meetUrl}
+        estado = 'reprogramada', lugar_link = ${meetUrl ?? MEET_EMAIL_NOTICE}
       where google_event_id = ${eventId} and estado in ('confirmada', 'reprogramada')
         and client_id in (select id from public.mia_clients where crm_lead_id = ${leadId})
       returning id, client_id`;

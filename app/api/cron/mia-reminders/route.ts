@@ -1,3 +1,4 @@
+import { readMiaMeetingHealth } from '@/mia/lib/hotfix-monitoring';
 import { NextResponse } from 'next/server';
 import { processMiaReminders } from '@/mia/lib/reminders';
 
@@ -10,7 +11,13 @@ export async function GET(request: Request) {
     return NextResponse.json({error: 'No autorizado'}, {status: 401});
   }
   try {
-    return NextResponse.json(await processMiaReminders());
+    const reminders = await processMiaReminders();
+    const health = await readMiaMeetingHealth().catch(() => {
+      console.warn('mia-meeting-health-query-failed');
+      return null;
+    });
+    if (health) console.info('mia-meeting-health', JSON.stringify(health));
+    return NextResponse.json(reminders);
   } catch {
     console.error('mia-reminders-worker-failed');
     return NextResponse.json({error: 'No se pudieron procesar los recordatorios'}, {status: 503});

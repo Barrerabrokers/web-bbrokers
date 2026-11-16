@@ -1,9 +1,11 @@
+import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
+import { acquireWorkerLease, releaseWorkerLease } from '@/lib/database-worker-lease';
 import { recordMiaSalesWhatsAppInteraction } from "@/lib/mia-sales-interactions";
 import { getMiaAccess, miaAccessAllows } from '@/lib/mia-access';
 import { persistWhatsAppLeadForm } from "@/lib/whatsapp-lead-enrichment";
 import { deliverMetaSocialText } from '@/lib/meta-social-send';
 import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
-import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
+import { generateMiaWhatsAppReply, recordMiaMeetingTurn } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
 import { repeatsLastMessage, socialClosing } from '@/mia/lib/reply-safety';
 import { meetingIntent } from '@/lib/mia-meeting-policy';
@@ -446,26 +448,37 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   const inbound = activeHistory.at(-1);
   if (inbound?.direction !== 'inbound') return null;
   const previousReply = activeHistory.findLast(message => message.direction === 'outbound')?.content ?? '';
-  const closingAfterBooking = previousReply.startsWith('Listo, reunión coordinada') && socialClosing(inbound.content);
-  if (!closingAfterBooking && routesToMiaMeeting(inbound.content, previousReply)) {
-    const meeting = await replyMiaMeeting(id, activeHistory).catch(error => {
-      console.warn('mia-pilot-meeting-route-failed', {name: error instanceof Error ? error.name : 'unknown'});
-      return null;
-    });
-    if (meeting) {
-      if (asksMeetingStatus(inbound.content) || /^(?:Listo, reunión (?:coordinada|reprogramada)|Un agente te confirma el horario en el día)/.test(meeting.reply)) {
-        return repeatsLastMessage(meeting.reply, previousReply) ? null : meeting.reply;
+  const isSocialClosing = !!socialClosing(inbound.content) &&
+    !/¿Confirmás|¿Te sirve/i.test(previousReply);
+  if (!isSocialClosing && inbound.whatsappMessageId && routesToMiaMeeting(inbound.content, previousReply)) {
+    const sql = getSharedDatabase();
+    const leaseKey = 'mia-meeting-turn:' + inbound.whatsappMessageId;
+    let lease: string | null = null;
+    try {
+      lease = await acquireWorkerLease(sql, leaseKey);
+      if (!lease) return null;
+      const [processed] = await sql`select id from public.mia_messages where provider_message_id=${inbound.whatsappMessageId}`;
+      if (processed) return null;
+      const [paused] = await sql`select id from public.mia_clients where mia_pausada
+        and (crm_lead_id=${contact.leadId ?? null} or whatsapp in (${contact.phone.replace(/\D/g, '')}, ${'+' + contact.phone.replace(/\D/g, '')})) limit 1`;
+      if (paused) return null;
+      const meeting = await replyMiaMeeting(id, activeHistory);
+      if (meeting) {
+        const reply = asksMeetingStatus(inbound.content) || /^Listo, reunión (?:coordinada|reprogramada)/.test(meeting.reply)
+          ? meeting.reply : meeting.reply.includes('?') ? meeting.reply : meeting.reply + ' ¿Querés que te ayude con algo más?';
+        if (repeatsLastMessage(reply, previousReply)) return null;
+        return await recordMiaMeetingTurn(contact, inbound, reply);
       }
-      const reply = meeting.reply.includes('?') ? meeting.reply : meeting.reply + ' ¿Querés que te ayude con algo más?';
-      const questions = reply.replace(/https?:\/\/\S+/g, '').match(/\?/g) ?? [];
-      if (repeatsLastMessage(reply, previousReply) || questions.length !== 1 || reply.split('\n').length > 3) return null;
-      return reply;
+      if (meetingIntent(inbound.content)) {
+        const pending = 'Un agente te confirma el horario en el día.';
+        return repeatsLastMessage(pending, previousReply) ? null : await recordMiaMeetingTurn(contact, inbound, pending);
+      }
+      if (/^(?:si|sí)(?:[, ]+confirmad[oa])?[.! ]*$|^(?:dale|ok|perfecto|confirmo)[.! ]*$/i.test(inbound.content.trim())
+        && !socialClosing(inbound.content)) return null;
+    } finally {
+      if (lease) await releaseWorkerLease(sql, leaseKey, lease);
+      await releaseSharedDatabase(sql);
     }
-    if (meetingIntent(inbound.content)) {
-      const pending = 'Un agente te confirma el horario en el día.';
-      return repeatsLastMessage(pending, previousReply) ? null : pending;
-    }
-    if (/^(?:si|sí)(?:[, ]+confirmad[oa])?[.! ]*$|^(?:dale|ok|perfecto|confirmo)[.! ]*$/i.test(inbound.content.trim())) return null;
   }
   return generateMiaWhatsAppReply(contact, history);
 }

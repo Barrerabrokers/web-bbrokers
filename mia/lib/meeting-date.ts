@@ -16,7 +16,10 @@ export function meetingTimeLabel(date: Date) {
   return localTime.format(date);
 }
 
-export function pilotSlotLabel(slot: Slot) {
+export function meetingSlotLabel(slot: Slot) {
   const date = new Date(slot.start);
   return `${meetingDayLabel(date)}, ${meetingTimeLabel(date)}`;
 }
+
+export const hasRawMeetingDate = (text: string) =>
+  /\b(?:GMT|UTC)\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b|\b\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}[^\s]*)?\b/i.test(text);

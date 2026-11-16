@@ -31,7 +31,7 @@ const config = {enabled:true, organizerId, location:'Oficina de prueba', weekday
   startTime:'10:00', endTime:'20:00', duration:60, leadMinutes:60};
 const profile = {lead_id:'lead', phone:'5491100000000', email:'piloto@example.com', first_name:'Ana'};
 
-function harness({busyAfterSelection = false, loseResponse = false, pilot = true} = {}) {
+function harness({busyAfterSelection = false, loseResponse = false, missingMeet = false, pilot = false} = {}) {
   class FixedDate extends Date {
     constructor(...args) { super(...(args.length ? args : ['2026-11-16T13:00:00Z'])); }
     static now() { return Date.parse('2026-11-16T13:00:00Z'); }
@@ -40,7 +40,7 @@ function harness({busyAfterSelection = false, loseResponse = false, pilot = true
   let state = {id:'session', phase:'booked', mode:'google_meet', selected:original,
     eventId:'existing-event', organizerId, organizerName:'Lucas Barrera', offers:[]};
   let event = {id:state.eventId, start:{dateTime:original.start}, end:{dateTime:original.end},
-    etag:'"original"', hangoutLink:link, extendedProperties:{private:{miaBooking:state.id}}};
+    etag:'"original"', hangoutLink:missingMeet ? undefined : link, extendedProperties:{private:{miaBooking:state.id}}};
   let record = {estado:'confirmada', day:'2026-11-16', time:'11:00', agente:'Lucas Barrera'};
   const calls = [];
   const sql = async (strings, ...args) => {
@@ -124,7 +124,7 @@ async function chooseSlot(h) {
   assert(!h.calls.includes('patch'));
 }
 
-test('pilot confirmation moves the existing Meet after both calendars are checked and answers from mia_meetings', async () => {
+test('confirmation outside the old pilot moves the existing Meet after both calendars are checked and answers from mia_meetings', async () => {
   const h = harness();
   await chooseSlot(h);
   assert.match(await h.reply('Si'),/reprogramada para miércoles 18 de noviembre, 12:30, hora Argentina, con Lucas Barrera/);
@@ -151,11 +151,13 @@ test('a lost Calendar response is recovered without moving the event twice', asy
   assert.equal(h.calls.filter(call=>call==='commit').length,1);
 });
 
-test('the global switch does not grant the pilot reschedule to a contact outside the allowlist', async () => {
-  const h = harness({pilot:false});
-  await h.reply('Podemos cambiar la reunión para el miércoles al mediodía');
-  assert(h.calls.includes('handoff'));
-  assert(!h.calls.includes('patch'));
+test('a reschedule without a returned Meet URL confirms the verified move and mentions the email', async () => {
+  const h = harness({missingMeet:true});
+  await chooseSlot(h);
+  const reply = await h.reply('Sí');
+  assert.match(reply,/La invitación llega por mail con el link de Meet/);
+  assert.doesNotMatch(reply,/Ver archivo o enlace/);
+  assert(h.calls.includes('commit'));
 });
 
 test('WhatsApp routes the requested turns and the reminder template uses a human date', () => {
@@ -166,7 +168,7 @@ test('WhatsApp routes the requested turns and the reminder template uses a human
   const template = load('mia/lib/meeting-reminder-templates.ts').meetingReminderTemplates['1h'].cliente.whatsapp;
   const {meetingDayLabel} = load('mia/lib/meeting-date.ts');
   const values = {nombre_cliente:'Ana', agente:'Lucas Barrera', dia:meetingDayLabel(new Date(original.start)),
-    hora:'11:00', modalidad:'Google Meet', link_meet_o_direccion:link};
+    hora:'11:00', modalidad:'Google Meet', detalles:'Link: '+link+'.'};
   assert.equal(template.replace(/\{\{(\w+)\}\}/g, (_,key)=>values[key]),
     'Hola Ana, en 1 hora tenés tu reunión con Lucas Barrera el lunes 16 de noviembre a las 11:00, hora Argentina, por Google Meet. Link: '+link+'. ¿Llegás bien?');
 });

@@ -5,9 +5,9 @@ export const clientMeetingEmail = {
 Listo, queda agendada tu reunión con {{agente}}.
 
 Día: {{dia}}
-Hora: {{hora}} hs Argentina
+Hora: {{hora}}, hora Argentina
 Duración: 60 minutos
-Modalidad: {{modalidad}} - {{link_meet_o_direccion}}
+Modalidad: {{modalidad}}. {{detalles}}
 Tema: {{propiedad_de_interes}} - {{zona}}
 
 Ya tenés la invitación en tu calendario.
@@ -34,9 +34,9 @@ Cliente: {{nombre_cliente}}
 WhatsApp: {{whatsapp_cliente}}
 Email: {{email_cliente}}
 Día: {{dia}}
-Hora: {{hora}} hs Argentina
+Hora: {{hora}}, hora Argentina
 Duración: 60 minutos
-Modalidad: {{modalidad}} - {{link_meet_o_direccion}}
+Modalidad: {{modalidad}}. {{detalles}}
 
 Resumen del cliente:
 - Para qué: {{para_que}} - vivir / invertir
