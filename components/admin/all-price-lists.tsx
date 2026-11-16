@@ -32,6 +32,29 @@ export function AllPriceLists({initialUrl,canEdit,initialEntries=[]}:{initialUrl
     }catch(error){setError(error instanceof Error?error.message:"No se pudo agregar la lista.");}
     finally{setSaving(false);}
   }
+  async function remove(entry: SharedPriceList) {
+    if (saving || !window.confirm(`¿Quitar “${entry.description}” de las listas compartidas?`)) return;
+    setSaving(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const response = await fetch(`/api/developments/all-price-lists?id=${encodeURIComponent(entry.id)}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "No se pudo quitar la lista.");
+      }
+      setEntries(previous => previous.filter(item => item.id !== entry.id));
+      setMessage("Enlace quitado para todo el equipo.");
+      router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "No se pudo quitar la lista.");
+    } finally {
+      setSaving(false);
+    }
+  }
   return <section className="mb-6 rounded-xl border border-ink/12 bg-white p-5 sm:p-6" aria-label="Todas las listas de precios">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><h2 className="text-lg font-semibold text-ink">Todas las listas de precios</h2><p className="mt-1 max-w-2xl text-sm text-ink/70">Enlaces y documentos con los precios de los desarrollos.</p></div>
@@ -46,7 +69,32 @@ export function AllPriceLists({initialUrl,canEdit,initialEntries=[]}:{initialUrl
       <input id="new-price-list-url" type="url" required maxLength={4096} value={newUrl} onChange={event=>setNewUrl(event.target.value)} placeholder="https://..." className="form-input w-full" disabled={saving}/>
       <div className="mt-4 flex flex-wrap gap-3"><button type="submit" disabled={saving} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-50">{saving?<Loader2 className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}{saving?"Guardando…":"Guardar lista"}</button><button type="button" disabled={saving} onClick={()=>{setAdding(false);setError("");}} className="min-h-11 rounded-lg border border-ink/20 px-4 text-sm text-ink">Cancelar</button></div>
     </form>}
-    {entries.length>0&&<ul className="mt-5 divide-y divide-ink/10">{entries.map(entry=><li key={entry.id} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="break-words font-medium text-ink">{entry.description}</p><p className="mt-1 break-all text-xs text-ink/60">{entry.url}</p></div><a href={entry.url} target="_blank" rel="noopener noreferrer" aria-label={'Abrir lista: '+entry.description} className="inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-lg border border-ink/15 px-4 text-sm font-medium text-ink">Abrir lista<ExternalLink className="h-4 w-4"/></a></li>)}</ul>}
+    {entries.length > 0 && (
+      <ul className="mt-5 divide-y divide-ink/10">
+        {entries.map(entry => (
+          <li key={entry.id} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="break-words font-medium text-ink">{entry.description}</p>
+              <p className="mt-1 break-all text-xs text-ink/60">{entry.url}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <a href={entry.url} target="_blank" rel="noopener noreferrer"
+                aria-label={`Abrir ${entry.description}`}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink/15 px-4 text-sm font-medium text-ink">
+                Abrir lista <ExternalLink className="h-4 w-4" />
+              </a>
+              {canEdit && (
+                <button type="button" disabled={saving} onClick={() => remove(entry)}
+                  aria-label={`Quitar ${entry.description}`}
+                  className="min-h-11 rounded-lg px-4 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">
+                  Quitar
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
     {canEdit ? <form onSubmit={save} className="mt-5">
       <label htmlFor="all-price-lists-url" className="mb-2 block text-sm font-medium text-ink">Enlace de Google Drive o Google Sheets</label>
       <div className="flex flex-col gap-3 sm:flex-row"><input id="all-price-lists-url" type="url" value={url} onChange={e=>{setUrl(e.target.value);setMessage("");}} placeholder="https://docs.google.com/spreadsheets/..." className="form-input min-w-0 flex-1" disabled={saving}/><button type="submit" disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-cream-100 px-5 text-sm font-medium text-ink hover:bg-cream-200 disabled:opacity-50">{saving?<Loader2 className="h-4 w-4 animate-spin"/>:<Save className="h-4 w-4"/>}{saving?"Guardando…":"Guardar enlace"}</button></div>

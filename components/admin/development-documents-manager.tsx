@@ -254,10 +254,14 @@ export function DevelopmentDocumentsManager({
                     label="Lista de precios"
                     value={row.priceListUrl}
                     placeholder="https://drive.google.com/..."
-                    onChange={(value) => updateRow(row.id, "priceListUrl", value)}
+                    onChange={(value) => {
+                      updateRow(row.id, "priceListUrl", value);
+                      if (!value) setNotice("Guardá los cambios para quitar la lista de precios.");
+                    }}
                     openHref={
                       row.priceListUrl ? `/api/developments/${row.id}/price-list` : ""
                     }
+                    disabled={isSaving || Boolean(uploadingDocument)}
                     accept="application/pdf,.pdf"
                     uploadLabel="Subir PDF (máx. 20 MB)"
                     isUploading={uploadingDocument === `${row.id}:priceListUrl`}
@@ -270,8 +274,12 @@ export function DevelopmentDocumentsManager({
                     label="Brochure"
                     value={row.brochureUrl}
                     placeholder="https://drive.google.com/..."
-                    onChange={(value) => updateRow(row.id, "brochureUrl", value)}
+                    onChange={(value) => {
+                      updateRow(row.id, "brochureUrl", value);
+                      if (!value) setNotice("Guardá los cambios para quitar el brochure.");
+                    }}
                     openHref={row.brochureUrl}
+                    disabled={isSaving || Boolean(uploadingDocument)}
                     accept="application/pdf,.pdf"
                     uploadLabel="Subir PDF (máx. 20 MB)"
                     isUploading={uploadingDocument === `${row.id}:brochureUrl`}
@@ -283,7 +291,7 @@ export function DevelopmentDocumentsManager({
                   <button
                     type="button"
                     onClick={() => saveRow(row)}
-                    disabled={isSaving}
+                    disabled={Boolean(savingId || uploadingDocument)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-medium text-bone transition-colors hover:bg-ink-600 disabled:cursor-wait disabled:opacity-60"
                   >
                     {isSaving ? (
@@ -312,6 +320,7 @@ function DocumentField({
   accept,
   uploadLabel,
   isUploading = false,
+  disabled = false,
   onUpload,
 }: {
   label: string;
@@ -322,6 +331,7 @@ function DocumentField({
   accept?: string;
   uploadLabel?: string;
   isUploading?: boolean;
+  disabled?: boolean;
   onUpload?: (file: File) => void;
 }) {
   return (
@@ -338,6 +348,7 @@ function DocumentField({
             placeholder={placeholder}
             className="form-input pl-10"
             type="url"
+            disabled={disabled}
           />
         </div>
         {openHref && (
@@ -352,6 +363,18 @@ function DocumentField({
           </a>
         )}
       </div>
+      {value.trim() && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange("")}
+          aria-label={`Quitar ${label}`}
+          title="Guardá los cambios para aplicar la eliminación"
+          className="mt-2 min-h-9 rounded-md px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+        >
+          Quitar
+        </button>
+      )}
       {onUpload && (
         <label className="mt-2 inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-xs font-medium text-accent-700 transition-colors hover:bg-cream-100 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700">
           {isUploading ? (
@@ -363,7 +386,7 @@ function DocumentField({
           <input
             type="file"
             accept={accept}
-            disabled={isUploading}
+            disabled={disabled}
             className="sr-only"
             onChange={(event) => {
               const file = event.target.files?.[0];

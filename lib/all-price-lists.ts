@@ -52,3 +52,13 @@ export async function addSharedPriceList(entry:{url:string;description:string}):
   try{await ensurePriceListEntries(sql);await sql`INSERT INTO crm_shared_documents(key,url,description,updated_at) VALUES(${id},${entry.url},${entry.description},NOW())`;return {id,...entry};}
   finally{await releaseSharedDatabase(sql);}
 }
+
+export async function removeSharedPriceList(id: string) {
+  const sql = getSharedDatabase();
+  try {
+    await ensurePriceListEntries(sql);
+    await sql`DELETE FROM crm_shared_documents WHERE key = ${id} AND key LIKE 'price-list:%'`;
+  } finally {
+    await releaseSharedDatabase(sql);
+  }
+}
