@@ -6,6 +6,7 @@ import { generateMiaResetReply } from '@/lib/mia-reset-runtime';
 import { generateMiaWhatsAppReply } from '@/mia/lib/whatsapp-flow';
 import { replyMiaMeeting } from '@/mia/lib/meetings';
 import { repeatsLastMessage } from '@/mia/lib/reply-safety';
+import { meetingIntent } from '@/lib/mia-meeting-policy';
 import { routesToMiaMeeting } from '@/mia/lib/meeting-routing';
 import { newMiaEngineAllows } from '@/mia/lib/rollout';
 import { ensureContactIdentitySchema, phoneIdentityVariants, notifyCompanyWhatsAppReply, findContactLead } from '@/lib/whatsapp-contact-identity';
@@ -447,12 +448,19 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   if (inbound?.direction !== 'inbound') return null;
   const previousReply = activeHistory.findLast(message => message.direction === 'outbound')?.content ?? '';
   if (routesToMiaMeeting(inbound.content, previousReply)) {
-    const meeting = await replyMiaMeeting(id, activeHistory);
+    const meeting = await replyMiaMeeting(id, activeHistory).catch(error => {
+      console.warn('mia-pilot-meeting-route-failed', {name: error instanceof Error ? error.name : 'unknown'});
+      return null;
+    });
     if (meeting) {
       const reply = meeting.reply.includes('?') ? meeting.reply : meeting.reply + ' ¿Querés que te ayude con algo más?';
       const questions = reply.replace(/https?:\/\/\S+/g, '').match(/\?/g) ?? [];
       if (repeatsLastMessage(reply, previousReply) || questions.length !== 1 || reply.split('\n').length > 3) return null;
       return reply;
+    }
+    if (meetingIntent(inbound.content)) {
+      const pending = 'No pude confirmar ese horario. ¿Querés que un agente lo revise?';
+      return repeatsLastMessage(pending, previousReply) ? null : pending;
     }
     if (/^(?:si|sí|dale|ok|perfecto|confirmo)[.! ]*$/i.test(inbound.content.trim())) return null;
   }

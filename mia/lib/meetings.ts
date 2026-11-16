@@ -91,6 +91,15 @@ async function hasConfirmedRecord(state: MeetingState) {
  } finally { await releaseSharedDatabase(sql); }
 }
 
+async function hasCancelledRecord(eventId: string) {
+ const sql = getSharedDatabase();
+ try {
+  const [row] = await sql`select 1 from public.mia_meetings
+    where google_event_id=${eventId} and estado='cancelada'`;
+  return !!row;
+ } finally { await releaseSharedDatabase(sql); }
+}
+
 async function verifiedBookedMeeting(state: MeetingState, config: MeetingConfig) {
  if (!state.eventId || !state.organizerId || !state.crmSyncedAt || !(await hasConfirmedRecord(state))) return false;
  const token = await miaMeetingCalendar({...config, organizerId:state.organizerId});
@@ -164,6 +173,10 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
  if(!options.preview)await readMiaLearnings('sin_definir');
  await ensureMiaMeetingSchema();
  const previous=options.preview?null:await session(conversationId);let state=options.preview?options.state||null:previous?.state||null;let version=previous?.version??-1;
+ if(!options.preview && state?.phase==='booked' && state.eventId && meetingIntent(latest)
+    && !meetingChangeIntent(latest) && await hasCancelledRecord(state.eventId)){
+  state=null;
+ }
  if(meetingRestart(latest)){
   state=state&&['booked','creating','review'].includes(state.phase)?{...state,conversationState:state.phase==='booked'?'reunion_cerrada':'esperando_confirmacion'}:{id:state?.id||randomUUID(),phase:'cancelled',conversationState:'sin_reunion',offers:[],updatedAt:new Date().toISOString()};
   if(!options.preview)await save(conversationId,state,version);
