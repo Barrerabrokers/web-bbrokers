@@ -285,7 +285,7 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
   const failure = 'no pude verificar la disponibilidad o el evento original en Calendar';
   const failed = {...state, changeRequest:{...request, failure}};
   if (reminderLease) await save(conversationId, failed, version).catch(() => {});
-  return {reply:'No pude verificar la disponibilidad o el evento original en Calendar. El cambio todavía no está confirmado.',state:failed};
+  return {reply:'No pude verificar el cambio de la reunión en Calendar. ¿Querés que vuelva a intentar con el horario que elegiste?',state:failed};
  } finally {
   if (reminderLease) await releaseWorkerLease(sql, reminderKey, reminderLease);
   if (calendarLease) await releaseWorkerLease(sql, calendarKey, calendarLease);

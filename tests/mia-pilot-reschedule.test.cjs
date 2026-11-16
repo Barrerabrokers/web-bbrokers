@@ -164,6 +164,7 @@ test('WhatsApp routes the requested turns and the reminder template uses a human
   const routing = load('mia/lib/meeting-routing.ts');
   assert(routing.routesToMiaMeeting('12:30hs está bien', 'Para cambiar la reunión, ¿te sirve el miércoles?'));
   assert(routing.routesToMiaMeeting('Si', '¿Confirmás cambiar la reunión al miércoles?'));
+  assert(routing.routesToMiaMeeting('Sí', 'No pude verificar la disponibilidad o el evento original en Calendar. El cambio todavía no está confirmado.'));
   assert(routing.asksMeetingStatus('Ya está confirmada la reunión?'));
   const template = load('mia/lib/meeting-reminder-templates.ts').meetingReminderTemplates['1h'].cliente.whatsapp;
   const {meetingDayLabel} = load('mia/lib/meeting-date.ts');

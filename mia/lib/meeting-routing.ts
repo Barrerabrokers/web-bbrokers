@@ -6,7 +6,7 @@ export function asksMeetingStatus(text: string) {
 
 export function routesToMiaMeeting(inbound: string, previousReply: string) {
   if (meetingIntent(inbound) || asksMeetingStatus(inbound)) return true;
-  if (!/agend|coordin|cambiar|reprogram|reuni[oó]n|horario|google meet/i.test(previousReply)) return false;
+  if (!/agend|coordin|cambiar|reprogram|reuni[oó]n|horario|google meet|cambio todav[ií]a no est[aá] confirmado|evento original en Calendar/i.test(previousReply)) return false;
   return explicitlyConfirmsMeeting(inbound)
     || /^(?:la\s+)?(?:primera|segunda|[12])\s*[.!]?$/i.test(inbound.trim())
     || /\b(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[nñ]ana|hoy)\b|\b\d{1,2}:\d{2}(?=hs?\b|\b)|@|\b(?:cancel|reprogram|cambiarla)/i.test(inbound);
