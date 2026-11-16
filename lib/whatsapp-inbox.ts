@@ -433,15 +433,14 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
   const history = await listWhatsAppMessages(id, null);
   const contact = await getWhatsAppConversation(id);
   if (!contact) return null;
-  const legacy = () => generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
-  if (contact.channel !== 'whatsapp') return legacy();
+  if (contact.channel !== 'whatsapp') return generateMiaResetReply(id, history, () => loadWhatsAppLeadContext(id));
   const profile = await loadWhatsAppLeadContext(id);
   const email = typeof profile.email === 'string' ? profile.email : '';
   if (!newMiaEngineAllows(contact.phone, email, {
     MIA_NEW_ENGINE_ENABLED: process.env.MIA_NEW_ENGINE_ENABLED,
     MIA_TEST_NUMBERS: process.env.MIA_TEST_NUMBERS,
     MIA_TEST_EMAILS: process.env.MIA_TEST_EMAILS,
-  })) return legacy();
+  })) return null;
   if (!contact.aiEnabled || contact.status === 'closed') return null;
   const activeHistory = history.filter(message => !['historical', 'cleared'].includes(message.status));
   const inbound = activeHistory.at(-1);
