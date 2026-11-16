@@ -211,7 +211,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
             where not exists(select 1 from public.mia_observations
               where client_id=${client.id} and propuesta=${note} and estado='pendiente')`;
         }
-        const missingBrochures = new Set(options.filter(option => !option.project.brochure_url)
+        const missingBrochures = new Set(options.filter(option => !verifiedBrochureUrl(option.project.brochure_url))
           .map(({project}) => 'Brochure pendiente de ' + project.name + ' · ' + project.address));
         for (const observation of missingBrochures) {
           await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
@@ -263,7 +263,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const reply = typeof candidate?.respuesta === 'string' ? candidate.respuesta.trim() : '';
         const nextIntent = questionIntent(lastQuestion(reply));
         const repeated = !!nextIntent && nextIntent === questionIntent(priorQuestion);
-        if (!repeated && !repeatsLastMessage(reply, previousMessage) && !unverifiedMeetingClaim(reply) && (reply.match(/¿/g) ?? []).length <= 1 && nextIntent !== 'envio-material' && !brochureRequested(reply) && !unverifiedCatalogClaim(reply) && !/(?:https?:|www\.|docs\.google\.com|drive\.google\.com)/i.test(reply) && reply.endsWith('?') && (reply.match(/\?/g) ?? []).length === 1 &&
+        if (!repeated && !repeatsLastMessage(reply, previousMessage) && !unverifiedMeetingClaim(reply) && (reply.match(/¿/g) ?? []).length <= 1 && nextIntent !== 'envio-material' && !brochureRequested(reply) && !/ver archivo(?: o enlace)?/i.test(reply) && !unverifiedCatalogClaim(reply) && !/(?:https?:|www\.|docs\.google\.com|drive\.google\.com)/i.test(reply) && reply.endsWith('?') && (reply.match(/\?/g) ?? []).length === 1 &&
             reply.split(/\r?\n/).length <= 3 && typeof candidate.resumen === 'string' &&
             typeof candidate.proximo_paso === 'string') {
           result = {...candidate, respuesta: reply};

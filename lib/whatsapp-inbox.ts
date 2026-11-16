@@ -453,16 +453,19 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
       return null;
     });
     if (meeting) {
+      if (/^(?:Listo, reunión coordinada|Un agente te confirma el horario en el día)/.test(meeting.reply)) {
+        return repeatsLastMessage(meeting.reply, previousReply) ? null : meeting.reply;
+      }
       const reply = meeting.reply.includes('?') ? meeting.reply : meeting.reply + ' ¿Querés que te ayude con algo más?';
       const questions = reply.replace(/https?:\/\/\S+/g, '').match(/\?/g) ?? [];
       if (repeatsLastMessage(reply, previousReply) || questions.length !== 1 || reply.split('\n').length > 3) return null;
       return reply;
     }
     if (meetingIntent(inbound.content)) {
-      const pending = 'No pude confirmar ese horario. ¿Querés que un agente lo revise?';
+      const pending = 'Un agente te confirma el horario en el día.';
       return repeatsLastMessage(pending, previousReply) ? null : pending;
     }
-    if (/^(?:si|sí|dale|ok|perfecto|confirmo)[.! ]*$/i.test(inbound.content.trim())) return null;
+    if (/^(?:si|sí)(?:[, ]+confirmad[oa])?[.! ]*$|^(?:dale|ok|perfecto|confirmo)[.! ]*$/i.test(inbound.content.trim())) return null;
   }
   return generateMiaWhatsAppReply(contact, history);
 }

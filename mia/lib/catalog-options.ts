@@ -1,3 +1,4 @@
+import { verifiedBrochureUrl } from './brochure';
 import { deliveryMonths, type SheetUnit } from './development-sheet';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -116,8 +117,8 @@ export function renderVerifiedOptions(options: SheetUnit[], missing: number[] = 
     return `Opción ${index + 1}: ${project.name} - ${project.address}, ${project.location} - Unidad ${option.unit} - ${rooms} - ${option.totalArea} m² ${option.areaLabel ?? 'totales'} - ${option.price} - ${financing} - ${delivery} - ${availability}${link}`;
   });
   if (pending.size) lines[lines.length - 1] += pending.size === 1
-    ? ' — El brochure de este proyecto está pendiente.'
-    : ' — Los brochures de estos proyectos están pendientes.';
+    ? ' — Brochure pendiente, un asesor lo comparte.'
+    : ' — Brochures pendientes, un asesor los comparte.';
   return lines.join('\n') + (options.length === 2
     ? '\n¿Cuál querés que te detalle primero, la de 1 o la de 2?'
     : missing.length

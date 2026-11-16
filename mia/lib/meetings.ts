@@ -77,7 +77,19 @@ export async function createMiaGoogleMeeting(token:string,state:MeetingState,c:M
 }
 function bookedReply(state:MeetingState,c:MeetingConfig,preview=false){return `${preview?'Simulación: la reunión quedaría agendada':'Reunión confirmada'} con un agente comercial el ${meetingSummary(state,c)}.${state.mode==='google_meet'&&state.meetUrl?`\nGoogle Meet: ${state.meetUrl}`:state.mode==='google_meet'?'\nEl enlace de Google Meet está pendiente de generarse; no hace falta volver a reservar.':''}${preview?' No se creó ninguna cita ni se envió una invitación.':state.email?' La invitación fue solicitada a Google Calendar para '+state.email+'.':' Te llamaremos al teléfono de esta conversación.'}`;}
 function bookedClosing(state:MeetingState,c:MeetingConfig){
- return `Listo, queda agendada con ${state.organizerName||'un agente comercial'}. ${meetingSummary(state,c)}.\n${state.meetUrl ? 'Google Meet: ' + state.meetUrl : 'La invitación quedó solicitada en Calendar.'}\n¿Querés que te recordemos 1 hora antes por acá?`;
+ return `Listo, reunión coordinada con ${state.organizerName||'un agente comercial'}. ${meetingSummary(state,c)}.${state.meetUrl ? '\nGoogle Meet: ' + state.meetUrl : ''}`;
+}
+const meetingHandoff = 'Un agente te confirma el horario en el día.';
+async function observeMeetingFailure(leadId?: string) {
+ if (!leadId) return;
+ const sql=getSharedDatabase();
+ try {
+  await sql`insert into public.mia_observations (client_id,que_paso,propuesta,estado)
+    select id,'Agenda pendiente','Verificar el pedido de reunión y confirmar el horario','pendiente'
+    from public.mia_clients c where crm_lead_id=${leadId}
+      and not exists(select 1 from public.mia_observations o
+        where o.client_id=c.id and o.que_paso='Agenda pendiente' and o.estado='pendiente')`;
+ } finally { await releaseSharedDatabase(sql); }
 }
 async function hasConfirmedRecord(state: MeetingState) {
  if (!state.eventId) return false;
@@ -162,7 +174,8 @@ async function book(conversationId:string,state:MeetingState,version:number,c:Me
   return {reply:bookedClosing(state,c),state};
  }catch(error){
   console.warn('mia-meeting-booking-review',{phase:state.phase});
-  return {reply:'Un agente te confirma el horario. ¿Querés que te avise por acá?',state};
+  if(!preview) await observeMeetingFailure(person.leadId).catch(()=>console.warn('mia-meeting-observation-failed'));
+  return {reply:meetingHandoff,state};
  }finally{if(lease)await releaseWorkerLease(sql,'mia-pablo-meeting-calendar',lease);if(sendToken)await releaseWhatsAppSend(conversationId,sendToken);await releaseSharedDatabase(sql);}
 }
 export async function replyMiaMeeting(conversationId:string,messages:Message[],options:{preview?:boolean;state?:MeetingState|null;offerOnly?:boolean}={}):Promise<{reply:string;state:MeetingState}|null>{
@@ -244,8 +257,12 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
   const person=options.preview?{name:'',email:'',phone:''}:await client(conversationId);
   const form=extractConversationForms(messages);if(form.name)person.name=form.name;if(form.email&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email))person.email=form.email;if(form.phone)person.phone=form.phone;
   if(!options.offerOnly&&active&&state?.phase==='confirm'&&explicitlyConfirmsMeeting(latest))return await book(conversationId,state,version,c,person,!!options.preview,inbound?.whatsappMessageId);
-  let turn:MeetingTurn=options.offerOnly?{intent:'start',mode:null,choice:null,date:null,weekdays:[],period:'any',time:null,name:null,email:null}:await parseMiaMeetingTurn(messages,active?state:null);
   const clock=options.offerOnly?null:explicitMeetingClock(latest);
+  const exactTomorrow=!!clock?.time && /\bma[ñn]ana\b/i.test(latest) && /\b(?:google\s+meet|meet|virtual)\b/i.test(latest)
+    && meetingIntent(latest) && !changing;
+  let turn:MeetingTurn=options.offerOnly?{intent:'start',mode:null,choice:null,date:null,weekdays:[],period:'any',time:null,name:null,email:null}
+    :exactTomorrow?{intent:'availability',mode:'google_meet',choice:null,date:argentinaDay(new Date(Date.now()+86400000)),weekdays:[],period:'any',time:clock!.time,name:null,email:null}
+    :await parseMiaMeetingTurn(messages,active?state:null);
   if(clock)turn={...turn,intent:'availability',choice:null,time:clock.time,date:turn.date||(!turn.weekdays.length?state?.selected?.start.slice(0,10)||state?.offers[0]?.start.slice(0,10)||null:null)};
   if(turn.intent==='other')return null;
   state=active?state!:{id:randomUUID(),phase:'offered',offers:[],updatedAt:new Date().toISOString(),name:person.name||undefined,phone:person.phone||undefined,email:/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(person.email)?person.email:undefined};
@@ -266,6 +283,13 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
   if(newAvailability){
    const team=await teamCalendars(c,new Date(),new Date(Date.now()+32*86400000));
    state.offers=teamOffers(team,{...turn,timeWindow:state.timeWindow});state.selected=undefined;state.phase='offered';
+   if(!state.offers.length && exactTomorrow){
+    const requestedAt=new Date(turn.date+'T'+turn.time+':00-03:00');
+    const earlier={start:new Date().toISOString(),end:new Date(requestedAt.getTime()+60000).toISOString()};
+    const next=teamOffers(team.map(member=>({...member,busy:[...member.busy,earlier]})),
+      {...turn,date:null,weekdays:[],time:null,period:'any'})[0];
+    if(next){state.offers=[next];return persist('Ese horario no está disponible. El próximo horario libre es '+slotLabel(next)+'. ¿Te sirve?');}
+   }
    if(!state.offers.length)return persist('No encontré horarios libres dentro de esa preferencia. ¿Qué otro día o franja horaria te sirve para reunirnos con un agente comercial?');
    if(turn.time&&state.offers.length===1){state.selected=state.offers[0];state.phase='details';state.confirmationKey=undefined;}else{
    const choices=state.offers.map(s=>slotLabel(s)).join(' o ');
@@ -276,6 +300,10 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
   if(!state.name)return persist('¿A nombre de quién agendo la reunión?');
   if(state.mode==='phone'&&!state.phone)return persist('¿A qué teléfono querés que te llamemos?');
   if(state.mode!=='phone'&&!state.email)return persist('¿A qué correo te envío la invitación de la reunión?');
+  if(exactTomorrow && state.selected) {
+   state={...state,organizerId:undefined,organizerName:undefined,organizerEmail:undefined};
+   return await book(conversationId,state,version,c,person,!!options.preview,inbound?.whatsappMessageId);
+  }
   const key=JSON.stringify([state.selected,state.mode,state.name,state.email,state.phone]);
   if(state.phase==='confirm'&&state.confirmationKey===key)return persist(messages.filter(m=>m.direction==='outbound').at(-1)?.content.startsWith('El horario que elegiste')?'Podemos seguir con otra consulta mientras decidís; no agendé nada todavía.':'El horario que elegiste sigue pendiente de tu confirmación. Cuando me confirmes, avanzo con esa misma reunión.');
   const selected=state.selected!;
@@ -289,5 +317,9 @@ export async function replyMiaMeeting(conversationId:string,messages:Message[],o
   }
   state={...state,organizerId:assigned.config.organizerId,organizerName:assigned.name,organizerEmail:assigned.email};
   state.phase='confirm';state.confirmationKey=key;return persist(confirmation(state,c));
- }catch(error){console.warn('mia-meeting-unavailable',{code:error instanceof Error?error.name:'unknown'});if(!options.preview&&state&&['offered','details','confirm'].includes(state.phase))await save(conversationId,state,version).catch(()=>console.warn('mia-meeting-state-pending'));return {reply:state?.phase==='creating'?'Todavía no pude confirmar el resultado de la reserva. No vuelvas a agendarla; un agente debe verificarla para evitar duplicados.':(messages.filter(m=>m.direction==='outbound').at(-1)?.content==='Un agente comercial puede ayudarte a completar la coordinación. Conservo el horario que propusiste; todavía queda por confirmar.'?'Seguimos con tu propuesta, sin volver a elegir horario. La reunión sigue pendiente de confirmación.':'Un agente comercial puede ayudarte a completar la coordinación. Conservo el horario que propusiste; todavía queda por confirmar.'),state:state||{id:randomUUID(),phase:'offered',offers:[],updatedAt:new Date().toISOString()}};}
+ }catch(error){
+  console.warn('mia-meeting-unavailable',{code:error instanceof Error?error.name:'unknown'});
+  if(!options.preview) await client(conversationId).then(person=>observeMeetingFailure(person.leadId)).catch(()=>console.warn('mia-meeting-observation-failed'));
+  return {reply:meetingHandoff,state:state||{id:randomUUID(),phase:'offered',offers:[],updatedAt:new Date().toISOString()}};
+ }
 }

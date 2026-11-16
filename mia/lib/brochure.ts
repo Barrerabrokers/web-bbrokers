@@ -41,7 +41,10 @@ export function verifiedBrochureUrl(value: string | null) {
   if (!value) return null;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && !url.username && !url.password ? url.href : null;
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    if (url.hostname === 'drive.google.com' && !/^\/file\/d\/[a-z0-9_-]+(?:\/|$)/i.test(url.pathname)) return null;
+    if (url.hostname === 'docs.google.com' && !/^\/(?:document|presentation)\/d\/[a-z0-9_-]+(?:\/|$)/i.test(url.pathname)) return null;
+    return url.href;
   } catch {
     return null;
   }

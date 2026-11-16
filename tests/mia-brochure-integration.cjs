@@ -102,7 +102,7 @@ async function run() {
     assert.deepEqual(cached.map(row => row.moneda), ['USD','USD']);
     assert.deepEqual(cached.map(row => row.entrega_meses), [0,0]);
     assert.equal((options.match(/Entrega inmediata/g) ?? []).length, 2);
-    assert.equal((options.match(/brochure de este proyecto está pendiente/g) ?? []).length, 1);
+    assert.equal((options.match(/Brochure pendiente, un asesor lo comparte/g) ?? []).length, 1);
     assert.doesNotMatch(options, /0 meses/);
     assert.doesNotMatch(options, /example\.invalid\/lista|Lista de precios/i);
     assert.match(options, /Unidad 1-A.*40 m² totales.*Anticipo USD 36.000.*24 cuotas mensuales de USD 3.500/);
