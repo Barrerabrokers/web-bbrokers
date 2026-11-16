@@ -224,8 +224,8 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
   stage = 'check_storage';
   const [storage] = await sql`
    select exists(select 1 from public.mia_meetings m join public.mia_clients c on c.id = m.client_id
-     join public.crm_activities a on a.external_source = 'google_calendar' and a.external_id = m.google_event_id
-       and a.lead_id = c.crm_lead_id
+     join public.crm_activities a on a.external_source = 'google_calendar' and a.external_id::text = m.google_event_id
+       and a.lead_id::text = c.crm_lead_id::text
      join public.crm_meeting_schedules s on s.activity_id = a.id and s.cancelled_at is null
      where m.google_event_id = ${eventId} and c.crm_lead_id = ${person.leadId}
        and m.estado in ('confirmada', 'reprogramada'))

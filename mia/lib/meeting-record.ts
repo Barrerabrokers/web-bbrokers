@@ -63,7 +63,7 @@ export async function readMiaMeetingStatus(conversationId: string, eventId?: str
       join public.mia_clients c on c.id = m.client_id
       join public.crm_whatsapp_conversations w on w.id = ${conversationId}
       where (${eventId ?? ''} <> '' and m.google_event_id = ${eventId ?? ''})
-        or (${eventId ?? ''} = '' and c.crm_lead_id = w.lead_id)
+        or (${eventId ?? ''} = '' and c.crm_lead_id::text = w.lead_id::text)
       order by m.dia desc, m.hora desc limit 1`;
     return row;
   } finally {
