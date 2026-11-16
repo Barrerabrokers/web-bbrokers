@@ -18,6 +18,16 @@ async function migrate() {
       await tx.unsafe(migration).simple();
     });
     console.log('MIA reminder rescheduling schema ready.');
+    const schema = await sql`
+      select c.relname as relation, a.attname as column, format_type(a.atttypid, a.atttypmod) as type
+      from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname='public' and c.relname in ('mia_meetings','mia_reminders','crm_meeting_schedules')
+        and a.attnum > 0 and not a.attisdropped`;
+    const constraints = await sql`
+      select c.relname as relation, p.conname as name, pg_get_constraintdef(p.oid) as definition
+      from pg_constraint p join pg_class c on c.oid=p.conrelid join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname='public' and c.relname in ('mia_meetings','mia_reminders','crm_meeting_schedules') and p.contype='c'`;
+    console.log('MIA reschedule schema diagnostics:', JSON.stringify({schema,constraints}));
   } finally {
     await sql.end({timeout:5});
   }

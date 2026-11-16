@@ -211,6 +211,7 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
  const reminderKey = 'mia-meeting-reminder:' + eventId;
  let sendToken: string | null = null, calendarLease: string | null = null, reminderLease: string | null = null;
  let started = request.moving === true;
+ let stage = 'claim_turn';
  try {
   sendToken = await claimWhatsAppAiSend(conversationId, inboundId);
   if (!sendToken) throw new Error('Stale customer turn');
@@ -220,6 +221,7 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
   const current = await session(conversationId);
   if (current?.version !== version) throw new Error('Stale meeting version');
 
+  stage = 'check_storage';
   const [storage] = await sql`
    select exists(select 1 from public.mia_meetings m join public.mia_clients c on c.id = m.client_id
      join public.crm_activities a on a.external_source = 'google_calendar' and a.external_id = m.google_event_id
@@ -229,6 +231,7 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
        and m.estado in ('confirmada', 'reprogramada'))
    and to_regclass('public.mia_reminders_meeting_type_active_key') is not null as ready`;
   if (!storage?.ready) throw new Error('Reschedule storage unavailable');
+  stage = 'read_event';
   const token = await miaMeetingCalendar({...config, organizerId: state.organizerId});
   let event = await googleEvent(token, eventId);
   if (!event || event.status === 'cancelled' || event.extendedProperties?.private?.miaBooking !== state.id) {
@@ -237,6 +240,7 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
   if (!started || !sameCalendarSlot(event, slot)) {
    if (!sameCalendarSlot(event, state.selected)) throw new Error('Calendar changed outside MIA');
    const now = new Date();
+   stage = 'check_availability';
    const team = await teamCalendars(config, new Date(Math.max(now.getTime(), Date.parse(slot.start))),
      new Date(now.getTime() + 32 * 86_400_000), state.id);
    const busy = team.flatMap(member => member.busy);
@@ -249,11 +253,13 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
       'Ese horario ya no está libre. ¿Qué otro día te sirve?',state};
    }
    if (typeof event.etag !== 'string') throw new Error('Missing Calendar event version');
+   stage = 'persist_attempt';
    if (!started) {
     state = {...state, changeRequest:{...request, moving:true}};
     version = await save(conversationId, state, version);
     started = true;
    }
+   stage = 'patch_calendar';
    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
     method:'PATCH', signal:AbortSignal.timeout(12_000),
     headers:{Authorization:`Bearer ${token}`, 'Content-Type':'application/json', 'If-Match':event.etag},
@@ -267,10 +273,14 @@ async function rescheduleMiaMeeting(conversationId: string, state: MeetingState,
    throw new Error('Calendar did not verify reschedule');
   }
   const moved = {...state, selected:slot, meetUrl:meet ?? undefined, changeRequest:undefined, updatedAt:new Date().toISOString()};
+  stage = 'commit_reschedule';
   await commitMiaReschedule(sql, conversationId, version, moved, person.leadId);
   return {reply:`Listo, reunión reprogramada para ${meetingSlotLabel(slot)}, hora Argentina, con ${state.organizerName} por Google Meet.\n${meet ? 'Link: ' + meet : MEET_EMAIL_NOTICE}`, state:moved};
  } catch (error) {
-  console.warn('mia-reschedule-failed', {code:error instanceof Error ? error.name : 'unknown'});
+  const sqlError = error as {code?:string; constraint_name?:string};
+  const code = sqlError?.code && /^[A-Z0-9_]+$/.test(sqlError.code) ? sqlError.code : undefined;
+  const constraint = sqlError?.constraint_name && /^\w+$/.test(sqlError.constraint_name) ? sqlError.constraint_name : undefined;
+  console.warn('mia-reschedule-failed', {stage,code,constraint,calendarMayHaveMoved:started});
   if (started) return {reply:'Todavía no pude verificar el cambio de la reunión en Calendar y el CRM. ¿Querés que vuelva a revisar el mismo evento?',state};
   const failure = 'no pude verificar la disponibilidad o el evento original en Calendar';
   const failed = {...state, changeRequest:{...request, failure}};
