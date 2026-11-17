@@ -81,3 +81,20 @@ test('Hollywood and only an advance are enough to rank one-room units', () => {
   assert.equal(result.shown.length, 2);
   assert.match(result.reply, /Santa Fe 5022/);
 });
+
+test('Núñez offers one studio and one one-bedroom unit for a mixed search', () => {
+  const memory = updateBaMemory({}, 'Busco 1 o 2 ambientes en Nuñez, anticipo 50.000 y cuota 2.500', 'Pablo', false);
+  const result = baCatalogReply('Busco 1 o 2 ambientes', [], memory);
+  assert.match(result.reply, /Unidad 101 · Studio/);
+  assert.match(result.reply, /Unidad 203 · 2 AMB/);
+  assert.match(result.reply, /Alpha Núñez/);
+  assert.match(result.reply, /Larralde 2362/);
+});
+
+test('planos refers to the units shown in the conversation with Maps and actual brochure', () => {
+  const result = baCatalogReply('planos?', [], {ultimas_unidades:['Manuel Ugarte 1524|101|37|134140','Manuel Ugarte 1576|503|30|135100']});
+  assert.match(result.reply, /1524 · unidad 101 · plano 3/);
+  assert.match(result.reply, /1576 · unidad 503 · plano 4/);
+  assert.equal(result.reply.match(/Maps: /g).length, 2);
+  assert.equal(result.reply.match(/Brochure: https:\/\//g).length, 2);
+});

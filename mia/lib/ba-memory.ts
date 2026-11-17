@@ -27,6 +27,8 @@ export function projectMention(text: string) {
 export function roomCount(value: string | null) {
   const v = normalize(value ?? '');
   if (/\b(?:mono|monoambiente|studio|un ambiente)\b/.test(v)) return 1;
+  const bedrooms = /^(\d)\s*(?:dorm|dormitorio|dormitorios)\b/.exec(v);
+  if (bedrooms) return Number(bedrooms[1]) + 1;
   return Number(/^(\d)(?: |$)/.exec(v)?.[1]) || null;
 }
 

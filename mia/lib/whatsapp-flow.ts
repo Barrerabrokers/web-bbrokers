@@ -10,11 +10,11 @@ import { type SheetProject, type SheetUnit, deliveryMonths, getDevelopmentProjec
 import { repeatsLastMessage, socialClosing, unverifiedMeetingClaim } from './reply-safety';
 import { MIA_CONVERSATION_INSTRUCTIONS } from './conversation-instructions';
 
-type Message = { direction: string; content: string; whatsappMessageId?: string; status: string };
+type Message = { direction: string; content: string; whatsappMessageId?: string; status: string; createdAt?: string };
 type Contact = { phone: string; leadId?: string; contactName: string };
 
 export async function generateMiaWhatsAppReply(contact: Contact, history: Message[]) {
-  const turns = history.filter(message => !['historical', 'cleared'].includes(message.status)).slice(-16);
+  const turns = history.filter(message => !['historical', 'cleared'].includes(message.status)).slice(-20);
   const inbound = turns.at(-1);
   if (inbound?.direction !== 'inbound' || !inbound.whatsappMessageId) return null;
   const messageId = inbound.whatsappMessageId;
@@ -61,7 +61,12 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         return reply;
       };
       const priorQuestion = conversation.ultima_pregunta ?? lastQuestion(previousReply);
-      const previousMemory = (client.memoria_v4 ?? {}) as Memory;
+      const since = Date.now() - 24 * 60 * 60 * 1000;
+      const recentTurns = turns.slice(0, -1).filter(turn => !turn.createdAt || Date.parse(turn.createdAt) >= since);
+      const recovered = recentTurns.filter(turn=>turn.direction==='inbound')
+        .reduce<Memory>((state, turn)=>updateBaMemory(state,turn.content,'',false),{});
+      const stored = (client.memoria_v4 ?? {}) as Memory;
+      const previousMemory = {...recovered, ...stored};
       const memory = updateBaMemory(previousMemory, inbound.content, client.nombre || contact.contactName, /cómo te llamás|tu nombre/i.test(previousReply), /cuándo.*mudar|fecha de entrega/i.test(previousReply));
       const persistMemory = async () => {
         await tx`update public.mia_clients set memoria_v4=${tx.json(memory)},
@@ -92,10 +97,17 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
       }
       if (/^(?:hola|buen dia|buenos dias|buenas tardes|buenas noches|buenas)$/.test(social)) {
         const topic = memory.proyecto_activo ?? memory.barrio_busca;
-        return recordReply(topic ? `¡Hola, ${name}! Seguimos con ${topic}. ¿Querés que veamos opciones?`
+        const rooms = memory.ambientes_busca?.join(' o ');
+        const next = !memory.para_que ? '¿Es para vivir o invertir?' : !memory.anticipo_objetivo
+          ? '¿Qué anticipo tenés en mente?' : !memory.cuota_objetivo ? '¿Qué cuota mensual tenés en mente?' : '¿Querés que veamos opciones?';
+        return recordReply(topic ? `¡Hola, ${name}! Seguimos con ${topic}${rooms ? ', '+rooms+' ambientes' : ''}. ${next}`
           : `¡Hola, ${name}! Soy MIA de Barrera Brokers. ¿Qué barrio te interesa?`);
       }
-      const catalog = baCatalogReply(inbound.content, turns.slice(0, -1).map(turn => turn.content), memory);
+      if (/\b(?:vi|vengo de|me interesa)\b.*\b(?:publicidad|anuncio|publi)\b|\binvertir con anticipo y cuotas\b/.test(social)
+        && !memory.anticipo_objetivo) {
+        return recordReply(`${name}, Ugarte y Aguilar tienen opciones con anticipo y cuotas. ¿Qué anticipo tenés en mente?`);
+      }
+      const catalog = baCatalogReply(inbound.content, recentTurns.map(turn=>turn.content), memory);
       if (catalog) {
         if (catalog.missingBrochure) {
           const note = 'Falta brochure verificable de ' + catalog.missingBrochure;
@@ -117,8 +129,8 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         && !brochureRequested(inbound.content)) {
         const zone = memory.barrio_busca;
         const count = projects.filter(p=>zone === 'Palermo' ? p.barrio.startsWith('Palermo') : p.barrio===zone).length;
-        const areaPrompt = zone.startsWith('Palermo') ? 'Podemos mirar cercanía a parques o a la zona gastronómica. '
-          : zone === 'Nuñez' ? 'Podemos mirar qué tan cerca te queda Libertador. '
+        const areaPrompt = zone === 'Nuñez' ? 'Manuel Ugarte 1524 y 1576 quedan a una cuadra de Av. Libertador. Alpha Núñez está en Vuelta de Obligado 3928, cruce Paroissien, y Larralde 2362 cruza Vuelta de Obligado. '
+          : zone.startsWith('Palermo') ? 'Podemos mirar cercanía a parques o a la zona gastronómica. '
           : zone === 'Belgrano' ? 'Podemos mirar cercanía a Cabildo y al subte D. '
           : zone === 'Recoleta' ? 'Podemos mirar cercanía a Santa Fe o Pueyrredón. ' : '';
         const question = !memory.para_que ? '¿Buscás para vivir o invertir?' : !memory.ambientes_busca?.length ? '¿Cuántos ambientes te servirían?'

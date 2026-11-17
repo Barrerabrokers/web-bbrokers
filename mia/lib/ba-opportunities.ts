@@ -12,6 +12,42 @@ const requiresUnitVerification = (p: Project) =>
 const mapsUrl = (p: Project) =>
   'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.direccion + ' Buenos Aires');
 
+const plans: Record<string, Record<string, number>> = {
+  '1524': {'101':3,'104':6,'203':5,PB01:1,PB02:2},
+  '1576': {'201':2,'501':2,'503':4,'601':2,'603':4,'701':2},
+};
+function planMessages(project: Project | undefined, memory: Memory, recent: string[], latest: string) {
+  const messages: string[][] = [];
+  const requestedUnit = /\b(?:unidad|plano(?: de la unidad| de la)?)\s+([a-z]*\d{2,}[a-z]?)\b/i.exec(latest)?.[1];
+  const selected = requestedUnit && project ? [[project.direccion, requestedUnit]] :
+    (memory.ultimas_unidades ?? []).map(key=>key.split('|'));
+  if (!selected.length) {
+    for (const message of recent.slice(-5).reverse().flatMap(message=>message.split(/\r?\n/))) {
+      const p = projectMention(message);
+      const match = /\bunidad\s+([a-z0-9]+)\b/i.exec(message);
+      if (p && match && !selected.some(([address,id])=>address===p.direccion&&id===match[1])) selected.push([p.direccion,match[1]]);
+      if (selected.length===2) break;
+    }
+  }
+  for (const [address,id] of selected.slice(0,2)) {
+    const p = projects.find(item=>item.direccion===address);
+    if (!p) continue;
+    const brochure = verifiedBrochureUrl(p.brochure);
+    const number = plans[address.match(/\b(?:1524|1576)\b/)?.[0] ?? '']?.[id.toUpperCase()];
+    messages.push([
+      p.direccion + ' · unidad ' + id + (number && brochure ? ' · plano ' + number + ' en el brochure.' : ' · el agente te verifica el plano puntual.'),
+      ...(brochure ? ['Brochure: ' + brochure] : []),
+      'Maps: ' + mapsUrl(p),
+    ]);
+  }
+  if (!messages.length && project) {
+    const brochure = verifiedBrochureUrl(project.brochure);
+    messages.push([project.direccion + ' · El agente te verifica el plano puntual.',
+      ...(brochure ? ['Brochure: '+brochure] : []), 'Maps: '+mapsUrl(project)]);
+  }
+  return messages.length ? messages : [['¿Qué unidad te interesa para buscar el plano?']];
+}
+
 function neighborhoodOverview(scope: Project[]) {
   return scope.flatMap(p => {
     const address = [p.direccion, p.cruce ? 'cruza ' + p.cruce : null].filter(Boolean).join(', ');
@@ -32,6 +68,7 @@ function neighborhoodOverview(scope: Project[]) {
 
 export function baCatalogReply(latest: string, recent: string[], memory: Memory = {}) {
   const intent = normalize(latest);
+  const wantsPlans = /\bplanos?\b/.test(intent);
   const wantsInfo = /\b(?:info|informacion|ubicacion|mapa|maps|direccion|unidades|brochure|folleto|entrega|etapa)\b/.test(intent);
   const wantsPrices = /\b(?:precios?|valores?|cuanto (?:cuesta|sale|vale)|cotizacion)\b/.test(intent);
   const wantsAll = /\b(?:pasame|mandame|mostrame|contame|quiero ver)\b.{0,32}\b(?:todo|todos|todas|los otros|las otras|el resto)\b/.test(intent);
@@ -41,15 +78,17 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
   const anticipo = quote ? memory.anticipo_objetivo ?? null : null;
   const cuota = quote ? memory.cuota_objetivo ?? null : null;
   const total = anticipo === null && cuota === null ? catalogBudget(latest).total : null;
-  if (!wantsAll && !wantsInfo && !quote && anticipo === null && cuota === null && total === null) return null;
+  if (!wantsPlans && !wantsAll && !wantsInfo && !quote && anticipo === null && cuota === null && total === null) return null;
 
   const explicit = projectMention(latest);
   const historic = recent.slice(-5).reverse().map(projectMention).find(Boolean);
   const active = projects.find(p=>p.direccion===memory.proyecto_activo);
-  const project = explicit ?? active ?? (wantsInfo ? historic : undefined);
+  const project = explicit ?? active ?? (wantsInfo || wantsPlans || wantsPrices ? historic : undefined);
   const zone = memory.barrio_busca;
   const byZone = zone === 'Palermo' ? projects.filter(p=>p.barrio.startsWith('Palermo')) :
     projects.filter(p=>p.barrio===zone);
+  if (wantsPlans) return {shown:[], activeProject:project?.direccion, missingBrochure:null,
+    reply:planMessages(project,memory,recent,latest).map(part=>part.join('\n')).join(MIA_MESSAGE_BOUNDARY)};
   if (wantsAll && byZone.length) {
     return {shown:[], activeProject:undefined, missingBrochure:null,
       reply:neighborhoodOverview(byZone).map(part=>part.join('\n')).join(MIA_MESSAGE_BOUNDARY)};
@@ -88,7 +127,12 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
     options.sort((a,b) => distance(a.u) - distance(b.u) || a.u.total - b.u.total);
     const budget = anticipo !== null || cuota !== null || total !== null;
     const exact = budget ? options.filter(({u})=>distance(u)===0) : [];
-    const picked = options.slice(0,2);
+    const rooms = memory.ambientes_busca ?? [];
+    const distinct = rooms.length > 1 ? rooms.slice(0,2).flatMap(room => {
+      const choice = options.find(({u})=>roomCount(u.ambientes)===room);
+      return choice ? [choice] : [];
+    }) : [];
+    const picked = rooms.length > 1 ? distinct : options.slice(0,2);
     shown.push(...picked.map(({p,u})=>unitKey(p,u)));
     if (!picked.length) {
       lines.push([project && requiresUnitVerification(project) ? 'Las unidades de ' + project.direccion + ' las verifica el agente. Entrega / etapa: ' + [project.entrega,project.etapa].filter(Boolean).join(' · ') :
@@ -106,6 +150,16 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
           u.cuotas && u.cuota !== null ? u.cuotas + ' cuotas de ' + money(u.cuota) : u.posesion !== null ? 'posesión ' + money(u.posesion) : u.cuotas === 0 ? 'sin cuotas' : 'cuotas sin confirmar',
         ].join(' · ')),
       ]);
+      if (zone === 'Nuñez' && picked.some(({p})=>/Ugarte/.test(p.direccion))) {
+        for (const p of [...new Set(picked.map(option=>option.p))]) {
+          lines.push([p.direccion + (/Ugarte/.test(p.direccion) ? ', a una cuadra de Av. Libertador' :
+            p.cruce ? ', cruce con ' + p.cruce : '') + ', Núñez.',
+            'Maps: ' + mapsUrl(p)]);
+        }
+        lines.push(['También está Alpha Núñez, terminado en Vuelta de Obligado 3928, cruce Paroissien.',
+          'Larralde 2362 cruza Vuelta de Obligado. Está en pozo y el master indica USD 2.400/m².',
+          '¿Querés que te pase los datos de esos dos?']);
+      }
     }
   }
   if (!lines.length) return null;
