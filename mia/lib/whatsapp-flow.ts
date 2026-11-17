@@ -1,3 +1,4 @@
+import { baCatalogReply } from './ba-opportunities';
 import { hasRawMeetingDate, meetingSlotLabel } from './meeting-date';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
@@ -76,6 +77,17 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
       }
       if (/^(?:hola|buen dia|buenos dias|buenas tardes|buenas noches|buenas)$/.test(social)) {
         return recordReply('¡Hola! ¿En qué te puedo ayudar?');
+      }
+      const catalog = baCatalogReply(inbound.content, turns.slice(0, -1).map(turn => turn.content));
+      if (catalog) {
+        if (catalog.missingBrochure) {
+          const note = 'Falta brochure verificable de ' + catalog.missingBrochure;
+          await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
+            select ${client.id}, 'Brochure pendiente', ${note}, 'pendiente'
+            where not exists(select 1 from public.mia_observations
+              where client_id=${client.id} and propuesta=${note} and estado='pendiente')`;
+        }
+        return recordReply(catalog.reply);
       }
       const choice = selectedOption(inbound.content);
       const asksFinancing = financingRequested(inbound.content);
