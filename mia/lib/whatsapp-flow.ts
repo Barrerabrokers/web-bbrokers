@@ -1,3 +1,5 @@
+import projects from './ba-opportunities.json';
+import { normalize, updateBaMemory, type Memory } from './ba-memory';
 import { baCatalogReply } from './ba-opportunities';
 import { hasRawMeetingDate, meetingSlotLabel } from './meeting-date';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
@@ -59,6 +61,19 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         return reply;
       };
       const priorQuestion = conversation.ultima_pregunta ?? lastQuestion(previousReply);
+      const previousMemory = (client.memoria_v4 ?? {}) as Memory;
+      const memory = updateBaMemory(previousMemory, inbound.content, client.nombre || contact.contactName, /cómo te llamás|tu nombre/i.test(previousReply), /cuándo.*mudar|fecha de entrega/i.test(previousReply));
+      const persistMemory = async () => {
+        await tx`update public.mia_clients set memoria_v4=${tx.json(memory)},
+          nombre=coalesce(nullif(nombre,''), ${memory.nombre ?? null}), updated_at=now() where id=${client.id}`;
+      };
+      if (!memory.nombre) {
+        await persistMemory();
+        return recordReply('¡Hola! Soy MIA de Barrera Brokers. ¿Cómo te llamás?');
+      }
+      const name = memory.nombre;
+      await persistMemory();
+
       const social = inbound.content.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase()
         .replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' ');
       const closing = socialClosing(inbound.content);
@@ -76,9 +91,11 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         return recordReply(`${closing} Tu reunión es el ${meetingSlotLabel({start,end:start})}, hora Argentina, con ${meeting.agente}.`);
       }
       if (/^(?:hola|buen dia|buenos dias|buenas tardes|buenas noches|buenas)$/.test(social)) {
-        return recordReply('¡Hola! ¿En qué te puedo ayudar?');
+        const topic = memory.proyecto_activo ?? memory.barrio_busca;
+        return recordReply(topic ? `¡Hola, ${name}! Seguimos con ${topic}. ¿Querés que veamos opciones?`
+          : `¡Hola, ${name}! Soy MIA de Barrera Brokers. ¿Qué barrio te interesa?`);
       }
-      const catalog = baCatalogReply(inbound.content, turns.slice(0, -1).map(turn => turn.content));
+      const catalog = baCatalogReply(inbound.content, turns.slice(0, -1).map(turn => turn.content), memory);
       if (catalog) {
         if (catalog.missingBrochure) {
           const note = 'Falta brochure verificable de ' + catalog.missingBrochure;
@@ -87,7 +104,31 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
             where not exists(select 1 from public.mia_observations
               where client_id=${client.id} and propuesta=${note} and estado='pendiente')`;
         }
-        return recordReply(catalog.reply);
+        memory.proyecto_activo = catalog.activeProject ?? memory.proyecto_activo;
+        if (catalog.shown.length) memory.ultimas_unidades = catalog.shown;
+        memory.unidades_mostradas = [...new Set([...(memory.unidades_mostradas ?? []), ...catalog.shown])];
+        memory.ultimo_tema = catalog.shown.length ? 'opciones' : 'información del proyecto';
+        await persistMemory();
+        return recordReply((!previousReply ? '¡Hola, '+name+'! Soy MIA de Barrera Brokers. ' : name+', ') +
+          catalog.reply.charAt(0).toLowerCase() + catalog.reply.slice(1));
+      }
+      const search = normalize(inbound.content);
+      if (memory.barrio_busca && /\b(?:busco|quiero|palermo|nunez|belgrano|recoleta|barracas|san telmo|vivir|invertir|ambientes?|anticipo|cuota)\b/.test(search)
+        && !brochureRequested(inbound.content)) {
+        const zone = memory.barrio_busca;
+        const count = projects.filter(p=>zone === 'Palermo' ? p.barrio.startsWith('Palermo') : p.barrio===zone).length;
+        const areaPrompt = zone.startsWith('Palermo') ? 'Podemos mirar cercanía a parques o a la zona gastronómica. '
+          : zone === 'Nuñez' ? 'Podemos mirar qué tan cerca te queda Libertador. '
+          : zone === 'Belgrano' ? 'Podemos mirar cercanía a Cabildo y al subte D. '
+          : zone === 'Recoleta' ? 'Podemos mirar cercanía a Santa Fe o Pueyrredón. ' : '';
+        const question = !memory.para_que ? '¿Buscás para vivir o invertir?' : !memory.ambientes_busca?.length ? '¿Cuántos ambientes te servirían?'
+          : !memory.anticipo_objetivo ? '¿Qué anticipo tenés en mente?' : !memory.cuota_objetivo ? '¿Qué cuota mensual te quedaría cómoda?'
+          : !memory.entrega_objetivo ? '¿Cuándo te gustaría mudarte?' : null;
+        if (question && question !== priorQuestion) {
+          memory.ultimo_tema = 'búsqueda en ' + zone;
+          await persistMemory();
+          return recordReply(`${!previousReply ? '¡Hola, '+name+'! Soy MIA de Barrera Brokers. ' : name+', '}${previousMemory.barrio_busca !== zone ? 'en '+zone+' tengo '+count+' desarrollos para revisar. '+areaPrompt : ''}${question}`);
+        }
       }
       const choice = selectedOption(inbound.content);
       const asksFinancing = financingRequested(inbound.content);
@@ -271,7 +312,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         where to_jsonb(l)->'aprobada' = 'true'::jsonb`;
       const config = await tx`select clave, valor from public.mia_config`;
       const context = {
-        resumen: client.resumen, proximo_paso: client.proximo_paso,
+        memoria: memory, resumen: client.resumen, proximo_paso: client.proximo_paso,
         preferencias: { zona: client.zona, presupuesto: client.presupuesto, entrega: client.entrega, destino: client.para_que },
         conversacion: conversation.resumen, strategies, learnings, config,
       };
@@ -303,7 +344,10 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         }
       }
       if (!result) return null;
-      const reply = result.respuesta;
+      const reply = normalize(result.respuesta).includes(normalize(name))
+        ? result.respuesta : name + ', ' + result.respuesta.charAt(0).toLowerCase() + result.respuesta.slice(1);
+      memory.ultimo_tema = result.proximo_paso;
+      await persistMemory();
       await tx`update public.mia_clients set resumen = ${result.resumen}, proximo_paso = ${result.proximo_paso}, ultima_pregunta = ${lastQuestion(reply)}, updated_at = now() where id = ${client.id}`;
       await tx`update public.mia_conversations set resumen = ${result.resumen}, ultima_pregunta = ${lastQuestion(reply)} where id = ${conversation.id}`;
       if (typeof result.propuesta === 'string' && result.propuesta.trim()) {

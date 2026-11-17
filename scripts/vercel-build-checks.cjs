@@ -3,8 +3,10 @@
 const {spawnSync}=require('node:child_process');
 const path=require('node:path');
 if (process.env.VERCEL_ENV === 'production') {
- const result=spawnSync(process.execPath,[path.join(__dirname,'migrate-mia-reschedule-reminders.cjs')],{stdio:'inherit',env:process.env});
- if(result.error||result.status!==0)process.exit(result.status||1);
+ for(const script of ['migrate-mia-reschedule-reminders.cjs','migrate-mia-v4-memory.cjs']) {
+  const result=spawnSync(process.execPath,[path.join(__dirname,script)],{stdio:'inherit',env:process.env});
+  if(result.error||result.status!==0)process.exit(result.status||1);
+ }
 }
 for(const [flag,script] of [
  ['MIA_CAMPAIGN_SMOKE','verify-mia-campaign.cjs'],
