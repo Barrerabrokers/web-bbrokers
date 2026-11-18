@@ -13,6 +13,8 @@ export type Memory = {
   ultimas_unidades?: string[];
   ultimo_tema?: string;
   necesita_atencion_humana?: boolean;
+  formulario_aplicado?: boolean;
+  anuncio_origen?: string;
 };
 
 export const normalize = (v: string) => v.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
@@ -60,7 +62,8 @@ export function updateBaMemory(previous: Memory, latest: string, name: string, n
   const neighborhood = detectedNeighborhood ?? project?.barrio ?? previous.barrio_busca;
   const vivir = /\bvivir\b/.test(text), invertir = /\binvertir\b/.test(text);
   const delivery = (deliveryRequested && /^(?:inmediata|ya|(?:en )?\d{1,2} meses|20\d{2})$/.test(text) ? text : undefined) ?? /\b(?:entrega|mudarme|mudarnos)\b.{0,24}\b(?:inmediata|(?:en )?\d{1,2} meses|20\d{2})\b/.exec(text)?.[0];
-  return {...previous, nombre:known.trim().split(/\s+/)[0] || previous.nombre,
+  return {...previous, nombre:(known.trim().split(/\s+/)[0] || previous.nombre)?.replace(/^\p{Lu}{2,}$/u,
+      word=>word[0]+word.slice(1).toLocaleLowerCase('es-AR')),
     barrio_busca:neighborhood, ambientes_busca:rooms.length?[...new Set(rooms)]:previous.ambientes_busca,
     para_que:vivir&&invertir||text==='ambos'?'ambos':vivir?'vivir':invertir?'invertir':previous.para_que,
     anticipo_objetivo:amount(latest,'\\banticipo')??previous.anticipo_objetivo,
@@ -68,4 +71,29 @@ export function updateBaMemory(previous: Memory, latest: string, name: string, n
     entrega_objetivo:delivery??previous.entrega_objetivo,
     proyecto_activo:project?.direccion ?? (detectedNeighborhood ? undefined : previous.proyecto_activo),
   };
+}
+
+export function seedBaForm(fields: Record<string, unknown> = {}) {
+  const entries = Object.entries(fields).filter(([key])=>key.startsWith('meta_field_'))
+    .map(([key,value])=>[normalize(key.replace(/^meta_field_/,'')),String(value ?? '').replace(/_/g,' ').trim()] as const)
+    .filter(([,value])=>!!value);
+  const pick = (pattern: RegExp) => entries.find(([key])=>pattern.test(key))?.[1];
+  const ad = typeof fields.meta_ad_name==='string' ? fields.meta_ad_name.replace(/[\n\r]/g,' ').trim().slice(0,140) : '';
+  const formZone = pick(/barrio|zona|ubicacion/);
+  const rooms = pick(/ambiente|tipologia|departamento|unidad/);
+  const advance = pick(/anticipo|presupuesto/);
+  const monthly = pick(/cuota|mensual/);
+  const objective = pick(/vivir|invertir|objetivo|finalidad/);
+  const known = updateBaMemory({}, [formZone ?? ad,rooms,objective].filter(Boolean).join(' '),'',false);
+  const parsedAdvance = advance && !/\b(?:ars|pesos)\b/i.test(advance) ? amount('anticipo '+advance,'anticipo') : undefined;
+  const parsedMonthly = monthly && !/\b(?:ars|pesos)\b/i.test(monthly) ? amount('cuota '+monthly,'cuota') : undefined;
+  if (!known.barrio_busca || (!entries.length && !ad)) return null;
+  return {barrio_busca:known.barrio_busca,
+    ...(known.ambientes_busca?.length ? {ambientes_busca:known.ambientes_busca} : {}),
+    ...(known.para_que ? {para_que:known.para_que} : {}),
+    ...(parsedAdvance ? {anticipo_objetivo:parsedAdvance} : {}),
+    ...(parsedMonthly ? {cuota_objetivo:parsedMonthly} : {}),
+    ...(pick(/plazo|cuando|entrega/) ? {entrega_objetivo:pick(/plazo|cuando|entrega/)} : {}),
+    ...(ad ? {anuncio_origen:ad} : {}),
+    formulario_aplicado:true};
 }

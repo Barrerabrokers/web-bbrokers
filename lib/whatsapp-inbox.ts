@@ -480,5 +480,5 @@ export async function generateWhatsAppAiReply(messages: WhatsAppMessage[]): Prom
       await releaseSharedDatabase(sql);
     }
   }
-  return generateMiaWhatsAppReply(contact, history);
+  return generateMiaWhatsAppReply(contact, history, profile);
 }

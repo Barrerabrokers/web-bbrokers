@@ -108,7 +108,7 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
 
   const historic = recent.slice(-5).reverse().map(projectMention).find(Boolean);
   const active = projects.find(p=>p.direccion===memory.proyecto_activo);
-  const project = explicit ?? active ?? (wantsInfo || wantsPlans || wantsPrices ? historic : undefined);
+  const project = explicit ?? active ?? (wantsInfo || wantsPlans || wantsPrices && !memory.formulario_aplicado ? historic : undefined);
   const zone = memory.barrio_busca;
   const byZone = zone === 'Palermo' ? projects.filter(p=>p.barrio.startsWith('Palermo')) :
     projects.filter(p=>p.barrio===zone);
@@ -152,7 +152,7 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
         && (!memory.ambientes_busca?.length || memory.ambientes_busca.includes(roomCount(u.ambientes) ?? 0)) && (anticipo === null || u.anticipo !== null) && (cuota === null || u.cuota !== null));
     const minimum = anticipo===null ? null : eligible.reduce<number|null>((lowest,{u})=>
       u.anticipo===null ? lowest : Math.min(lowest ?? u.anticipo,u.anticipo),null);
-    if (anticipo!==null && minimum!==null && minimum>anticipo && (cuota===null || (minimum-anticipo)/anticipo>=0.30)) {
+    if (!memory.formulario_aplicado && anticipo!==null && minimum!==null && minimum>anticipo && (cuota===null || (minimum-anticipo)/anticipo>=0.30)) {
       const area = project?.direccion ?? zone ?? 'la búsqueda';
       return {shown:[],activeProject:project?.direccion,missingBrochure:null,
         reply:`En ${area} no encontré unidades verificadas con anticipo de ${money(anticipo)} y cuotas.\nEl menor anticipo es ${money(minimum)}, ${money(minimum-anticipo)} por arriba.\n${zone==='Nuñez' ? '¿Querés que busque en otro barrio o que te cuente de Alpha Núñez, que es de contado?' : '¿Querés que busque en otro barrio con ese anticipo?'}`};
@@ -174,18 +174,20 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
     shown.push(...picked.map(({p,u})=>unitKey(p,u)));
     if (!picked.length) {
       lines.push([project && requiresUnitVerification(project) ? 'Las unidades de ' + project.direccion + ' las verifica el agente. Entrega / etapa: ' + [project.entrega,project.etapa].filter(Boolean).join(' · ') :
-        'Por ahora no encontré más unidades verificadas para esos filtros. ¿Querés que revisemos otros ambientes o un barrio cercano?']);
+        (memory.unidades_mostradas?.length ? 'Ya recorrí las opciones verificadas que te mostré para ese filtro.' : 'Para esos filtros todavía no tengo una unidad con importes verificables.') +
+          (zone ? ' ¿Querés que revise otra tipología en '+zone+'?' : ' ¿En qué barrio querés que revise otras opciones?')]);
     } else {
       const label = [anticipo !== null ? 'anticipo de '+money(anticipo) : null, cuota !== null ? 'cuota de '+money(cuota) : null, total !== null ? 'presupuesto de '+money(total) : null].filter(Boolean).join(' y ');
       lines.push([
         budget ? (exact.length === picked.length ? 'Coincidencia exacta para tu ' : 'Lo más cercano a tu ') + label + ':' : 'Estas son las opciones verificadas:',
         ...picked.map(({p,u}) => [
-          (project ? '' : p.direccion + ' · ') + 'Unidad ' + u.id,
+          (project ? '' : (memory.formulario_aplicado ? p.edificio + ' · ' : '') + p.direccion + ' · ') + 'Unidad ' + u.id,
           u.ambientes ?? 'ambientes sin confirmar',
           u.m2 === null ? 'm² sin confirmar' : u.m2.toLocaleString('es-AR') + ' m²',
           'total ' + money(u.total),
           finished(p) && u.posesion === null ? 'de contado' : u.anticipo === null ? 'anticipo sin confirmar' : 'anticipo ' + money(u.anticipo),
-          u.cuotas && u.cuota !== null ? u.cuotas + ' cuotas de ' + money(u.cuota) : u.posesion !== null ? 'posesión ' + money(u.posesion) : u.cuotas === 0 ? 'sin cuotas' : 'cuotas sin confirmar',
+          u.cuotas && u.cuota !== null ? u.cuotas + ' cuotas de ' + money(u.cuota) +
+            (memory.formulario_aplicado && cuota!==null && u.cuota>cuota ? ' ('+money(u.cuota-cuota)+' por encima de tu cuota)' : '') : u.posesion !== null ? 'posesión ' + money(u.posesion) : u.cuotas === 0 ? 'sin cuotas' : 'cuotas sin confirmar',
         ].join(' · ')),
       ]);
       if (zone === 'Nuñez' && picked.some(({p})=>/Ugarte/.test(p.direccion))) {

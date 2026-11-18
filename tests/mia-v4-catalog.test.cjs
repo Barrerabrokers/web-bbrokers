@@ -160,6 +160,18 @@ test('rewording the plan request answers again and flags the lead for attention'
   assert.match(second,/101 con la 503/);
   assert.notEqual(first,second);
   assert.doesNotMatch(first+second,/Te averiguo|Brochure:/i);
+  const formProfile = {nombre:'DARIO DI PILLA',formularioMeta:{
+    meta_field_barrio:'Recoleta',meta_field_tipologia:'Monoambiente',meta_field_anticipo:'50.000',
+    meta_field_cuota:'1.700',meta_field_plazo:'Este mes',meta_ad_name:'Inversión en Pozo en Recoleta hasta 36 cuotas',
+  }};
+  const lead = await generate(contact,[direction('inbound','Hola','recoleta')],formProfile);
+  assert.match(lead,/Hola, Dario. Viste el anuncio de Recoleta en pozo hasta 36 cuotas/);
+  assert.equal(lead.match(/Pueyrred[oó]n 1940/g)?.length,2);
+  assert.match(lead,/por encima de tu cuota/);
+  assert.doesNotMatch(lead,/Palermo|no encontré/);
+  const ambiguous = await generate(contact,[direction('outbound','¿Querés que revisemos otros ambientes o un barrio cercano?'),direction('inbound','Si dale','scope')],formProfile);
+  assert.match(ambiguous,/2 ambientes en Recoleta o que busquemos monoambientes en otro barrio/);
+
 });
 
 test('explains the cash/construction distinction and gives Alpha Núñez as cash only', () => {
