@@ -12,6 +12,8 @@ const requiresUnitVerification = (p: Project) =>
 const mapsUrl = (p: Project) =>
   'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.direccion + ' Buenos Aires');
 
+export const asksForPlans = (text: string) => /\bplanos?\b/.test(normalize(text));
+
 const plans: Record<string, Record<string, number>> = {
   '1524': {'101':3,'104':6,'203':5,PB01:1,PB02:2},
   '1576': {'201':2,'501':2,'503':4,'601':2,'603':4,'701':2},
@@ -35,7 +37,7 @@ function planMessages(project: Project | undefined, memory: Memory, recent: stri
     const brochure = verifiedBrochureUrl(p.brochure);
     const number = plans[address.match(/\b(?:1524|1576)\b/)?.[0] ?? '']?.[id.toUpperCase()];
     messages.push([
-      p.direccion + ' · unidad ' + id + (number && brochure ? ' · plano ' + number + ' en el brochure.' : ' · el agente te verifica el plano puntual.'),
+      p.direccion + ' · unidad ' + id + (number && brochure ? ' · plano ' + number + ' en el brochure.' : ' · ' + (brochure && plans[address.match(/\b(?:1524|1576)\b/)?.[0] ?? ''] ? 'los planos están dentro del brochure.' : 'el agente te verifica el plano puntual.')),
       ...(brochure ? ['Brochure: ' + brochure] : []),
       'Maps: ' + mapsUrl(p),
     ]);
@@ -45,7 +47,10 @@ function planMessages(project: Project | undefined, memory: Memory, recent: stri
     messages.push([project.direccion + ' · El agente te verifica el plano puntual.',
       ...(brochure ? ['Brochure: '+brochure] : []), 'Maps: '+mapsUrl(project)]);
   }
-  return messages.length ? messages : [['¿Qué unidad te interesa para buscar el plano?']];
+  if (messages.length) return messages;
+  const brochures = projects.filter(p=>/Ugarte (1524|1576)$/.test(p.direccion))
+    .map(p=>p.direccion + ': ' + verifiedBrochureUrl(p.brochure));
+  return [['¿Ugarte 1524 o Ugarte 1576?', ...brochures]];
 }
 
 function neighborhoodOverview(scope: Project[]) {
@@ -68,7 +73,7 @@ function neighborhoodOverview(scope: Project[]) {
 
 export function baCatalogReply(latest: string, recent: string[], memory: Memory = {}) {
   const intent = normalize(latest);
-  const wantsPlans = /\bplanos?\b/.test(intent);
+  const wantsPlans = asksForPlans(latest);
   const wantsInfo = /\b(?:info|informacion|ubicacion|mapa|maps|direccion|unidades|brochure|folleto|entrega|etapa)\b/.test(intent);
   const wantsPrices = /\b(?:precios?|valores?|cuanto (?:cuesta|sale|vale)|cotizacion)\b/.test(intent);
   const wantsAll = /\b(?:pasame|mandame|mostrame|contame|quiero ver)\b.{0,32}\b(?:todo|todos|todas|los otros|las otras|el resto)\b/.test(intent);
@@ -164,4 +169,12 @@ export function baCatalogReply(latest: string, recent: string[], memory: Memory 
   }
   if (!lines.length) return null;
   return {shown, activeProject:project?.direccion, reply:lines.map(part=>part.join('\n')).join(MIA_MESSAGE_BOUNDARY), missingBrochure:project && wantsInfo && !verifiedBrochureUrl(project.brochure) ? project.direccion : null};
+}
+
+export function baFallbackDetails(memory: Memory, recent: string[]) {
+  const project = projects.find(p=>p.direccion===memory.proyecto_activo)
+    ?? recent.slice(-5).reverse().map(projectMention).find(Boolean);
+  if (!project) return [];
+  const brochure = verifiedBrochureUrl(project.brochure);
+  return [...(brochure ? ['Brochure: '+brochure] : []), 'Maps: '+mapsUrl(project)];
 }

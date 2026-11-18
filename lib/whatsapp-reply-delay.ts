@@ -1,5 +1,5 @@
 /** Minimum quiet period after the most recently received customer message. */
-export const WHATSAPP_REPLY_DELAY_MS = 10_000;
+export const WHATSAPP_REPLY_DELAY_MS = 1_000;
 export function whatsAppReplyDelayRemaining(receivedAt: string | number, now = Date.now()) {
   const received = typeof receivedAt === 'number' ? receivedAt : Date.parse(receivedAt);
   if (!Number.isFinite(received)) throw new Error('Missing WhatsApp receive timestamp');

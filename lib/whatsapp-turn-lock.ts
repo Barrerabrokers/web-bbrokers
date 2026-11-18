@@ -1,3 +1,4 @@
+import { WHATSAPP_REPLY_DELAY_MS } from '@/lib/whatsapp-reply-delay';
 import { randomUUID } from 'crypto';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { ensureWhatsAppInboxSchema } from '@/lib/whatsapp-inbox';
@@ -29,7 +30,7 @@ export async function claimWhatsAppAiSend(conversationId:string,inboundMessageId
       AND (c.locked_until IS NULL OR c.locked_until<NOW()) AND (c.reply_send_token IS NULL OR c.locked_until<NOW())
       AND ${inboundMessageId}=(SELECT whatsapp_message_id FROM crm_whatsapp_messages m WHERE m.conversation_id=c.id AND m.status<>'historical' ORDER BY m.created_at DESC,m.id DESC LIMIT 1)
       AND (SELECT direction FROM crm_whatsapp_messages m WHERE m.conversation_id=c.id AND m.status<>'historical' ORDER BY m.created_at DESC,m.id DESC LIMIT 1)='inbound'
-      AND EXISTS(SELECT 1 FROM crm_whatsapp_messages received WHERE received.conversation_id=c.id AND received.whatsapp_message_id=${inboundMessageId} AND received.direction='inbound' AND received.created_at<=clock_timestamp()-INTERVAL '10 seconds')
+      AND EXISTS(SELECT 1 FROM crm_whatsapp_messages received WHERE received.conversation_id=c.id AND received.whatsapp_message_id=${inboundMessageId} AND received.direction='inbound' AND received.created_at<=clock_timestamp()-(${WHATSAPP_REPLY_DELAY_MS}::int * INTERVAL '1 millisecond'))
       RETURNING id`;
     return rows.length?token:null;
   }finally{await releaseSharedDatabase(sql);}

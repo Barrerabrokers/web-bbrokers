@@ -1,6 +1,7 @@
 import projects from './ba-opportunities.json';
 import { normalize, updateBaMemory, type Memory } from './ba-memory';
-import { baCatalogReply } from './ba-opportunities';
+import { randomUUID } from 'node:crypto';
+import { asksForPlans, baCatalogReply, baFallbackDetails } from './ba-catalog-replies';
 import { hasRawMeetingDate, meetingSlotLabel } from './meeting-date';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
@@ -32,7 +33,11 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         limit 1`;
       if (existing?.mia_pausada) return null;
       const [duplicate] = await tx`select id from public.mia_messages where provider_message_id = ${messageId}`;
-      if (duplicate) return null;
+      if (duplicate) {
+        const [cached] = await tx`select texto from public.mia_messages where provider_message_id=${'mia:' + messageId}
+          and direccion='outbound'`;
+        return typeof cached?.texto === 'string' ? cached.texto : null;
+      }
 
       const client = existing ?? (await tx`
         insert into public.mia_clients (whatsapp, crm_lead_id, nombre)
@@ -53,8 +58,8 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
 
       const previousReply = turns.findLast(turn => turn.direction === 'outbound')?.content ?? '';
       const previousMessage = previousReply || conversation.last_message || '';
-      const recordReply = async (reply: string, version: number | null = null) => {
-        if (repeatsLastMessage(reply, previousMessage)) return null;
+      const recordReply = async (reply: string, version: number | null = null, allowRepeat = false) => {
+        if (!allowRepeat && !inbound.content.includes('?') && repeatsLastMessage(reply, previousMessage)) return null;
         await tx`update public.mia_conversations set last_message=${reply} where id=${conversation.id}`;
         await tx`insert into public.mia_messages (conversation_id, provider_message_id, direccion, texto, conocimiento_version_usada)
           values (${conversation.id}, ${'mia:' + messageId}, 'outbound', ${reply}, ${version})`;
@@ -72,6 +77,39 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         await tx`update public.mia_clients set memoria_v4=${tx.json(memory)},
           nombre=coalesce(nullif(nombre,''), ${memory.nombre ?? null}), updated_at=now() where id=${client.id}`;
       };
+      const latestHistory = recentTurns.map(turn=>turn.content);
+      const noteUnanswered = async (reason: string) => {
+        await tx.savepoint(async nested => {
+          await nested`insert into public.mia_learnings
+            (id,lead_id,inbound_id,source_key,fecha,que_fallo,correccion_recibida,aplicar_en_futuro)
+            values (${randomUUID()}, ${contact.leadId ?? null}, ${messageId}, ${'mia-unanswered:'+messageId},
+              now(), ${reason}, ${inbound.content}, false)
+            on conflict (source_key) do nothing`;
+        }).catch(() => console.warn('mia-unanswered-learning-write-failed'));
+      };
+      const fallback = async () => {
+        await noteUnanswered('Consulta pendiente de verificación');
+        const details = baFallbackDetails(memory,latestHistory);
+        return recordReply(['Te averiguo ese dato exacto y te lo paso por acá.', ...details].join('\n'),null,true);
+      };
+      if (asksForPlans(inbound.content)) {
+        const repeated = recentTurns.some(turn=>turn.direction==='inbound' && asksForPlans(turn.content));
+        if (repeated) {
+          memory.necesita_atencion_humana = true;
+          await tx`insert into public.mia_observations (client_id, que_paso, propuesta, estado)
+            select ${client.id}, 'necesita_atencion_humana', 'Volvió a pedir los planos por WhatsApp.', 'pendiente'
+            where not exists(select 1 from public.mia_observations where client_id=${client.id}
+              and que_paso='necesita_atencion_humana' and estado='pendiente')`;
+          await noteUnanswered('Pedido de planos reiterado');
+        }
+        memory.ultimo_tema = 'planos';
+        await persistMemory();
+        const plans = baCatalogReply(inbound.content, latestHistory, memory);
+        if (!plans) return fallback();
+        const opener = repeated ? 'Te reenvío los planos del brochure.' :
+          memory.ultimas_unidades?.length ? 'Te paso los planos de las unidades que te mostré.' : '';
+        return recordReply((opener ? opener + '\f' : '') + plans.reply,null,true);
+      }
       if (!memory.nombre) {
         await persistMemory();
         return recordReply('¡Hola! Soy MIA de Barrera Brokers. ¿Cómo te llamás?');
@@ -167,7 +205,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
           }
         }
         const question = lastQuestion(reply);
-        if (questionIntent(question) === questionIntent(priorQuestion)) return null;
+        if (questionIntent(question) === questionIntent(priorQuestion)) return fallback();
         await tx`update public.mia_conversations set ultima_pregunta=${question} where id=${conversation.id}`;
         await tx`update public.mia_clients set ultima_pregunta=${question},updated_at=now() where id=${client.id}`;
         return recordReply(reply);
@@ -194,23 +232,21 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const projectKey = project?.id ?? '';
         const alreadyHandled = (conversation.brochure_ofrecido && conversation.brochure_proyecto === projectKey)
           || (client.brochure_ofrecido && client.brochure_proyecto === projectKey);
-        if (followup && alreadyHandled) return null;
-        if (alreadyHandled && (conversation.brochure_enviado || client.brochure_enviado)) {
-          return null;
-        }
+        if (followup && alreadyHandled) return fallback();
+        if (alreadyHandled && (conversation.brochure_enviado || client.brochure_enviado)) return fallback();
         const url = project ? verifiedBrochureUrl(project.brochure_url) : null;
         if (url) {
           const [previousDelivery] = await tx`select id from public.mia_messages
             where conversation_id=${conversation.id} and direccion='outbound'
               and starts_with(texto, ${'Sí, acá te lo mando: ' + url + '\n'}) limit 1`;
-          if (previousDelivery) return null;
+          if (previousDelivery) return fallback();
         }
         const reply = url
           ? `Sí, acá te lo mando: ${url}\nCuando lo veas, ¿qué te llama más la atención, la ubicación o la entrega?`
           : project || !projects
             ? 'El brochure está pendiente. Dejé el pedido registrado. ¿Qué te interesa saber del proyecto?'
             : '¿De qué proyecto querés el brochure?';
-        if (alreadyHandled) return null;
+        if (alreadyHandled) return fallback();
         const question = lastQuestion(reply);
         const nextStep = url ? 'Consultar interés después de compartir el brochure' :
           (project || !projects) ? 'Asesor debe enviar el brochure' : 'Identificar el proyecto del brochure';
@@ -244,7 +280,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const requestedRooms = evidence.map(requestedRoomCounts).find(rooms => rooms.length) ?? [];
         const key = `planilla-presupuesto:${ugarte ?? zone ?? 'sin-zona'}:${requestedRooms.join(',')}:${budget.total ?? ''}:${budget.installment ?? ''}`;
         const handled = conversation.opciones_proyecto === key || client.opciones_proyecto === key;
-        if (handled) return null;
+        if (handled) return fallback();
 
         const projects = zone && requestedRooms.length
           ? await getDevelopmentProjects().catch(() => {
@@ -339,12 +375,14 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         content: turn.content,
       }));
       let result: {respuesta: string; resumen: string; proximo_paso: string; propuesta?: unknown} | undefined;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      {
         const output = await generateGroqCustomerReply(
-          instructions + (attempt ? '\nRevisá el formato y terminá la respuesta con una sola pregunta.' : ''),
-          messages, undefined, {timeoutMs: 15000, jsonObject: true},
-        );
-        const candidate = JSON.parse(output);
+          instructions,
+          messages, undefined, {timeoutMs: 4500, jsonObject: true},
+        ).catch(() => null);
+        if (!output) return fallback();
+        let candidate;
+        try { candidate = JSON.parse(output); } catch { return fallback(); }
         const reply = typeof candidate?.respuesta === 'string' ? candidate.respuesta.trim() : '';
         const nextIntent = questionIntent(lastQuestion(reply));
         const repeated = !!nextIntent && nextIntent === questionIntent(priorQuestion);
@@ -352,10 +390,9 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
             reply.split(/\r?\n/).length <= 3 && typeof candidate.resumen === 'string' &&
             typeof candidate.proximo_paso === 'string') {
           result = {...candidate, respuesta: reply};
-          break;
         }
       }
-      if (!result) return null;
+      if (!result) return fallback();
       const reply = normalize(result.respuesta).includes(normalize(name))
         ? result.respuesta : name + ', ' + result.respuesta.charAt(0).toLowerCase() + result.respuesta.slice(1);
       memory.ultimo_tema = result.proximo_paso;

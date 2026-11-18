@@ -12,6 +12,7 @@ export type Memory = {
   unidades_mostradas?: string[];
   ultimas_unidades?: string[];
   ultimo_tema?: string;
+  necesita_atencion_humana?: boolean;
 };
 
 export const normalize = (v: string) => v.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()

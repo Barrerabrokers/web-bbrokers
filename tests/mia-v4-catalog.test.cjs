@@ -12,7 +12,7 @@ require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule
   compilerOptions:{module:ts.ModuleKind.CommonJS, target:ts.ScriptTarget.ES2022, esModuleInterop:true}
 }).outputText, file);
 const {updateBaMemory} = require('../mia/lib/ba-memory.ts');
-const {baCatalogReply} = require('../mia/lib/ba-opportunities.ts');
+const {baCatalogReply} = require('../mia/lib/ba-catalog-replies.ts');
 
 test('keeps needs across turns and ranks the whole neighborhood with no repeated units', () => {
   const first = updateBaMemory({}, 'Busco 1 o 2 ambientes en Nuñez', 'Juan', false);
@@ -97,4 +97,54 @@ test('planos refers to the units shown in the conversation with Maps and actual 
   assert.match(result.reply, /1576 · unidad 503 · plano 4/);
   assert.equal(result.reply.match(/Maps: /g).length, 2);
   assert.equal(result.reply.match(/Brochure: https:\/\//g).length, 2);
+});
+
+test('plan requests without prior options include both Ugarte brochures and one question', () => {
+  const result=baCatalogReply('¿Tenés los planos?',[],{});
+  assert.match(result.reply,/¿Ugarte 1524 o Ugarte 1576\?/);
+  assert.match(result.reply,/1DfiH-SIbU5htztrfpiy-pCkZw8U2HePy/);
+  assert.match(result.reply,/1yhd7DBosXjnYqEJccvHIRP5a-jc_Jmyf/);
+  assert.equal(result.reply.split('\n').length,3);
+});
+
+test('a referenced project without verified individual plans gives a useful response', () => {
+  const result=baCatalogReply('plano?',[],{proyecto_activo:'Vuelta de obligado 3928'});
+  assert.match(result.reply,/agente te verifica el plano/);
+  assert.match(result.reply,/Maps: https:/);
+  assert.doesNotMatch(result.reply,/drive\/u\/2\/home/);
+});
+
+test('rewording the plan request answers again and flags the lead for attention', async () => {
+  const seen = [];
+  const memory = {nombre:'Pablo', ultimas_unidades:['Manuel Ugarte 1524|101|37|134140','Manuel Ugarte 1576|503|30|135100']};
+  const tx = async (chunks, ...values) => {
+    const sql = chunks.join('?');
+    seen.push({sql, values});
+    if (sql.includes('select * from public.mia_clients')) return [{id:'client',memoria_v4:memory,nombre:'Pablo'}];
+    if (sql.includes('select * from public.mia_conversations')) return [{id:'conversation'}];
+    if (sql.includes('returning id')) return [{id:'turn'}];
+    return [];
+  };
+  tx.json = value => value;
+  tx.savepoint = run => run(tx);
+  const load = Module._load;
+  Module._load = function(id, ...args) {
+    if (id === '@/lib/database-pool') return {getSharedDatabase:()=>({begin:run=>run(tx)}),releaseSharedDatabase:async()=>{}};
+    if (id === '@/lib/whatsapp-ai-provider') return {generateGroqCustomerReply:()=>assert.fail('El pedido de planos no requiere el modelo')};
+    return load.call(this,id,...args);
+  };
+  let generate;
+  try { ({generateMiaWhatsAppReply:generate} = require('../mia/lib/whatsapp-flow.ts')); }
+  finally { Module._load = load; }
+  const reply = await generate({phone:'5491100000000',contactName:'Pablo',leadId:'lead'},[
+    {direction:'inbound',content:'planos?',whatsappMessageId:'first',status:'received'},
+    {direction:'outbound',content:'Te reenvío los planos del brochure.\fManuel Ugarte 1524 · unidad 101 · plano 3 en el brochure.',status:'sent'},
+    {direction:'inbound',content:'¿Tenés los planos?',whatsappMessageId:'second',status:'received'},
+  ]);
+  assert.match(reply,/Te reenvío los planos/);
+  assert.match(reply,/unidad 101 · plano 3/);
+  assert.match(reply,/unidad 503 · plano 4/);
+  assert(seen.some(({sql})=>sql.includes('necesita_atencion_humana')));
+  assert(seen.some(({sql,values})=>sql.includes('insert into public.mia_learnings') && values.includes('mia-unanswered:second')));
+  assert(seen.some(({values})=>values.some(value=>value?.necesita_atencion_humana === true)));
 });
