@@ -147,4 +147,17 @@ test('rewording the plan request answers again and flags the lead for attention'
   assert(seen.some(({sql})=>sql.includes('necesita_atencion_humana')));
   assert(seen.some(({sql,values})=>sql.includes('insert into public.mia_learnings') && values.includes('mia-unanswered:second')));
   assert(seen.some(({values})=>values.some(value=>value?.necesita_atencion_humana === true)));
+
+  const contact = {phone:'5491100000000',contactName:'Pablo',leadId:'lead'};
+  const direction = (direction, content, id) => ({direction,content,whatsappMessageId:id,status:'received'});
+  const question = direction('inbound','¿Es al frente o contrafrente?','orientation');
+  const clarify = await generate(contact,[question]);
+  assert.match(clarify,/¿De la 101 o de la 503/);
+  const pause = direction('inbound','Lo voy a pensar','pause');
+  const first = await generate(contact,[question,direction('outbound',clarify),pause]);
+  assert.match(first,/cuota, el anticipo o la ubicación/);
+  const second = await generate(contact,[pause,direction('outbound',first),direction('inbound',pause.content,'pause-2')]);
+  assert.match(second,/101 con la 503/);
+  assert.notEqual(first,second);
+  assert.doesNotMatch(first+second,/Te averiguo|Brochure:/i);
 });

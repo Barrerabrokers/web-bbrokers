@@ -1,7 +1,7 @@
 import projects from './ba-opportunities.json';
 import { normalize, updateBaMemory, type Memory } from './ba-memory';
 import { randomUUID } from 'node:crypto';
-import { asksForPlans, baCatalogReply, baFallbackDetails } from './ba-catalog-replies';
+import { asksForPlans, baCatalogReply } from './ba-catalog-replies';
 import { hasRawMeetingDate, meetingSlotLabel } from './meeting-date';
 import { getSharedDatabase, releaseSharedDatabase } from '@/lib/database-pool';
 import { generateGroqCustomerReply } from '@/lib/whatsapp-ai-provider';
@@ -78,20 +78,65 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
           nombre=coalesce(nullif(nombre,''), ${memory.nombre ?? null}), updated_at=now() where id=${client.id}`;
       };
       const latestHistory = recentTurns.map(turn=>turn.content);
+      const topic = normalize(inbound.content);
+      const unitIds = [...new Set((memory.ultimas_unidades ?? []).map(key=>key.split('|')[1]).filter(Boolean))];
+      const orientation = /\b(?:frente|contrafrente|contra frente|orientacion)\b/.test(topic);
+      const consideration = /^(?:lo (?:voy a pensar|voy a ver|pienso|veo|reviso)|me fijo)(?: .*)?$/.test(topic);
+      const factual = /\b(?:frente|contrafrente|orientacion|expensas|entrega|m2|superficie|precio|valores|anticipo|cuotas?|cochera|garage|ubicacion|disponibilidad)\b/.test(topic)
+        && (/\?/.test(inbound.content) || /^(?:cuanto|cuantos|cuando|donde|que|cual|tiene|es|expensas|orientacion|frente|contrafrente)\b/.test(topic));
       const noteUnanswered = async (reason: string) => {
         await tx.savepoint(async nested => {
           await nested`insert into public.mia_learnings
             (id,lead_id,inbound_id,source_key,fecha,que_fallo,correccion_recibida,aplicar_en_futuro)
             values (${randomUUID()}, ${contact.leadId ?? null}, ${messageId}, ${'mia-unanswered:'+messageId},
-              now(), ${reason}, ${inbound.content}, false)
+              now(), ${reason}, ${inbound.content + (unitIds.length ? ' · Unidades: '+unitIds.join(', ') : '')}, false)
             on conflict (source_key) do nothing`;
         }).catch(() => console.warn('mia-unanswered-learning-write-failed'));
       };
       const fallback = async () => {
+        if (!factual) {
+          return recordReply(repeatsLastMessage('Entiendo. ¿Qué te ayudaría a decidir?', previousMessage)
+            ? 'Tomate tu tiempo. Si querés retomarlo, seguimos por acá.'
+            : 'Entiendo. ¿Qué te ayudaría a decidir?',null,true);
+        }
+        const alreadyQueued = recentTurns.some(turn=>turn.direction==='outbound' &&
+          /te averiguo|lo dej[eé] anotado|dej[eé] la consulta al equipo/i.test(turn.content));
         await noteUnanswered('Consulta pendiente de verificación');
-        const details = baFallbackDetails(memory,latestHistory);
-        return recordReply(['Te averiguo ese dato exacto y te lo paso por acá.', ...details].join('\n'),null,true);
+        memory.necesita_atencion_humana = true;
+        await persistMemory();
+        const recipients = await tx`select id from public.agents where active and role='admin'`;
+        for (const admin of recipients) {
+          await tx`insert into public.crm_notifications
+            (id,recipient_agent_id,lead_id,event_key,type,title,body,href)
+            values (${randomUUID()}, ${admin.id}, ${contact.leadId ?? null}, ${'mia-fact:'+messageId+':'+admin.id},
+              'mia_verification', 'MIA: consulta para verificar',
+              ${inbound.content + (unitIds.length ? ' · Unidades: '+unitIds.join(', ') : '')},
+              ${contact.leadId ? '/admin/crm/'+contact.leadId : '/admin/crm/marketing/whatsapp'})
+            on conflict(event_key) do nothing`;
+        }
+        return recordReply(alreadyQueued
+          ? (previousMessage === 'Ya lo dejé anotado para que el equipo revise el dato.'
+            ? 'La consulta sigue pendiente de revisión por el equipo.'
+            : 'Ya lo dejé anotado para que el equipo revise el dato.')
+          : 'Dejé la consulta al equipo para que pueda confirmar el dato.',null,true);
       };
+      if (consideration) {
+        await persistMemory();
+        const name = memory.nombre ? ', '+memory.nombre : '';
+        const first = `Obvio${name}, tomá tu tiempo. ¿Qué te hace dudar más: la cuota, el anticipo o la ubicación?`;
+        const next = unitIds.length===2
+          ? `Cuando quieras${name}, seguimos. ¿Te serviría comparar la ${unitIds[0]} con la ${unitIds[1]}?`
+          : `Cuando quieras${name}, seguimos. ¿Te serviría que repasemos la opción que más te gustó?`;
+        return recordReply(repeatsLastMessage(first,previousMessage)?next:first,null,true);
+      }
+      if (orientation && factual) {
+        const specified = unitIds.some(id=>topic.split(' ').includes(id.toLowerCase()));
+        if (unitIds.length===2 && !specified && !/\b(?:ambas|las dos)\b/.test(topic)) {
+          const first = `¿De la ${unitIds[0]} o de la ${unitIds[1]} querés saber la orientación?`;
+          if (!repeatsLastMessage(first,previousMessage)) return recordReply(first,null,true);
+        }
+        return fallback();
+      }
       if (asksForPlans(inbound.content)) {
         const repeated = recentTurns.some(turn=>turn.direction==='inbound' && asksForPlans(turn.content));
         if (repeated) {
