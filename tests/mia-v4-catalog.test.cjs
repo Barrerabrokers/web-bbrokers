@@ -161,3 +161,25 @@ test('rewording the plan request answers again and flags the lead for attention'
   assert.notEqual(first,second);
   assert.doesNotMatch(first+second,/Te averiguo|Brochure:/i);
 });
+
+test('explains the cash/construction distinction and gives Alpha Núñez as cash only', () => {
+  const general = baCatalogReply('si está terminado, se paga de contado y no es pozo', [], {});
+  assert.match(general.reply,/Terminado: de contado, sin pozo ni cuotas/);
+  const alpha = baCatalogReply('Alpha Nuñez', [], {});
+  assert.match(alpha.reply,/está terminado, se paga de contado, no tiene plan de anticipo/);
+  assert.deepEqual(alpha.shown, []);
+});
+
+test('discloses the minimum and exact financing gap for a 40,000 advance in Núñez', () => {
+  const latest = 'anticipo 40.000';
+  const memory = updateBaMemory({barrio_busca:'Nuñez'}, latest, 'Pablo', false);
+  const result = baCatalogReply(latest, [], memory);
+  assert.match(result.reply,/no encontré unidades verificadas/);
+  assert.match(result.reply,/52\.842, USD 12\.842 por arriba/);
+  assert.deepEqual(result.shown,[]);
+});
+
+test('uses possession terms from the Moca price list instead of inventing installments', () => {
+  const result = baCatalogReply('Pasame info de Moca 2', [], {});
+  assert.match(result.reply,/anticipo y saldo a la posesión, sin cuotas mensuales/);
+});

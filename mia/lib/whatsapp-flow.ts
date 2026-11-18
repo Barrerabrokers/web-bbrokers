@@ -431,7 +431,7 @@ export async function generateMiaWhatsAppReply(contact: Contact, history: Messag
         const reply = typeof candidate?.respuesta === 'string' ? candidate.respuesta.trim() : '';
         const nextIntent = questionIntent(lastQuestion(reply));
         const repeated = !!nextIntent && nextIntent === questionIntent(priorQuestion);
-        if (!repeated && !hasRawMeetingDate(reply) && !/prefiero que un agente verifique ese dato/i.test(reply) && !repeatsLastMessage(reply, previousMessage) && !unverifiedMeetingClaim(reply) && (reply.match(/¿/g) ?? []).length <= 1 && nextIntent !== 'envio-material' && !brochureRequested(reply) && !/ver archivo(?: o enlace)?/i.test(reply) && !unverifiedCatalogClaim(reply) && !/(?:https?:|www\.|docs\.google\.com|drive\.google\.com)/i.test(reply) && reply.endsWith('?') && (reply.match(/\?/g) ?? []).length === 1 &&
+        if (!repeated && !/\b(?:master indica|el sistema dice|mi base dice)\b/i.test(reply) && !hasRawMeetingDate(reply) && !/prefiero que un agente verifique ese dato/i.test(reply) && !repeatsLastMessage(reply, previousMessage) && !unverifiedMeetingClaim(reply) && (reply.match(/¿/g) ?? []).length <= 1 && nextIntent !== 'envio-material' && !brochureRequested(reply) && !/ver archivo(?: o enlace)?/i.test(reply) && !unverifiedCatalogClaim(reply) && !/(?:https?:|www\.|docs\.google\.com|drive\.google\.com)/i.test(reply) && reply.endsWith('?') && (reply.match(/\?/g) ?? []).length === 1 &&
             reply.split(/\r?\n/).length <= 3 && typeof candidate.resumen === 'string' &&
             typeof candidate.proximo_paso === 'string') {
           result = {...candidate, respuesta: reply};
