@@ -1,3 +1,6 @@
+import { AlphaBelgranoBoard } from "@/components/development/alpha-belgrano-board";
+import { ALPHA_BELGRANO_SLUG, ALPHA_BROCHURE } from "@/lib/alpha-belgrano-catalog";
+import { getAlphaBelgranoCatalog } from "@/lib/alpha-belgrano-source";
 import { Suspense } from "react";
 import { MetaCatalogEvent } from "@/components/meta-website-tracking";
 import { developmentListingSchema, serializeJsonLd } from "@/lib/seo-structured-data";
@@ -106,7 +109,7 @@ export default async function DevelopmentDetailPage({
   const params = await pendingparams;
   const searchParams = await pendingsearchParams;
   const session = await getServerSession(authOptions);
-  const development = await getDevelopmentBySlug(params.slug);
+  let development = await getDevelopmentBySlug(params.slug);
   const shareToken = development
     ? createShareToken("development", development.id)
     : undefined;
@@ -116,6 +119,46 @@ export default async function DevelopmentDetailPage({
 
   if (!development || !canReadListing(development.visibility, session?.user.role, Boolean(hasSharedAccess))) {
     notFound();
+  }
+
+  const alphaCatalog = development.slug === ALPHA_BELGRANO_SLUG
+    ? await getAlphaBelgranoCatalog()
+    : null;
+  if (alphaCatalog) {
+    const availableUnits = alphaCatalog.units.filter(unit => unit.status === "disponible");
+    const developmentId = development.id;
+    const priceFrom = availableUnits.length
+      ? Math.min(...availableUnits.map(unit => unit.price))
+      : undefined;
+    development = {
+      ...development,
+      address: "Manuel Ugarte 1576",
+      brochureUrl: ALPHA_BROCHURE,
+      minPriceAvailable: priceFrom,
+      priceFrom,
+      totalUnits: alphaCatalog.units.length,
+      unitsCount: alphaCatalog.units.length,
+      availableUnits: availableUnits.length,
+      units: availableUnits.map(unit => ({
+        id: `alpha-belgrano-${unit.id}`,
+        developmentId,
+        unitNumber: unit.number,
+        floor: String(unit.floor),
+        bedrooms: unit.typology === "Studio" ? 0 : Number.parseInt(unit.typology),
+        bathrooms: 1,
+        area: unit.covered,
+        balconyArea: unit.balcony,
+        totalArea: unit.total,
+        price: unit.price,
+        downPayment: unit.downPayment,
+        installmentCount: 24,
+        installmentValue: unit.installment,
+        status: unit.status,
+        orientation: unit.orientation,
+        features: [],
+        images: [],
+      })),
+    };
   }
 
   const coverVideo = getDevelopmentVideo(
@@ -128,6 +171,7 @@ export default async function DevelopmentDetailPage({
     coverVideo,
     sessionCanSeePrices: canManageListings(session?.user.role),
   });
+  if (alphaCatalog) model.brochureHref = ALPHA_BROCHURE;
   const sharedPath = withShareParam(
     `/desarrollos/${development.slug}`,
     development.visibility === "agents" ? shareToken : undefined
@@ -182,15 +226,16 @@ export default async function DevelopmentDetailPage({
         <main data-no-translate={development.visibility === "agents" ? "" : undefined}>
           <DevelopmentHero model={model} />
           <DevelopmentNavigation />
+          {alphaCatalog && <AlphaBelgranoBoard catalog={alphaCatalog} />}
           <DevelopmentOverview model={model} />
           <DevelopmentGallerySection model={model} />
           <DevelopmentLocationSection model={model} />
           <DevelopmentAmenitiesSection model={model} />
           <DevelopmentFinancingSection model={model} />
-          <DevelopmentUnitsSection
+          {!alphaCatalog && <DevelopmentUnitsSection
             model={model}
             shareToken={development.visibility === "agents" ? shareToken : undefined}
-          />
+          />}
           <DevelopmentContactSection model={model} pageUrl={pageUrl} pdfUrl={pdfUrl} />
         </main>
       </DevelopmentMotion>
