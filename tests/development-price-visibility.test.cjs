@@ -9,7 +9,7 @@ function load(file, dependencies = {}) {
   return exports;
 }
 const policy = load('lib/development-price-visibility.ts', { './roles': load('lib/roles.ts') });
-const development = { slug: 'alpha-place-belgrano', priceFrom: 135100, minPriceAvailable: 135100, priceListUrl: 'https://example.com/private-list', units: [{ id: '503', price: 135100, downPayment: 53500, installmentValue: 3400 }] };
+const development = { slug: 'alpha-place-libertador', priceFrom: 135100, minPriceAvailable: 135100, priceListUrl: 'https://example.com/private-list', units: [{ id: '503', price: 135100, downPayment: 53500, installmentValue: 3400 }] };
 
 test('anonymous and unrecognized roles cannot receive Alpha final prices', () => {
   for (const role of [undefined, null, '', 'customer', 'viewer']) {
@@ -33,4 +33,14 @@ test('existing authorized agent roles retain complete prices', () => {
 test('the Alpha-specific rule preserves other developments', () => {
   const other = { ...development, slug: 'other-project' };
   assert.equal(policy.developmentForPriceViewer(other), other);
+});
+
+
+test('both Alpha developments share the policy and client-share rule', () => {
+  for (const slug of ['alpha-place-belgrano', 'alpha-place-libertador']) {
+    assert.equal(policy.hasAgentOnlyPrices(slug), true);
+    assert.equal(policy.canSeeDevelopmentPrices(slug), false);
+    assert.equal(policy.canSeeDevelopmentPrices(slug, 'agent'), true);
+  }
+  assert.equal(policy.hasAgentOnlyPrices('other-project'), false);
 });

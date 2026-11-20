@@ -1,4 +1,4 @@
-import { developmentForPriceViewer } from "@/lib/development-price-visibility";
+import { developmentForPriceViewer, canSeeDevelopmentPrices } from "@/lib/development-price-visibility";
 import { AlphaBelgranoBoard } from "@/components/development/alpha-belgrano-board";
 import { ALPHA_BELGRANO_SLUG, ALPHA_BROCHURE, alphaCatalogForViewer } from "@/lib/alpha-belgrano-catalog";
 import { getAlphaBelgranoCatalog } from "@/lib/alpha-belgrano-source";
@@ -175,6 +175,7 @@ export default async function DevelopmentDetailPage({
     coverVideo,
     sessionCanSeePrices: canManageListings(session?.user.role),
   });
+  model.canSeeFinalPrices = canSeeDevelopmentPrices(development.slug, session?.user.role);
   if (alphaCatalog) model.brochureHref = ALPHA_BROCHURE;
   const sharedPath = withShareParam(
     `/desarrollos/${development.slug}`,

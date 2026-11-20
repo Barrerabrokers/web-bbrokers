@@ -1,8 +1,12 @@
 import type { Development, Unit } from "@/types";
 import { canManageListings } from "./roles";
 
+export function hasAgentOnlyPrices(slug?: string) {
+  return slug === "alpha-place-belgrano" || slug === "alpha-place-libertador";
+}
+
 export function canSeeDevelopmentPrices(slug: string, role?: string | null) {
-  return slug !== "alpha-place-belgrano" || canManageListings(role);
+  return !hasAgentOnlyPrices(slug) || canManageListings(role);
 }
 
 export function unitForPriceViewer(unit: Unit, slug: string, role?: string | null): Unit {

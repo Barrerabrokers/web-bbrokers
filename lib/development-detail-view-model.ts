@@ -19,6 +19,7 @@ export type DevelopmentDetailModel = {
   coverVideo?: string;
   galleryVideoUrls: string[];
   priceFrom?: number;
+  canSeeFinalPrices?: boolean;
   units: Unit[];
   availableUnits: Unit[];
   descriptionParagraphs: string[];

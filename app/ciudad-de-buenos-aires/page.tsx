@@ -7,7 +7,7 @@ import {
   BuenosAiresDevelopments,
   CityDevelopment,
 } from "@/components/city/buenos-aires-developments";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentsForViewer as getDevelopments } from "@/lib/listing-access";
 import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { getDevelopmentVideo } from "@/lib/development-media";
 import { absoluteUrl, SEO_KEYWORDS, SITE_NAME, truncateDescription } from "@/lib/seo";

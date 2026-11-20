@@ -1,7 +1,7 @@
 import { getListingVisibilityFilter } from "@/lib/listing-access";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, MapPin } from "lucide-react";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentsForViewer as getDevelopments } from "@/lib/listing-access";
 import { formatPrice } from "@/lib/utils";
 import { DevelopmentCoverMedia } from "@/components/development/development-cover-media";
 import { getDevelopmentVideo } from "@/lib/development-media";

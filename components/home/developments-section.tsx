@@ -1,5 +1,5 @@
 import { getListingVisibilityFilter } from "@/lib/listing-access";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentsForViewer as getDevelopments } from "@/lib/listing-access";
 import { InteractiveDevelopmentsSection } from "./interactive-developments-section";
 
 export async function DevelopmentsSection() {

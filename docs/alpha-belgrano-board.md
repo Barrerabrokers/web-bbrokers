@@ -15,3 +15,5 @@ Validación: `node --test tests/alpha-belgrano-catalog.test.cjs`, `npx tsc --noE
 ## Visibilidad del precio total
 
 La vista pública muestra anticipo y 24 cuotas, sin precio total ni orden por precio. El servidor elimina los totales antes de serializar el catálogo, los modelos de página, los datos estructurados y las respuestas API de Alpha Place Belgrano. Las fichas PDF respetan el mismo permiso. Los roles existentes `agent`, `admin` y `marketing`, con sesión válida, conservan los precios completos. Los mensajes de WhatsApp, mail y copia siempre usan la versión para clientes, sin el precio total.
+
+La misma política de precio total exclusivo para agentes se aplica a Alpha Place Libertador. Su listado de unidades existente respeta la sesión, conserva anticipo y cuotas de cada unidad y omite el total en mensajes para clientes. Las tarjetas de inicio, catálogo y mapa también filtran los precios de ambos Alpha en el servidor antes de renderizar o enviar datos al navegador.

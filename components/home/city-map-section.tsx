@@ -3,7 +3,7 @@ import {
   BuenosAiresDevelopments,
   CityDevelopment,
 } from "@/components/city/buenos-aires-developments";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentsForViewer as getDevelopments } from "@/lib/listing-access";
 import { getDevelopmentVideo } from "@/lib/development-media";
 
 export async function CityMapSection() {
