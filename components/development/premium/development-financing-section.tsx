@@ -1,3 +1,4 @@
+import { hasAgentOnlyPrices } from "@/lib/development-price-visibility";
 import { Calculator, FileSpreadsheet, FileText, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
@@ -10,10 +11,10 @@ interface DevelopmentFinancingSectionProps {
 export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSectionProps) {
   const { development, priceFrom, units, brochureHref, priceListHref } = model;
   const isAlpha = development.slug === "alpha-place-libertador";
-  const unitWithPlan = (isAlpha ? [] : units).find(
+  const unitWithPlan = units.find(
     (unit) => unit.downPayment || unit.installmentCount || unit.installmentValue
   );
-  const hideFinalPrice = development.slug === "alpha-place-belgrano" && !priceFrom;
+  const hideFinalPrice = hasAgentOnlyPrices(development.slug) && !priceFrom;
   const hasDocuments = Boolean(brochureHref || priceListHref);
 
   return (
@@ -31,14 +32,14 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
           </p>
         </div>
 
-        {!isAlpha && <div className={`grid gap-px overflow-hidden border border-[#070707]/12 bg-[#070707]/12 ${hideFinalPrice ? "md:grid-cols-2" : "md:grid-cols-3"}`} data-dev-reveal>
+        {(!isAlpha || unitWithPlan) && <div className={`grid gap-px overflow-hidden border border-[#070707]/12 bg-[#070707]/12 ${hideFinalPrice ? "md:grid-cols-2" : "md:grid-cols-3"}`} data-dev-reveal>
           {!hideFinalPrice && <div className="bg-[#f8f5ef] p-6">
             <Calculator className="mb-10 h-5 w-5 text-[#3a1d17]" />
             <p className="text-[10px] uppercase tracking-[0.16em] text-[#070707]/75">
               Precio desde
             </p>
             <p className="mt-2 font-display text-3xl font-light">
-              {!isAlpha && priceFrom ? formatPrice(priceFrom) : "Consultar"}
+              {priceFrom ? formatPrice(priceFrom) : "Consultar"}
             </p>
           </div>}
           <div className="bg-[#f8f5ef] p-6">
@@ -61,10 +62,10 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
           </div>
         </div>}
 
-        {isAlpha && (
+        {isAlpha && !unitWithPlan && (
           <div className="border-t border-ink/25 pt-6 lg:col-start-2">
             <p className="mb-3 font-display text-3xl">Un plan para la unidad que elegís.</p>
-            <p className="mb-6 max-w-xl leading-relaxed">Recibí el detalle del anticipo, las cuotas y el importe total. Revisamos con vos los plazos y la documentación para avanzar.</p>
+            <p className="mb-6 max-w-xl leading-relaxed">Recibí el detalle del anticipo y las cuotas. Revisamos con vos los plazos y la documentación para avanzar.</p>
             <a href="#contacto-desarrollo" className="btn-primary">Pedir cotización de mi unidad</a>
             <p className="mt-4 text-sm leading-relaxed">Confirmamos disponibilidad y condiciones antes de avanzar con la reserva.</p>
           </div>

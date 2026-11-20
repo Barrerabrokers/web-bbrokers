@@ -26,6 +26,7 @@ export function DevelopmentUnitsSection({ model, shareToken }: DevelopmentUnitsS
         <div data-dev-reveal>
           <UnitsList
             units={units}
+            canSeePrices={model.canSeeFinalPrices ?? true}
             developmentFeatures={development.features}
             developmentName={development.name}
             developmentLocation={`${development.address} · ${development.location}`}

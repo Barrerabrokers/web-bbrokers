@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { ArrowUpRight, MapPin, TrendingUp } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentsForViewer as getDevelopments } from "@/lib/listing-access";
 import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { absoluteUrl, SEO_KEYWORDS, SITE_NAME, TARGET_NEIGHBORHOODS } from "@/lib/seo";
 import { formatPrice } from "@/lib/utils";

@@ -6,7 +6,7 @@ import { getDevelopmentVideo } from "@/lib/development-media";
 import { ArrowUpRight, MapPin, TrendingUp } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { getDevelopments } from "@/lib/developments-db";
+import { getDevelopmentsForViewer as getDevelopments } from "@/lib/listing-access";
 import { getListingVisibilityFilter } from "@/lib/listing-access";
 import { DEVELOPMENT_STATUS_LABELS } from "@/types";
 import { formatPrice } from "@/lib/utils";

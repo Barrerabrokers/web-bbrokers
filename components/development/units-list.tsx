@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Unit } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { hasAgentOnlyPrices } from "@/lib/development-price-visibility";
 import { openMailShare } from "@/lib/mail-share";
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
   developmentLocation?: string;
   developmentSlug?: string;
   shareToken?: string;
+  canSeePrices?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -89,6 +91,7 @@ export function UnitsList({
   developmentName = "el desarrollo",
   developmentLocation,
   developmentSlug,
+  canSeePrices = true,
   shareToken,
 }: Props) {
   const [filter, setFilter] = useState<string>("todos");
@@ -235,7 +238,7 @@ export function UnitsList({
       unit.installmentCount && unit.installmentValue
         ? `${unit.installmentCount} cuotas de ${formatPrice(unit.installmentValue)}`
         : null,
-      `Precio final: ${formatPrice(unit.price)}`,
+      !hasAgentOnlyPrices(developmentSlug) ? `Precio final: ${formatPrice(unit.price)}` : null,
       comments ? `Comentarios: ${comments}` : null,
       pdfUrl ? `Link ficha PDF: ${pdfUrl}` : null,
       onlineUrl ? `Ver online: ${onlineUrl}` : null,
@@ -401,13 +404,13 @@ export function UnitsList({
                             {formatPrice(unit.installmentValue)}
                           </p>
                         )}
-                        <p className="text-xs text-ink/58">
+                        {canSeePrices && <p className="text-xs text-ink/58">
                           Precio final {formatPrice(unit.price)}
-                        </p>
+                        </p>}
                       </div>
                     ) : (
                       <span className="font-display text-xl text-accent">
-                        {isAvailable ? formatPrice(unit.price) : "—"}
+                        {isAvailable ? canSeePrices ? formatPrice(unit.price) : "Consultar financiación" : "—"}
                       </span>
                     )}
                   </div>
@@ -620,14 +623,14 @@ export function UnitsList({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 pb-5 border-b border-ink/12">
-                      <div>
+                      {canSeePrices && <div>
                         <p className="text-[10px] uppercase tracking-widest text-ink/50">
                           Precio final
                         </p>
                         <p className="font-display text-2xl text-accent mt-1">
                           {formatPrice(activeUnit.price)}
                         </p>
-                      </div>
+                      </div>}
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-ink/50">
                           Sup. cubierta

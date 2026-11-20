@@ -1,3 +1,4 @@
+import { hasAgentOnlyPrices } from "@/lib/development-price-visibility";
 import { PortraitVideo } from "@/components/viewport-video";
 import Link from "next/link";
 import { ArrowDown, ArrowLeft, ArrowRight, FileText, LockKeyhole, MapPin } from "lucide-react";
@@ -104,10 +105,10 @@ export function DevelopmentHero({ model }: DevelopmentHeroProps) {
 
           <aside className="border border-[#070707]/14 bg-[#f8f5ef] p-5 text-[#070707] shadow-[0_30px_90px_rgba(0,0,0,0.38)] md:p-6" data-dev-reveal>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#3a1d17]">
-              {development.slug === "alpha-place-belgrano" && !priceFrom ? "Anticipo desde" : "Precio inicial"}
+              {hasAgentOnlyPrices(development.slug) && !priceFrom ? "Anticipo desde" : "Precio inicial"}
             </p>
             <p className="mt-2 font-display text-5xl font-light tracking-[-0.035em] text-[#3a1d17]">
-              {priceFrom ? formatPrice(priceFrom) : development.slug === "alpha-place-belgrano" && model.availableUnits.some(unit => unit.downPayment) ? formatPrice(Math.min(...model.availableUnits.filter(unit => unit.downPayment).map(unit => unit.downPayment!))) : "Consultar"}
+              {priceFrom ? formatPrice(priceFrom) : hasAgentOnlyPrices(development.slug) && model.availableUnits.some(unit => unit.downPayment) ? formatPrice(Math.min(...model.availableUnits.filter(unit => unit.downPayment).map(unit => unit.downPayment!))) : "Consultar"}
             </p>
             <div className="mt-6 grid grid-cols-2 gap-px bg-[#070707]/12">
               <div className="bg-[#f8f5ef] p-4">
