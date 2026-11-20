@@ -1,3 +1,4 @@
+import { developmentForPriceViewer } from "@/lib/development-price-visibility";
 import { listingVisibilityForRole } from "@/lib/listing-visibility-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(
-      session && canManageListings(session.user.role) ? developments : developments.map(hidePrivateDevelopmentFields),
+      session && canManageListings(session.user.role) ? developments : developments.map(development => developmentForPriceViewer(hidePrivateDevelopmentFields(development), session?.user.role)),
       { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error: any) {

@@ -1,3 +1,4 @@
+import { canSeeDevelopmentPrices } from "@/lib/development-price-visibility";
 import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -71,7 +72,7 @@ export async function GET(
     images: pdfImages,
     lines: [
       { text: "Ficha de unidad", size: 13, bold: true, gapAfter: 12 },
-      { text: `Precio final: ${formatPrice(unit.price)}`, size: 14, bold: true },
+      ...(canSeeDevelopmentPrices(development.slug, session?.user.role) ? [{ text: `Precio final: ${formatPrice(unit.price)}`, size: 14, bold: true }] : []),
       ...(unit.downPayment
         ? [{ text: `Anticipo: ${formatPrice(unit.downPayment)}`, size: 11 }]
         : []),

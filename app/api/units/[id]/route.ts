@@ -1,3 +1,4 @@
+import { unitForPriceViewer } from "@/lib/development-price-visibility";
 import { canReadListing } from "@/lib/listing-visibility-policy";
 import { hasValidShareToken } from "@/lib/share-token";
 import { NextRequest, NextResponse } from "next/server";
@@ -25,7 +26,7 @@ export async function GET(
   const token = _req.nextUrl.searchParams.get("share");
   const shared = hasValidShareToken(token, "unit", unit.id) || hasValidShareToken(token, "development", unit.developmentId);
   if (!development || !canReadListing(development.visibility, session?.user.role, shared)) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-  return NextResponse.json(unit, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(unitForPriceViewer(unit, development.slug, session?.user.role), { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function PUT(

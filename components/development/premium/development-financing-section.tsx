@@ -13,6 +13,7 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
   const unitWithPlan = (isAlpha ? [] : units).find(
     (unit) => unit.downPayment || unit.installmentCount || unit.installmentValue
   );
+  const hideFinalPrice = development.slug === "alpha-place-belgrano" && !priceFrom;
   const hasDocuments = Boolean(brochureHref || priceListHref);
 
   return (
@@ -30,8 +31,8 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
           </p>
         </div>
 
-        {!isAlpha && <div className="grid gap-px overflow-hidden border border-[#070707]/12 bg-[#070707]/12 md:grid-cols-3" data-dev-reveal>
-          <div className="bg-[#f8f5ef] p-6">
+        {!isAlpha && <div className={`grid gap-px overflow-hidden border border-[#070707]/12 bg-[#070707]/12 ${hideFinalPrice ? "md:grid-cols-2" : "md:grid-cols-3"}`} data-dev-reveal>
+          {!hideFinalPrice && <div className="bg-[#f8f5ef] p-6">
             <Calculator className="mb-10 h-5 w-5 text-[#3a1d17]" />
             <p className="text-[10px] uppercase tracking-[0.16em] text-[#070707]/75">
               Precio desde
@@ -39,7 +40,7 @@ export function DevelopmentFinancingSection({ model }: DevelopmentFinancingSecti
             <p className="mt-2 font-display text-3xl font-light">
               {!isAlpha && priceFrom ? formatPrice(priceFrom) : "Consultar"}
             </p>
-          </div>
+          </div>}
           <div className="bg-[#f8f5ef] p-6">
             <p className="mb-10 text-[10px] uppercase tracking-[0.16em] text-[#070707]/75">
               Anticipo

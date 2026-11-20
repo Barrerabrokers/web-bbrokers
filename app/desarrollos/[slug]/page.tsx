@@ -1,5 +1,6 @@
+import { developmentForPriceViewer } from "@/lib/development-price-visibility";
 import { AlphaBelgranoBoard } from "@/components/development/alpha-belgrano-board";
-import { ALPHA_BELGRANO_SLUG, ALPHA_BROCHURE } from "@/lib/alpha-belgrano-catalog";
+import { ALPHA_BELGRANO_SLUG, ALPHA_BROCHURE, alphaCatalogForViewer } from "@/lib/alpha-belgrano-catalog";
 import { getAlphaBelgranoCatalog } from "@/lib/alpha-belgrano-source";
 import { Suspense } from "react";
 import { MetaCatalogEvent } from "@/components/meta-website-tracking";
@@ -161,6 +162,9 @@ export default async function DevelopmentDetailPage({
     };
   }
 
+  const canSeePrices = canManageListings(session?.user.role);
+  development = developmentForPriceViewer(development, session?.user.role);
+
   const coverVideo = getDevelopmentVideo(
     development.name,
     development.videoUrl,
@@ -226,7 +230,7 @@ export default async function DevelopmentDetailPage({
         <main data-no-translate={development.visibility === "agents" ? "" : undefined}>
           <DevelopmentHero model={model} />
           <DevelopmentNavigation />
-          {alphaCatalog && <AlphaBelgranoBoard catalog={alphaCatalog} />}
+          {alphaCatalog && <AlphaBelgranoBoard catalog={alphaCatalogForViewer(alphaCatalog, canSeePrices)} canSeePrices={canSeePrices} />}
           <DevelopmentOverview model={model} />
           <DevelopmentGallerySection model={model} />
           <DevelopmentLocationSection model={model} />

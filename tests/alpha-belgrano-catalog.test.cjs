@@ -44,14 +44,27 @@ test('plans are assigned only to verified units and the 701 discrepancy is retai
   assert.match(alphaPlanNote(unit), /53 m²/);
 });
 
-test('share messages contain the exact unit, price, financing, source date and public plan links', () => {
+test('share messages contain the exact unit, financing, source date and public plan links', () => {
   const catalog = parseAlphaCsv(csv);
   const text = alphaShareText(catalog.units.find(u => u.number === '503'), catalog, 'https://barrerabrokers.com');
   assert.match(text, /Unidad 503/);
-  assert.match(text, /US\$ 135\.100/);
+  assert.doesNotMatch(text, /135[.,]?100|Precio de lista/);
   assert.match(text, /24 cuotas de US\$ 3\.400/);
   assert.match(text, /unidad=503#unidades/);
   assert.match(text, /https:\/\/barrerabrokers.com\/developments\/alpha-place-belgrano\/plano-4.webp/);
   assert.match(text, /12-Nov-26/);
   assert.match(alphaShareText(catalog.units.find(u => u.number === '701'), { ...catalog, live: false }, 'https://barrerabrokers.com'), /última lista de referencia/);
+});
+
+
+test('public catalog serialization omits every final price but preserves financing', () => {
+  const catalog = parseAlphaCsv(csv);
+  const view = exportsObject.alphaCatalogForViewer(catalog, false);
+  assert.equal(view.units.some(unit => Object.hasOwn(unit, 'price')), false);
+  assert.equal(view.units.find(unit => unit.number === '503').downPayment, 53500);
+  assert.equal(view.units.find(unit => unit.number === '503').installment, 3400);
+  assert.equal(catalog.units.find(unit => unit.number === '503').price, 135100);
+  const internal = exportsObject.alphaCatalogForViewer(catalog, true);
+  assert.equal(internal.units.find(unit => unit.number === '503').price, 135100);
+  assert.doesNotMatch(alphaShareText(internal.units.find(unit => unit.number === '503'), catalog, 'https://barrerabrokers.com'), /135[.,]?100/);
 });

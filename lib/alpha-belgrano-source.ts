@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { ALPHA_SHEET_CSV, parseAlphaCsv, type AlphaCatalog } from "./alpha-belgrano-catalog";
+import { parseAlphaCsv, type AlphaCatalog } from "./alpha-belgrano-catalog";
+
+const ALPHA_SHEET_CSV = "https://docs.google.com/spreadsheets/d/1INuGPpFYt9UcsDLke8h9sY5zFQ6gGcRluk7_rFIDh_8/export?format=csv&gid=876335053";
 
 export async function getAlphaBelgranoCatalog(): Promise<AlphaCatalog> {
   try {

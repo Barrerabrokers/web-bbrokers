@@ -11,3 +11,7 @@ Las imágenes verificadas están en `public/developments/alpha-place-belgrano/`.
 Cada ficha tiene un enlace `?unidad=503#unidades`. WhatsApp y mail preparan mensajes con los datos, el enlace a la ficha, el plano y el brochure. El usuario elige el destinatario y envía. El botón «Copiar ficha» usa el portapapeles; si está bloqueado, selecciona un texto visible para copiar manualmente.
 
 Validación: `node --test tests/alpha-belgrano-catalog.test.cjs`, `npx tsc --noEmit`, `npm run build`. Se comprobó además el flujo real de búsqueda, apertura/cierre de ficha, enlace directo, copia, enlaces de compartir y visualización de los dos planos en computadora y celular.
+
+## Visibilidad del precio total
+
+La vista pública muestra anticipo y 24 cuotas, sin precio total ni orden por precio. El servidor elimina los totales antes de serializar el catálogo, los modelos de página, los datos estructurados y las respuestas API de Alpha Place Belgrano. Las fichas PDF respetan el mismo permiso. Los roles existentes `agent`, `admin` y `marketing`, con sesión válida, conservan los precios completos. Los mensajes de WhatsApp, mail y copia siempre usan la versión para clientes, sin el precio total.

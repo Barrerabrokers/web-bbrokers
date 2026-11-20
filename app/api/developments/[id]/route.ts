@@ -1,3 +1,4 @@
+import { developmentForPriceViewer } from "@/lib/development-price-visibility";
 import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -29,7 +30,7 @@ export async function GET(
     );
   }
   return NextResponse.json(
-    session ? development : hidePrivateDevelopmentFields(development)
+    developmentForPriceViewer(session ? development : hidePrivateDevelopmentFields(development), session?.user.role)
   );
 }
 
