@@ -1,6 +1,5 @@
 export const ALPHA_BELGRANO_SLUG = "alpha-place-belgrano";
 export const ALPHA_BROCHURE = "https://drive.google.com/file/d/1yhd7DBosXjnYqEJccvHIRP5a-jc_Jmyf/view";
-export const ALPHA_SHEET_CSV = "https://docs.google.com/spreadsheets/d/1INuGPpFYt9UcsDLke8h9sY5zFQ6gGcRluk7_rFIDh_8/export?format=csv&gid=876335053";
 
 export interface AlphaUnit {
   number: string;
@@ -23,6 +22,20 @@ export interface AlphaCatalog {
   list: string;
   date: string;
   live: boolean;
+}
+
+export type AlphaUnitView = Omit<AlphaUnit, "price"> & { price?: number };
+export type AlphaCatalogView = Omit<AlphaCatalog, "units"> & { units: AlphaUnitView[] };
+
+export function alphaCatalogForViewer(catalog: AlphaCatalog, canSeePrices: boolean): AlphaCatalogView {
+  return {
+    ...catalog,
+    units: catalog.units.map(unit => {
+      if (canSeePrices) return { ...unit };
+      const { price, ...publicUnit } = unit;
+      return publicUnit;
+    }),
+  };
 }
 
 /** CSV export contains quoted multiline headers and Argentine formatted numbers. */
@@ -63,7 +76,7 @@ export function parseAlphaCsv(csv: string): AlphaCatalog {
   return { units, list: rows[0]?.[11]?.trim() || "Lista de precios", date: rows[0]?.[13]?.trim() || "Fecha no informada", live: true };
 }
 
-export function alphaPlan(unit: AlphaUnit) {
+export function alphaPlan(unit: AlphaUnitView) {
   // These are the two plans actually verified against the supplied brochure.
   if ((unit.plan === 2 && ["201", "301", "401", "501", "601", "701"].includes(unit.number)) || (unit.plan === 4 && ["203", "303", "403", "503", "603"].includes(unit.number))) {
     return `/developments/alpha-place-belgrano/plano-${unit.plan}.webp`;
@@ -71,7 +84,7 @@ export function alphaPlan(unit: AlphaUnit) {
   return undefined;
 }
 
-export function alphaPlanNote(unit: AlphaUnit) {
+export function alphaPlanNote(unit: AlphaUnitView) {
   return unit.number === "701" ? "La lista informa 54 m² (47 cubiertos + 7 de balcón). El plano genérico #2 indica 53 m²; confirmar la diferencia con el desarrollador." : undefined;
 }
 
@@ -79,7 +92,7 @@ export function alphaMoney(amount: number) {
   return `US$ ${amount.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 }
 
-export function alphaShareText(unit: AlphaUnit, catalog: Pick<AlphaCatalog, "list" | "date" | "live">, origin: string) {
+export function alphaShareText(unit: AlphaUnitView, catalog: Pick<AlphaCatalog, "list" | "date" | "live">, origin: string) {
   const link = new URL(`/desarrollos/${ALPHA_BELGRANO_SLUG}`, origin);
   link.searchParams.set("unidad", unit.number);
   link.hash = "unidades";
@@ -89,7 +102,6 @@ export function alphaShareText(unit: AlphaUnit, catalog: Pick<AlphaCatalog, "lis
     "Manuel Ugarte 1576 · Belgrano, CABA",
     `${unit.typology} · Piso ${unit.floor}° · ${unit.orientation}`,
     `${unit.total} m² propios (${unit.covered} m² cubiertos + ${unit.balcony} m² de balcón)`,
-    `Precio de lista: ${alphaMoney(unit.price)}`,
     ...(unit.downPayment > 0 ? [`Anticipo: ${alphaMoney(unit.downPayment)}`] : []),
     ...(unit.installment > 0 ? [`24 cuotas de ${alphaMoney(unit.installment)}`] : []),
     `${catalog.list} · ${catalog.date}. Precio y disponibilidad sujetos a confirmación.`,

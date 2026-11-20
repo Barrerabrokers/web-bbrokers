@@ -1,3 +1,4 @@
+import { canSeeDevelopmentPrices } from "@/lib/development-price-visibility";
 import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -50,7 +51,7 @@ export async function GET(
     images: pdfImages,
     lines: [
       { text: "Ficha de desarrollo", size: 13, bold: true, gapAfter: 12 },
-      { text: `Desde: ${priceFrom ? formatPrice(priceFrom) : "Consultar"}`, size: 14, bold: true },
+      ...(canSeeDevelopmentPrices(development.slug, session?.user.role) ? [{ text: `Desde: ${priceFrom ? formatPrice(priceFrom) : "Consultar"}`, size: 14, bold: true }] : []),
       { text: `Estado: ${DEVELOPMENT_STATUS_LABELS[development.status]}`, size: 11 },
       { text: `Entrega: ${development.completionDate || "A confirmar"}`, size: 11 },
       { text: `Avance de obra: ${development.progress}%`, size: 11 },
