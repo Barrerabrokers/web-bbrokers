@@ -384,8 +384,9 @@ select.form-input:disabled {
 
 /* ── Cursor ── */
 @media (pointer: fine) {
-  html.smart-cursor-active,
-  html.smart-cursor-active * { cursor: none !important; }
+  /* Native modal dialogs sit above the custom cursor in the browser top layer. */
+  html.smart-cursor-active:not(:has(dialog:modal)),
+  html.smart-cursor-active:not(:has(dialog:modal)) * { cursor: none !important; }
 }
 
 .cursor-ring-hover {
