@@ -129,7 +129,7 @@ export async function loadSalesCatalog(text: string, includeAlternatives = false
       for(const project of projects)if(approved.includes(project.slug) && !selected.some(p=>p.project.id===project.id))selected.push({project:{...project,name:String(project.name),slug:String(project.slug),neighborhood:String(project.neighborhood||'')},explicit:false,score:0});
     }
     const details=await Promise.all(selected.map(async ({project,explicit})=>{
-      const units=await sql`SELECT unit_number,floor,bedrooms,area,total_area,price,currency,down_payment,installment_count,installment_value,status,updated_at FROM units WHERE development_id=${project.id} ORDER BY price LIMIT 30`;
+      const units=await sql`SELECT unit_number,floor,bedrooms,area,total_area,price,currency,down_payment,installment_count,installment_value,status,updated_at FROM units WHERE development_id=${project.id} AND unit_number !~* '^cochera([[:space:]]|$)' ORDER BY price LIMIT 30`;
       const [brochure,priceList,operatorKnowledge]=await Promise.all([project.brochure_url ? loadSalesDocument(project.brochure_url,"brochure") : undefined, project.price_list_url ? loadSalesDocument(project.price_list_url,"priceList") : undefined, loadProjectKnowledge(String(project.id)).catch(()=>undefined)]);
       const trimDocument = (doc: typeof brochure, limit: number) => doc && "text" in doc ? {...doc,text:salesDocumentExcerpt(String(doc.text),text,limit),excerpt:String(doc.text).length>limit} : doc;
       return {...project,description:String(project.description||"").slice(0,1800),explicitlyMentioned:explicit,units,operatorKnowledge,

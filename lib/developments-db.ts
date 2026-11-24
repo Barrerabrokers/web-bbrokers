@@ -1,3 +1,4 @@
+import { isParkingUnit } from "@/lib/unit-kind";
 import { getSharedDatabase, releaseSharedDatabase } from "@/lib/database-pool";
 import { Development, Unit, DevelopmentImage, UnitImage } from "@/types";
 import { getServerSupabase } from "@/lib/supabase";
@@ -646,7 +647,7 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
     (u: any) => normalizeUnitStatus(u.status) === "disponible"
   ).length;
   const minPrice = allUnits
-    .filter((u: any) => normalizeUnitStatus(u.status) === "disponible")
+    .filter((u: any) => normalizeUnitStatus(u.status) === "disponible" && !isParkingUnit({ unitNumber: String(u.unit_number || "") }))
     .map((u: any) => parseFloat(u.price))
     .reduce(
       (min: number | null, p: number) =>

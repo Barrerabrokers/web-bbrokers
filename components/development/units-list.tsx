@@ -7,6 +7,7 @@ import Image from "next/image";
 import {
   X,
   Bed,
+  Car,
   Bath,
   Maximize2,
   Compass,
@@ -15,6 +16,7 @@ import {
   Mail,
   MessageCircle,
 } from "lucide-react";
+import { isParkingUnit } from "@/lib/unit-kind";
 import { Unit } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { hasAgentOnlyPrices } from "@/lib/development-price-visibility";
@@ -107,13 +109,14 @@ export function UnitsList({
   );
 
   const bedroomsAvailable = useMemo(() => {
-    const set = new Set(safeUnits.map((u) => u.bedrooms));
+    const set = new Set(safeUnits.filter((u) => !isParkingUnit(u)).map((u) => u.bedrooms));
     return Array.from(set).sort();
   }, [safeUnits]);
 
   const filteredUnits = useMemo(() => {
     if (filter === "todos") return safeUnits;
-    return safeUnits.filter((u) => u.bedrooms === parseInt(filter));
+    if (filter === "cocheras") return safeUnits.filter(isParkingUnit);
+    return safeUnits.filter((u) => !isParkingUnit(u) && u.bedrooms === parseInt(filter));
   }, [safeUnits, filter]);
 
   const activeFeatures =
@@ -227,9 +230,9 @@ export function UnitsList({
     const lines = [
       `Ficha de unidad - ${developmentName}`,
       `Unidad: ${unit.unitNumber}`,
-      `Tipología: ${bedroomsLabel(unit.bedrooms)}`,
-      `Baños: ${unit.bathrooms}`,
-      `Superficie cubierta: ${unit.area}m²`,
+      `Tipología: ${isParkingUnit(unit) ? "Cochera" : bedroomsLabel(unit.bedrooms)}`,
+      !isParkingUnit(unit) ? `Baños: ${unit.bathrooms}` : null,
+      unit.area > 0 ? `Superficie cubierta: ${unit.area}m²` : null,
       unit.totalArea ? `Superficie total: ${unit.totalArea}m²` : null,
       unit.floor ? `Piso: ${unit.floor}` : null,
       unit.orientation ? `Orientación: ${unit.orientation}` : null,
@@ -295,8 +298,14 @@ export function UnitsList({
         >
           Todas ({safeUnits.length})
         </button>
+        {safeUnits.some(isParkingUnit) && (
+          <button onClick={() => setFilter("cocheras")}
+            className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest border transition-colors ${filter === "cocheras" ? "bg-accent text-ink border-accent" : "bg-transparent text-bone/70 border-bone/20 hover:border-accent"}`}>
+            Cocheras ({safeUnits.filter(isParkingUnit).length})
+          </button>
+        )}
         {bedroomsAvailable.map((b) => {
-          const count = safeUnits.filter((u) => u.bedrooms === b).length;
+          const count = safeUnits.filter((u) => !isParkingUnit(u) && u.bedrooms === b).length;
           return (
             <button
               key={b}
@@ -371,17 +380,17 @@ export function UnitsList({
                 </div>
                 <div className="flex flex-wrap gap-3 text-ink/68 text-xs mb-4">
                   <span className="flex items-center gap-1">
-                    <Bed className="h-3 w-3 text-accent" />
-                    {bedroomsLabel(unit.bedrooms)}
+                    {isParkingUnit(unit) ? <Car className="h-3 w-3 text-accent" /> : <Bed className="h-3 w-3 text-accent" />}
+                    {isParkingUnit(unit) ? "Cochera" : bedroomsLabel(unit.bedrooms)}
                   </span>
-                  <span className="flex items-center gap-1">
+                  {!isParkingUnit(unit) && <span className="flex items-center gap-1">
                     <Bath className="h-3 w-3 text-accent" />
                     {unit.bathrooms} baño{unit.bathrooms > 1 ? "s" : ""}
-                  </span>
-                  <span className="flex items-center gap-1">
+                  </span>}
+                  {unit.area > 0 && <span className="flex items-center gap-1">
                     <Maximize2 className="h-3 w-3 text-accent" />
                     {unit.area}m²
-                  </span>
+                  </span>}
                   {unit.orientation && (
                     <span className="flex items-center gap-1">
                       <Compass className="h-3 w-3 text-accent" />
@@ -460,9 +469,8 @@ export function UnitsList({
                     Unidad {activeUnit.unitNumber}
                   </h3>
                   <p className="text-ink/62 text-sm mt-1 flex flex-wrap gap-x-2 gap-y-1">
-                    {bedroomsLabel(activeUnit.bedrooms)} ·{" "}
-                    {activeUnit.bathrooms} baño
-                    {activeUnit.bathrooms > 1 ? "s" : ""} · {activeUnit.area}m²
+                    {isParkingUnit(activeUnit) ? "Cochera" : `${bedroomsLabel(activeUnit.bedrooms)} · ${activeUnit.bathrooms} baño${activeUnit.bathrooms > 1 ? "s" : ""}`}
+                    {activeUnit.area > 0 ? ` · ${activeUnit.area}m²` : ""}
                     {activeUnit.floor && <> · Piso {activeUnit.floor}</>}
                     {activeUnit.orientation && <> · {activeUnit.orientation}</>}
                   </p>
@@ -631,14 +639,14 @@ export function UnitsList({
                           {formatPrice(activeUnit.price)}
                         </p>
                       </div>}
-                      <div>
+                      {activeUnit.area > 0 && <div>
                         <p className="text-[10px] uppercase tracking-widest text-ink/50">
                           Sup. cubierta
                         </p>
                         <p className="font-display text-2xl text-ink mt-1">
                           {activeUnit.area}m²
                         </p>
-                      </div>
+                      </div>}
                       {activeUnit.balconyArea && (
                         <div>
                           <p className="text-[10px] uppercase tracking-widest text-ink/50">

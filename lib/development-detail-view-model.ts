@@ -1,3 +1,4 @@
+import { isParkingUnit } from "@/lib/unit-kind";
 import { DEVELOPMENT_STATUS_LABELS, type Development, type Unit } from "@/types";
 
 export type DevelopmentDetailStat = {
@@ -60,7 +61,7 @@ function getTypologies(units: Unit[]) {
   return Array.from(
     new Set(
       units.map((unit) =>
-        unit.bedrooms === 0
+        isParkingUnit(unit) ? "Cocheras" : unit.bedrooms === 0
           ? "Monoambientes"
           : `${unit.bedrooms} ambiente${unit.bedrooms > 1 ? "s" : ""}`
       )

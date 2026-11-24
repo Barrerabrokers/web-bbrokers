@@ -1,3 +1,4 @@
+import { isParkingUnit } from "@/lib/unit-kind";
 import { canSeeDevelopmentPrices } from "@/lib/development-price-visibility";
 import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextResponse } from "next/server";
@@ -85,9 +86,9 @@ export async function GET(
           ]
         : []),
       { text: `Estado: ${STATUS_LABELS[unit.status] || unit.status}`, size: 11 },
-      { text: `Tipologia: ${bedroomsLabel(unit.bedrooms)}`, size: 11 },
-      { text: `Banos: ${unit.bathrooms}`, size: 11 },
-      { text: `Superficie cubierta: ${unit.area} m2`, size: 11 },
+      { text: `Tipologia: ${isParkingUnit(unit) ? "Cochera" : bedroomsLabel(unit.bedrooms)}`, size: 11 },
+      ...(!isParkingUnit(unit) ? [{ text: `Banos: ${unit.bathrooms}`, size: 11 }] : []),
+      ...(unit.area > 0 ? [{ text: `Superficie cubierta: ${unit.area} m2`, size: 11 }] : []),
       ...(unit.balconyArea ? [{ text: `Balcon: ${unit.balconyArea} m2`, size: 11 }] : []),
       ...(unit.totalArea ? [{ text: `Superficie total: ${unit.totalArea} m2`, size: 11 }] : []),
       ...(unit.floor ? [{ text: `Piso: ${unit.floor}`, size: 11 }] : []),
