@@ -8,6 +8,9 @@ interface DevelopmentUnitsSectionProps {
 
 export function DevelopmentUnitsSection({ model, shareToken }: DevelopmentUnitsSectionProps) {
   const { development, units } = model;
+  const listedUnits = development.slug === "alpha-place-libertador"
+    ? units.filter((unit) => unit.status === "disponible")
+    : units;
 
   return (
     <section id="unidades" className="bg-[#0d0d0d] px-5 py-20 text-[#f8f5ef] md:px-10 md:py-28 lg:px-14">
@@ -25,7 +28,7 @@ export function DevelopmentUnitsSection({ model, shareToken }: DevelopmentUnitsS
 
         <div data-dev-reveal>
           <UnitsList
-            units={units}
+            units={listedUnits}
             canSeePrices={model.canSeeFinalPrices ?? true}
             developmentFeatures={development.features}
             developmentName={development.name}
