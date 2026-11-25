@@ -18,7 +18,7 @@ export function CursorTrail() {
   const pathname = usePathname();
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const disableCustomCursor = pathname?.startsWith("/admin");
+  const disableCustomCursor = pathname?.startsWith("/admin") || pathname?.startsWith("/desarrollos");
 
   useEffect(() => {
     if (disableCustomCursor) {

@@ -26,6 +26,8 @@ export function ObsidianMotion() {
     );
 
     document.querySelectorAll("main > section, footer").forEach((section) => {
+      // Catalog content must not depend on an intersection animation.
+      if (window.location.pathname.startsWith("/desarrollos")) return;
       section.classList.add("oa-reveal");
       observer.observe(section);
     });
@@ -38,6 +40,9 @@ export function ObsidianMotion() {
       window.removeEventListener("scroll", updateProgress);
       window.removeEventListener("resize", updateProgress);
       observer.disconnect();
+      document.querySelectorAll(".oa-reveal").forEach((section) => {
+        section.classList.remove("oa-reveal", "oa-inview");
+      });
     };
   }, []);
 
