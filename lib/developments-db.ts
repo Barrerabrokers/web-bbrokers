@@ -1,4 +1,4 @@
-import { isParkingUnit } from "@/lib/unit-kind";
+import { isAccessoryUnit } from "@/lib/unit-kind";
 import { getSharedDatabase, releaseSharedDatabase } from "@/lib/database-pool";
 import { Development, Unit, DevelopmentImage, UnitImage } from "@/types";
 import { getServerSupabase } from "@/lib/supabase";
@@ -642,12 +642,12 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
       isPrimary: img.is_primary,
     }));
 
-  const allUnits = safeRows(data.units);
+  const allUnits = safeRows(data.units).filter((u: any) => !safeStringArray(u.features).includes("No disponible en lista de origen"));
   const availableUnits = allUnits.filter(
     (u: any) => normalizeUnitStatus(u.status) === "disponible"
   ).length;
   const minPrice = allUnits
-    .filter((u: any) => normalizeUnitStatus(u.status) === "disponible" && !isParkingUnit({ unitNumber: String(u.unit_number || "") }))
+    .filter((u: any) => normalizeUnitStatus(u.status) === "disponible" && !isAccessoryUnit({ unitNumber: String(u.unit_number || "") }))
     .map((u: any) => parseFloat(u.price))
     .reduce(
       (min: number | null, p: number) =>
@@ -692,7 +692,7 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
   };
 
   if (includeUnits) {
-    dev.units = allUnits.map(mapUnitFromDb);
+    dev.units = (data.slug === "vibe-bonpland" ? allUnits.filter((u: any) => normalizeUnitStatus(u.status) === "disponible") : allUnits).map(mapUnitFromDb);
   }
 
   return dev;

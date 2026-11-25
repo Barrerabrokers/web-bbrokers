@@ -30,6 +30,10 @@
     {
       "path": "/api/cron/mia-sales-pilot",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/development-drive-sync",
+      "schedule": "0 9 * * *"
     }
   ],
   "functions": {

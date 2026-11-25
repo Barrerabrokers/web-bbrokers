@@ -1,4 +1,4 @@
-import { isParkingUnit } from "@/lib/unit-kind";
+import { isAccessoryUnit, accessoryUnitLabel } from "@/lib/unit-kind";
 import { canSeeDevelopmentPrices } from "@/lib/development-price-visibility";
 import { canReadListing } from "@/lib/listing-visibility-policy";
 import { NextResponse } from "next/server";
@@ -43,7 +43,7 @@ export async function GET(
     (hasValidShareToken(shareToken, "development", development.id) ||
       hasValidShareToken(shareToken, "unit", unit.id));
 
-  if (!development || !canReadListing(development.visibility, session?.user.role, Boolean(hasSharedAccess))) {
+  if ((development?.slug === "vibe-bonpland" && (unit.status !== "disponible" || unit.features.includes("No disponible en lista de origen"))) || !development || !canReadListing(development.visibility, session?.user.role, Boolean(hasSharedAccess))) {
     return NextResponse.json({ error: "Unidad no encontrada" }, { status: 404 });
   }
 
@@ -86,8 +86,8 @@ export async function GET(
           ]
         : []),
       { text: `Estado: ${STATUS_LABELS[unit.status] || unit.status}`, size: 11 },
-      { text: `Tipologia: ${isParkingUnit(unit) ? "Cochera" : bedroomsLabel(unit.bedrooms)}`, size: 11 },
-      ...(!isParkingUnit(unit) ? [{ text: `Banos: ${unit.bathrooms}`, size: 11 }] : []),
+      { text: `Tipologia: ${isAccessoryUnit(unit) ? accessoryUnitLabel(unit) : bedroomsLabel(unit.bedrooms)}`, size: 11 },
+      ...(!isAccessoryUnit(unit) ? [{ text: `Banos: ${unit.bathrooms}`, size: 11 }] : []),
       ...(unit.area > 0 ? [{ text: `Superficie cubierta: ${unit.area} m2`, size: 11 }] : []),
       ...(unit.balconyArea ? [{ text: `Balcon: ${unit.balconyArea} m2`, size: 11 }] : []),
       ...(unit.totalArea ? [{ text: `Superficie total: ${unit.totalArea} m2`, size: 11 }] : []),

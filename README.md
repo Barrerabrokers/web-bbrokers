@@ -225,3 +225,15 @@ Antes de una publicación, comprobar la versión productiva, las diferencias pen
 ## Propiedad y mantenimiento
 
 Proyecto de Barrera Brokers. La visibilidad del repositorio no implica una licencia de uso libre. Coordinar accesos y mantenimiento con los administradores del proyecto; no se publican contactos de soporte de ejemplo ni credenciales operativas.
+
+### VIBE Bonpland: inventario conectado a Drive
+
+El desarrollo `vibe-bonpland` usa la lista Google Drive `12kpRGnq790xOWcEZaJApwnzm8hKyqvWV` como fuente de unidades, estados, precios y financiación. El cron `/api/cron/development-drive-sync` corre diariamente a las 09:00 UTC (06:00 Argentina), protegido por `CRON_SECRET`.
+
+- `lib/vibe-price-list.ts` valida columnas, identidades e importes antes de modificar datos. Un formato desconocido aborta y conserva la última carga válida.
+- `lib/vibe-drive-sync.ts` actualiza unidades por número, sin duplicarlas. Solo incorpora disponibles; vendidas/reservadas existentes y unidades retiradas se conservan para historial, pero dejan de publicarse.
+- La migración `migrations/20261125_development_drive_sync.sql` crea configuración y respaldos por ejecución con RLS. `development_drive_sync.last_success` permite verificar la última actualización correcta.
+- La Variante 603 es independiente de 603/604 por confirmación comercial. Cocheras y bauleras del cuadro complementario se consideran disponibles mientras sigan en la lista; su financiación queda a consultar porque la fuente no la especifica.
+- Imágenes y planos provienen del brochure; la sincronización de la planilla no interpreta nuevos brochures. Las unidades de nuevas plantas o variantes sin plano identificado requieren asignación manual de su plano.
+
+Pruebas: `node --test tests/vibe-price-list.test.cjs tests/parking-unit.test.cjs`.

@@ -12,7 +12,7 @@ import {
   Compass,
   ChevronRight,
 } from "lucide-react";
-import { isParkingUnit } from "@/lib/unit-kind";
+import { isAccessoryUnit, accessoryUnitLabel } from "@/lib/unit-kind";
 import { Unit } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { hasAgentOnlyPrices } from "@/lib/development-price-visibility";
@@ -105,14 +105,14 @@ export function UnitsList({
   );
 
   const bedroomsAvailable = useMemo(() => {
-    const set = new Set(safeUnits.filter((u) => !isParkingUnit(u)).map((u) => u.bedrooms));
+    const set = new Set(safeUnits.filter((u) => !isAccessoryUnit(u)).map((u) => u.bedrooms));
     return Array.from(set).sort();
   }, [safeUnits]);
 
   const filteredUnits = useMemo(() => {
     if (filter === "todos") return safeUnits;
-    if (filter === "cocheras") return safeUnits.filter(isParkingUnit);
-    return safeUnits.filter((u) => !isParkingUnit(u) && u.bedrooms === parseInt(filter));
+    if (filter === "cocheras") return safeUnits.filter(isAccessoryUnit);
+    return safeUnits.filter((u) => !isAccessoryUnit(u) && u.bedrooms === parseInt(filter));
   }, [safeUnits, filter]);
 
   const activeFeatures =
@@ -205,8 +205,8 @@ export function UnitsList({
     const lines = [
       `Ficha de unidad - ${developmentName}`,
       `Unidad: ${unit.unitNumber}`,
-      `Tipología: ${isParkingUnit(unit) ? "Cochera" : bedroomsLabel(unit.bedrooms)}`,
-      !isParkingUnit(unit) ? `Baños: ${unit.bathrooms}` : null,
+      `Tipología: ${isAccessoryUnit(unit) ? accessoryUnitLabel(unit) : bedroomsLabel(unit.bedrooms)}`,
+      !isAccessoryUnit(unit) ? `Baños: ${unit.bathrooms}` : null,
       unit.area > 0 ? `Superficie cubierta: ${unit.area}m²` : null,
       unit.totalArea ? `Superficie total: ${unit.totalArea}m²` : null,
       unit.floor ? `Piso: ${unit.floor}` : null,
@@ -264,14 +264,14 @@ export function UnitsList({
         >
           Todas ({safeUnits.length})
         </button>
-        {safeUnits.some(isParkingUnit) && (
+        {safeUnits.some(isAccessoryUnit) && (
           <button onClick={() => setFilter("cocheras")}
             className={`px-4 py-2 rounded-full text-xs uppercase tracking-widest border transition-colors ${filter === "cocheras" ? "bg-accent text-ink border-accent" : "bg-transparent text-bone/70 border-bone/20 hover:border-accent"}`}>
-            Cocheras ({safeUnits.filter(isParkingUnit).length})
+            Complementarias ({safeUnits.filter(isAccessoryUnit).length})
           </button>
         )}
         {bedroomsAvailable.map((b) => {
-          const count = safeUnits.filter((u) => !isParkingUnit(u) && u.bedrooms === b).length;
+          const count = safeUnits.filter((u) => !isAccessoryUnit(u) && u.bedrooms === b).length;
           return (
             <button
               key={b}
@@ -346,10 +346,10 @@ export function UnitsList({
                 </div>
                 <div className="flex flex-wrap gap-3 text-ink/68 text-xs mb-4">
                   <span className="flex items-center gap-1">
-                    {isParkingUnit(unit) ? <Car className="h-3 w-3 text-accent" /> : <Bed className="h-3 w-3 text-accent" />}
-                    {isParkingUnit(unit) ? "Cochera" : bedroomsLabel(unit.bedrooms)}
+                    {isAccessoryUnit(unit) ? <Car className="h-3 w-3 text-accent" /> : <Bed className="h-3 w-3 text-accent" />}
+                    {isAccessoryUnit(unit) ? accessoryUnitLabel(unit) : bedroomsLabel(unit.bedrooms)}
                   </span>
-                  {!isParkingUnit(unit) && <span className="flex items-center gap-1">
+                  {!isAccessoryUnit(unit) && <span className="flex items-center gap-1">
                     <Bath className="h-3 w-3 text-accent" />
                     {unit.bathrooms} baño{unit.bathrooms > 1 ? "s" : ""}
                   </span>}

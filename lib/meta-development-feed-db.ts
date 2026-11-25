@@ -10,7 +10,7 @@ export async function readMetaFeedDevelopments(): Promise<FeedDevelopment[]> {
         COALESCE((SELECT json_agg(json_build_object('url', i.url) ORDER BY i.is_primary DESC NULLS LAST, i.display_order, i.id)
           FROM development_images i WHERE i.development_id=d.id), '[]'::json) AS images,
         COALESCE((SELECT json_agg(json_build_object('status', u.status, 'price', u.price, 'currency', u.currency))
-          FROM units u WHERE u.development_id=d.id AND u.unit_number !~* '^cochera([[:space:]]|$)'), '[]'::json) AS units
+          FROM units u WHERE u.development_id=d.id AND NOT COALESCE(u.features,ARRAY[]::text[]) @> ARRAY['No disponible en lista de origen']::text[] AND u.unit_number !~* '^(cochera|baulera|cabana)([[:space:]]|$)'), '[]'::json) AS units
       FROM developments d WHERE d.visibility='public' ORDER BY d.id
     `;
     return rows as unknown as FeedDevelopment[];

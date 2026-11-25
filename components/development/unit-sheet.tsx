@@ -5,7 +5,7 @@ import Image from "next/image";
 import { X, MessageCircle, Mail, FileText } from "lucide-react";
 import type { Unit } from "@/types";
 import { formatPrice } from "@/lib/utils";
-import { isParkingUnit } from "@/lib/unit-kind";
+import { isAccessoryUnit, accessoryUnitLabel } from "@/lib/unit-kind";
 import { ViewportVideo } from "@/components/viewport-video";
 import styles from "./unit-sheet.module.css";
 
@@ -22,7 +22,7 @@ export function UnitSheet(p: Props) {
   const [section, setSection] = useState("resumen");
   const [failedImage, setFailedImage] = useState<string>();
   const { unit } = p;
-  const parking = isParkingUnit(unit);
+  const parking = isAccessoryUnit(unit);
   const image = unit.images[p.imageIndex] || unit.images[0];
   useEffect(() => {
     const element = dialog.current;
@@ -56,7 +56,7 @@ export function UnitSheet(p: Props) {
             <p className={styles.eyebrow}>{p.developmentName}</p>
             <h2 id="unit-sheet-title">{parking ? unit.unitNumber : `Unidad ${unit.unitNumber}`}</h2>
             <p className={styles.subtitle}>
-              {parking ? "Cochera" : `${unit.bedrooms || 1} ambiente${unit.bedrooms > 1 ? "s" : ""} · ${unit.bathrooms} baño${unit.bathrooms > 1 ? "s" : ""}`}
+              {parking ? accessoryUnitLabel(unit) : `${unit.bedrooms || 1} ambiente${unit.bedrooms > 1 ? "s" : ""} · ${unit.bathrooms} baño${unit.bathrooms > 1 ? "s" : ""}`}
               {unit.floor ? ` · Piso ${unit.floor}` : ""}{unit.orientation ? ` · ${unit.orientation}` : ""}
             </p>
           </div>

@@ -1,4 +1,4 @@
-import { isParkingUnit } from "@/lib/unit-kind";
+import { isAccessoryUnit, accessoryUnitLabel } from "@/lib/unit-kind";
 import { DEVELOPMENT_STATUS_LABELS, type Development, type Unit } from "@/types";
 
 export type DevelopmentDetailStat = {
@@ -61,7 +61,7 @@ function getTypologies(units: Unit[]) {
   return Array.from(
     new Set(
       units.map((unit) =>
-        isParkingUnit(unit) ? "Cocheras" : unit.bedrooms === 0
+        isAccessoryUnit(unit) ? (accessoryUnitLabel(unit) === "Cochera" ? "Cocheras" : accessoryUnitLabel(unit)!) : unit.bedrooms === 0
           ? "Monoambientes"
           : `${unit.bedrooms} ambiente${unit.bedrooms > 1 ? "s" : ""}`
       )
@@ -123,7 +123,7 @@ export function buildDevelopmentDetailModel({
     : videoUrls;
   const units = safeUnits(development);
   const availableUnits = units.filter((unit) => unit.status === "disponible");
-  const { minArea, maxArea } = getAreaRange(units);
+  const { minArea, maxArea } = getAreaRange(units.filter(unit => !isAccessoryUnit(unit)));
   const typologies = getTypologies(units);
   const statusLabel = DEVELOPMENT_STATUS_LABELS[development.status];
   const fullAddress = `${development.address}, ${development.location}, Ciudad de Buenos Aires, Argentina`;

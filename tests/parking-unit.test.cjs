@@ -15,3 +15,9 @@ test('mixed inventory exposes parking separately and excludes unknown surface fr
  assert.equal(model.minArea,37.93);assert.equal(model.maxArea,37.93);
  assert.equal(model.priceFrom,106500);assert.equal(model.availableUnits.length,2);
 });
+
+test('accessories never become residential typologies',()=>{
+ assert.equal(kind.accessoryUnitLabel({unitNumber:'Baulera 01'}),'Baulera');
+ assert.equal(kind.accessoryUnitLabel({unitNumber:'CABANA 03'}),'Cabana privada');
+ assert.equal(kind.isAccessoryUnit({unitNumber:'VARIANTE 603'}),false);
+});

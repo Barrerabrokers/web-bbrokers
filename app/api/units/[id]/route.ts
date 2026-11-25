@@ -26,6 +26,7 @@ export async function GET(
   const token = _req.nextUrl.searchParams.get("share");
   const shared = hasValidShareToken(token, "unit", unit.id) || hasValidShareToken(token, "development", unit.developmentId);
   if (!development || !canReadListing(development.visibility, session?.user.role, shared)) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+  if (development.slug === "vibe-bonpland" && !canManageListings(session?.user.role) && (unit.status !== "disponible" || unit.features.includes("No disponible en lista de origen"))) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
   return NextResponse.json(unitForPriceViewer(unit, development.slug, session?.user.role), { headers: { "Cache-Control": "private, no-store" } });
 }
 
