@@ -693,7 +693,7 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
   };
 
   if (includeUnits) {
-    dev.units = (data.slug === "vibe-bonpland" ? allUnits.filter((u: any) => normalizeUnitStatus(u.status) === "disponible") : allUnits).map(mapUnitFromDb);
+    dev.units = (["vibe-bonpland", "alma-centenario"].includes(data.slug) ? allUnits.filter((u: any) => normalizeUnitStatus(u.status) === "disponible") : allUnits).map(mapUnitFromDb);
   }
 
   return dev;

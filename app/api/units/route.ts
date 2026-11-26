@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
   const shared = hasValidShareToken(request.nextUrl.searchParams.get("share"), "development", developmentId);
   if (!development || !canReadListing(development.visibility, session?.user.role, shared)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   const units = await getUnitsByDevelopment(developmentId);
-  const visibleUnits = development.slug === "vibe-bonpland" && !canManageListings(session?.user.role) ? units.filter(unit => unit.status === "disponible" && !unit.features.includes("No disponible en lista de origen")) : units;
+  const visibleUnits = ["vibe-bonpland", "alma-centenario"].includes(development.slug) && !canManageListings(session?.user.role) ? units.filter(unit => unit.status === "disponible" && !unit.features.includes("No disponible en lista de origen")) : units;
   return NextResponse.json(visibleUnits.map(unit => unitForPriceViewer(unit, development.slug, session?.user.role)), { headers: { "Cache-Control": "private, no-store" } });
 }
 

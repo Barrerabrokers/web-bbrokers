@@ -43,7 +43,7 @@ export async function GET(
     (hasValidShareToken(shareToken, "development", development.id) ||
       hasValidShareToken(shareToken, "unit", unit.id));
 
-  if ((development?.slug === "vibe-bonpland" && (unit.status !== "disponible" || unit.features.includes("No disponible en lista de origen"))) || !development || !canReadListing(development.visibility, session?.user.role, Boolean(hasSharedAccess))) {
+  if ((["vibe-bonpland", "alma-centenario"].includes(development?.slug || "") && (unit.status !== "disponible" || unit.features.includes("No disponible en lista de origen"))) || !development || !canReadListing(development.visibility, session?.user.role, Boolean(hasSharedAccess))) {
     return NextResponse.json({ error: "Unidad no encontrada" }, { status: 404 });
   }
 
