@@ -206,7 +206,7 @@ export function UnitsList({
       `Ficha de unidad - ${developmentName}`,
       `Unidad: ${unit.unitNumber}`,
       `Tipología: ${isAccessoryUnit(unit) ? accessoryUnitLabel(unit) : bedroomsLabel(unit.bedrooms)}`,
-      !isAccessoryUnit(unit) ? `Baños: ${unit.bathrooms}` : null,
+      !isAccessoryUnit(unit) && unit.bathrooms > 0 ? `Baños: ${unit.bathrooms}` : null,
       unit.area > 0 ? `Superficie cubierta: ${unit.area}m²` : null,
       unit.totalArea ? `Superficie total: ${unit.totalArea}m²` : null,
       unit.floor ? `Piso: ${unit.floor}` : null,
@@ -348,7 +348,7 @@ export function UnitsList({
                     {isAccessoryUnit(unit) ? <Car className="h-3 w-3 text-accent" /> : <Bed className="h-3 w-3 text-accent" />}
                     {isAccessoryUnit(unit) ? accessoryUnitLabel(unit) : bedroomsLabel(unit.bedrooms)}
                   </span>
-                  {!isAccessoryUnit(unit) && <span className="flex items-center gap-1">
+                  {!isAccessoryUnit(unit) && unit.bathrooms > 0 && <span className="flex items-center gap-1">
                     <Bath className="h-3 w-3 text-accent" />
                     {unit.bathrooms} baño{unit.bathrooms > 1 ? "s" : ""}
                   </span>}

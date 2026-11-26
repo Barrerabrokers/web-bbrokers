@@ -56,7 +56,7 @@ export function UnitSheet(p: Props) {
             <p className={styles.eyebrow}>{p.developmentName}</p>
             <h2 id="unit-sheet-title">{parking ? unit.unitNumber : `Unidad ${unit.unitNumber}`}</h2>
             <p className={styles.subtitle}>
-              {parking ? accessoryUnitLabel(unit) : `${unit.bedrooms || 1} ambiente${unit.bedrooms > 1 ? "s" : ""} · ${unit.bathrooms} baño${unit.bathrooms > 1 ? "s" : ""}`}
+              {parking ? accessoryUnitLabel(unit) : `${unit.bedrooms || 1} ambiente${unit.bedrooms > 1 ? "s" : ""}${unit.bathrooms > 0 ? ` · ${unit.bathrooms} baño${unit.bathrooms > 1 ? "s" : ""}` : ""}`}
               {unit.floor ? ` · Piso ${unit.floor}` : ""}{unit.orientation ? ` · ${unit.orientation}` : ""}
             </p>
           </div>

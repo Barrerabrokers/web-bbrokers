@@ -87,7 +87,7 @@ export async function GET(
         : []),
       { text: `Estado: ${STATUS_LABELS[unit.status] || unit.status}`, size: 11 },
       { text: `Tipologia: ${isAccessoryUnit(unit) ? accessoryUnitLabel(unit) : bedroomsLabel(unit.bedrooms)}`, size: 11 },
-      ...(!isAccessoryUnit(unit) ? [{ text: `Banos: ${unit.bathrooms}`, size: 11 }] : []),
+      ...(!isAccessoryUnit(unit) && unit.bathrooms > 0 ? [{ text: `Banos: ${unit.bathrooms}`, size: 11 }] : []),
       ...(unit.area > 0 ? [{ text: `Superficie cubierta: ${unit.area} m2`, size: 11 }] : []),
       ...(unit.balconyArea ? [{ text: `Balcon: ${unit.balconyArea} m2`, size: 11 }] : []),
       ...(unit.totalArea ? [{ text: `Superficie total: ${unit.totalArea} m2`, size: 11 }] : []),
