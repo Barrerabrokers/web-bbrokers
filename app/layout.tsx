@@ -5,7 +5,8 @@ import { headers } from "next/headers";
 import { cachedSiteEnglish } from "@/lib/i18n/translation";
 import { SiteLanguageProvider } from "@/components/i18n/site-language";
 import { localizePublicMetadata } from "@/lib/i18n/metadata";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { Cormorant_Garamond } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { CursorTrail } from "@/components/cursor-trail";
@@ -23,11 +24,11 @@ import { unstable_cache } from "next/cache";
 
 const getCachedSiteSettings=unstable_cache(getSiteSettings,["site-settings-metadata"],{revalidate:300,tags:["site-settings"]});
 
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const plusJakarta = localFont({
+  src: "./fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-sans",
   display: "swap",
-  weight: ["300", "400", "500", "600"],
+  weight: "300 600",
 });
 
 const cormorant = Cormorant_Garamond({
