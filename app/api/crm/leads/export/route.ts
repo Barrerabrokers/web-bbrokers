@@ -3,7 +3,7 @@ import {getServerSession} from 'next-auth';
 import {authOptions} from '@/lib/auth';
 import {canManageListings,canViewAllCrmContacts} from '@/lib/roles';
 import {getSharedDatabase,releaseSharedDatabase} from '@/lib/database-pool';
-import {campaignExpression,developmentExpression,exportFiltersSchema,exportWhere,exportPhone} from '@/lib/crm-export';
+import {normalizeExportOccupation,campaignExpression,developmentExpression,exportFiltersSchema,exportWhere,exportPhone} from '@/lib/crm-export';
 import {buildMetaAudience} from '@/lib/crm-meta-export';
 import * as XLSX from 'xlsx';
 export const runtime='nodejs';
@@ -14,8 +14,8 @@ async function access(){const s=await getServerSession(authOptions);return s&&ca
 export async function GET(){
  const s=await access();if(!s)return NextResponse.json({error:'No autorizado'},{status:403,headers});
  const sql=getSharedDatabase();try{const q=exportWhere(exportFiltersSchema.parse({}),s.user.id,canViewAllCrmContacts(s.user.role));
- const rows=await sql.unsafe(`SELECT DISTINCT ${developmentExpression} AS development,${campaignExpression} AS campaign,l.assigned_agent_id AS owner_id,COALESCE(a.name,'Sin propietario') AS owner_name FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id ${q.where}`,q.values);
- return NextResponse.json({developments:[...new Set(rows.map(r=>r.development).filter(Boolean))].sort(),campaigns:[...new Set(rows.map(r=>r.campaign))].sort(),owners:[...new Map(rows.map(r=>[r.owner_id||'unassigned',{id:r.owner_id||'unassigned',name:r.owner_name}])).values()].sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'))},{headers});
+ const rows=await sql.unsafe(`SELECT DISTINCT btrim(COALESCE(l.occupation,'')) AS occupation,${developmentExpression} AS development,${campaignExpression} AS campaign,l.assigned_agent_id AS owner_id,COALESCE(a.name,'Sin propietario') AS owner_name FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id LEFT JOIN agents a ON a.id=l.assigned_agent_id ${q.where}`,q.values);
+ return NextResponse.json({occupations:[...new Map(rows.map(r=>[normalizeExportOccupation(r.occupation),r.occupation])).values()].sort((a,b)=>a.localeCompare(b,'es')),developments:[...new Set(rows.map(r=>r.development).filter(Boolean))].sort(),campaigns:[...new Set(rows.map(r=>r.campaign))].sort(),owners:[...new Map(rows.map(r=>[r.owner_id||'unassigned',{id:r.owner_id||'unassigned',name:r.owner_name}])).values()].sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'))},{headers});
  }catch{return NextResponse.json({error:'No se pudieron cargar los filtros'},{status:500,headers});}finally{await releaseSharedDatabase(sql);}
 }
 export async function POST(req:NextRequest){
