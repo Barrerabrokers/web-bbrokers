@@ -1,3 +1,4 @@
+import { orderUnitImages } from "@/lib/unit-image-order";
 import { isAccessoryUnit } from "@/lib/unit-kind";
 import { getSharedDatabase, releaseSharedDatabase } from "@/lib/database-pool";
 import { Development, Unit, DevelopmentImage, UnitImage } from "@/types";
@@ -700,7 +701,7 @@ function mapDevelopmentFromDb(data: any, includeUnits = false): Development {
 
 
 function mapUnitFromDb(data: any): Unit {
-  const images: UnitImage[] = safeRows(data.unit_images)
+  const images: UnitImage[] = orderUnitImages(safeRows(data.unit_images)
     .filter((img: any) => typeof img?.url === "string" && img.url.trim().length > 0)
     .sort(
       (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
@@ -711,7 +712,7 @@ function mapUnitFromDb(data: any): Unit {
       type: img.type,
       displayOrder: img.display_order,
       isPrimary: img.is_primary,
-    }));
+    })));
 
   return {
     id: data.id,

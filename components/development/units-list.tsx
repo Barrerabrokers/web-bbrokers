@@ -121,7 +121,7 @@ export function UnitsList({
       : safeDevelopmentFeatures;
 
   const openUnit = useCallback((unit: Unit) => {
-    setActiveImageIndex(Math.max(0, unit.images.findIndex((image) => image.type === "plano")));
+    setActiveImageIndex(0);
     setShareComments("");
     setActiveUnit(unit);
   }, []);
@@ -292,7 +292,6 @@ export function UnitsList({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredUnits.map((unit) => {
           const planImg =
-            unit.images.find((i) => i.type === "plano")?.url ||
             unit.images[0]?.url;
           const isAvailable = unit.status === "disponible";
           return (
