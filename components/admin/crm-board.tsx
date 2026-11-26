@@ -1,4 +1,5 @@
 "use client";
+import { CrmExportClients } from "@/components/admin/crm-export-clients";
 import { isCrmDevelopmentName } from "@/lib/crm-campaign";
 import { ARGENTINA_PROVINCES } from "@/lib/crm-contact-location";
 import { CrmAudioTranscriber } from "@/components/admin/crm-audio-transcriber";
@@ -1962,6 +1963,7 @@ export function CrmBoard({
   return (
     <div className="min-h-[calc(100vh-7rem)] rounded-lg border border-ink/12 bg-[#f7f7f5] text-ink sm:rounded-xl max-lg:-mx-3 max-lg:-my-3 max-lg:min-h-[calc(100vh-3.5rem)] max-lg:overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-[#efe7da]">
       <CrmContactAssistant canViewAll={canAssignTeam} />
+      <CrmExportClients />
       <div className="border-b border-ink/10 bg-[#f4efe7] px-4 pt-6 text-ink lg:hidden">
         <div className="flex items-center justify-between">
           <span className="h-11 w-11" aria-hidden="true" />
