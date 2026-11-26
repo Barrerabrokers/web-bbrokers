@@ -4,6 +4,7 @@ import {authOptions} from '@/lib/auth';
 import {canManageListings,canViewAllCrmContacts} from '@/lib/roles';
 import {getSharedDatabase,releaseSharedDatabase} from '@/lib/database-pool';
 import {campaignExpression,developmentExpression,exportFiltersSchema,exportWhere,exportPhone} from '@/lib/crm-export';
+import {buildMetaAudience} from '@/lib/crm-meta-export';
 import * as XLSX from 'xlsx';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -24,6 +25,11 @@ export async function POST(req:NextRequest){
  const rows=await sql.unsafe(`SELECT l.first_name,l.last_name,l.email,l.phone,l.country_code FROM crm_leads l LEFT JOIN developments d ON d.id=l.development_id ${q.where} ORDER BY l.created_at DESC,l.id ASC LIMIT 100001`,q.values);
  if(rows.length>100000)return NextResponse.json({error:'La selección supera 100.000 contactos. Acotá los filtros.'},{status:422,headers});
  if(!rows.length)return NextResponse.json({error:'No hay contactos que coincidan con esos filtros.'},{status:404,headers});
+ if(parsed.data.format==='meta'){
+  const result=buildMetaAudience(rows.map(r=>({first_name:r.first_name,last_name:r.last_name,email:r.email,phone:r.phone,country_code:r.country_code})));
+  if(!result.count)return NextResponse.json({error:'No hay contactos con email o teléfono internacional válido para Meta.'},{status:422,headers});
+  return new NextResponse(result.csv,{headers:{...headers,'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="clientes-meta-${new Date().toISOString().slice(0,10)}.csv"`,'X-Export-Count':String(result.count),'X-Export-Omitted':String(result.omitted),'X-Export-Duplicates':String(result.duplicates)}});
+ }
  const data=[['Nombre','Apellido','Email','Teléfono con código de país y área'],...rows.map(r=>[r.first_name||'',r.last_name||'',r.email||'',exportPhone(r.phone,r.country_code)])];
  const sheet=XLSX.utils.aoa_to_sheet(data);sheet['!cols']=[{wch:24},{wch:28},{wch:42},{wch:32}];sheet['!autofilter']={ref:sheet['!ref']!};
  // String cells preserve +/zeros and cannot execute spreadsheet formulas.

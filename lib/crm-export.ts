@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {CRM_LEAD_STATUS_VALUES,leadStatusFilterValues} from './crm-statuses';
 export const exportFiltersSchema=z.object({
+ format:z.enum(["xlsx","meta"]).default("xlsx"),
  statuses:z.array(z.string().refine(v=>CRM_LEAD_STATUS_VALUES.includes(v as any))).max(30).default([]),
  developments:z.array(z.string().min(1).max(500)).max(100).default([]),
  owners:z.array(z.string().uuid().or(z.literal('unassigned'))).max(100).default([]),
