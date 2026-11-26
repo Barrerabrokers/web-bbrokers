@@ -25,17 +25,7 @@ export function parseVibeWorkbook(buffer:Buffer):VibeUnit[]{
   const area=numeric(r[4]),semi=numeric(r[5]),outside=numeric(r[6]);
   units.push({number,floor,rooms,area,semi,outside,own:Math.round((area+semi+outside)*100)/100,amenities:numeric(r[7]),commercial:numeric(r[8]),price,down,count:status==='disponible'?10:null,payment,status,orientation:text(r[3]),offer:text(r[14]),kind});
  }
- // Ancillary rows have no status column; owner confirmed all listed are available.
- const aux=rows.findIndex(r=>r[0]==='TIPO'&&r[1]==='COCHERA');if(aux<0)throw Error('Falta cuadro complementario');
- for(const r of rows.slice(aux+1)){
-  if(text(r[0]).startsWith('*'))break;
-  for(const kind of ['cochera','baulera']){
-   const name=kind==='cochera'?text(r[1]):text(r[9]);if(!name)continue;
-   if(!(kind==='cochera'?/^Cochera \d+$/:/^(PB|Piso 10) · Baulera \d+$/).test(name))continue;
-   const number=kind==='cochera'?name:name.split(' · ')[1],area=kind==='baulera'?numeric(r[10],true):0;
-   units.push({number,floor:kind==='cochera'||name.startsWith('PB')?'PB':'10',rooms:0,area,semi:0,outside:0,own:area,amenities:0,commercial:area,price:numeric(r[kind==='cochera'?3:11],true),down:null,count:null,payment:null,status:'disponible',orientation:'',offer:kind==='cochera'?text(r[0]):'',kind});
-  }
- }
+ // Owner excludes standalone parking and storage from this inventory (2026-11-26).
  if(units.length<2||units.length>300||new Set(units.map(u=>u.number)).size!==units.length)throw Error('Lista vacía, incompleta o duplicada');
  return units;
 }

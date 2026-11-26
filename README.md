@@ -233,7 +233,7 @@ El desarrollo `vibe-bonpland` usa la lista Google Drive `12kpRGnq790xOWcEZaJApwn
 - `lib/vibe-price-list.ts` valida columnas, identidades e importes antes de modificar datos. Un formato desconocido aborta y conserva la última carga válida.
 - `lib/vibe-drive-sync.ts` actualiza unidades por número, sin duplicarlas. Solo incorpora disponibles; vendidas/reservadas existentes y unidades retiradas se conservan para historial, pero dejan de publicarse.
 - La migración `migrations/20261125_development_drive_sync.sql` crea configuración y respaldos por ejecución con RLS. `development_drive_sync.last_success` permite verificar la última actualización correcta.
-- La Variante 603 es independiente de 603/604 por confirmación comercial. Cocheras y bauleras del cuadro complementario se consideran disponibles mientras sigan en la lista; su financiación queda a consultar porque la fuente no la especifica.
+- La Variante 603 es independiente de 603/604 por confirmación comercial. Por instrucción del 26/11/2026, las cocheras y bauleras independientes quedan excluidas de la carga y sincronización. Se conserva Cabana 03 y las ofertas de departamentos con cochera incluida.
 - Imágenes y planos provienen del brochure; la sincronización de la planilla no interpreta nuevos brochures. Las unidades de nuevas plantas o variantes sin plano identificado requieren asignación manual de su plano.
 
 Pruebas: `node --test tests/vibe-price-list.test.cjs tests/parking-unit.test.cjs`.
