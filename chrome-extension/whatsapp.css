@@ -365,3 +365,9 @@ html.bb-crm-topbar-active #app {
 @media (prefers-reduced-motion:reduce) {
   #bb-crm-extension-root *, #bb-crm-extension-root *::before, #bb-crm-extension-root *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
 }
+#bb-crm-extension-root .bb-manager-template { flex-wrap:wrap; }
+#bb-crm-extension-root .bb-manager-template > div:first-child { flex:1 1 100%; min-width:0; }
+#bb-crm-extension-root .bb-template-thumbnail { display:block; width:100%; min-height:100px; padding:8px; margin-top:8px; border:1px solid var(--bb-line); border-radius:8px; background:#fff; color:var(--bb-muted); cursor:zoom-in; font-size:13px; }
+#bb-crm-extension-root .bb-template-thumbnail img { display:block; width:100%; height:180px; object-fit:contain; }
+#bb-crm-extension-root .bb-template-thumbnail.bb-thumbnail-expanded { cursor:zoom-out; }
+#bb-crm-extension-root .bb-template-thumbnail.bb-thumbnail-expanded img { height:auto; max-height:none; }

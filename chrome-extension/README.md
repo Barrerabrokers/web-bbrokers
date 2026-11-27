@@ -1,4 +1,4 @@
-# Barrera Brokers CRM para WhatsApp — 0.6.24
+# Barrera Brokers CRM para WhatsApp — 0.6.25
 
 La barra de contactos queda libre de avisos de sincronización. Abrí «Sincronización» para consultar el estado y usar sus controles dentro del panel. El cliente seleccionado incluye «Ver en CRM» para abrir su ficha en otra pestaña.
 
@@ -107,3 +107,7 @@ El botón superior **Plantillas** abre siempre el administrador, sin buscar ni e
 - El mensaje muestra el destinatario. **Preparar en el chat** deja texto/imagen listos; el agente revisa y envía en WhatsApp.
 - Avisos de guardado y errores visibles bajo la navegación; teclado con foco visible y movimiento reducido.
 - Conserva las mejoras de imágenes y guardado de 0.6.22. Recargá extensión, CRM y WhatsApp después de reemplazar la carpeta.
+
+## Imágenes de plantillas (0.6.25)
+
+Las miniaturas se descargan a través de la extensión y se muestran con una URL local, en lugar de cargar el dominio externo directamente dentro de WhatsApp. Tamaño mayor y clic para ampliar. Si la descarga falla, se puede reintentar. No modifica las imágenes guardadas en el CRM.

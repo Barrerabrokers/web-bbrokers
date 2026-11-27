@@ -764,6 +764,42 @@
     `).join("");
   }
 
+  const thumbnailCache = new Map();
+  let thumbnailQueue = Promise.resolve();
+
+  function hydrateTemplateThumbnails() {
+    for (const box of templateManagerList.querySelectorAll("[data-template-image]")) {
+      const url = box.dataset.templateImage;
+      thumbnailQueue = thumbnailQueue.then(async () => {
+        if (!box.isConnected) return;
+        try {
+          let src = thumbnailCache.get(url);
+          if (!src) {
+            const response = await chrome.runtime.sendMessage({ type: "BB_FETCH_TEMPLATE_IMAGE", url });
+            if (!response?.ok) throw new Error(response?.error || "No se pudo cargar la imagen");
+            const blob = new Blob([new Uint8Array(response.bytes)], { type: response.type });
+            src = URL.createObjectURL(blob);
+            if (thumbnailCache.size >= 40) {
+              const oldest = thumbnailCache.keys().next().value;
+              URL.revokeObjectURL(thumbnailCache.get(oldest));
+              thumbnailCache.delete(oldest);
+            }
+            thumbnailCache.set(url, src);
+          }
+          if (!box.isConnected) return;
+          const img = document.createElement("img");
+          img.alt = "Imagen de la plantilla. Pulsá para ampliar";
+          img.src = src;
+          img.addEventListener("error", () => { box.textContent = "No se pudo mostrar. Pulsá para reintentar."; thumbnailCache.delete(url); });
+          box.replaceChildren(img);
+          box.setAttribute("aria-label", "Ampliar imagen de la plantilla");
+        } catch {
+          if (box.isConnected) box.textContent = "No se pudo cargar. Pulsá para reintentar.";
+        }
+      }).catch(() => {});
+    }
+  }
+
   function renderTemplateManager() {
     setWorkspace("templates");
     createToggle.hidden = true;
@@ -776,7 +812,7 @@
             <div>
               <strong>${escapeHtml(template.name)}</strong>
               <span>${escapeHtml(String(template.body || "").replace(/\s+/g, " ").slice(0, 110))}</span>
-              ${template.imageUrls?.length ? `<small>▣ Imagen guardada</small><img src="${escapeHtml(template.imageUrls[0])}" alt="Imagen de la plantilla" loading="lazy" style="max-width:160px;max-height:100px;object-fit:contain" />` : ""}
+              ${template.imageUrls?.length ? `<small>Imagen guardada · pulsá para ampliar</small><button class="bb-template-thumbnail" type="button" data-template-image="${escapeHtml(template.imageUrls[0])}" aria-label="Cargar imagen de la plantilla">Cargando imagen…</button>` : ""}
             </div>
             <div class="bb-manager-row-actions">
               <button type="button" class="bb-manager-edit" aria-label="Editar plantilla ${escapeHtml(template.name)}">Editar</button>
@@ -785,6 +821,7 @@
           </div>
         `).join("")
       : `<p class="bb-empty">${state.templates.length ? "No hay coincidencias. Probá otra búsqueda." : "Creá tu primera plantilla con Nueva plantilla. Podés incluir texto e imagen."}</p>`;
+    hydrateTemplateThumbnails();
   }
 
   function managerHasUnsavedChanges() {
@@ -1692,6 +1729,15 @@
   });
 
   templateManagerList.addEventListener("click", async (event) => {
+    const thumbnail = event.target.closest(".bb-template-thumbnail");
+    if (thumbnail) {
+      if (thumbnail.querySelector("img")) {
+        const expanded = thumbnail.classList.toggle("bb-thumbnail-expanded");
+        thumbnail.setAttribute("aria-pressed", String(expanded));
+        thumbnail.setAttribute("aria-label", expanded ? "Reducir imagen" : "Ampliar imagen");
+      } else hydrateTemplateThumbnails();
+      return;
+    }
     const row = event.target.closest("[data-manager-template-id]");
     const template = state.templates.find((item) => String(item.id) === row?.dataset.managerTemplateId);
     const editButton = event.target.closest(".bb-manager-edit");
