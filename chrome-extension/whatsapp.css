@@ -335,3 +335,33 @@ html.bb-crm-topbar-active #app {
 .bb-contact-crm-link { display: inline-flex; align-items: center; min-height: 40px; margin-top: 6px; color: #005c5c; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .bb-open-contact-crm { text-decoration: none; color: #83e1c9; }
 @media (max-width: 1200px) { .bb-topbar-actions .bb-topbar-action, .bb-topbar-actions .bb-edit-tabs { padding-inline: 10px; font-size: 13px; } }
+
+/* Agent workspace: stable navigation and readable feedback. */
+#bb-crm-extension-root .bb-workspace-nav { display:flex; gap:4px; padding:10px 16px; background:#fff; border-bottom:1px solid var(--bb-line); flex-shrink:0; }
+#bb-crm-extension-root .bb-workspace-nav button { flex:1; min-height:40px; border:0; border-radius:8px; background:transparent; color:var(--bb-muted); font:600 13px/1.3 system-ui,sans-serif; cursor:pointer; }
+#bb-crm-extension-root .bb-workspace-nav button[aria-pressed="true"] { background:#e6f1ee; color:#005c5c; }
+#bb-crm-extension-root .bb-status { flex-shrink:0; margin:0; padding:12px 20px; border-radius:0; font-size:13px; line-height:1.45; max-height:120px; overflow:auto; }
+#bb-crm-extension-root .bb-filter-label { display:block; margin:16px 0 12px; font:600 13px/1.5 system-ui,sans-serif; }
+#bb-crm-extension-root .bb-filter-label input { display:block; width:100%; min-height:42px; margin-top:6px; padding:10px 12px; border:1px solid var(--bb-line); border-radius:8px; background:white; color:var(--bb-ink); font:400 14px/1.4 system-ui,sans-serif; }
+#bb-crm-extension-root input::placeholder, #bb-crm-extension-root textarea::placeholder { color:#665f59; opacity:1; }
+#bb-crm-extension-root :is(button,a,input,textarea,select):focus-visible { outline:2px solid #005c5c; outline-offset:2px; }
+#bb-crm-extension-root .bb-topbar :is(button,a):focus-visible { outline-color:#52c7b0; outline-offset:-3px; }
+#bb-crm-extension-root button:disabled { cursor:wait; opacity:.6; }
+#bb-crm-extension-root .bb-manager-new { width:100%; min-height:42px; margin:12px 0; }
+#bb-crm-extension-root .bb-manager-editing-title { margin:0 0 12px; font:650 15px/1.4 system-ui,sans-serif; overflow-wrap:anywhere; }
+#bb-crm-extension-root .bb-template-manager-form { padding:16px 0; margin-bottom:16px; border-bottom:1px solid var(--bb-line); }
+#bb-crm-extension-root .bb-template-manager-form :is(input:not([type=file]),textarea) { font-size:14px; }
+#bb-crm-extension-root .bb-manager-row-actions button { min-height:36px; }
+#bb-crm-extension-root .bb-template { min-height:64px; padding:12px; text-align:left; }
+#bb-crm-extension-root .bb-template :is(strong,span), #bb-crm-extension-root .bb-manager-template :is(strong,span) { overflow-wrap:anywhere; }
+#bb-crm-extension-root .bb-recipient { padding:10px 12px; background:#e6f1ee; color:#005c5c; border-radius:8px; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+#bb-crm-extension-root .bb-help { color:var(--bb-muted); font-size:13px; line-height:1.5; }
+#bb-crm-extension-root .bb-contact-templates { display:block; min-height:40px; margin:8px 0; padding:8px 12px; border-radius:8px; background:#005c5c; color:white; }
+@media (max-width:1050px) {
+  #bb-crm-extension-root .bb-topbar-actions { max-width:55vw; overflow-x:auto; }
+  #bb-crm-extension-root .bb-topbar-action { padding:0 12px; }
+  #bb-crm-extension-root .bb-topbar-brand { width:76px; flex-basis:76px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #bb-crm-extension-root *, #bb-crm-extension-root *::before, #bb-crm-extension-root *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+}

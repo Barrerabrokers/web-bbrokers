@@ -1,4 +1,4 @@
-# Barrera Brokers CRM para WhatsApp — 0.6.23
+# Barrera Brokers CRM para WhatsApp — 0.6.24
 
 La barra de contactos queda libre de avisos de sincronización. Abrí «Sincronización» para consultar el estado y usar sus controles dentro del panel. El cliente seleccionado incluye «Ver en CRM» para abrir su ficha en otra pestaña.
 
@@ -99,3 +99,11 @@ Editar texto conserva las imágenes existentes. Elegir una imagen nueva reemplaz
 ## Editor independiente (0.6.23)
 
 El botón superior **Plantillas** abre siempre el administrador, sin buscar ni exigir un contacto o chat abierto. Podés crear y editar texto e imágenes con la sesión del CRM activa. Para enviar, usá **Usar plantilla con este cliente** desde la ficha: abre el selector personalizado para ese contacto.
+
+## Espacio de trabajo para agentes (0.6.24)
+
+- **Contacto**: datos del cliente y selección de mensajes para su chat.
+- **Plantillas**: biblioteca independiente, búsqueda por nombre o contenido y botón Nueva plantilla. Pulsá Editar para abrir el formulario. Cerrar editor conserva lo escrito; Nueva plantilla avisa antes de descartarlo.
+- El mensaje muestra el destinatario. **Preparar en el chat** deja texto/imagen listos; el agente revisa y envía en WhatsApp.
+- Avisos de guardado y errores visibles bajo la navegación; teclado con foco visible y movimiento reducido.
+- Conserva las mejoras de imágenes y guardado de 0.6.22. Recargá extensión, CRM y WhatsApp después de reemplazar la carpeta.

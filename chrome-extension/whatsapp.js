@@ -76,10 +76,15 @@
       <header class="bb-header">
         <div>
           <strong>Barrera Brokers</strong>
-          <span>CRM conectado a WhatsApp</span>
+          <span>Tu espacio de trabajo en WhatsApp</span>
         </div>
         <button class="bb-icon-button bb-close" type="button" aria-label="Cerrar panel">×</button>
       </header>
+      <nav class="bb-workspace-nav" aria-label="Herramientas del agente">
+        <button class="bb-nav-contact" type="button" aria-pressed="true">Contacto</button>
+        <button class="bb-nav-templates" type="button" aria-pressed="false">Plantillas</button>
+      </nav>
+      <div class="bb-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
       <main class="bb-content">
         <form class="bb-search">
           <label for="bb-phone">Buscar cliente</label>
@@ -90,7 +95,7 @@
           <p>Buscá por nombre, apellido, teléfono o correo electrónico.</p>
         </form>
         <button class="bb-create-toggle" type="button">＋ Crear nuevo cliente</button>
-        <div class="bb-status" role="status">Abrí el panel para conectar con el CRM.</div>
+
         <section class="bb-results" hidden></section>
         <section class="bb-client" hidden></section>
         <section class="bb-lead-context" hidden></section>
@@ -148,10 +153,12 @@
         </section>
         <section class="bb-template-manager" hidden>
           <div class="bb-section-heading">
-            <div><h2>Editor de plantillas</h2><p>Creá y organizá los mensajes disponibles para el equipo.</p></div>
+            <div><h2>Biblioteca de plantillas</h2><p>Mensajes del equipo. Podés editarlos sin elegir un contacto.</p></div>
             <button class="bb-text-button bb-close-template-manager" type="button">Cerrar</button>
           </div>
-          <form class="bb-template-manager-form">
+          <button class="bb-primary bb-manager-new" type="button">＋ Nueva plantilla</button>
+          <form class="bb-template-manager-form" hidden>
+            <h3 class="bb-manager-editing-title">Nueva plantilla</h3>
             <label><span>Título</span><input name="name" maxlength="80" placeholder="Ej. Primer contacto" required /></label>
             <label><span>Mensaje</span><textarea name="body" placeholder="Escribí la plantilla respetando los párrafos…" required></textarea></label>
             <div class="bb-template-manager-tools">
@@ -163,9 +170,10 @@
             <div class="bb-manager-file" hidden></div>
             <div class="bb-manager-form-actions">
               <button class="bb-primary bb-manager-save" type="submit">Guardar plantilla</button>
-              <button class="bb-manager-cancel-edit" type="button" hidden>Cancelar edición</button>
+              <button class="bb-manager-cancel-edit" type="button">Cerrar editor</button>
             </div>
           </form>
+          <label class="bb-filter-label">Buscar plantillas<input class="bb-manager-search" type="search" placeholder="Nombre o contenido" /></label>
           <div class="bb-manager-list-heading"><strong>Plantillas guardadas</strong><span class="bb-manager-count"></span></div>
           <div class="bb-template-manager-list"></div>
         </section>
@@ -180,13 +188,15 @@
           </button>
           <button class="bb-text-button bb-manage-templates" type="button">Administrar plantillas</button>
           <div class="bb-template-label">Plantillas</div>
+          <label class="bb-filter-label">Buscar un mensaje<input class="bb-template-search" type="search" placeholder="Nombre o contenido" /></label>
           <div class="bb-template-list"></div>
         </section>
         <section class="bb-preview" hidden>
           <div class="bb-section-heading">
-            <h2>Vista previa</h2>
+            <h2>Preparar mensaje</h2>
             <button class="bb-text-button bb-back" type="button">Cambiar</button>
           </div>
+          <p class="bb-recipient"></p>
           <div class="bb-compose-tools">
             <button class="bb-insert-variable" type="button" data-variable="{{cliente_nombre}}">＋ Nombre del cliente</button>
             <button class="bb-insert-variable" type="button" data-variable="{{propietario_contacto}}">＋ Propietario del contacto</button>
@@ -210,7 +220,8 @@
             </label>
             <div class="bb-image-preview" hidden></div>
           </div>
-          <button class="bb-primary bb-insert" type="button">Continuar a WhatsApp</button>
+          <p class="bb-help">Revisá el texto y la imagen. El envío se confirma en WhatsApp.</p>
+          <button class="bb-primary bb-insert" type="button">Preparar en el chat</button>
           <p class="bb-helper">WhatsApp abrirá su vista previa para que confirmes el texto y la imagen antes de enviar.</p>
         </section>
       </main>
@@ -314,6 +325,7 @@
   function setStatus(message, kind = "neutral") {
     status.textContent = message;
     status.dataset.kind = kind;
+    status.setAttribute("role", kind === "error" ? "alert" : "status");
     status.hidden = false;
   }
 
@@ -572,6 +584,7 @@
   }
 
   function renderLead(lead) {
+    setWorkspace("contact");
     if (state.lead?.id !== lead.id) clearSelectedImage();
     state.lead = lead;
     updateCrmContactLink(lead);
@@ -720,7 +733,19 @@
     editLeadForm.elements.firstName.focus();
   }
 
+  function matchingTemplates(query) {
+    const search = normalizeText(query || "");
+    return state.templates.filter(item => !search || normalizeText(`${item.name} ${item.body}`).includes(search));
+  }
+
+  function setWorkspace(section) {
+    $(".bb-nav-contact").setAttribute("aria-pressed", String(section === "contact"));
+    $(".bb-nav-templates").setAttribute("aria-pressed", String(section === "templates"));
+  }
+
   function renderTemplates() {
+    if (!state.lead) return;
+    setWorkspace("contact");
     preview.hidden = true;
     templatesSection.hidden = false;
     $(".bb-template-count").textContent = `${state.templates.length}`;
@@ -728,7 +753,10 @@
       templateList.innerHTML = `<p class="bb-empty">Todavía no hay plantillas de WhatsApp en el CRM.</p>`;
       return;
     }
-    templateList.innerHTML = state.templates.map((template) => `
+    const matches = matchingTemplates($(".bb-template-search").value);
+    $(".bb-template-count").textContent = `${matches.length} de ${state.templates.length}`;
+    if (!matches.length) { templateList.innerHTML = '<p class="bb-empty">No hay coincidencias. Probá otro nombre o palabra.</p>'; return; }
+    templateList.innerHTML = matches.map((template) => `
       <button class="bb-template" type="button" data-template-id="${escapeHtml(template.id)}">
         <strong>${escapeHtml(template.name)}</strong>
         <span>${escapeHtml(applyVariables(template.body, state.lead).slice(0, 92))}</span>
@@ -737,11 +765,13 @@
   }
 
   function renderTemplateManager() {
+    setWorkspace("templates");
     createToggle.hidden = true;
     templateManager.hidden = false;
-    $(".bb-manager-count").textContent = `${state.templates.length}`;
-    templateManagerList.innerHTML = state.templates.length
-      ? state.templates.map((template) => `
+    const matches = matchingTemplates($(".bb-manager-search").value);
+    $(".bb-manager-count").textContent = `${matches.length} de ${state.templates.length}`;
+    templateManagerList.innerHTML = matches.length
+      ? matches.map((template) => `
           <div class="bb-manager-template" data-manager-template-id="${escapeHtml(template.id)}">
             <div>
               <strong>${escapeHtml(template.name)}</strong>
@@ -754,7 +784,15 @@
             </div>
           </div>
         `).join("")
-      : '<p class="bb-empty">Todavía no hay plantillas de WhatsApp.</p>';
+      : `<p class="bb-empty">${state.templates.length ? "No hay coincidencias. Probá otra búsqueda." : "Creá tu primera plantilla con Nueva plantilla. Podés incluir texto e imagen."}</p>`;
+  }
+
+  function managerHasUnsavedChanges() {
+    const form = templateManagerForm;
+    const saved = state.templates.find(item => String(item.id) === form.dataset.editingTemplateId);
+    return form.elements.name.value.trim() !== (saved?.name || "").trim()
+      || form.elements.body.value.trim() !== (saved?.body || "").trim()
+      || Boolean(form.elements.image.files?.length);
   }
 
   function resetTemplateManagerForm() {
@@ -763,7 +801,7 @@
     $(".bb-manager-file").hidden = true;
     $(".bb-manager-file").textContent = "";
     $(".bb-manager-save").textContent = "Guardar plantilla";
-    $(".bb-manager-cancel-edit").hidden = true;
+    $(".bb-manager-cancel-edit").hidden = false;
   }
 
   async function selectTemplate(templateId) {
@@ -772,6 +810,7 @@
     state.selectedTemplate = template;
     templatesSection.hidden = true;
     preview.hidden = false;
+    $(".bb-recipient").textContent = `Para: ${fullName(state.lead)} · ${state.lead.countryCode || ""} ${state.lead.phone || ""}`;
     saveTemplateForm.hidden = true;
     messageInput.value = applyVariables(template.body, state.lead);
     scheduleDraftSave();
@@ -799,6 +838,7 @@
     state.selectedTemplate = null;
     templatesSection.hidden = true;
     preview.hidden = false;
+    $(".bb-recipient").textContent = `Para: ${fullName(state.lead)} · ${state.lead.countryCode || ""} ${state.lead.phone || ""}`;
     saveTemplateForm.hidden = true;
     messageInput.value = "";
     attachments.innerHTML = "";
@@ -1267,6 +1307,24 @@
   }
 
   $(".bb-open-templates").addEventListener("click", () => void openTemplates());
+  $(".bb-nav-templates").addEventListener("click", () => void openTemplates());
+  $(".bb-nav-contact").addEventListener("click", () => {
+    templateManager.hidden = true;
+    setWorkspace("contact");
+    if (state.lead) renderLead(state.lead);
+    else { searchForm.hidden = false; phoneInput.focus(); setStatus("Buscá un cliente o abrí su conversación y pulsá Ver cliente."); }
+  });
+  $(".bb-manager-search").addEventListener("input", renderTemplateManager);
+  $(".bb-template-search").addEventListener("input", renderTemplates);
+  $(".bb-manager-new").addEventListener("click", () => {
+    const form = templateManagerForm;
+    const dirty = managerHasUnsavedChanges();
+    if (dirty && !window.confirm("¿Abrir una plantilla nueva? Los cambios que no guardaste en este editor se descartarán.")) return;
+    resetTemplateManagerForm();
+    $(".bb-manager-editing-title").textContent = "Nueva plantilla";
+    form.hidden = false;
+    form.elements.name.focus();
+  });
 
   $(".bb-topbar-create").addEventListener("click", async () => {
     panel.hidden = false;
@@ -1613,6 +1671,7 @@
       state.templates = [template, ...state.templates.filter((item) => item.id !== template.id)];
       if (state.selectedTemplate?.id === template.id) state.selectedTemplate = template;
       templateManagerForm.dataset.editingTemplateId = String(template.id);
+      $(".bb-manager-editing-title").textContent = `Editar: ${template.name}`;
       templateManagerForm.elements.image.value = "";
       $(".bb-manager-cancel-edit").hidden = false;
       $(".bb-manager-file").textContent = template.imageUrls?.length ? "Imagen guardada en el CRM. Elegí otra para reemplazarla." : "";
@@ -1628,8 +1687,8 @@
   });
 
   $(".bb-manager-cancel-edit").addEventListener("click", () => {
-    resetTemplateManagerForm();
-    templateManagerForm.elements.name.focus();
+    templateManagerForm.hidden = true;
+    $(".bb-manager-new").focus();
   });
 
   templateManagerList.addEventListener("click", async (event) => {
@@ -1637,6 +1696,9 @@
     const template = state.templates.find((item) => String(item.id) === row?.dataset.managerTemplateId);
     const editButton = event.target.closest(".bb-manager-edit");
     if (editButton && template) {
+      if (managerHasUnsavedChanges() && !window.confirm("¿Cambiar de plantilla? Los cambios sin guardar del editor se descartarán.")) return;
+      templateManagerForm.hidden = false;
+      $(".bb-manager-editing-title").textContent = `Editar: ${template.name}`;
       templateManagerForm.dataset.editingTemplateId = String(template.id);
       templateManagerForm.elements.name.value = template.name || "";
       templateManagerForm.elements.body.value = template.body || "";
@@ -1771,7 +1833,7 @@
       setStatus(error.message, "error");
     } finally {
       button.disabled = false;
-      button.textContent = "Continuar a WhatsApp";
+      button.textContent = "Preparar en el chat";
     }
   });
 
