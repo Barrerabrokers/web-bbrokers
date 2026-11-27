@@ -4,6 +4,7 @@
   const state = {
     leads: [],
     templates: [],
+    templatesRevision: 0,
     lead: null,
     selectedTemplate: null,
     imageFile: null,
@@ -496,6 +497,7 @@
     if (state.contextLoadPromise) return state.contextLoadPromise;
     if (!silent) setStatus("Conectando con el CRM…");
     state.contextLoadPromise = (async () => {
+      const templatesRevision = state.templatesRevision;
       const response = await chrome.runtime.sendMessage({ type: "BB_LOAD_CONTEXT" });
       if (!response?.ok || response.leads?.__error || response.templates?.__error) {
         if (!silent) {
@@ -506,7 +508,7 @@
       state.leads = response.leads?.leads || [];
       state.actorId = response.actorId;
       state.actorName = response.actorName || "tu usuario";
-      state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
+      if (templatesRevision === state.templatesRevision) state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
       if (Array.isArray(response.preferences?.featuredLeadIds)) {
         state.featuredLeadIds = response.preferences.featuredLeadIds.map(String);
       }
@@ -744,7 +746,7 @@
             <div>
               <strong>${escapeHtml(template.name)}</strong>
               <span>${escapeHtml(String(template.body || "").replace(/\s+/g, " ").slice(0, 110))}</span>
-              ${template.imageUrls?.length ? '<small>▣ Incluye imagen</small>' : ""}
+              ${template.imageUrls?.length ? `<small>▣ Imagen guardada</small><img src="${escapeHtml(template.imageUrls[0])}" alt="Imagen de la plantilla" loading="lazy" style="max-width:160px;max-height:100px;object-fit:contain" />` : ""}
             </div>
             <div class="bb-manager-row-actions">
               <button type="button" class="bb-manager-edit" aria-label="Editar plantilla ${escapeHtml(template.name)}">Editar</button>
@@ -1228,13 +1230,14 @@
     launcher.setAttribute("aria-expanded", "true");
     setStatus("Cargando plantillas…");
     const revision = state.uiRevision;
+    const templatesRevision = state.templatesRevision;
     const response = await chrome.runtime.sendMessage({ type: "BB_LOAD_TEMPLATES" });
     if (revision !== state.uiRevision) return;
     if (!response?.ok || response.templates?.__error) {
       setStatus(response?.error || response.templates?.__error || "No se pudieron cargar las plantillas.", "error");
       return;
     }
-    state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
+    if (templatesRevision === state.templatesRevision) state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
     if (!state.lead) await showCrmContactForOpenConversation();
     if (revision !== state.uiRevision) return;
     if (state.lead) {
@@ -1568,6 +1571,7 @@
   templateManagerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = $(".bb-manager-save");
+    if (button.disabled) return;
     const name = templateManagerForm.elements.name.value.trim();
     const body = templateManagerForm.elements.body.value.trim();
     const file = templateManagerForm.elements.image.files?.[0] || null;
@@ -1592,15 +1596,21 @@
       if (!response?.ok) throw new Error(response?.error || "No se pudo guardar la plantilla.");
       const template = response.result?.template;
       if (!template) throw new Error("El CRM no devolvió la plantilla creada.");
+      state.templatesRevision += 1;
       state.templates = [template, ...state.templates.filter((item) => item.id !== template.id)];
-      resetTemplateManagerForm();
+      if (state.selectedTemplate?.id === template.id) state.selectedTemplate = template;
+      templateManagerForm.dataset.editingTemplateId = String(template.id);
+      templateManagerForm.elements.image.value = "";
+      $(".bb-manager-cancel-edit").hidden = false;
+      $(".bb-manager-file").textContent = template.imageUrls?.length ? "Imagen guardada en el CRM. Elegí otra para reemplazarla." : "";
+      $(".bb-manager-file").hidden = !template.imageUrls?.length;
       renderTemplateManager();
       setStatus(`Plantilla “${template.name}” guardada.`, "success");
     } catch (error) {
       setStatus(error.message, "error");
     } finally {
       button.disabled = false;
-      button.textContent = editingId ? "Guardar cambios" : "Guardar plantilla";
+      button.textContent = templateManagerForm.dataset.editingTemplateId ? "Guardar cambios" : "Guardar plantilla";
     }
   });
 
@@ -1638,6 +1648,7 @@
       button.textContent = "Eliminando…";
       const response = await chrome.runtime.sendMessage({ type: "BB_DELETE_TEMPLATE", templateId: template.id });
       if (!response?.ok) throw new Error(response?.error || "No se pudo eliminar la plantilla.");
+      state.templatesRevision += 1;
       state.templates = state.templates.filter((item) => item.id !== template.id);
       if (templateManagerForm.dataset.editingTemplateId === String(template.id)) resetTemplateManagerForm();
       renderTemplateManager();
@@ -1693,7 +1704,9 @@
       if (!response?.ok) throw new Error(response?.error || "No se pudo guardar la plantilla.");
       const template = response.result?.template;
       if (!template) throw new Error("El CRM no devolvió la plantilla creada.");
+      state.templatesRevision += 1;
       state.templates = [template, ...state.templates.filter((item) => item.id !== template.id)];
+      if (state.selectedTemplate?.id === template.id) state.selectedTemplate = template;
       saveTemplateForm.reset();
       saveTemplateForm.hidden = true;
       setStatus(`Plantilla “${template.name}” guardada en el CRM.`, "success");

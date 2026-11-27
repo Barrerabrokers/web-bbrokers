@@ -172,7 +172,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "BB_CREATE_TEMPLATE") {
     (async () => {
-      let imageUrls = [];
+      let imageUrls = Array.isArray(message.template?.imageUrls) ? [...message.template.imageUrls] : [];
       if (message.image) {
         const upload = await callCrm("/api/upload", { method: "POST", uploadImage: message.image });
         if (upload?.__error || !upload?.urls?.[0]) throw new Error(upload?.__error || "No se pudo guardar la imagen.");

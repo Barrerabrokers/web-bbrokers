@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     delete options.headers;
   }
 
-  fetch(message.path, { ...options, credentials: "include" })
+  fetch(message.path, { ...options, credentials: "include", cache: "no-store" })
     .then(async (response) => {
       const data = await response.json().catch(() => null);
       if (!response.ok) {
