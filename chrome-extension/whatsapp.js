@@ -170,13 +170,14 @@
         </section>
         <section class="bb-templates" hidden>
           <div class="bb-section-heading">
-            <h2>Elegí cómo escribir</h2>
+            <h2>Plantillas para este contacto</h2>
             <span class="bb-template-count"></span>
           </div>
           <button class="bb-new-message" type="button">
             <strong>＋ Nuevo mensaje</strong>
             <span>Escribí un texto desde cero</span>
           </button>
+          <button class="bb-text-button bb-manage-templates" type="button">Administrar plantillas</button>
           <div class="bb-template-label">Plantillas</div>
           <div class="bb-template-list"></div>
         </section>
@@ -601,6 +602,7 @@
         </div>
         <span class="bb-client-email">${escapeHtml(lead.email || "Sin email")}</span>
         <small>${escapeHtml(contactPhone)}</small>
+        <button class="bb-text-button bb-contact-templates" type="button">Usar plantilla con este cliente</button>
         <a class="bb-contact-crm-link" href="https://barrerabrokers.com/admin/crm/${encodeURIComponent(lead.id)}" target="_blank" rel="noopener noreferrer">Ver en CRM ↗</a>
       </div>
     `;
@@ -725,9 +727,9 @@
       return;
     }
     templateList.innerHTML = state.templates.map((template) => `
-      <button class="bb-template" type="button" data-template-id="${template.id}">
-        <strong>${template.name}</strong>
-        <span>${applyVariables(template.body, state.lead).slice(0, 92)}</span>
+      <button class="bb-template" type="button" data-template-id="${escapeHtml(template.id)}">
+        <strong>${escapeHtml(template.name)}</strong>
+        <span>${escapeHtml(applyVariables(template.body, state.lead).slice(0, 92))}</span>
       </button>
     `).join("");
   }
@@ -1233,17 +1235,20 @@
       return;
     }
     state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
-    searchForm.hidden = true;
-    results.hidden = true;
-    client.hidden = true;
-    leadContext.hidden = true;
-    createClient.hidden = true;
-    if (editClient) editClient.hidden = true;
-    templatesSection.hidden = true;
-    preview.hidden = true;
-    status.hidden = true;
-    renderTemplateManager();
-    templateManagerForm.elements.name.focus();
+    if (!state.lead) await showCrmContactForOpenConversation();
+    if (revision !== state.uiRevision) return;
+    if (state.lead) {
+      templateManager.hidden = true;
+      client.hidden = false;
+      leadContext.hidden = false;
+      status.hidden = true;
+      renderTemplates();
+      templatesSection.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    setStatus("Seleccioná o vinculá el contacto para usar una plantilla.");
+    searchForm.hidden = false;
+    return;
   });
 
 
@@ -1397,6 +1402,10 @@
   });
 
   client.addEventListener("click", async (event) => {
+    if (event.target.closest(".bb-contact-templates")) {
+      $(".bb-open-templates").click();
+      return;
+    }
     const editBtn = event.target.closest(".bb-edit-lead-btn");
     if (editBtn && state.lead) {
       openEditLead(state.lead);
@@ -1514,10 +1523,17 @@
     if (button) void selectTemplate(button.dataset.templateId);
   });
 
+  $(".bb-manage-templates").addEventListener("click", () => {
+    templatesSection.hidden = true;
+    preview.hidden = true;
+    renderTemplateManager();
+  });
+
   $(".bb-close-template-manager").addEventListener("click", () => {
     templateManager.hidden = true;
     searchForm.hidden = false;
     createToggle.hidden = false;
+    if (state.lead) { renderTemplates(); return; }
     setStatus("Buscá un cliente o seleccioná una conversación de WhatsApp.");
   });
 
@@ -1726,8 +1742,10 @@
       await continueInClientChat(message);
     } catch (error) {
       button.disabled = false;
-      button.textContent = "Continuar a WhatsApp";
       setStatus(error.message, "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Continuar a WhatsApp";
     }
   });
 

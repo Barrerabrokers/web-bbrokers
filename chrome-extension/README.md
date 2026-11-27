@@ -1,4 +1,4 @@
-# Barrera Brokers CRM para WhatsApp — 0.6.20
+# Barrera Brokers CRM para WhatsApp — 0.6.21
 
 La barra de contactos queda libre de avisos de sincronización. Abrí «Sincronización» para consultar el estado y usar sus controles dentro del panel. El cliente seleccionado incluye «Ver en CRM» para abrir su ficha en otra pestaña.
 
@@ -87,3 +87,7 @@ Validación: sintaxis y pruebas de captura con el DOM actual y el anterior, mens
 ## Estabilidad de edición (0.6.20)
 
 La sincronización de destacados actualiza la estrella sin abrir la ficha ni restaurar borradores. Las cargas pendientes no cambian de pantalla después de una interacción y los borradores no reemplazan texto escrito mientras se recuperan. No requiere cambios del servidor.
+
+## Plantillas desde el contacto (0.6.21)
+
+En la ficha del cliente, pulsá **Usar plantilla con este cliente**, elegí el mensaje y revisá el texto personalizado y la imagen. **Continuar a WhatsApp** lo prepara en el chat; pulsá Enviar en WhatsApp para enviarlo. El botón superior Plantillas ahora abre el selector para el contacto; la edición se encuentra en Administrar plantillas. El botón se vuelve a habilitar después de preparar un mensaje.
