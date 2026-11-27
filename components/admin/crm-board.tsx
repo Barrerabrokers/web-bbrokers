@@ -1673,18 +1673,17 @@ export function CrmBoard({
                 <span className="truncate">{formattedLeadPhone(lead)}</span>
               </button>
             ) : (
-              <button
-                type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openLeadWhatsAppComposer(lead);
-              }}
-              onDoubleClick={(event) => event.stopPropagation()}
+              <a
+                href={lead.phone?.replace(/\D/g, "") ? `https://web.whatsapp.com/send?phone=${`${normalizeDialCode(lead.countryCode)}${lead.phone}`.replace(/\D/g, "")}` : undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
                 className="inline-flex h-9 max-w-full min-w-0 items-center rounded-md px-2 text-left underline-offset-4 transition-colors hover:bg-[#006b6b]/8 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#006b6b]/35"
-                title="Preparar WhatsApp con plantilla"
+                title="Abrir conversación en WhatsApp Web"
               >
                 <span className="truncate">{formattedLeadPhone(lead)}</span>
-              </button>
+              </a>
             )}
             {phoneEditor?.leadId === lead.id && phoneEditor.column === column && (
               <InlinePhoneEditor
