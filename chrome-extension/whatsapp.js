@@ -43,7 +43,7 @@
       <div class="bb-topbar-actions">
         <a class="bb-topbar-action bb-open-contact-crm" target="_blank" rel="noopener noreferrer" hidden>Ver en CRM</a>
         <button class="bb-topbar-action bb-open-sync" type="button">Sincronización</button>
-        <button class="bb-topbar-action bb-open-templates" type="button" aria-label="Abrir plantillas">
+        <button class="bb-topbar-action bb-open-templates" type="button" aria-label="Administrar plantillas sin seleccionar contacto">
           <span aria-hidden="true">▤</span> Plantillas
         </button>
         <button class="bb-topbar-action bb-topbar-create" type="button" aria-label="Crear un nuevo cliente">
@@ -1225,7 +1225,7 @@
     }
   });
 
-  $(".bb-open-templates").addEventListener("click", async () => {
+  async function openTemplates(forContact = false) {
     panel.hidden = false;
     launcher.setAttribute("aria-expanded", "true");
     setStatus("Cargando plantillas…");
@@ -1238,6 +1238,19 @@
       return;
     }
     if (templatesRevision === state.templatesRevision) state.templates = (response.templates?.templates || []).filter((item) => item.channel === "whatsapp");
+    if (!forContact) {
+      searchForm.hidden = true;
+      results.hidden = true;
+      client.hidden = true;
+      leadContext.hidden = true;
+      createClient.hidden = true;
+      if (editClient) editClient.hidden = true;
+      templatesSection.hidden = true;
+      preview.hidden = true;
+      status.hidden = true;
+      renderTemplateManager();
+      return;
+    }
     if (!state.lead) await showCrmContactForOpenConversation();
     if (revision !== state.uiRevision) return;
     if (state.lead) {
@@ -1251,9 +1264,9 @@
     }
     setStatus("Seleccioná o vinculá el contacto para usar una plantilla.");
     searchForm.hidden = false;
-    return;
-  });
+  }
 
+  $(".bb-open-templates").addEventListener("click", () => void openTemplates());
 
   $(".bb-topbar-create").addEventListener("click", async () => {
     panel.hidden = false;
@@ -1406,7 +1419,7 @@
 
   client.addEventListener("click", async (event) => {
     if (event.target.closest(".bb-contact-templates")) {
-      $(".bb-open-templates").click();
+      void openTemplates(true);
       return;
     }
     const editBtn = event.target.closest(".bb-edit-lead-btn");
